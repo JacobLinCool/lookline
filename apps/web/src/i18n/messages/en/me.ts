@@ -6,6 +6,23 @@ export const me = {
   allCount: (n: number) => `All ${n}`,
   sectionUnavailable: 'This part could not be loaded.',
 
+  photo: {
+    title: 'Reference photo',
+    currentAlt: 'Your saved reference photo',
+    empty: 'No saved photo',
+    hint: 'Private. Used only when you choose to generate a Look or outfit preview on yourself.',
+    add: 'Add photo',
+    replace: 'Replace photo',
+    saving: 'Saving photo…',
+    updated: 'Your reference photo was updated.',
+    errors: {
+      required: 'Choose a photo first.',
+      type: 'Use a PNG, JPEG, or WebP image.',
+      size: 'Keep the photo under 15 MB.',
+      save: 'The photo could not be saved. Try again.',
+    } as Record<string, string>,
+  },
+
   looks: {
     title: 'Looks',
     empty: 'No Looks yet',

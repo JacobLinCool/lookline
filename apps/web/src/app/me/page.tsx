@@ -26,6 +26,7 @@ import { Circle } from '@/components/me/circle'
 import { EditionsGrid, type EditionItem } from '@/components/me/editions'
 import { ProfileCard } from '@/components/me/profile-card'
 import { PreviewGrid } from '@/components/me/previews'
+import { SavedPhotoForm } from '@/components/me/saved-photo-form'
 import { Wardrobe, type WardrobeRow } from '@/components/me/wardrobe'
 import { callEngine } from '@/components/trends/engine-guard'
 import { getI18n } from '@/i18n/server'
@@ -199,6 +200,11 @@ export default async function MePage({
   const unavailable = <Notice tone="warning">{t.me.sectionUnavailable}</Notice>
   const moreLink =
     'text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-ink'
+  const photoNotice = params.photo === 'updated'
+  const photoError = Array.isArray(params.photoError) ? params.photoError[0] : params.photoError
+  const photoErrorMessage = photoError
+    ? (t.me.photo.errors[photoError] ?? t.me.photo.errors.save)
+    : null
 
   return (
     <Container className="pb-16">
@@ -214,6 +220,30 @@ export default async function MePage({
           {t.me.newLook}
         </Button>
       </header>
+
+      {photoNotice ? (
+        <Notice tone="success" className="mb-4">
+          {t.me.photo.updated}
+        </Notice>
+      ) : null}
+      {photoErrorMessage ? (
+        <Notice tone="warning" className="mb-4">
+          {photoErrorMessage}
+        </Notice>
+      ) : null}
+
+      <Section title={t.me.photo.title} rule={false}>
+        <SavedPhotoForm
+          hasPhoto={Boolean(user.photoPath)}
+          labels={{
+            currentAlt: t.me.photo.currentAlt,
+            empty: t.me.photo.empty,
+            hint: t.me.photo.hint,
+            save: user.photoPath ? t.me.photo.replace : t.me.photo.add,
+            saving: t.me.photo.saving,
+          }}
+        />
+      </Section>
 
       <Section
         title={t.me.looks.title}
