@@ -26,7 +26,7 @@
  *   OPENAI_TEXT_MODEL    default gpt-5.6-luna
  *   IMG_OUT              webp folder (default <repo>/data/hm/webp)
  *   VISION_LIMIT         stop after this many articles (a pilot run)
- *   VISION_CONCURRENCY   in-flight requests (default 12)
+ *   VISION_CONCURRENCY   in-flight requests (default 32)
  */
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -59,7 +59,7 @@ const model = process.env['OPENAI_TEXT_MODEL'] || 'gpt-5.6-luna'
 const webpDir =
   process.env['IMG_OUT'] ?? fileURLToPath(new URL('../../../data/hm/webp', import.meta.url))
 const limit = Number(process.env['VISION_LIMIT'] ?? 0) || null
-const concurrency = Number(process.env['VISION_CONCURRENCY'] ?? 12)
+const concurrency = Number(process.env['VISION_CONCURRENCY'] ?? 32)
 
 /** Per million tokens, gpt-5.6-luna, standard (not Batch) rates. */
 const PRICE = { input: 0.2, cached: 0.02, output: 1.2 }
@@ -68,9 +68,14 @@ const MAX_ATTEMPTS = 4
 const handle = createLocalDb()
 await migrateLocal(handle)
 const { db } = handle
-// The file is journal_mode=delete, where a reader blocks a writer, and libsql leaves
-// busy_timeout at 0 — so one `sqlite3 "select count(*)"` to check on a run that has been going
-// for an hour takes a SHARED lock and kills it instantly. Wait for the lock instead.
+// Two locking defaults that between them killed a six-hour run at article 1456. The file ships
+// as journal_mode=delete, where a reader blocks a writer, and libsql leaves busy_timeout at 0 —
+// so one `sqlite3 "select count(*)"` to see how far it had got took a SHARED lock and failed the
+// next write instantly. WAL lets readers and the writer coexist; the timeout covers the rest.
+await handle.client.execute('pragma journal_mode = wal')
+// Under WAL this fsyncs at checkpoints rather than on every commit. The run is resumable from
+// `article_vision`, so the worst a power cut costs is the last few readings, re-read next time.
+await handle.client.execute('pragma synchronous = normal')
 await handle.client.execute('pragma busy_timeout = 30000')
 console.log(`database ${handle.url}`)
 
@@ -109,6 +114,8 @@ let done = 0
 let failed = 0
 let noImage = 0
 let inTokens = 0
+/** Retries by HTTP status, so a run that slows down can say whether it is being throttled. */
+const retries = new Map<number, number>()
 let cachedTokens = 0
 let outTokens = 0
 const queue = [...pending]
@@ -175,6 +182,7 @@ async function read(article: Pending): Promise<NewArticleVision | null> {
     } catch (error) {
       const status = (error as { status?: number }).status
       const retryable = status === undefined || status === 429 || status >= 500
+      retries.set(status ?? 0, (retries.get(status ?? 0) ?? 0) + 1)
       if (!retryable || attempt === MAX_ATTEMPTS) {
         const message = error instanceof Error ? error.message : String(error)
         console.warn(`[vision] ${article.id} gave up after ${attempt}: ${message}`)
@@ -215,8 +223,12 @@ async function worker(): Promise<void> {
       const secs = (performance.now() - started) / 1000
       const rate = seen / secs
       const left = Math.round((pending.length - seen) / Math.max(rate, 0.001))
+      const throttle =
+        retries.size > 0
+          ? ` | retries ${[...retries].map(([code, n]) => `${code || 'net'}×${n}`).join(' ')}`
+          : ''
       console.log(
-        `${seen}/${pending.length} (${failed} failed) ${rate.toFixed(1)}/s, ~${Math.round(left / 60)} min left, $${cost().toFixed(2)} so far`,
+        `${seen}/${pending.length} (${failed} failed) ${rate.toFixed(1)}/s, ~${Math.round(left / 60)} min left, $${cost().toFixed(2)} so far${throttle}`,
       )
     }
   }
