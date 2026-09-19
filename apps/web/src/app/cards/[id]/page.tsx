@@ -1,3 +1,6 @@
+import { CardVisibility } from '@/components/cards/card-visibility'
+import { and } from '@lookline/db'
+import { readableCard } from '@/server/card-visibility'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { articles as articlesTable, cards, eq, inArray, personas, users } from '@lookline/db'
@@ -19,7 +22,7 @@ export async function generateMetadata({
     .select({ code: cards.verificationCode, persona: personas.displayName })
     .from(cards)
     .innerJoin(personas, eq(personas.id, cards.personaId))
-    .where(eq(cards.id, id))
+    .where(and(eq(cards.id, id), await readableCard()))
     .limit(1)
   if (!card) return { title: 'Card' }
   const origin = await siteOrigin()
@@ -49,6 +52,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   const [card] = await db
     .select({
       id: cards.id,
+      visibility: cards.visibility,
       verificationCode: cards.verificationCode,
       tier: cards.tier,
       ownedRatio: cards.ownedRatio,
@@ -61,7 +65,7 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     })
     .from(cards)
     .innerJoin(personas, eq(personas.id, cards.personaId))
-    .where(eq(cards.id, id))
+    .where(and(eq(cards.id, id), await readableCard()))
     .limit(1)
   if (!card) notFound()
 
@@ -122,6 +126,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
 
+          {viewer?.id === card.holderId ? (
+            <CardVisibility id={card.id} visibility={card.visibility} />
+          ) : null}
           <Card surface="panel" padding="sm" className="flex flex-col gap-2">
             <h2 className="text-[13px] font-medium">卡片上的服飾</h2>
             <ul className="flex flex-col gap-1">

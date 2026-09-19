@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { and, brands, eq, feedbackEvents, articles, type Brand, type Article } from '@lookline/db'
-import { recordInteraction } from '@lookline/engine'
+import { ProductVisit } from '@/components/shop/product-visit'
 import { AddToBagForm } from '@/components/shop/add-to-bag-form'
 import { AttributeList } from '@/components/shop/attribute-list'
 import { CompleteTheLook } from '@/components/shop/complete-the-look'
@@ -100,24 +100,6 @@ async function recordArrival(
   })
 }
 
-async function recordView(
-  userId: string,
-  articleId: string,
-  from: string | undefined,
-  pos: number | null,
-): Promise<void> {
-  try {
-    await recordInteraction(getDb().db, {
-      actorUserId: userId,
-      type: 'VIEW',
-      articleId,
-      payload: from ? { intentSessionId: from, position: pos } : {},
-    })
-  } catch (error) {
-    console.warn('[product] VIEW interaction not recorded', error)
-  }
-}
-
 const crumb = 'transition-colors hover:text-ink'
 
 export default async function ProductPage({
@@ -147,7 +129,7 @@ export default async function ProductPage({
 
   const [user, engineView] = await Promise.all([getSessionUser(), isEngineView()])
   if (user) {
-    await Promise.all([recordView(user.id, id, from, pos), recordArrival(user.id, id, from, pos)])
+    await recordArrival(user.id, id, from, pos)
   }
 
   const colourLabel = colorFamilyLabel(locale, product.colorFamily)
@@ -156,6 +138,7 @@ export default async function ProductPage({
 
   return (
     <Container className="pb-24">
+      {user ? <ProductVisit id={id} from={from} position={pos} /> : null}
       <nav
         aria-label={t.shop.product.breadcrumb}
         className="flex flex-wrap items-center gap-1.5 pt-5 text-[13px] text-muted"

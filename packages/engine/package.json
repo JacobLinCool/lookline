@@ -10,7 +10,8 @@
     "./hints": "./src/decisions/hints.ts",
     "./occasions": "./src/constants/occasions.ts",
     "./keywords": "./src/decisions/keywords.ts",
-    "./conversation": "./src/decisions/conversation.ts"
+    "./conversation": "./src/decisions/conversation.ts",
+    "./discovery": "./src/discovery/index.ts"
   },
   "scripts": {
     "analytics": "tsx scripts/analytics.ts",

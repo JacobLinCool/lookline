@@ -1,3 +1,4 @@
+import { and, ne } from '@lookline/db'
 import { notFound } from 'next/navigation'
 import { cardCandidates, cards, eq, personas, users } from '@lookline/db'
 import { tierForRatio } from '@lookline/engine'
@@ -27,12 +28,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     .innerJoin(personas, eq(personas.id, cards.personaId))
     .innerJoin(users, eq(users.id, cards.authorUserId))
     .innerJoin(cardCandidates, eq(cardCandidates.id, cards.candidateId))
-    .where(eq(cards.id, id))
+    .where(and(eq(cards.id, id), ne(cards.visibility, 'private')))
     .limit(1)
   if (!card) notFound()
 
   const art = await cardArtFromSnapshot(db, card.snapshot ?? [])
-  return shareCardImage({
+  const image = await shareCardImage({
     title: card.personaName,
     subtitle: `by ${card.authorName}`,
     badge: tierForRatio(card.ownedRatio).labelEn,
@@ -47,4 +48,6 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       seed: candidateSeed(card.candidateId, card.candidatePosition),
     },
   })
+  image.headers.set('Cache-Control', 'private, no-store')
+  return image
 }

@@ -15,6 +15,7 @@
  */
 import { sql } from 'drizzle-orm'
 import {
+  check,
   customType,
   index,
   integer,
@@ -339,6 +340,7 @@ export const articles = sqliteTable(
     index('articles_price_idx').on(t.price),
     index('articles_dept_group_price_idx').on(t.department, t.categoryGroup, t.price),
     index('articles_popularity_idx').on(t.popularity),
+    index('articles_home_trending_idx').on(t.trendScore, t.popularity, t.id),
     index('articles_print_motif_idx').on(t.printMotif),
     index('articles_pattern_idx').on(t.pattern),
     index('articles_rise_idx').on(t.rise),
@@ -524,6 +526,7 @@ export const purchases = sqliteTable(
   },
   (t) => [
     index('purchases_user_idx').on(t.userId),
+    index('purchases_user_time_idx').on(t.userId, t.createdAt),
     index('purchases_article_idx').on(t.articleId),
     index('purchases_source_look_idx').on(t.sourceLookId),
     index('purchases_created_idx').on(t.createdAt),
@@ -760,6 +763,7 @@ export const feedbackEvents = sqliteTable(
   },
   (t) => [
     index('feedback_events_user_idx').on(t.userId),
+    index('feedback_events_user_time_idx').on(t.userId, t.createdAt, t.id),
     index('feedback_events_article_idx').on(t.articleId),
     index('feedback_events_created_idx').on(t.createdAt),
     index('feedback_events_session_idx').on(t.intentSessionId),
@@ -1195,11 +1199,13 @@ export const cards = sqliteTable(
     >('article_snapshot')
       .notNull()
       .default(sql`'[]'`),
+    visibility: text('visibility', { enum: VISIBILITY_VALUES }).notNull().default('link'),
     issuedAt: createdAt('issued_at'),
   },
   (t) => [
     index('cards_persona_idx').on(t.personaId),
     index('cards_author_idx').on(t.authorUserId),
+    index('cards_author_visibility_time_idx').on(t.authorUserId, t.visibility, t.issuedAt),
     uniqueIndex('cards_verification_idx').on(t.verificationCode),
     /** A session settles into one card. */
     uniqueIndex('cards_session_idx').on(t.sessionId),
@@ -1409,3 +1415,56 @@ export type RelationshipKind = (typeof RELATIONSHIP_KIND_VALUES)[number]
 export type TrendDimension = (typeof TREND_DIMENSION_VALUES)[number]
 export type LlmProvider = (typeof LLM_PROVIDER_VALUES)[number]
 export type IntentProvider = (typeof INTENT_PROVIDER_VALUES)[number]
+
+/** Explicit, mutually accepted relationships. Analytics relationships never grant access. */
+export const friendships = sqliteTable(
+  'friendships',
+  {
+    lowUserId: text('low_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    highUserId: text('high_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    requestedBy: text('requested_by')
+      .notNull()
+      .references(() => users.id),
+    state: text('state', { enum: ['pending', 'accepted'] })
+      .notNull()
+      .default('pending'),
+    updatedAt: createdAt('updated_at'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lowUserId, t.highUserId] }),
+    check('friendships_ordered', sql`${t.lowUserId} < ${t.highUserId}`),
+    check('friendships_requester', sql`${t.requestedBy} in (${t.lowUserId}, ${t.highUserId})`),
+    index('friendships_low_state_idx').on(t.lowUserId, t.state, t.updatedAt),
+    index('friendships_high_state_idx').on(t.highUserId, t.state, t.updatedAt),
+  ],
+)
+
+/** Opt-in purchase activity; friendship alone never discloses purchase history. */
+export const activitySharing = sqliteTable('activity_sharing', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  purchases: boolean('purchases').notNull().default(false),
+})
+
+/** One row per visited article; indexed last visit makes home cost independent of history size. */
+export const recentArticleViews = sqliteTable(
+  'recent_article_views',
+  {
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    viewedAt: createdAt('viewed_at'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.articleId] }),
+    index('recent_article_views_user_time_idx').on(t.userId, t.viewedAt, t.articleId),
+  ],
+)

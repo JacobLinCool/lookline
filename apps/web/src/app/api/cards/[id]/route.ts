@@ -1,3 +1,5 @@
+import { and } from '@lookline/db'
+import { readableCard } from '@/server/card-visibility'
 import { cardCandidates, cards, eq, personas, users } from '@lookline/db'
 import { renderLookPosterSvg } from '@lookline/engine'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
@@ -34,7 +36,7 @@ export async function GET(
     .innerJoin(personas, eq(personas.id, cards.personaId))
     .innerJoin(users, eq(users.id, cards.authorUserId))
     .innerJoin(cardCandidates, eq(cardCandidates.id, cards.candidateId))
-    .where(eq(cards.id, id))
+    .where(and(eq(cards.id, id), await readableCard()))
     .limit(1)
   if (!card) return new Response('Not found', { status: 404 })
 
@@ -48,5 +50,5 @@ export async function GET(
     aesthetics: [],
     seed: candidateSeed(card.candidateId, card.candidatePosition),
   })
-  return svgResponse(svg, { cacheControl: 'public, max-age=31536000, immutable' })
+  return svgResponse(svg, { cacheControl: 'private, no-store' })
 }
