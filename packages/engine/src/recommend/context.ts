@@ -143,6 +143,7 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
         budgetHint: users.budgetHint,
         preference: users.preferenceVector,
         giftPreference: users.giftPreferenceVector,
+        createdAt: users.createdAt,
       })
       .from(users)
       .where(eq(users.id, userId)),
@@ -215,6 +216,7 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
     budgetHint: u.budgetHint ?? null,
     brandCounts,
     trusted: ranked.slice(0, TRUSTED_MAX),
+    createdAt: u.createdAt ?? null,
   }
 }
 
