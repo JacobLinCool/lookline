@@ -35,7 +35,7 @@ interface DemoSpec {
 export const DEMO_PERSONAS: readonly DemoSpec[] = [
   {
     handle: 'jacob',
-    displayName: 'Jacob Lin 林宇翔',
+    displayName: 'Jacob Lin',
     department: 'men',
     cluster: 'gorp-hikers',
     bio: 'Builds things on weekdays, climbs Qixing on weekends. Gorpcore by necessity, techwear by taste; the friend who always has a spare shell jacket.',
