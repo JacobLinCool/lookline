@@ -18,10 +18,13 @@ const CONTRACT_KEYS = [
   'baselineCumulativeReward',
 ] as const
 
+// Relevance now turns on two of the 32 aesthetic dimensions, so a user's relevant set is far
+// sparser than when taste was only colour and axes — 40 users × 12 rounds no longer resolves a
+// hit-rate lift (it ties at 13/40 on seed 1). 60 × 16 does, on both seeds, and still runs in 300ms.
 const SMALL: EvalConfig = {
   seed: 1,
-  users: 40,
-  rounds: 12,
+  users: 60,
+  rounds: 16,
   catalogSize: 2000,
   k: 10,
   noise: 0.05,
@@ -82,10 +85,10 @@ describe('evaluatePreferenceLoop', () => {
     expect(JSON.stringify(again)).toBe(JSON.stringify(result))
   }, 30_000)
 
-  it('small config (seed 1, 40 users, 12 rounds, 2,000 articles) passes too, and a different seed differs', () => {
+  it('small config (seed 1, 60 users, 16 rounds, 2,000 articles) passes too, and a different seed differs', () => {
     const a = evaluatePreferenceLoop(SMALL)
     assertCriterion(a)
-    expect(a.series).toHaveLength(12)
+    expect(a.series).toHaveLength(16)
     const b = evaluatePreferenceLoop({ ...SMALL, seed: 2 })
     expect(JSON.stringify(b.series)).not.toBe(JSON.stringify(a.series))
     assertCriterion(b)

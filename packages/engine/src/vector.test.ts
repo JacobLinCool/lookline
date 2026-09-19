@@ -21,26 +21,32 @@ const unit = (i: number, value = 1): number[] => {
 describe('vector helpers', () => {
   it('cosine: identical 1, orthogonal 0, zero-norm 0', () => {
     const a = unit(3)
-    expect(cosineRange(a, a, 0, 32)).toBeCloseTo(1, 9)
-    expect(cosineRange(unit(3), unit(4), 0, 32)).toBe(0)
-    expect(cosineRange(zeroVector(), a, 0, 32)).toBe(0)
+    expect(cosineRange(a, a, 0, STYLE_DIMENSIONS)).toBeCloseTo(1, 9)
+    expect(cosineRange(unit(3), unit(4), 0, STYLE_DIMENSIONS)).toBe(0)
+    expect(cosineRange(zeroVector(), a, 0, STYLE_DIMENSIONS)).toBe(0)
   })
 
   it('blockScale ranking equals weighted-dot ranking', () => {
+    const colour = BLOCK.C[0] + 1
+    const axis = BLOCK.X[0] + 1
+    const group = BLOCK.G[0]
     const q = zeroVector()
-    q[1] = 0.8
-    q[13] = 0.5
-    q[20] = 1
-    const items = [unit(1, 1), unit(13, 1), unit(20, 0.7), unit(2, 1)]
+    q[colour] = 0.8
+    q[axis] = 0.5
+    q[group] = 1
+    const items = [unit(colour, 1), unit(axis, 1), unit(group, 0.7), unit(BLOCK.C[0] + 2, 1)]
     const scaled = blockScale(q, RETRIEVAL_BLOCK_WEIGHTS)
     const byScaled = items
       .map((item, i) => [i, dot(scaled, item)] as const)
       .toSorted((x, y) => y[1] - x[1])
       .map((x) => x[0])
+    const block = (v: number[], key: keyof typeof BLOCK) =>
+      dot(q.slice(...BLOCK[key]), v.slice(...BLOCK[key]))
     const weighted = (v: number[]) =>
-      RETRIEVAL_BLOCK_WEIGHTS.C * dot(q.slice(0, 12), v.slice(0, 12)) +
-      RETRIEVAL_BLOCK_WEIGHTS.X * dot(q.slice(12, 20), v.slice(12, 20)) +
-      RETRIEVAL_BLOCK_WEIGHTS.G * dot(q.slice(20), v.slice(20))
+      RETRIEVAL_BLOCK_WEIGHTS.A * block(v, 'A') +
+      RETRIEVAL_BLOCK_WEIGHTS.C * block(v, 'C') +
+      RETRIEVAL_BLOCK_WEIGHTS.X * block(v, 'X') +
+      RETRIEVAL_BLOCK_WEIGHTS.G * block(v, 'G')
     const byWeighted = items
       .map((item, i) => [i, weighted(item)] as const)
       .toSorted((x, y) => y[1] - x[1])
@@ -50,9 +56,10 @@ describe('vector helpers', () => {
   })
 
   it('blockCosine ignores zero-weight blocks', () => {
+    // The axis block carries weight 0 in retrieval, so differing there costs nothing.
     const a = unit(0)
     const b = unit(0)
-    b[13] = 1
+    b[BLOCK.X[0] + 1] = 1
     expect(blockCosine(a, b, RETRIEVAL_BLOCK_WEIGHTS)).toBeCloseTo(1, 9)
   })
 

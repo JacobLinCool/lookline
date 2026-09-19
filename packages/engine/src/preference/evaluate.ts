@@ -17,11 +17,11 @@
  * 1. `finalHitRate` (full, final round) > `baselineHitRate` (static, final round);
  * 2. `oracleNdcg ≥ finalNdcg`;
  * 3. `|placeboNdcg − baselineNdcg| ≤ 0.05`;
- * 4. `finalCosine ≥ initialCosine + 0.03` (the learned vector moves toward the truth). The bar was
- *    0.05 when the style space had 64 dimensions, half of them aesthetic tags. The H&M catalogue
- *    names no aesthetic, so those 32 dimensions were dropped and taste now has only colour and the
- *    axes to express itself in — both of which the prior already covers, which caps how far the
- *    learned vector can travel. Raise it again when a semantic pass restores the block.
+ * 4. `finalCosine ≥ initialCosine + 0.05` (the learned vector moves toward the truth). The bar
+ *    was cut to 0.03 while the 32 aesthetic dimensions were dropped for want of anything to fill
+ *    them: taste had only colour and the axes left to express itself in, both of which the prior
+ *    already covers, which capped how far the learned vector could travel. The vision pass fills
+ *    the block, the prior deliberately starts it at zero, and the default config now gains 0.157.
  */
 import { CATEGORY_GROUPS, createRng, hashSeed } from '@lookline/catalog'
 import type { Department } from '@lookline/db'
@@ -87,7 +87,7 @@ export const PASS_CRITERION = {
   /** |placebo.ndcg(K) − static.ndcg(K)| must not exceed this. */
   placeboTolerance: 0.05,
   /** full.cosineToTruth(K) − full.cosineToTruth(1) must reach this. */
-  minCosineGain: 0.03,
+  minCosineGain: 0.05,
 } as const
 
 const BASE_TIME = Date.UTC(2026, 0, 1)

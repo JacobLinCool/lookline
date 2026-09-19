@@ -328,6 +328,47 @@ export const typeAffinity = sqliteTable(
 )
 
 /**
+ * What a multimodal model read off an article's photograph, kept verbatim.
+ *
+ * The derived columns on `articles` are materialised from `payload`, never written directly by the
+ * run, so a prompt fix re-materialises without paying for the images again — and so a
+ * recommendation can quote its evidence: the model saw an oversized cable knit in oatmeal, which
+ * is why the article is tagged quiet-luxury. A different model writes a different `version` beside
+ * the old one instead of silently replacing it.
+ *
+ * Every value inside `payload` comes from a closed @lookline/catalog vocabulary; the request's
+ * JSON schema makes anything else unrepresentable rather than merely discouraged.
+ */
+export const articleVision = sqliteTable(
+  'article_vision',
+  {
+    articleId: text('article_id')
+      .primaryKey()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    model: text('model').notNull(),
+    /** Prompt and vocabulary revision (`VISION_VERSION`), so a re-run is comparable. */
+    version: text('version').notNull(),
+    payload: json<Record<string, unknown>>('payload')
+      .notNull()
+      .default(sql`'{}'`),
+    /** The model's own overall confidence, hoisted out of `payload` so it can be filtered on. */
+    confidence: real('confidence').notNull().default(0),
+    captionEn: text('caption_en').notNull().default(''),
+    captionZh: text('caption_zh').notNull().default(''),
+    /** The R2 key actually shown; null when the article has no photograph and text alone was used. */
+    imageKey: text('image_key'),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    latencyMs: integer('latency_ms').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('article_vision_version_idx').on(t.version),
+    index('article_vision_confidence_idx').on(t.confidence),
+  ],
+)
+
+/**
  * H&M's own 1 371 980 customers, with the per-customer aggregates of their purchases. The 31.8M
  * transaction rows stay offline; these are what a preference baseline is measured against.
  *
@@ -876,6 +917,8 @@ export const evaluationRuns = sqliteTable(
 export type Brand = typeof brands.$inferSelect
 export type NewBrand = typeof brands.$inferInsert
 export type Article = typeof articles.$inferSelect
+export type ArticleVision = typeof articleVision.$inferSelect
+export type NewArticleVision = typeof articleVision.$inferInsert
 export type TypeAffinity = typeof typeAffinity.$inferSelect
 export type NewTypeAffinity = typeof typeAffinity.$inferInsert
 export type HmCustomer = typeof hmCustomers.$inferSelect

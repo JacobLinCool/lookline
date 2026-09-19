@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { axisIndex } from '@lookline/catalog'
 import {
   attributeMatch,
   brandAffinity,
@@ -102,7 +103,7 @@ describe('attribute_match', () => {
     expect(none.applicable).toBe(false)
     const intent = makeIntent({
       season: 'winter',
-      axisTargets: { formality: hoodie.styleVector[12]! },
+      axisTargets: { formality: hoodie.styleVector[axisIndex('formality')]! },
     })
     const r = attributeMatch(candidate(hoodie), makeRankContext(intent))
     expect(r.value).toBeCloseTo(1, 9)

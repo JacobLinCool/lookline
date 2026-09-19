@@ -5,6 +5,7 @@
  * rank contexts.
  */
 import {
+  AXES,
   AESTHETICS,
   AESTHETIC_DEPT_MULT,
   COLORS,
@@ -17,6 +18,7 @@ import {
   findSubcategory,
   hashSeed,
   materialsFor,
+  axisIndex,
   neighboursOf,
   occasionFavours,
   patternsFor,
@@ -315,6 +317,7 @@ export function makeProduct(
       ? rng.pick(COLORS.filter((c) => c.family !== family))
       : null
   const styleVector = toStyleVector({
+    aesthetics: aestheticWeights,
     colorFamily: family,
     secondaryColorFamily: secondaryColour?.family ?? null,
     axes,
@@ -373,6 +376,12 @@ export function makeProduct(
     neckline: '',
     sleeve: '',
     closure: '',
+    aesthetics: Object.entries(aestheticWeights)
+      .toSorted((a, b) => b[1] - a[1])
+      .map(([slug]) => slug),
+    silhouette: '',
+    printSubject: '',
+    styleCaption: '',
     occasions,
     seasons,
     attributes,
@@ -408,32 +417,24 @@ export function makeCatalog(n: number, seed = 42): ProductRow[] {
 export function product(
   overrides: Partial<Omit<ProductRow, 'id'>> & { id: number; aesthetics?: string[] },
 ): ProductRow {
-  const { aesthetics: styleTags, ...rest } = overrides
   const base = makeProduct(overrides.id, 42)
-  const merged: ProductRow = { ...base, ...rest, id: String(overrides.id).padStart(10, '0') }
+  const merged: ProductRow = { ...base, ...overrides, id: String(overrides.id).padStart(10, '0') }
+  const styleTags = overrides.aesthetics
   if (
     overrides.styleVector === undefined &&
-    (styleTags || rest.colorFamily || rest.categoryGroup)
+    (styleTags || overrides.colorFamily || overrides.categoryGroup)
   ) {
-    // `aesthetics` is no longer a column; a test may still ask for a vector shaped by style tags.
+    // The vector has to agree with the columns the caller overrode, so it is rebuilt from them:
+    // the style tags at the weights `makeProduct` gives a primary, secondary and third tag, and
+    // the generated axes carried over unchanged.
     const aesthetics: Record<string, number> = {}
-    ;(styleTags ?? []).forEach((slug, i) => {
+    ;(styleTags ?? merged.aesthetics).forEach((slug, i) => {
       aesthetics[slug] = i === 0 ? 0.85 : i === 1 ? 0.55 : 0.3
     })
     const axes: Partial<Record<Axis, number>> = {}
-    for (const [k, idx] of Object.entries({
-      formality: 44,
-      warmth: 45,
-      boldness: 46,
-      structure: 47,
-      'price-tier': 48,
-      coverage: 49,
-      texture: 50,
-      trendiness: 51,
-    })) {
-      axes[k as Axis] = base.styleVector[idx] ?? 0.5
-    }
+    for (const axis of AXES) axes[axis] = base.styleVector[axisIndex(axis)] ?? 0.5
     merged.styleVector = toStyleVector({
+      aesthetics,
       colorFamily: merged.colorFamily as ColorFamily,
       axes,
       categoryGroup: merged.categoryGroup as CategoryGroup,

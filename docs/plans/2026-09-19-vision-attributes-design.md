@@ -11,15 +11,15 @@ intent parser can already ask for.
 
 The engine has slots waiting that the catalogue cannot fill:
 
-| Column                                   | Filled today | Source today                    |
-| ---------------------------------------- | -----------: | ------------------------------- |
-| aesthetics (32 slugs)                    |           0% | nothing — the vector block was removed |
-| `fit` / `length` / `neckline` / `sleeve` | 9 / 8 / 27 / 35% | `detail_desc` regex        |
-| `closure`                                |           0% | —                               |
-| `material`                               |          67% | `detail_desc` regex             |
-| `pattern`                                |         100% | H&M's 30 coarse values; 17 145 rows say only "All over pattern" |
-| style axes                               |         100% | inferred from shelf, fabric, price |
-| `attributes` JSON                        |          53% | five regex booleans             |
+| Column                                   |     Filled today | Source today                                                    |
+| ---------------------------------------- | ---------------: | --------------------------------------------------------------- |
+| aesthetics (32 slugs)                    |               0% | nothing — the vector block was removed                          |
+| `fit` / `length` / `neckline` / `sleeve` | 9 / 8 / 27 / 35% | `detail_desc` regex                                             |
+| `closure`                                |               0% | —                                                               |
+| `material`                               |              67% | `detail_desc` regex                                             |
+| `pattern`                                |             100% | H&M's 30 coarse values; 17 145 rows say only "All over pattern" |
+| style axes                               |             100% | inferred from shelf, fabric, price                              |
+| `attributes` JSON                        |              53% | five regex booleans                                             |
 
 The regexes have run out of road: the text that names a neckline already did, and the rest of the
 catalogue is silent. The photograph is not.
@@ -34,7 +34,7 @@ catalogue is silent. The photograph is not.
   left as a coin toss (`packages/catalog/src/vectors.ts`). This pass is what puts them back.
 - **`pattern`** — one of the 15 catalog slugs, replacing H&M's coarse label.
 - **`printSubject`** — new column, one of `none, slogan, character, logo, floral, animal, abstract,
-  landscape, photo`. A third of the catalogue is kidswear and nearly all of it is printed; H&M files
+landscape, photo`. A third of the catalogue is kidswear and nearly all of it is printed; H&M files
   every one of them under "All over pattern".
 - **`fit`, `silhouette`, `length`, `neckline`, `sleeve`, `closure`** — the vocabularies in
   `packages/catalog/src/taxonomy/fits.ts`, read off the photograph.
@@ -50,8 +50,8 @@ catalogue is silent. The photograph is not.
 
 - **Design details** — a closed set of ~18 booleans written into the existing `attributes` JSON
   next to `pockets` and `lined`: `ruffle, pleats, cutout, slit, belt, embroidery, sequin,
-  distressed, ribbed, cable_knit, lace_trim, asymmetric, sheer, tie_bow, fringe, button_front,
-  drawstring, logo`. `attribute_match` already scores `attributes[key] === true` against
+distressed, ribbed, cable_knit, lace_trim, asymmetric, sheer, tie_bow, fringe, button_front,
+drawstring, logo`. `attribute_match` already scores `attributes[key] === true` against
   `mustHave` / `mustAvoid`, so "不要蕾絲" works the day the column lands. The intent lexicon's
   `ATTRIBUTES` table gains a bilingual row per detail.
 - **`occasions`** — chosen per item from the 12 catalog slugs. Today every article on the same
@@ -80,10 +80,10 @@ embeddings (that is FashionCLIP's job, a separate track), body-shape or size adv
 
 Cost per article is roughly 500 image tokens, 600 fresh input, 700 cached input, 200 output.
 
-| Scope                | gpt-5.6-luna, live |
-| -------------------- | ------------------ |
-| 200-article pilot    | < US$0.10          |
-| 105 100 articles     | ≈ US$40            |
+| Scope             | gpt-5.6-luna, live |
+| ----------------- | ------------------ |
+| 200-article pilot | < US$0.10          |
+| 105 100 articles  | ≈ US$40            |
 
 Validation before the full run: 200 articles, then agreement against the columns H&M does ship —
 a row H&M calls "Solid" should come back `solid`, and the perceived colour should match. That

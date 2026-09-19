@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { axisIndex } from '@lookline/catalog'
 import { colourHarmony, compat, formalityCompat, seasonCompat } from './compat'
 import { product } from '../testing/fixtures'
 
@@ -79,12 +80,14 @@ describe('formality, season and the composite', () => {
   it('applies the statement-piece rule and season adjacency', () => {
     const calm = product({ id: 1, seasons: ['spring'] })
     const loud = product({ id: 2, seasons: ['summer'] })
-    calm.styleVector[12] = 0.6
-    loud.styleVector[12] = 0.6
-    calm.styleVector[14] = 0.9
-    loud.styleVector[14] = 0.9
+    const formality = axisIndex('formality')
+    const boldness = axisIndex('boldness')
+    calm.styleVector[formality] = 0.6
+    loud.styleVector[formality] = 0.6
+    calm.styleVector[boldness] = 0.9
+    loud.styleVector[boldness] = 0.9
     expect(formalityCompat(calm, loud)).toBeCloseTo(0.8, 9)
-    loud.styleVector[14] = 0.2
+    loud.styleVector[boldness] = 0.2
     expect(formalityCompat(calm, loud)).toBeCloseTo(1, 9)
     expect(seasonCompat(calm, loud)).toBeCloseTo(0.5, 9) // spring / summer adjacent
     const winter = product({ id: 3, seasons: ['winter'] })

@@ -4,8 +4,8 @@
  * `buildEvalCatalog` builds articles with a lightweight taxonomy-driven generator, a pure function
  * of `(index, seed, brands)`. It is deliberately synthetic: the harness measures whether the
  * preference loop converges on a known ground truth, which needs a catalogue whose taste axes are
- * known exactly. The real H&M catalogue carries no aesthetics or style vectors yet, so it cannot
- * play that role — once it does, this generator is what it replaces.
+ * known exactly. Once the vision pass has tagged the real H&M catalogue, that is what replaces
+ * this generator.
  */
 import {
   AESTHETICS,
@@ -215,6 +215,7 @@ export function syntheticProduct(
   }
 
   const vector = toStyleVector({
+    aesthetics,
     colorFamily: colour.family,
     secondaryColorFamily: hasSecondaryColour ? secondaryColour.family : null,
     axes,

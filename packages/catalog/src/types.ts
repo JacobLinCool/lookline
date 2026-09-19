@@ -131,6 +131,8 @@ export interface GeneratedBrand extends Omit<NewBrand, 'createdAt' | 'id'> {
 }
 
 export interface StyleVectorInput {
+  /** Aesthetic slug → weight in [0, 1]; unknown slugs are ignored. */
+  aesthetics?: Readonly<Record<string, number>>
   colorFamily: ColorFamily
   secondaryColorFamily?: ColorFamily | null
   axes: Partial<Record<Axis, number>>
@@ -138,6 +140,7 @@ export interface StyleVectorInput {
 }
 
 export interface VectorDescription {
+  aesthetics: Array<{ slug: string; weight: number }>
   colorFamilies: Array<{ family: ColorFamily; weight: number }>
   axes: Record<Axis, number>
   categoryGroups: Array<{ group: CategoryGroup; weight: number }>
