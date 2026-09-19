@@ -66,8 +66,9 @@ export const trends = {
     category: 'Category',
     color: 'Colour',
     silhouette: 'Silhouette',
-    aesthetic_category: 'Aesthetic × category',
     detail: 'Detail',
+    motif: 'Motif',
+    aesthetic_category: 'Aesthetic × category',
   },
 
   status: {

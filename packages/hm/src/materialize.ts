@@ -31,6 +31,16 @@ export interface MaterializedArticle {
   occasions: string[]
   attributes: Record<string, string | number | boolean>
   styleCaption: string
+  styleCaptionZh: string
+  rise: string
+  shoulder: string
+  pocketStyle: string
+  knitGauge: string
+  padding: string
+  stylingNote: string
+  stylingNoteZh: string
+  visionEvidence: string
+  visionConfidence: number
   styleVector: number[]
 }
 
@@ -90,6 +100,8 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
 
   // The two attribute sets share no key: the regexes own `pockets`, `hood`, `zip`, `elasticWaist`
   // and `lined`, the image owns everything in DESIGN_DETAILS.
+  // The details are a set, which is what `attributes` is for and what `attribute_match` reads by
+  // key. Everything single-valued is a column instead.
   const attributes: Record<string, string | number | boolean> = { ...row.attributes }
   for (const detail of vision.designDetails) attributes[detail] = true
 
@@ -112,7 +124,17 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
     // list; a per-item reading is strictly better when there is one.
     occasions: vision.occasions.length > 0 ? vision.occasions : [...row.occasions],
     attributes,
-    styleCaption: vision.captionEn,
+    styleCaption: vision.lookEn,
+    styleCaptionZh: vision.lookZh,
+    rise: vision.rise,
+    shoulder: vision.shoulder,
+    pocketStyle: vision.pocketStyle,
+    knitGauge: vision.knitGauge,
+    padding: vision.padding,
+    stylingNote: vision.stylingEn,
+    stylingNoteZh: vision.stylingZh,
+    visionEvidence: vision.evidence,
+    visionConfidence: vision.confidence,
     styleVector,
   }
 }

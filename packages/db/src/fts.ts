@@ -19,6 +19,9 @@ export const articlesFts = sqliteTable('articles_fts', {
   prodName: text('prod_name'),
   detailDesc: text('detail_desc'),
   styleCaption: text('style_caption'),
+  styleCaptionZh: text('style_caption_zh'),
+  printMotif: text('print_motif'),
+  printText: text('print_text'),
 })
 
 export const FTS_REBUILD_SQL = "insert into articles_fts(articles_fts) values('rebuild')"

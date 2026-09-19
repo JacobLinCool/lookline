@@ -50,6 +50,7 @@ export const TREND_DIMENSIONS: readonly TrendDimension[] = [
   'color',
   'silhouette',
   'detail',
+  'motif',
   'aesthetic_category',
 ]
 
@@ -88,6 +89,10 @@ export function productKeys(p: ProductLite): string[] {
   for (const slug of DESIGN_DETAIL_SLUGS) {
     if (p.attributes[slug] === true) keys.add(trendKey('detail', slug))
   }
+  // A motif turns over in weeks — a licence, a meme, a subject of the season — where a neckline
+  // turns over in years. It is the one dimension here fast enough to catch a trend while it is
+  // still one.
+  if (p.printMotif) keys.add(trendKey('motif', p.printMotif))
   return [...keys]
 }
 

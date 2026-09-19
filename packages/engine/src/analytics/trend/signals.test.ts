@@ -220,6 +220,7 @@ describe('buildTrendEvents', () => {
     price: 3000,
     aesthetics: ['quiet-luxury'],
     attributes: { belt: true, lined: true },
+    printMotif: 'palm',
   }
   const articles = new Map([[ID, product]])
   const looks: LookLite[] = [
@@ -319,6 +320,7 @@ describe('buildTrendEvents', () => {
         trendKey('silhouette', 'trench-coat'),
         trendKey('aesthetic_category', 'quiet-luxury|outerwear'),
         trendKey('detail', 'belt'),
+        trendKey('motif', 'palm'),
       ]),
     )
     // `lined` is a regex attribute, not a design detail, so it is not a dimension.

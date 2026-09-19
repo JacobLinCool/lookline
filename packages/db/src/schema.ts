@@ -131,6 +131,8 @@ export const TREND_DIMENSION_VALUES = [
   'aesthetic_category',
   /** A design detail: a ruffle, a cable knit, a slit. What a factory actually cuts. */
   'detail',
+  /** What a print depicts, clustered by `motifKey`. The fastest-moving dimension there is. */
+  'motif',
 ] as const
 export const LLM_PROVIDER_VALUES = ['gemini', 'openai', 'offline'] as const
 /** Intent sessions also record `jev`, the closed-option decision service. Plain TEXT, no CHECK. */
@@ -238,7 +240,8 @@ export const articles = sqliteTable(
     indexName: text('index_name').notNull(),
     /** The dataset's only gender signal; `customers.csv` has none. */
     indexGroupName: text('index_group_name').notNull(),
-    pattern: text('graphical_appearance_name').notNull().default(''),
+    /** H&M's own label: `Solid`, `All over pattern`, `Stripe`. 30 values, theirs, untouched. */
+    graphicalAppearance: text('graphical_appearance_name').notNull().default(''),
     colorName: text('colour_group_name').notNull().default(''),
     colorMaster: text('perceived_colour_master_name').notNull().default(''),
     colorValue: text('perceived_colour_value_name').notNull().default(''),
@@ -288,8 +291,34 @@ export const articles = sqliteTable(
     silhouette: text('silhouette').notNull().default(''),
     /** What the print depicts (`slogan`, `character`, `floral`…); `''` when the garment has none. */
     printSubject: text('print_subject').notNull().default(''),
-    /** One English sentence; indexed by FTS so a vibe query has prose to match. */
+    /**
+     * The catalog's fifteen pattern slugs, read off the photograph. Derived beside H&M's own
+     * `graphical_appearance_name` rather than over it: theirs files 17 145 garments as "All over
+     * pattern" and calls a lace dress and a sequin dress the same thing, but it is the only
+     * independent check there is on this one.
+     */
+    pattern: text('pattern').notNull().default(''),
+    /** One sentence on how it looks; indexed by FTS so a vibe query has prose to match. */
     styleCaption: text('style_caption').notNull().default(''),
+    /** The same sentence in Traditional Chinese, indexed too — the product is bilingual. */
+    styleCaptionZh: text('style_caption_zh').notNull().default(''),
+    /** What the print depicts, in two to four words — clustered for trends, not filtered on. */
+    printMotif: text('print_motif').notNull().default(''),
+    /** The words printed on the garment, verbatim; `''` when it carries none. */
+    printText: text('print_text').notNull().default(''),
+    // Construction the photograph shows. `''` on a garment the question does not apply to: a bag
+    // has no rise, a woven shirt has no gauge.
+    rise: text('rise').notNull().default(''),
+    shoulder: text('shoulder').notNull().default(''),
+    pocketStyle: text('pocket_style').notNull().default(''),
+    knitGauge: text('knit_gauge').notNull().default(''),
+    padding: text('padding').notNull().default(''),
+    /** Who it suits and when. Read by a recommendation's copy, never filtered on. */
+    stylingNote: text('styling_note').notNull().default(''),
+    stylingNoteZh: text('styling_note_zh').notNull().default(''),
+    /** What in the photograph drove the tags, and how sure the model was of all of it. */
+    visionEvidence: text('vision_evidence').notNull().default(''),
+    visionConfidence: real('vision_confidence').notNull().default(0),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
@@ -311,6 +340,10 @@ export const articles = sqliteTable(
     index('articles_price_idx').on(t.price),
     index('articles_dept_group_price_idx').on(t.department, t.categoryGroup, t.price),
     index('articles_popularity_idx').on(t.popularity),
+    index('articles_print_motif_idx').on(t.printMotif),
+    index('articles_pattern_idx').on(t.pattern),
+    index('articles_rise_idx').on(t.rise),
+    index('articles_knit_gauge_idx').on(t.knitGauge),
   ],
 )
 
@@ -351,8 +384,14 @@ export const articleVision = sqliteTable(
   'article_vision',
   {
     articleId: text('article_id')
-      .primaryKey()
+      .notNull()
       .references(() => articles.id, { onDelete: 'cascade' }),
+    /**
+     * Which reading this is. `core` asks every article the seventeen general questions; a narrow
+     * pass such as `print` asks a few more of the subset they apply to, where a field added to
+     * `core` would have cost output tokens on all 105 220 and asked a handbag about its rise.
+     */
+    pass: text('pass').notNull().default('core'),
     model: text('model').notNull(),
     /** Prompt and vocabulary revision (`VISION_VERSION`), so a re-run is comparable. */
     version: text('version').notNull(),
@@ -371,7 +410,8 @@ export const articleVision = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('article_vision_version_idx').on(t.version),
+    primaryKey({ columns: [t.articleId, t.pass] }),
+    index('article_vision_pass_idx').on(t.pass, t.version),
     index('article_vision_confidence_idx').on(t.confidence),
   ],
 )

@@ -274,6 +274,7 @@ export async function loadProductsLite(
         price: articles.price,
         aesthetics: articles.aesthetics,
         attributes: articles.attributes,
+        printMotif: articles.printMotif,
       })
       .from(articles)
       .where(inArray(articles.id, part))
