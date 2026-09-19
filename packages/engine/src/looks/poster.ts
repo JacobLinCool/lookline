@@ -311,47 +311,51 @@ export function renderLookPosterSvg(input: LookPosterInput): string {
   }
   parts.push('</g>')
 
-  // 3. header: preset name left, edition number right (the one accent)
-  // A copy says which one it is; the edition's own artwork says only how many exist, because
-  // printing a number on the picture every copy shares would make each of them claim to be it.
-  const editionLabel =
-    input.editionNumber !== undefined
-      ? `No. ${pad(input.editionNumber)}${input.editionOf ? `/${pad(input.editionOf)}` : ''}`
-      : input.editionOf
-        ? `Edition of ${Math.max(1, Math.round(input.editionOf))}`
-        : 'No. 001'
-  parts.push(
-    `<text x="${MARGIN}" y="98" font-family="${SANS}" font-size="20" fill="${muted}">${escapeXml(`Lookline · ${theme.name}`)}</text>`,
-  )
-  parts.push(
-    `<text x="${POSTER_WIDTH - MARGIN}" y="104" text-anchor="end" font-family="${SANS}" font-size="36" font-weight="700" letter-spacing="-1" fill="${accent}">${escapeXml(editionLabel)}</text>`,
-  )
-
-  // 4. title block + owner + aesthetics
-  const { size, maxChars } = titleFontSize(input.title)
-  const lines = wrapTitle(input.title, maxChars, 3)
-  const lineHeight = size * 1.0
   const paletteBarY = POSTER_HEIGHT - 82
-  const ownerY = paletteBarY - 40
-  const titleBottom = ownerY - 50
-  const titleTop = titleBottom - lineHeight * (lines.length - 1)
-  parts.push(
-    `<g font-family="${SANS}" font-size="${size}" font-weight="700" letter-spacing="${fmt(-size * 0.03)}" fill="${ink}">`,
-  )
-  lines.forEach((line, i) => {
+
+  // 3. header, title, owner — everything made of words, which the share export leaves out
+  const words = input.chrome !== 'artwork'
+  if (words) {
+    // A copy says which one it is; the edition's own artwork says only how many exist, because
+    // printing a number on the picture every copy shares would make each of them claim to be it.
+    const editionLabel =
+      input.editionNumber !== undefined
+        ? `No. ${pad(input.editionNumber)}${input.editionOf ? `/${pad(input.editionOf)}` : ''}`
+        : input.editionOf
+          ? `Edition of ${Math.max(1, Math.round(input.editionOf))}`
+          : 'No. 001'
     parts.push(
-      `<text x="${MARGIN}" y="${fmt(titleTop + i * lineHeight)}">${escapeXml(line)}</text>`,
+      `<text x="${MARGIN}" y="98" font-family="${SANS}" font-size="20" fill="${muted}">${escapeXml(`Lookline · ${theme.name}`)}</text>`,
     )
-  })
-  parts.push('</g>')
-  parts.push(
-    `<text x="${MARGIN}" y="${ownerY}" font-family="${SANS}" font-size="22" fill="${ink}">${escapeXml(`by ${input.ownerName}`)}</text>`,
-  )
-  const aesthetics = input.aesthetics.slice(0, 3).map(aestheticLabel).join(' · ')
-  if (aesthetics) {
     parts.push(
-      `<text x="${POSTER_WIDTH - MARGIN}" y="${ownerY}" text-anchor="end" font-family="${SANS}" font-size="18" fill="${muted}">${escapeXml(aesthetics)}</text>`,
+      `<text x="${POSTER_WIDTH - MARGIN}" y="104" text-anchor="end" font-family="${SANS}" font-size="36" font-weight="700" letter-spacing="-1" fill="${accent}">${escapeXml(editionLabel)}</text>`,
     )
+
+    // 4. title block + owner + aesthetics
+    const { size, maxChars } = titleFontSize(input.title)
+    const lines = wrapTitle(input.title, maxChars, 3)
+    const lineHeight = size * 1.0
+    const ownerY = paletteBarY - 40
+    const titleBottom = ownerY - 50
+    const titleTop = titleBottom - lineHeight * (lines.length - 1)
+    parts.push(
+      `<g font-family="${SANS}" font-size="${size}" font-weight="700" letter-spacing="${fmt(-size * 0.03)}" fill="${ink}">`,
+    )
+    lines.forEach((line, i) => {
+      parts.push(
+        `<text x="${MARGIN}" y="${fmt(titleTop + i * lineHeight)}">${escapeXml(line)}</text>`,
+      )
+    })
+    parts.push('</g>')
+    parts.push(
+      `<text x="${MARGIN}" y="${ownerY}" font-family="${SANS}" font-size="22" fill="${ink}">${escapeXml(`by ${input.ownerName}`)}</text>`,
+    )
+    const aesthetics = input.aesthetics.slice(0, 3).map(aestheticLabel).join(' · ')
+    if (aesthetics) {
+      parts.push(
+        `<text x="${POSTER_WIDTH - MARGIN}" y="${ownerY}" text-anchor="end" font-family="${SANS}" font-size="18" fill="${muted}">${escapeXml(aesthetics)}</text>`,
+      )
+    }
   }
 
   // 5. palette bar + piece count
@@ -367,9 +371,11 @@ export function renderLookPosterSvg(input: LookPosterInput): string {
   parts.push(
     `<rect x="${MARGIN}" y="${paletteBarY}" width="${fmt(barW)}" height="12" fill="none" stroke="${mixHex(ink, bg, 0.7)}" stroke-width="1"/>`,
   )
-  parts.push(
-    `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.articles.length} piece${input.articles.length === 1 ? '' : 's'}`)}</text>`,
-  )
+  if (words) {
+    parts.push(
+      `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.articles.length} piece${input.articles.length === 1 ? '' : 's'}`)}</text>`,
+    )
+  }
 
   parts.push('</svg>')
   return parts.join('')

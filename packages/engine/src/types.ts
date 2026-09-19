@@ -460,6 +460,12 @@ export interface LookPosterInput {
   /** Edition size. With `editionNumber` the card reads 1/N; alone it reads "Edition of N". */
   editionOf?: number
   /**
+   * `artwork` draws the ground, the garments and the palette and leaves every word out. The
+   * share export needs that: its text is laid out around the picture, by something that can
+   * reach a font with Chinese in it, which the rasteriser cannot.
+   */
+  chrome?: 'full' | 'artwork'
+  /**
    * A multi-person card: one band per subject, each holding that subject's own pieces. Without
    * this the poster is a single flat lay and nothing says whose clothes are whose.
    */

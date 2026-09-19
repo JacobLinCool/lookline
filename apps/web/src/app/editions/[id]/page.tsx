@@ -29,12 +29,8 @@ export async function generateMetadata({
     description,
     metadataBase: new URL(origin),
     alternates: { canonical: `${origin}/editions/${id}` },
-    openGraph: {
-      title,
-      description,
-      url: `${origin}/editions/${id}`,
-      images: [{ url: `${origin}/api/editions/${id}`, width: 900, height: 1200 }],
-    },
+    // `opengraph-image.tsx` supplies the picture; see the note on the card page.
+    openGraph: { title, description, url: `${origin}/editions/${id}` },
   }
 }
 

@@ -30,12 +30,9 @@ export async function generateMetadata({
     description,
     metadataBase: new URL(origin),
     alternates: { canonical: `${origin}/cards/${id}` },
-    openGraph: {
-      title,
-      description,
-      url: `${origin}/cards/${id}`,
-      images: [{ url: `${origin}/api/cards/${id}`, width: 900, height: 1200 }],
-    },
+    // No `images` here: `opengraph-image.tsx` next door supplies it, as a 1200×630 PNG. The
+    // card's own endpoint answers SVG, which no platform will render as a preview.
+    openGraph: { title, description, url: `${origin}/cards/${id}` },
   }
 }
 
