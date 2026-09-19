@@ -1,7 +1,7 @@
 import { similarProducts } from '@lookline/engine'
 import { ProductCard, Rail, RailItem } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
-import { displayName, articleName } from '@/lib/product-name'
+import { displayName } from '@/lib/product-name'
 import { reasonLine } from '@/lib/reason'
 import { getDb } from '@/server/db'
 import { callEngine } from './engine'
@@ -29,7 +29,7 @@ export async function SimilarPieces({
             product={{
               id: item.product.id,
               imagePath: item.product.imagePath,
-              name: articleName(item.product, item.brandName),
+              name: displayName(item.product.name, item.brandName),
               price: item.product.price,
               brandName: item.brandName,
               colorName: item.product.colorName,

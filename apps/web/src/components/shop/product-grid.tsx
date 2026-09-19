@@ -1,6 +1,6 @@
 'use client'
 
-import { articleName } from '@/lib/product-name'
+import { displayName } from '@/lib/product-name'
 import { useLayoutEffect, useRef } from 'react'
 import type { ProductSearchResult } from '@lookline/engine'
 import { ProductCard } from '@/components/ui'
@@ -76,7 +76,7 @@ export function ProductGrid({
             product={{
               id: product.id,
               imagePath: product.imagePath,
-              name: articleName(product, product.brandName),
+              name: displayName(product.name, product.brandName),
               price: product.price,
               brandName: product.brandName,
               colorName: product.colorName,

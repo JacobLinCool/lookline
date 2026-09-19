@@ -1,6 +1,6 @@
 'use client'
 
-import { articleName } from '@/lib/product-name'
+import { displayName } from '@/lib/product-name'
 import { EmptyState, Notice, Section } from '@/components/ui'
 import { useI18n } from '@/i18n/client'
 import type { Recommendation, Understanding } from '@/server/intent'
@@ -37,7 +37,7 @@ export function ItemsSection({
                 product={{
                   id: item.product.id,
                   imagePath: item.product.imagePath,
-                  name: articleName(item.product, item.brandName),
+                  name: displayName(item.product.name, item.brandName),
                   price: item.product.price,
                   brandName: item.brandName,
                   colorName: item.product.colorName,
