@@ -6,10 +6,10 @@
  * - `articles` is keyed by H&M's own zero-padded `article_id`; `brands` keeps an integer key.
  * - App entities use text primary keys (deterministic ids from the simulation, nanoid at runtime).
  * - Enums are `text` columns constrained by the `*_VALUES` tuples below.
- * - Arrays and objects are JSON text (`mode: 'json'`); every 32-d vector is a JSON array following
- *   the style-space layout in docs/ARCHITECTURE.md (`product_vectors` keeps a normalised copy of
- *   `articles.style_vector` spread over 32 REAL columns for cosine ranking in SQL — see
- *   `vectors.ts` and `drizzle/0001_vectors_fts.sql`).
+ * - Arrays and objects are JSON text (`mode: 'json'`); every 64-d vector is a JSON array following
+ *   the style-space layout in docs/ARCHITECTURE.md (`article_vectors` keeps a normalised copy of
+ *   `articles.style_vector` spread over 64 REAL columns for cosine ranking in SQL — see
+ *   `vectors.ts`, `drizzle/0001_vectors_fts.sql` and `drizzle/0003_vision.sql`).
  * - Timestamps are integer milliseconds since the epoch (`mode: 'timestamp_ms'`, JS `Date`).
  * - Prices are integer TWD.
  */
@@ -25,7 +25,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
-export const STYLE_DIMENSIONS = 32
+export const STYLE_DIMENSIONS = 64
 
 // ---------------------------------------------------------------------------
 // Enum values
@@ -151,7 +151,7 @@ const stringList = (name: string) =>
     .default(sql`'[]'`)
 const json = <T>(name: string) => text(name, { mode: 'json' }).$type<T>()
 
-/** 32-d style vector stored as a JSON array with 6 decimals (`null` stays `null`). */
+/** 64-d style vector stored as a JSON array with 6 decimals (`null` stays `null`). */
 export const vector = customType<{ data: number[]; driverData: string }>({
   dataType() {
     return 'text'
@@ -272,13 +272,24 @@ export const articles = sqliteTable(
     neckline: text('neckline').notNull().default(''),
     sleeve: text('sleeve').notNull().default(''),
     closure: text('closure').notNull().default(''),
+    // Written by the vision pass (`pnpm --filter @lookline/hm vision`), which is also the only
+    // thing that can fill `aesthetics` — the photograph is where a style lives, never the copy.
+    /** Up to three catalog aesthetic slugs, strongest first. The weights live in `styleVector`. */
+    aesthetics: stringList('aesthetics'),
+    silhouette: text('silhouette').notNull().default(''),
+    /** What the print depicts (`slogan`, `character`, `floral`…); `''` when the garment has none. */
+    printSubject: text('print_subject').notNull().default(''),
+    /** One English sentence; indexed by FTS so a vibe query has prose to match. */
+    styleCaption: text('style_caption').notNull().default(''),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
       .notNull()
       .default(sql`'{}'`),
-    /** All zeroes until a semantic pass encodes the 64 dimensions. */
-    styleVector: vector('style_vector').notNull(),
+    /** Derived from the Look's own pieces; all zeroes until it has any. */
+    styleVector: vector('style_vector')
+      .notNull()
+      .$defaultFn(() => Array.from({ length: STYLE_DIMENSIONS }, () => 0)),
     createdAt: createdAt(),
   },
   (t) => [
@@ -456,8 +467,10 @@ export const looks = sqliteTable(
     imageError: text('image_error'),
     aesthetics: stringList('aesthetics'),
     palette: stringList('palette'),
-    /** All zeroes until a semantic pass encodes the 64 dimensions. */
-    styleVector: vector('style_vector').notNull(),
+    /** Derived from the Look's own pieces; all zeroes until it has any. */
+    styleVector: vector('style_vector')
+      .notNull()
+      .$defaultFn(() => Array.from({ length: STYLE_DIMENSIONS }, () => 0)),
     occasion: text('occasion'),
     parentLookId: text('parent_look_id'),
     rootLookId: text('root_look_id'),
@@ -542,20 +555,20 @@ export const previews = sqliteTable(
   ],
 )
 
-export const previewProducts = sqliteTable(
-  'preview_products',
+export const previewArticles = sqliteTable(
+  'preview_articles',
   {
     previewId: text('preview_id')
       .notNull()
       .references(() => previews.id, { onDelete: 'cascade' }),
-    productId: integer('product_id')
+    articleId: text('article_id')
       .notNull()
-      .references(() => products.id),
+      .references(() => articles.id),
     position: integer('position').notNull().default(0),
   },
   (t) => [
-    primaryKey({ columns: [t.previewId, t.productId] }),
-    index('preview_products_product_idx').on(t.productId),
+    primaryKey({ columns: [t.previewId, t.articleId] }),
+    index('preview_articles_article_idx').on(t.articleId),
   ],
 )
 
@@ -879,7 +892,7 @@ export type LookArticle = typeof lookArticles.$inferSelect
 export type LookParticipant = typeof lookParticipants.$inferSelect
 export type Preview = typeof previews.$inferSelect
 export type NewPreview = typeof previews.$inferInsert
-export type PreviewProduct = typeof previewProducts.$inferSelect
+export type PreviewArticle = typeof previewArticles.$inferSelect
 export type Ask = typeof asks.$inferSelect
 export type NewAsk = typeof asks.$inferInsert
 export type AskResponse = typeof askResponses.$inferSelect

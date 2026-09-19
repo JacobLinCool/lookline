@@ -1,6 +1,6 @@
 'use server'
 
-import { eq, inArray, products, users } from '@lookline/db'
+import { eq, inArray, articles, users } from '@lookline/db'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getI18n } from '@/i18n/server'
@@ -17,15 +17,14 @@ import {
 import { createPreviewDraft, isPreviewPhotoType } from '@/server/preview-generation'
 import { loadPreviewSourceLook } from '@/server/preview-source'
 
-const MAX_PRODUCTS = 8
+const MAX_ARTICLES = 8
 
 function readText(value: FormDataEntryValue | null, max: number): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function readProductId(value: FormDataEntryValue): number | null {
-  const id = Number(value)
-  return Number.isInteger(id) && id > 0 ? id : null
+function readArticleId(value: FormDataEntryValue): string | null {
+  return typeof value === 'string' && /^\d{10}$/.test(value) ? value : null
 }
 
 function returnWithError(path: string, message: string): never {
@@ -48,29 +47,29 @@ async function readUploadedPhoto(
   }
 }
 
-/** Creates a private, expiring preview from catalog products without creating an owned Look. */
+/** Creates a private, expiring preview from catalog articles without creating an owned Look. */
 export async function createPreviewAction(formData: FormData): Promise<void> {
   const back = safeNextPath(formData.get('return'), '/previews/new')
   const [user, { t }] = await Promise.all([requireUser(back), getI18n()])
-  let productIds = [
+  let articleIds = [
     ...new Set(
       formData
-        .getAll('productId')
-        .map(readProductId)
-        .filter((id): id is number => id !== null),
+        .getAll('articleId')
+        .map(readArticleId)
+        .filter((id): id is string => id !== null),
     ),
-  ].slice(0, MAX_PRODUCTS)
+  ].slice(0, MAX_ARTICLES)
   const sourceLookId = sanitizeId(formData.get('sourceLookId'))
   const source = sourceLookId ? await loadPreviewSourceLook(sourceLookId, user.id) : null
   if (sourceLookId && !source) returnWithError(back, t.previews.errors.sourceUnavailable)
-  if (source) productIds = source.productIds.slice(0, MAX_PRODUCTS)
-  if (productIds.length === 0) returnWithError(back, t.previews.errors.pickPiece)
+  if (source) articleIds = source.articleIds.slice(0, MAX_ARTICLES)
+  if (articleIds.length === 0) returnWithError(back, t.previews.errors.pickPiece)
 
   const rows = await getDb()
-    .db.select({ id: products.id })
-    .from(products)
-    .where(inArray(products.id, productIds))
-  if (rows.length !== productIds.length) returnWithError(back, t.previews.errors.unknownProducts)
+    .db.select({ id: articles.id })
+    .from(articles)
+    .where(inArray(articles.id, articleIds))
+  if (rows.length !== articleIds.length) returnWithError(back, t.previews.errors.unknownProducts)
 
   const uploaded = await readUploadedPhoto(formData.get('photo'))
   if (uploaded.error === 'type') returnWithError(back, t.previews.errors.photoType)
@@ -95,7 +94,7 @@ export async function createPreviewAction(formData: FormData): Promise<void> {
   try {
     const preview = await createPreviewDraft({
       ownerId: user.id,
-      productIds,
+      articleIds,
       sourceLookId: source?.look.id ?? null,
       stylePreset:
         source?.look.stylePreset ||

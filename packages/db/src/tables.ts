@@ -12,7 +12,7 @@ export const TABLE_ORDER = [
   'look_articles',
   'look_participants',
   'previews',
-  'preview_products',
+  'preview_articles',
   'purchases',
   'asks',
   'ask_responses',

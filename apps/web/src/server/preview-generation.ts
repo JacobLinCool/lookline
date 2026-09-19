@@ -9,9 +9,9 @@ import {
   inArray,
   isNull,
   lt,
-  previewProducts,
+  previewArticles,
   previews,
-  products,
+  articles,
   users,
   type Preview,
 } from '@lookline/db'
@@ -32,7 +32,7 @@ export function isPreviewPhotoType(mimeType: string): boolean {
 
 export const PREVIEW_TTL_MS = 24 * 60 * 60 * 1_000
 const GENERATION_DEADLINE_MS = 30_000
-const MAX_PREVIEW_PRODUCTS = 8
+const MAX_PREVIEW_ARTICLES = 8
 
 async function removeArtifact(key: string | null) {
   if (!key || !isSafeKey(key)) return
@@ -127,11 +127,11 @@ async function loadComposition(preview: Preview) {
   const { db } = getDb()
   const [items, owners] = await Promise.all([
     db
-      .select({ product: products })
-      .from(previewProducts)
-      .innerJoin(products, eq(previewProducts.productId, products.id))
-      .where(eq(previewProducts.previewId, preview.id))
-      .orderBy(asc(previewProducts.position)),
+      .select({ product: articles })
+      .from(previewArticles)
+      .innerJoin(articles, eq(previewArticles.articleId, articles.id))
+      .where(eq(previewArticles.previewId, preview.id))
+      .orderBy(asc(previewArticles.position)),
     db
       .select({ displayName: users.displayName })
       .from(users)
@@ -139,7 +139,7 @@ async function loadComposition(preview: Preview) {
       .limit(1),
   ])
   if (!owners[0] || items.length === 0) throw new Error('Preview composition is unavailable.')
-  return { products: items.map((item) => item.product), ownerName: owners[0].displayName }
+  return { articles: items.map((item) => item.product), ownerName: owners[0].displayName }
 }
 
 async function loadReference(preview: Preview): Promise<ReferencePhoto> {
@@ -164,7 +164,7 @@ async function finishPreview(preview: Preview) {
     ])
     const prompt = buildLookImagePrompt({
       preset: resolveStylePreset(preview.stylePreset),
-      products: scene.products,
+      articles: scene.articles,
       ownerName: scene.ownerName,
       occasion: preview.occasion,
       hasReferencePhoto: true,
@@ -282,7 +282,7 @@ export async function cancelPreviewImage(
 
 export async function createPreviewDraft(input: {
   ownerId: string
-  productIds: readonly number[]
+  articleIds: readonly string[]
   sourceLookId?: string | null
   stylePreset: string
   title: string
@@ -290,13 +290,13 @@ export async function createPreviewDraft(input: {
   referencePhoto: ReferencePhoto
 }): Promise<Preview> {
   if (!getLlm().imageModel) throw new Error('Image rendering is unavailable.')
-  const productIds = [...new Set(input.productIds)].slice(0, MAX_PREVIEW_PRODUCTS)
-  if (productIds.length === 0) throw new Error('Choose at least one product.')
+  const articleIds = [...new Set(input.articleIds)].slice(0, MAX_PREVIEW_ARTICLES)
+  if (articleIds.length === 0) throw new Error('Choose at least one product.')
   const found = await getDb()
-    .db.select({ id: products.id })
-    .from(products)
-    .where(inArray(products.id, productIds))
-  if (found.length !== productIds.length) throw new Error('One or more products are unavailable.')
+    .db.select({ id: articles.id })
+    .from(articles)
+    .where(inArray(articles.id, articleIds))
+  if (found.length !== articleIds.length) throw new Error('One or more articles are unavailable.')
   const preset = resolveStylePreset(input.stylePreset)
   const id = `pv_${nanoid()}`
   const generationId = nanoid()
@@ -321,8 +321,8 @@ export async function createPreviewDraft(input: {
         expiresAt: new Date(Date.now() + PREVIEW_TTL_MS),
       })
     await getDb()
-      .db.insert(previewProducts)
-      .values(productIds.map((productId, position) => ({ previewId: id, productId, position })))
+      .db.insert(previewArticles)
+      .values(articleIds.map((articleId, position) => ({ previewId: id, articleId, position })))
   } catch (error) {
     await getDb()
       .db.delete(previews)
@@ -337,16 +337,16 @@ export async function createPreviewDraft(input: {
   return preview
 }
 
-export async function loadPreviewProducts(id: string) {
+export async function loadPreviewArticles(id: string) {
   return getDb()
     .db.select({
-      product: products,
+      product: articles,
       brandName: brands.name,
-      position: previewProducts.position,
+      position: previewArticles.position,
     })
-    .from(previewProducts)
-    .innerJoin(products, eq(previewProducts.productId, products.id))
-    .innerJoin(brands, eq(products.brandId, brands.id))
-    .where(eq(previewProducts.previewId, id))
-    .orderBy(asc(previewProducts.position))
+    .from(previewArticles)
+    .innerJoin(articles, eq(previewArticles.articleId, articles.id))
+    .innerJoin(brands, eq(articles.brandId, brands.id))
+    .where(eq(previewArticles.previewId, id))
+    .orderBy(asc(previewArticles.position))
 }

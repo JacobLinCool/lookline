@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getI18n } from '@/i18n/server'
 import { getSessionUser, safeNextPath } from '@/server/auth'
-import { and, eq, gt, previewProducts, previews, products } from '@lookline/db'
+import { and, eq, gt, previewArticles, previews, articles } from '@lookline/db'
 import { after } from 'next/server'
 import { recordFeedbackFor } from './feedback'
 import type { ActionResult } from '@/components/latency/instant-form'
@@ -177,21 +177,21 @@ export async function addPreviewToBagAction(formData: FormData): Promise<ActionR
   if (!preview) return { ok: false, message: t.previews.errors.unavailable }
 
   const available = await db
-    .select({ productId: previewProducts.productId })
-    .from(previewProducts)
-    .innerJoin(products, eq(previewProducts.productId, products.id))
-    .where(and(eq(previewProducts.previewId, previewId), gt(products.stock, 0)))
-  const ids = available.map(({ productId }) => productId)
+    .select({ articleId: previewArticles.articleId })
+    .from(previewArticles)
+    .innerJoin(articles, eq(previewArticles.articleId, articles.id))
+    .where(eq(previewArticles.previewId, previewId))
+  const ids = available.map(({ articleId }) => articleId)
   if (ids.length === 0) return { ok: false, message: t.previews.errors.noneAvailable }
-  const result = await addManyToBag(ids.map((productId) => ({ productId })))
+  const result = await addManyToBag(ids.map((articleId) => ({ articleId })))
   if (!result.ok) return { ok: false, message: t.previews.errors.bagFull }
 
   await rememberAttribution(formData, preview.sourceLookId)
   after(async () => {
-    for (const productId of ids)
+    for (const articleId of ids)
       await recordFeedbackFor(user.id, {
         kind: 'add_to_bag',
-        productId,
+        articleId,
         lookId: preview.sourceLookId,
       })
   })

@@ -178,7 +178,7 @@ export default async function BagPage({ searchParams }: { searchParams: SearchPa
             <Button href="/checkout" full size="lg">
               {t.bag.checkout.title}
             </Button>
-            <Button href={previewHref({ productIds: ids })} full variant="secondary">
+            <Button href={previewHref({ articleIds: ids })} full variant="secondary">
               {t.previews.actions.previewBag}
             </Button>
           </aside>

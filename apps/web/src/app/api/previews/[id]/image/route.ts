@@ -1,4 +1,4 @@
-import { asc, eq, previewProducts, products, users } from '@lookline/db'
+import { asc, eq, previewArticles, articles, users } from '@lookline/db'
 import { renderLookPosterSvg } from '@lookline/engine'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
@@ -36,11 +36,11 @@ export async function GET(
   const { db } = getDb()
   const [items, owners] = await Promise.all([
     db
-      .select({ product: products })
-      .from(previewProducts)
-      .innerJoin(products, eq(previewProducts.productId, products.id))
-      .where(eq(previewProducts.previewId, preview.id))
-      .orderBy(asc(previewProducts.position)),
+      .select({ product: articles })
+      .from(previewArticles)
+      .innerJoin(articles, eq(previewArticles.articleId, articles.id))
+      .where(eq(previewArticles.previewId, preview.id))
+      .orderBy(asc(previewArticles.position)),
     db
       .select({ displayName: users.displayName })
       .from(users)
@@ -53,7 +53,7 @@ export async function GET(
       title: preview.title,
       ownerName: owners[0].displayName,
       stylePreset: preview.stylePreset,
-      products: items.map(({ product }) => product),
+      articles: items.map(({ product }) => product),
       palette: [],
       aesthetics: [],
       seed: hashString(preview.id),

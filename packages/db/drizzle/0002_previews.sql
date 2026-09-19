@@ -1,13 +1,13 @@
-CREATE TABLE `preview_products` (
+CREATE TABLE `preview_articles` (
 	`preview_id` text NOT NULL,
-	`product_id` integer NOT NULL,
+	`article_id` text NOT NULL,
 	`position` integer DEFAULT 0 NOT NULL,
-	PRIMARY KEY(`preview_id`, `product_id`),
+	PRIMARY KEY(`preview_id`, `article_id`),
 	FOREIGN KEY (`preview_id`) REFERENCES `previews`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action
+	FOREIGN KEY (`article_id`) REFERENCES `articles`(`article_id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `preview_products_product_idx` ON `preview_products` (`product_id`);--> statement-breakpoint
+CREATE INDEX `preview_articles_article_idx` ON `preview_articles` (`article_id`);--> statement-breakpoint
 CREATE TABLE `previews` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,

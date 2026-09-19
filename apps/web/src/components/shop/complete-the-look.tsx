@@ -74,7 +74,7 @@ async function OutfitRail({
           </Button>
         </InstantForm>
         <Button
-          href={previewHref({ productIds: outfit.items.map((item) => item.product.id) })}
+          href={previewHref({ articleIds: outfit.items.map((item) => item.product.id) })}
           variant="ghost"
           size="sm"
         >

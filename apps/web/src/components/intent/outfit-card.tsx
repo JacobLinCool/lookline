@@ -93,7 +93,7 @@ export function OutfitRail({
         <Button href={askHref(articleIds, sessionId)} variant="ghost" size="sm">
           {copy.askFriend}
         </Button>
-        <Button href={previewHref({ productIds })} variant="ghost" size="sm">
+        <Button href={previewHref({ articleIds })} variant="ghost" size="sm">
           {t.previews.actions.previewLook}
         </Button>
       </div>

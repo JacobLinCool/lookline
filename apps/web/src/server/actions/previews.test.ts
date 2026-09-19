@@ -40,7 +40,7 @@ describe('preview reference validation', () => {
     'rejects %s before remembering a photo',
     async (type) => {
       const form = new FormData()
-      form.set('productId', '1')
+      form.set('articleId', '0108775015')
       form.set('photo', new File(['unsupported'], 'photo', { type }))
       form.set('rememberPhoto', 'on')
 

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { brands, eq, inArray, products } from '@lookline/db'
+import { brands, eq, inArray, articles } from '@lookline/db'
 import { STYLE_PRESETS } from '@lookline/engine'
 import { Flash } from '@/components/looks/flash'
 import { ReferencePhotoField } from '@/components/looks/reference-photo-field'
@@ -22,17 +22,11 @@ import { createPreviewAction } from '@/server/actions/previews'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { sanitizeId } from '@/server/looks'
+import { parseIdList } from '@/components/social/data'
 import { loadPreviewSourceLook } from '@/server/preview-source'
 
-const MAX_PRODUCTS = 8
+const MAX_ARTICLES = 8
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
-
-function readProductIds(value: string | string[] | undefined): number[] {
-  const raw = Array.isArray(value) ? value.join(',') : (value ?? '')
-  return [...new Set(raw.split(',').map(Number))]
-    .filter((id) => Number.isInteger(id) && id > 0)
-    .slice(0, MAX_PRODUCTS)
-}
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -43,28 +37,28 @@ export default async function NewPreviewPage({ searchParams }: { searchParams: S
   const [params, { t, locale }] = await Promise.all([searchParams, getI18n()])
   const lookParam = Array.isArray(params.look) ? params.look[0] : params.look
   const sourceLookId = sanitizeId(lookParam)
-  const requestedProductIds = readProductIds(params.products)
+  const requestedArticleIds = parseIdList(params.articles).slice(0, MAX_ARTICLES)
   const requestedPath = sourceLookId
     ? `/previews/new?look=${encodeURIComponent(sourceLookId)}`
-    : `/previews/new?products=${requestedProductIds.join(',')}`
+    : `/previews/new?articles=${requestedArticleIds.join(',')}`
   const user = await requireUser(requestedPath)
   const source = sourceLookId ? await loadPreviewSourceLook(sourceLookId, user.id) : null
   if (lookParam && !source) notFound()
-  const productIds = source?.productIds.slice(0, MAX_PRODUCTS) ?? requestedProductIds
-  const rows = productIds.length
+  const articleIds = source?.articleIds.slice(0, MAX_ARTICLES) ?? requestedArticleIds
+  const rows = articleIds.length
     ? await getDb()
-        .db.select({ product: products, brandName: brands.name })
-        .from(products)
-        .innerJoin(brands, eq(products.brandId, brands.id))
-        .where(inArray(products.id, productIds))
+        .db.select({ product: articles, brandName: brands.name })
+        .from(articles)
+        .innerJoin(brands, eq(articles.brandId, brands.id))
+        .where(inArray(articles.id, articleIds))
     : []
-  const ordered = productIds.flatMap((id) => {
+  const ordered = articleIds.flatMap((id) => {
     const row = rows.find(({ product }) => product.id === id)
     return row ? [row] : []
   })
   const returnPath = source
     ? `/previews/new?look=${encodeURIComponent(source.look.id)}`
-    : `/previews/new?products=${productIds.join(',')}`
+    : `/previews/new?articles=${articleIds.join(',')}`
   const stylePresets = source
     ? STYLE_PRESETS.filter(({ slug }) => slug === source.look.stylePreset)
     : STYLE_PRESETS
@@ -98,7 +92,7 @@ export default async function NewPreviewPage({ searchParams }: { searchParams: S
           <input type="hidden" name="return" value={returnPath} />
           {source ? <input type="hidden" name="sourceLookId" value={source.look.id} /> : null}
           {ordered.map(({ product }) => (
-            <input key={product.id} type="hidden" name="productId" value={product.id} />
+            <input key={product.id} type="hidden" name="articleId" value={product.id} />
           ))}
 
           <Section title={t.previews.new.pieces} rule={false} className="pt-7">
