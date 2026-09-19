@@ -22,6 +22,7 @@ export function ShareCard({
   verifyCode: string
 }) {
   const [said, setSaid] = useState<string | null>(null)
+  const [exposed, setExposed] = useState(false)
   const verifyUrl =
     typeof window === 'undefined' ? '' : `${window.location.origin}/verify/${verifyCode}`
 
@@ -62,7 +63,11 @@ export function ShareCard({
       await navigator.clipboard.writeText(verifyUrl)
       say('連結已複製')
     } catch {
-      say('複製失敗，請手動選取網址。')
+      // The clipboard is refused on an insecure origin and inside some in-app browsers. Telling
+      // someone to select the address by hand only helps if there is an address on screen, so
+      // this is where it appears.
+      setExposed(true)
+      say('複製失敗，請手動選取下面的網址。')
     }
   }
 
@@ -82,6 +87,15 @@ export function ShareCard({
       <p aria-live="polite" className="text-[12px] text-muted">
         {said ?? `查證編號 ${verifyCode}`}
       </p>
+      {exposed ? (
+        <input
+          readOnly
+          value={verifyUrl}
+          onFocus={(event) => event.currentTarget.select()}
+          aria-label="查證連結"
+          className="w-full rounded-sm border border-line bg-card px-2 py-1 text-[12px]"
+        />
+      ) : null}
     </div>
   )
 }
