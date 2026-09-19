@@ -7,8 +7,11 @@ import {
   brands,
   cardCopies,
   cards,
+  cardCandidates,
   collections,
   eq,
+  personaTransfers,
+  personas,
   insertAll,
   purchases,
   users,
@@ -443,5 +446,102 @@ describe('a collection issues one copy per persona', () => {
     expect(await acceptTransfer(db, { transferId: 'tr_y', acceptingUserId: 'acc_a', now })).toEqual(
       { ok: false, reason: 'expired' },
     )
+  })
+})
+
+describe('what has no transaction around it', () => {
+  it('finishes an acceptance whose second step never ran, instead of calling it stale', async () => {
+    // D1 has no transaction, so the persona can be handed over with the offer still `pending`.
+    // Left that way the partial unique index refuses every later offer for that persona.
+    const db = handle.db
+    const now = new Date()
+    await createPersona(db, { id: 'per_half', ownerUserId: 'acc_c', displayName: 'Half' })
+    await offerTransfer(db, {
+      id: 'tr_half',
+      personaId: 'per_half',
+      fromUserId: 'acc_c',
+      toUserId: 'acc_a',
+      personaVersion: 1,
+      expiresAt: new Date(now.getTime() + HOUR),
+    })
+    // The first step only: the persona moves, the offer stays open.
+    await db
+      .update(personas)
+      .set({ ownerUserId: 'acc_a', version: 2 })
+      .where(eq(personas.id, 'per_half'))
+
+    expect(
+      await acceptTransfer(db, { transferId: 'tr_half', acceptingUserId: 'acc_a', now }),
+    ).toEqual({ ok: true })
+    const [offer] = await db
+      .select()
+      .from(personaTransfers)
+      .where(eq(personaTransfers.id, 'tr_half'))
+    expect(offer?.state).toBe('accepted')
+    // And a fresh offer is possible again, which the stuck `pending` row would have blocked.
+    await offerTransfer(db, {
+      id: 'tr_half2',
+      personaId: 'per_half',
+      fromUserId: 'acc_a',
+      toUserId: 'acc_c',
+      personaVersion: 2,
+      expiresAt: new Date(now.getTime() + HOUR),
+    })
+  })
+
+  it('numbers a candidate after the places already taken, not after how many there are', async () => {
+    // What a second generate sees once the first has landed. The retry above it is for the
+    // narrower window where both insert at once, which a single-threaded test cannot stage —
+    // this covers the state that window leaves behind, and that positions never collide.
+    const db = handle.db
+    const now = new Date()
+    await createPersona(db, { id: 'per_race', ownerUserId: 'acc_a', displayName: 'Race' })
+    await reserveCredit(db, {
+      id: 'led_race',
+      ownerUserId: 'acc_a',
+      sessionId: 'sess_race',
+      operationKey: 'reserve:race',
+    })
+    await openSession(db, {
+      id: 'sess_race',
+      ownerUserId: 'acc_a',
+      personaId: 'per_race',
+      reserveOperationKey: 'reserve:race',
+      articles: [],
+      expiresAt: new Date(now.getTime() + HOUR),
+    })
+    await startAttempt(db, { id: 'ga_race1', sessionId: 'sess_race' })
+    await startAttempt(db, { id: 'ga_race2', sessionId: 'sess_race' })
+    // Stand in for the winner of the race: position 1 is taken before the loser inserts.
+    await db.insert(cardCandidates).values({
+      id: 'cc_winner',
+      sessionId: 'sess_race',
+      attemptId: 'ga_race1',
+      imagePath: '',
+      position: 1,
+    })
+    expect(
+      await addCandidate(db, {
+        id: 'cc_loser',
+        sessionId: 'sess_race',
+        attemptId: 'ga_race2',
+        imagePath: '',
+        now,
+      }),
+    ).toEqual({ ok: true, position: 2 })
+  })
+
+  it('refuses to issue an edition twice from one session', async () => {
+    const db = handle.db
+    const now = new Date()
+    const again = await issueEdition(db, {
+      editionId: 'ed_again',
+      collectionId: 'col_1',
+      sessionId: 'sess_edition',
+      imagePath: 'cc_edition',
+      copies: [{ id: 'cp_again', personaId: 'per_mum', verificationCode: 'LL-AGAIN-01' }],
+      now,
+    })
+    expect(again).toEqual({ ok: false, reason: 'session-closed' })
   })
 })

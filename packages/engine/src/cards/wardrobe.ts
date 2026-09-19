@@ -35,21 +35,33 @@ export interface EntitlementInput {
 export async function grantEntitlement(db: Database, input: EntitlementInput): Promise<boolean> {
   const quantity = entitlementQuantity(input.quantity)
   if (quantity === 0) return false
-  const existing = await db
+  if (await alreadyGranted(db, input.purchaseId)) return false
+  try {
+    await db.insert(wardrobeEntitlements).values({
+      id: input.id,
+      ownerUserId: input.ownerUserId,
+      purchaseId: input.purchaseId,
+      articleId: input.articleId,
+      size: input.size ?? null,
+      quantity,
+    })
+  } catch (error) {
+    // Without a transaction the check above cannot exclude a concurrent grant; the unique index
+    // on `purchase_id` is what does, and losing that race means the line is already in the
+    // wardrobe — the same `false` a sequential replay gets.
+    if (await alreadyGranted(db, input.purchaseId)) return false
+    throw error
+  }
+  return true
+}
+
+async function alreadyGranted(db: Database, purchaseId: string): Promise<boolean> {
+  const rows = await db
     .select({ id: wardrobeEntitlements.id })
     .from(wardrobeEntitlements)
-    .where(eq(wardrobeEntitlements.purchaseId, input.purchaseId))
+    .where(eq(wardrobeEntitlements.purchaseId, purchaseId))
     .limit(1)
-  if (existing.length > 0) return false
-  await db.insert(wardrobeEntitlements).values({
-    id: input.id,
-    ownerUserId: input.ownerUserId,
-    purchaseId: input.purchaseId,
-    articleId: input.articleId,
-    size: input.size ?? null,
-    quantity,
-  })
-  return true
+  return rows.length > 0
 }
 
 export async function lendArticle(
@@ -111,11 +123,5 @@ export async function availableArticles(db: Database, userId: string): Promise<A
   ]
 }
 
-/** The share of a card's articles the author owned outright — snapshotted onto the card. */
-export function ownedRatio(sources: ReadonlyArray<{ source: EntitlementSource }>): number {
-  if (sources.length === 0) return 0
-  const owned = sources.filter((s) => s.source === 'purchase').length
-  return Math.round((owned / sources.length) * 1000) / 1000
-}
 
 export { articles, inArray, or, sql }

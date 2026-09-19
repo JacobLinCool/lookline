@@ -385,6 +385,7 @@ export function makeProduct(
     printSubject: '',
     styleCaption: '',
     styleCaptionZh: '',
+    searchZh: '',
     graphicalAppearance: 'Solid',
     rise: '',
     shoulder: '',

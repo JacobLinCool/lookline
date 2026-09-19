@@ -43,3 +43,19 @@ export function creditsForPurchaseLine(unitPrice: number, quantity: number): num
 export function entitlementQuantity(quantity: number): number {
   return Math.max(0, quantity)
 }
+
+/**
+ * Owned share of the pieces on a card: owned over all, by count and not by price, counting each
+ * article once however many times it was picked. One definition, because the ratio stored on a
+ * card and the tier read off it must never disagree about that. An empty selection answers 0.
+ */
+export function ownedRatioOf(
+  pieces: ReadonlyArray<{ articleId: string; source: 'purchase' | 'loan' }>,
+): number {
+  const seen = new Map<string, 'purchase' | 'loan'>()
+  for (const p of pieces) if (!seen.has(p.articleId)) seen.set(p.articleId, p.source)
+  if (seen.size === 0) return 0
+  let owned = 0
+  for (const source of seen.values()) if (source === 'purchase') owned += 1
+  return Math.round((owned / seen.size) * 1000) / 1000
+}

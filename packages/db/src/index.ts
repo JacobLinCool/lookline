@@ -21,6 +21,7 @@ export {
   FTS_REBUILD_SQL,
   FTS_MAX_TOKENS,
   ftsQuery,
+  spaceCjk,
   ftsMatch,
   ftsHitsSubquery,
   ftsRank,

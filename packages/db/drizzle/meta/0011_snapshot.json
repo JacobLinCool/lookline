@@ -476,6 +476,14 @@
           "autoincrement": false,
           "default": "''"
         },
+        "search_zh": {
+          "name": "search_zh",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "''"
+        },
         "print_motif": {
           "name": "print_motif",
           "type": "text",

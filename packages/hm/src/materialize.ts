@@ -12,6 +12,7 @@
  * last three had no source at all before, so they were zero on every row.
  */
 import { toStyleVector } from '@lookline/catalog'
+import { spaceCjk } from '@lookline/db'
 import type { CategoryGroup, ColorFamily } from '@lookline/catalog'
 import { sectionMeaning, styleAxes } from './enrich'
 import type { VisionResult } from './vision'
@@ -32,6 +33,7 @@ export interface MaterializedArticle {
   attributes: Record<string, string | number | boolean>
   styleCaption: string
   styleCaptionZh: string
+  searchZh: string
   rise: string
   shoulder: string
   pocketStyle: string
@@ -126,6 +128,8 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
     attributes,
     styleCaption: vision.lookEn,
     styleCaptionZh: vision.lookZh,
+    // Spaced so `unicode61` can tokenise it; the readable copy stays in `styleCaptionZh`.
+    searchZh: spaceCjk([vision.lookZh, vision.stylingZh].join(' ')),
     rise: vision.rise,
     shoulder: vision.shoulder,
     pocketStyle: vision.pocketStyle,

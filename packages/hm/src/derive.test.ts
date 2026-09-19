@@ -56,3 +56,23 @@ describe('colorFamilyOf', () => {
     expect(colorFamilyOf('')).toBe('')
   })
 })
+
+describe('colorFamilyOf', () => {
+  it('maps H&M perceived masters as before', () => {
+    expect(colorFamilyOf('Black')).toBe('black')
+    expect(colorFamilyOf('Khaki green')).toBe('green')
+  })
+
+  it('falls back to the finer colour name when the master is blank', () => {
+    // 789 articles ship with no `perceived_colour_master_name`; 657 of them do have this.
+    expect(colorFamilyOf('', 'Dark Grey')).toBe('grey')
+    expect(colorFamilyOf('', 'Off White')).toBe('white')
+    expect(colorFamilyOf('', 'Dark Blue')).toBe('blue')
+  })
+
+  it('leaves a colour it cannot name empty rather than guessing', () => {
+    expect(colorFamilyOf('', 'Other')).toBe('')
+    expect(colorFamilyOf('', '')).toBe('')
+    expect(colorFamilyOf('')).toBe('')
+  })
+})

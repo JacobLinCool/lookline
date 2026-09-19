@@ -100,6 +100,12 @@ export type AcceptResult =
  * The `UPDATE` carries the version the offer was written against. If the persona moved or was
  * edited in between, it matches no row and the answer is `stale` — which is also what makes a
  * duplicate acceptance harmless, since the first one bumped the version.
+ *
+ * Moving the persona and closing the offer are two statements with no transaction around them,
+ * so a failure between them would leave the persona handed over and the offer still `pending`,
+ * and the partial unique index would then refuse every later offer for that persona. Calling
+ * again repairs it: the version no longer matches so nothing moves, but the persona reads back
+ * as the recipient's, and this run closes the offer the first one left open.
  */
 export async function acceptTransfer(
   db: Database,
@@ -114,11 +120,16 @@ export async function acceptTransfer(
   if (offer.toUserId !== input.acceptingUserId) return { ok: false, reason: 'wrong-recipient' }
   if (offer.expiresAt.getTime() <= input.now.getTime()) return { ok: false, reason: 'expired' }
 
-  const moved = await db
+  await db
     .update(personas)
     .set({ ownerUserId: offer.toUserId, version: sql`${personas.version} + 1` })
     .where(and(eq(personas.id, offer.personaId), eq(personas.version, offer.personaVersion)))
-  if (Number(moved.rowsAffected ?? 0) === 0) return { ok: false, reason: 'stale' }
+  // Read the persona back instead of trusting a row count: libsql reports `rowsAffected` and D1
+  // does not, so believing it would call a completed transfer stale on one of the two runtimes.
+  // Reading the owner rather than the row count is also what lets a half-finished acceptance be
+  // finished by a retry instead of being called stale.
+  const [after] = await db.select().from(personas).where(eq(personas.id, offer.personaId)).limit(1)
+  if (!after || after.ownerUserId !== offer.toUserId) return { ok: false, reason: 'stale' }
 
   await db
     .update(personaTransfers)

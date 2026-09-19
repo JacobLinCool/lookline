@@ -25,6 +25,7 @@ export {
   creditThresholdTwd,
   creditsForPurchaseLine,
   entitlementQuantity,
+  ownedRatioOf,
 } from './rules'
 
 export {
@@ -56,7 +57,6 @@ export {
   availableArticles,
   grantEntitlement,
   lendArticle,
-  ownedRatio,
   revokeLoan,
   type AvailableArticle,
   type EntitlementInput,
