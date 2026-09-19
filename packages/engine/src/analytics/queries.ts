@@ -272,6 +272,8 @@ export async function loadProductsLite(
         subcategory: articles.subcategory,
         colorFamily: articles.colorFamily,
         price: articles.price,
+        aesthetics: articles.aesthetics,
+        attributes: articles.attributes,
       })
       .from(articles)
       .where(inArray(articles.id, part))
@@ -280,12 +282,16 @@ export async function loadProductsLite(
   return out
 }
 
-/** Article counts per (group, colour). Was per aesthetic too, until that column went away. */
+/**
+ * Article counts per (aesthetic, group, colour) — how much of a thing the catalogue already has,
+ * which is what tells a momentum signal apart from an unmet one. The aesthetic came back with the
+ * vision pass; an untagged article counts under `''`, as it did when no article had a tag.
+ */
 export async function loadSupply(db: Database): Promise<Map<string, SupplyCell>> {
   const result = await db.all(sql`
-    select '' as aesthetic, category_group as "group", color_family as color,
+    select coalesce(j.value, '') as aesthetic, category_group as "group", color_family as color,
            count(*) as supply, 0 as low
-    from articles
+    from articles left join json_each(articles.aesthetics) j
     group by 1, 2, 3
   `)
   const out = new Map<string, SupplyCell>()

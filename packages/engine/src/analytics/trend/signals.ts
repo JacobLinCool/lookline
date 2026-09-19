@@ -3,6 +3,7 @@
  * events carrying the keys they touch; `computeTrendSignals` folds those into one row per
  * (day, dimension, key) with momentum 0–100, the five-condition `emerging` flag and evidence.
  */
+import { DESIGN_DETAIL_SLUGS } from '@lookline/catalog'
 import type { InteractionType, TrendDimension } from '@lookline/db'
 import {
   addDays,
@@ -48,6 +49,7 @@ export const TREND_DIMENSIONS: readonly TrendDimension[] = [
   'category',
   'color',
   'silhouette',
+  'detail',
   'aesthetic_category',
 ]
 
@@ -62,17 +64,30 @@ export function splitTrendKey(composite: string): { dimension: TrendDimension; k
 }
 
 /**
- * The dimensions a purchase or a remix moves. The `aesthetic` dimension used to come from the
- * article's own tags; the catalogue has none, so the finest signal available is the product type
- * — which is H&M's own, and 131 values deep.
+ * The dimensions a purchase or a remix moves.
+ *
+ * `aesthetic` is the article's own tags where the vision pass reached it, and the product type
+ * otherwise — H&M's own, 131 values deep, which was the finest signal available while no article
+ * carried a tag.
+ *
+ * `detail` is the point of the whole exercise for the manufacturing side. A factory does not cut
+ * "quiet luxury"; it cuts a mock neck, a dropped shoulder and a cable knit in oatmeal. Necklines,
+ * sleeves, closures and design details are tech-pack fields, so a consumer's sentence and a
+ * production brief end up in one vocabulary.
  */
 export function productKeys(p: ProductLite): string[] {
   const keys = new Set<string>()
   keys.add(trendKey('category', p.categoryGroup))
   keys.add(trendKey('color', p.colorFamily))
   keys.add(trendKey('silhouette', p.subcategory))
-  keys.add(trendKey('aesthetic', p.subcategory))
-  keys.add(trendKey('aesthetic_category', `${p.subcategory}|${p.categoryGroup}`))
+  const aesthetics = p.aesthetics.length > 0 ? p.aesthetics : [p.subcategory]
+  for (const a of aesthetics) {
+    keys.add(trendKey('aesthetic', a))
+    keys.add(trendKey('aesthetic_category', `${a}|${p.categoryGroup}`))
+  }
+  for (const slug of DESIGN_DETAIL_SLUGS) {
+    if (p.attributes[slug] === true) keys.add(trendKey('detail', slug))
+  }
   return [...keys]
 }
 

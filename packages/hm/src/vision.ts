@@ -18,12 +18,14 @@
 import {
   AESTHETICS,
   CLOSURES,
+  DESIGN_DETAIL_SLUGS,
   FITS,
   LENGTHS,
   MATERIALS,
   NECKLINES,
   OCCASIONS,
   PATTERNS,
+  PRINT_SUBJECT_SLUGS,
   SILHOUETTE_VALUES,
   SLEEVES,
 } from '@lookline/catalog'
@@ -35,53 +37,6 @@ export const VISION_VERSION = 'vision-1'
 export const MAX_AESTHETICS = 3
 export const MAX_OCCASIONS = 4
 export const MAX_DESIGN_DETAILS = 6
-
-/**
- * What a print depicts, which is the question H&M's `graphical_appearance_name` never answers.
- * Kidswear is a third of the catalogue and nearly all of it is printed; "All over pattern" is the
- * same label for a dinosaur, a slogan and a field of daisies.
- */
-export const PRINT_SUBJECTS = [
-  'none',
-  'slogan',
-  'character',
-  'floral',
-  'animal',
-  'abstract',
-  'landscape',
-  'photo',
-] as const
-export type PrintSubject = (typeof PRINT_SUBJECTS)[number]
-
-/**
- * Construction details a photograph shows and the copy usually omits. They are written into
- * `articles.attributes` as booleans, where `attribute_match` already scores them against an
- * intent's `mustHave` / `mustAvoid` — so "不要蕾絲" works the day the column lands.
- *
- * Deliberately disjoint from the five keys `garmentDetails` sets from `detail_desc` (`pockets`,
- * `hood`, `zip`, `elasticWaist`, `lined`): the two sets merge by plain spread, with no key in
- * both and so no rule about which wins.
- */
-export const DESIGN_DETAILS = [
-  'ruffle',
-  'pleats',
-  'cutout',
-  'slit',
-  'belt',
-  'embroidery',
-  'sequin',
-  'distressed',
-  'ribbed',
-  'cableKnit',
-  'laceTrim',
-  'asymmetric',
-  'sheer',
-  'tieBow',
-  'fringe',
-  'buttonFront',
-  'logo',
-] as const
-export type DesignDetail = (typeof DESIGN_DETAILS)[number]
 
 /**
  * The materials a photograph actually separates. Cotton against polyester is not a judgement an
@@ -124,8 +79,8 @@ const slugs = (rows: readonly { slug: string }[]): string[] => rows.map((r) => r
 export const VISION_VOCAB = {
   aesthetics: slugs(AESTHETICS),
   patterns: slugs(PATTERNS),
-  printSubjects: [...PRINT_SUBJECTS],
-  designDetails: [...DESIGN_DETAILS],
+  printSubjects: [...PRINT_SUBJECT_SLUGS],
+  designDetails: [...DESIGN_DETAIL_SLUGS],
   fits: slugs(FITS),
   silhouettes: slugs(SILHOUETTE_VALUES),
   lengths: slugs(LENGTHS),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   AESTHETICS,
+  DESIGN_DETAIL_SLUGS,
   STYLE_BLOCKS,
   aestheticIndex,
   axisIndex,
@@ -8,7 +9,6 @@ import {
 } from '@lookline/catalog'
 import { materializeVision, type ImportedArticle } from './materialize'
 import {
-  DESIGN_DETAILS,
   MAX_AESTHETICS,
   MAX_DESIGN_DETAILS,
   MAX_OCCASIONS,
@@ -128,7 +128,7 @@ describe('parseVision', () => {
     const r = parseVision({
       ...full,
       aesthetics: AESTHETICS.slice(0, 8).map((a) => ({ slug: a.slug, weight: 0.5 })),
-      designDetails: [...DESIGN_DETAILS],
+      designDetails: [...DESIGN_DETAIL_SLUGS],
       occasions: [...VISION_VOCAB.occasions],
       axes: { ...full.axes, formality: 4, boldness: -2 },
       confidence: 99,
@@ -205,7 +205,7 @@ describe('materializeVision', () => {
 
   it('merges design details beside the regex attributes without colliding', () => {
     expect(out.attributes).toEqual({ pockets: true, cableKnit: true, ribbed: true })
-    for (const key of DESIGN_DETAILS) {
+    for (const key of DESIGN_DETAIL_SLUGS) {
       expect(['pockets', 'hood', 'zip', 'elasticWaist', 'lined']).not.toContain(key)
     }
   })

@@ -140,6 +140,10 @@ export interface ProductLite {
   subcategory: string
   colorFamily: string
   price: number
+  /** Catalog aesthetic slugs from the vision pass; empty for an article it has not reached. */
+  aesthetics: string[]
+  /** `articles.attributes`; the design-detail keys in it drive the `detail` dimension. */
+  attributes: Record<string, string | number | boolean>
 }
 
 export interface AskLite {

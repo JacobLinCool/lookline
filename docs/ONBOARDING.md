@@ -12,6 +12,8 @@ pnpm install
 cp .env.example .env                               # seed / analytics / evaluate scripts
 cp apps/web/.dev.vars.example apps/web/.dev.vars   # the Worker's own secrets
 pnpm db:migrate && pnpm seed                       # 100k products + simulation → data/lookline.sqlite
+pnpm --filter @lookline/hm vision                  # optional: read the photographs (needs OPENAI_API_KEY)
+pnpm --filter @lookline/hm materialize             # apply those readings to the columns and vectors
 pnpm d1:migrate:local && pnpm d1:local             # copy that into the dev D1
 pnpm dev
 ```

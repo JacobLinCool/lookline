@@ -20,6 +20,7 @@ import {
   ftsRank,
   gte,
   inArray,
+  jsonArrayOverlaps,
   lte,
   notInArray,
   articleVectors,
@@ -214,12 +215,20 @@ export function planSearch(query: ProductSearch, opts: { withText?: boolean } = 
     where.push(inArray(articles.colorFamily, scan.colorFamilies))
     lexiconFilters = true
   }
-  // The catalogue carries no aesthetic, so an aesthetic in the query cannot narrow the SQL. It
-  // still steers the style vector, which is where it has an effect until a semantic pass runs.
+  // An aesthetic narrows the SQL as well as steering the style vector, now that the vision pass
+  // tags articles with one. Articles it has not reached carry `[]` and match nothing, which is
+  // the honest answer: an untagged article is not known to be minimalist.
+  if (query.aesthetics?.length) where.push(jsonArrayOverlaps(articles.aesthetics, query.aesthetics))
+  else if (scan.aesthetics.length > 0) {
+    where.push(jsonArrayOverlaps(articles.aesthetics, scan.aesthetics))
+    lexiconFilters = true
+  }
   if (query.excludedCategoryGroups?.length)
     where.push(notInArray(articles.categoryGroup, query.excludedCategoryGroups))
   if (query.excludedColorFamilies?.length)
     where.push(notInArray(articles.colorFamily, query.excludedColorFamilies))
+  if (query.excludedAesthetics?.length)
+    where.push(sql`not ${jsonArrayOverlaps(articles.aesthetics, query.excludedAesthetics)}`)
   if (scan.materials.length > 0) {
     where.push(inArray(articles.material, scan.materials))
     lexiconFilters = true
@@ -326,15 +335,18 @@ export function buildSearchQuery(
   // Counted over the whole filtered set, not a capped head of it: `article_id` carries H&M's own
   // ordering, so the first N rows of a filter are not a sample of it — they were missing entire
   // category groups. 105k rows group in ~50 ms on the indexed columns.
-  // ponytail: `aesthetics` is empty for every article today, so its json_each costs nothing.
-  // Re-measure this query when a semantic pass fills that column.
+  // `aggregateFacets` has always read an `aesthetic` dimension; until the vision pass filled the
+  // column there was nothing to emit for it, so the facet came back empty on every search.
   const facets = sql`
     with sample as (
-      select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family
+      select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family,
+             ${articles.aesthetics} as aesthetics
       from ${articles} where ${where}
     )
     select 'group' as dim, category_group as key, count(*) as n from sample group by 2
     union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2
+    union all select 'aesthetic' as dim, j.value as key, count(*) as n
+      from sample, json_each(sample.aesthetics) j group by 2
   `
   return { plan, page, total, facets }
 }

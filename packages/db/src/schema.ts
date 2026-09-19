@@ -129,6 +129,8 @@ export const TREND_DIMENSION_VALUES = [
   'color',
   'silhouette',
   'aesthetic_category',
+  /** A design detail: a ruffle, a cable knit, a slit. What a factory actually cuts. */
+  'detail',
 ] as const
 export const LLM_PROVIDER_VALUES = ['gemini', 'openai', 'offline'] as const
 /** Intent sessions also record `jev`, the closed-option decision service. Plain TEXT, no CHECK. */

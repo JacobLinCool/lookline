@@ -1,6 +1,7 @@
 /**
  * Taxonomy constants. Ordered lists define the style-vector layout (docs/ARCHITECTURE.md).
  * Files: categories.ts, attribute-schemas.ts, colors.ts, materials.ts, patterns.ts, fits.ts,
+ * details.ts,
  * sizes.ts, occasions.ts, lexicon.ts (taxonomy owner) and aesthetics.ts (aesthetics owner).
  * This barrel re-exports every table and lookup; the contract names of docs/CONTRACTS.md are
  * `AESTHETICS`, `COLOR_FAMILIES`, `AXES`, `CATEGORY_GROUPS`, `CATEGORIES`, `SUBCATEGORIES`,
@@ -17,6 +18,7 @@ export * from './colors'
 export * from './materials'
 export * from './patterns'
 export * from './fits'
+export * from './details'
 export * from './sizes'
 export * from './occasions'
 export * from './lexicon'
