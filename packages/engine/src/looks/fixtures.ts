@@ -78,6 +78,7 @@ export function makeProduct(spec: FixtureSpec): Article {
     printSubject: '',
     styleCaption: '',
     styleCaptionZh: '',
+    searchZh: '',
     graphicalAppearance: 'Solid',
     rise: '',
     shoulder: '',

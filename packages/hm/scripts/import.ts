@@ -128,7 +128,7 @@ for (const a of source) {
     graphicalAppearance: a.pattern ?? '',
     colorName: a.colourName ?? '',
     colorMaster: a.colourFamily ?? '',
-    colorFamily: colorFamilyOf(a.colourFamily ?? ''),
+    colorFamily: colorFamilyOf(a.colourFamily ?? '', a.colourName ?? ''),
     colorValue: a.colourValue ?? '',
     categoryGroup,
     outfitRole: a.outfitRole,
@@ -155,7 +155,7 @@ for (const a of source) {
     attributes: detail.attributes,
     material,
     styleVector: toStyleVector({
-      colorFamily: colorFamilyOf(a.colourFamily ?? '') as ColorFamily,
+      colorFamily: colorFamilyOf(a.colourFamily ?? '', a.colourName ?? '') as ColorFamily,
       secondaryColorFamily: null,
       axes: styleAxes({
         formality: section.formality,
