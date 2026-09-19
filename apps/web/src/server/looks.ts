@@ -1,4 +1,10 @@
-import { STYLE_PRESETS, type StylePreset } from '@lookline/engine'
+import type { Article } from '@lookline/db'
+import {
+  compositeReferenceLabels,
+  STYLE_PRESETS,
+  type ReferenceImage,
+  type StylePreset,
+} from '@lookline/engine'
 import type { Locale } from '@/i18n/config'
 import { colorLabel } from '@/i18n/taxonomy'
 import { getStorage, isSafeKey } from './storage'
@@ -68,6 +74,32 @@ export async function loadStoredPhoto(
   } catch (error) {
     console.warn(`[looks] could not read stored photo ${photoPath}`, error)
     return null
+  }
+}
+
+/** The most product photos one render attaches; past this, garments fall back to text only. */
+export const MAX_GARMENT_IMAGES = 6
+
+/**
+ * A Look's pieces ready for `buildLookImagePrompt`, with their product photos loaded, and the
+ * reference images in the order `lookReferenceLabels` names them (garments, then the person).
+ * An article whose photo is missing or unreadable is still described in words.
+ */
+export async function loadLookReferences<A extends Pick<Article, 'imagePath'>>(
+  articles: readonly A[],
+  person: ReferencePhoto | null,
+): Promise<{ articles: (A & { hasImage: boolean })[]; referenceImages: ReferenceImage[] }> {
+  const photos = await Promise.all(
+    articles.map((a, i) => (i < MAX_GARMENT_IMAGES ? loadStoredPhoto(a.imagePath) : null)),
+  )
+  const garments = photos.filter((p): p is ReferencePhoto => p !== null)
+  const labels = compositeReferenceLabels(garments.length, person ? 1 : 0)
+  return {
+    articles: articles.map((a, i) => ({ ...a, hasImage: photos[i] !== null })),
+    referenceImages: [...garments, ...(person ? [person] : [])].map((image, i) => ({
+      ...image,
+      label: labels[i],
+    })),
   }
 }
 

@@ -6,6 +6,7 @@ import { getDb } from './db'
 import { getStorage, isSafeKey } from './storage'
 import {
   DEFAULT_STYLE_PRESET,
+  loadLookReferences,
   loadStoredPhoto,
   resolveStylePreset,
   type ReferencePhoto,
@@ -89,9 +90,10 @@ async function finishImage(look: Look, referencePhoto?: ReferencePhoto | null) {
     const scene = await composition(look)
     const photo =
       referencePhoto === undefined ? await loadStoredPhoto(scene.owner.photoPath) : referencePhoto
+    const refs = await loadLookReferences(scene.articles, photo)
     const prompt = buildLookImagePrompt({
       preset: resolveStylePreset(look.stylePreset),
-      articles: scene.articles,
+      articles: refs.articles,
       ownerName: scene.owner.displayName,
       occasion: look.occasion,
       hasReferencePhoto: photo !== null,
@@ -100,7 +102,7 @@ async function finishImage(look: Look, referencePhoto?: ReferencePhoto | null) {
     if (remaining <= 0) throw new Error('Rendering timed out. Your composition is saved.')
     const result = await getLlm().generateImage({
       prompt,
-      referenceImages: photo ? [photo] : [],
+      referenceImages: refs.referenceImages,
       aspectRatio: '3:4',
       purpose: 'look',
       timeoutMs: remaining,

@@ -5,6 +5,7 @@ import {
   buildCompositePrompt,
   buildLookImagePrompt,
   compositeReferenceLabels,
+  lookReferenceLabels,
   PROMPT_NEGATIVE_GUIDANCE,
 } from './prompt'
 
@@ -57,11 +58,61 @@ describe('buildLookImagePrompt', () => {
       occasion: null,
       hasReferencePhoto: true,
     })
-    expect(prompt).toContain('the person in the reference photo')
+    expect(prompt).toContain('the same person shown in Person reference 1')
     expect(prompt).toMatch(/keep(ing)? their identity/)
     expect(prompt).not.toContain('one adult model')
     expect(prompt).not.toContain('suit ')
     for (const re of FORBIDDEN) expect(prompt).not.toMatch(re)
+  })
+
+  it('names attached garment photos in order and keeps their prints', () => {
+    const [a, b, c] = articles
+    const withImages = [
+      { ...a!, hasImage: true },
+      { ...b!, hasImage: false },
+      { ...c!, hasImage: true },
+    ]
+    expect(lookReferenceLabels(withImages, true)).toEqual([
+      'Garment 1',
+      'Garment 2',
+      'Person reference 1',
+    ])
+    const prompt = buildLookImagePrompt({
+      preset,
+      articles: withImages,
+      ownerName: 'Mia',
+      hasReferencePhoto: true,
+    })
+    expect(prompt).toContain(`Garment 1, "${a!.name}"`)
+    expect(prompt).toContain(`Garment 2, "${c!.name}"`)
+    expect(prompt).not.toContain(`Garment 3`)
+    expect(prompt).toContain('Person reference 1')
+    expect(prompt).toMatch(/reproduced exactly as photographed/)
+    expect(prompt).toMatch(/print, graphic or lettering/)
+    expect(prompt).toMatch(/exception is a print, graphic or lettering that is part of a garment/)
+    for (const re of FORBIDDEN) expect(prompt).not.toMatch(re)
+  })
+
+  it('completes the slots a Look leaves empty with plain pieces', () => {
+    const top = articles.find((a) => a.outfitRole === 'top')!
+    const topOnly = buildLookImagePrompt({
+      preset,
+      articles: [top],
+      ownerName: 'Mia',
+      hasReferencePhoto: false,
+    })
+    expect(topOnly).toContain('plain trousers or a plain skirt')
+    expect(topOnly).toContain('simple shoes')
+    expect(topOnly).not.toContain('a plain top')
+    expect(topOnly).toMatch(/no print or graphic/)
+    const full = buildLookImagePrompt({
+      preset,
+      articles,
+      ownerName: 'Mia',
+      hasReferencePhoto: false,
+    })
+    const roles = new Set(articles.map((a) => a.outfitRole))
+    if (roles.has('bottom')) expect(full).not.toContain('plain trousers')
   })
 })
 
