@@ -9,6 +9,8 @@ export const TABLE_ORDER = [
   'looks',
   'look_products',
   'look_participants',
+  'previews',
+  'preview_products',
   'purchases',
   'asks',
   'ask_responses',

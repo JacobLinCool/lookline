@@ -1,7 +1,7 @@
 /**
  * Object storage for images: the R2 bucket bound as `STORAGE` (wrangler.jsonc). Keys are the
- * DB-stored relative paths (`looks/<lookId>-<generationId>.png`, `photos/<userId>.jpg`). Tests
- * swap the bucket with `setStorage(memoryStorage())`.
+ * DB-stored relative paths (`looks/…`, `photos/…`, and private temporary `previews/…` assets).
+ * Tests swap the bucket with `setStorage(memoryStorage())`.
  */
 import { env } from 'cloudflare:workers'
 
