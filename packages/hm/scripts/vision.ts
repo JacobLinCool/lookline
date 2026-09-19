@@ -68,6 +68,10 @@ const MAX_ATTEMPTS = 4
 const handle = createLocalDb()
 await migrateLocal(handle)
 const { db } = handle
+// The file is journal_mode=delete, where a reader blocks a writer, and libsql leaves
+// busy_timeout at 0 — so one `sqlite3 "select count(*)"` to check on a run that has been going
+// for an hour takes a SHARED lock and kills it instantly. Wait for the lock instead.
+await handle.client.execute('pragma busy_timeout = 30000')
 console.log(`database ${handle.url}`)
 
 // Only photographed articles with no reading at the current version; a bumped VISION_VERSION
@@ -189,12 +193,20 @@ async function worker(): Promise<void> {
     const row = await read(article)
     if (row) {
       // One row at a time: the run is long, and a crash should cost the request in flight, not
-      // an unflushed batch of them.
-      await db.insert(articleVisionTable).values(row).onConflictDoUpdate({
-        target: articleVisionTable.articleId,
-        set: row,
-      })
-      done += 1
+      // an unflushed batch of them. A write that fails anyway costs only its own article — six
+      // hours of readings are not worth discarding over one locked row.
+      try {
+        await db.insert(articleVisionTable).values(row).onConflictDoUpdate({
+          target: articleVisionTable.articleId,
+          set: row,
+        })
+        done += 1
+      } catch (error) {
+        failed += 1
+        console.warn(
+          `[vision] ${article.id} read but not stored: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
     } else {
       failed += 1
     }
