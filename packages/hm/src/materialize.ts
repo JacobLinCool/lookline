@@ -32,6 +32,15 @@ export interface MaterializedArticle {
   attributes: Record<string, string | number | boolean>
   styleCaption: string
   styleCaptionZh: string
+  rise: string
+  shoulder: string
+  pocketStyle: string
+  knitGauge: string
+  padding: string
+  stylingNote: string
+  stylingNoteZh: string
+  visionEvidence: string
+  visionConfidence: number
   styleVector: number[]
 }
 
@@ -91,20 +100,10 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
 
   // The two attribute sets share no key: the regexes own `pockets`, `hood`, `zip`, `elasticWaist`
   // and `lined`, the image owns everything in DESIGN_DETAILS.
+  // The details are a set, which is what `attributes` is for and what `attribute_match` reads by
+  // key. Everything single-valued is a column instead.
   const attributes: Record<string, string | number | boolean> = { ...row.attributes }
   for (const detail of vision.designDetails) attributes[detail] = true
-  // Construction that has a value rather than a yes or no. In `attributes` because each applies
-  // to a slice of the catalogue — a rise to bottoms, a gauge to knitwear — and a column apiece
-  // would be four columns empty on most rows.
-  for (const [key, value] of [
-    ['rise', vision.rise],
-    ['shoulder', vision.shoulder],
-    ['pocketStyle', vision.pocketStyle],
-    ['knitGauge', vision.knitGauge],
-    ['padding', vision.padding],
-  ] as const) {
-    if (value) attributes[key] = value
-  }
 
   return {
     aesthetics: vision.aesthetics.map((a) => a.slug),
@@ -127,6 +126,15 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
     attributes,
     styleCaption: vision.lookEn,
     styleCaptionZh: vision.lookZh,
+    rise: vision.rise,
+    shoulder: vision.shoulder,
+    pocketStyle: vision.pocketStyle,
+    knitGauge: vision.knitGauge,
+    padding: vision.padding,
+    stylingNote: vision.stylingEn,
+    stylingNoteZh: vision.stylingZh,
+    visionEvidence: vision.evidence,
+    visionConfidence: vision.confidence,
     styleVector,
   }
 }

@@ -298,6 +298,19 @@ export const articles = sqliteTable(
     printMotif: text('print_motif').notNull().default(''),
     /** The words printed on the garment, verbatim; `''` when it carries none. */
     printText: text('print_text').notNull().default(''),
+    // Construction the photograph shows. `''` on a garment the question does not apply to: a bag
+    // has no rise, a woven shirt has no gauge.
+    rise: text('rise').notNull().default(''),
+    shoulder: text('shoulder').notNull().default(''),
+    pocketStyle: text('pocket_style').notNull().default(''),
+    knitGauge: text('knit_gauge').notNull().default(''),
+    padding: text('padding').notNull().default(''),
+    /** Who it suits and when. Read by a recommendation's copy, never filtered on. */
+    stylingNote: text('styling_note').notNull().default(''),
+    stylingNoteZh: text('styling_note_zh').notNull().default(''),
+    /** What in the photograph drove the tags, and how sure the model was of all of it. */
+    visionEvidence: text('vision_evidence').notNull().default(''),
+    visionConfidence: real('vision_confidence').notNull().default(0),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
@@ -320,6 +333,8 @@ export const articles = sqliteTable(
     index('articles_dept_group_price_idx').on(t.department, t.categoryGroup, t.price),
     index('articles_popularity_idx').on(t.popularity),
     index('articles_print_motif_idx').on(t.printMotif),
+    index('articles_rise_idx').on(t.rise),
+    index('articles_knit_gauge_idx').on(t.knitGauge),
   ],
 )
 
