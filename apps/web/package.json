@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vinext dev --port 3000",
     "dev:remote": "LOOKLINE_REMOTE=1 vinext dev --port 3000",
+    "dev:images": "LOOKLINE_REMOTE=r2 vinext dev --port 3000",
     "build": "vinext build",
     "start": "vinext start --port 3000",
     "deploy": "vinext-cloudflare deploy",

@@ -23,9 +23,15 @@ export default defineConfig(({ mode }) => {
         // bucket instead of their local simulations: every read and write is production data and
         // production billing. Mutate the bindings in place — a returned object is merged with `defu`,
         // which concatenates arrays and would bind `DB` and `STORAGE` twice.
+        //
+        // `pnpm dev:images` (`LOOKLINE_REMOTE=r2`) takes only the bucket. The catalogue's 105k
+        // photographs are far too large to hold locally, but a seeded local D1 has the people and
+        // their Looks, which production does not — and keeping D1 local means a demo cannot write
+        // to it by accident.
         config(config) {
-          if (!process.env.LOOKLINE_REMOTE) return
-          for (const database of config.d1_databases) database.remote = true
+          const remote = process.env.LOOKLINE_REMOTE
+          if (!remote) return
+          if (remote !== 'r2') for (const database of config.d1_databases) database.remote = true
           for (const bucket of config.r2_buckets) bucket.remote = true
         },
       }),
