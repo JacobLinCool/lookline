@@ -1,8 +1,8 @@
 /**
  * `pnpm --filter @lookline/db dump` — export the seeded local SQLite database as plain SQL for
  * `wrangler d1 execute --remote --file` (one file per table under `data/d1/`, statements kept
- * under D1's 100 KB limit, FTS index rebuilt last). The migration tables are skipped: apply
- * schema changes with `wrangler d1 migrations apply` before importing.
+ * under D1's 100 KB and parser limits, FTS index rebuilt last). The migration tables are
+ * skipped: apply schema changes with `wrangler d1 migrations apply` before importing.
  *
  *   --out data/d1   --tables products,brands
  */
