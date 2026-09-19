@@ -29,7 +29,8 @@ export function seriesLabel(
     case 'color':
       return colorFamilyLabel(locale, series.key)
     case 'silhouette':
-    // A design detail is a catalog slug like any other facet value.
+      return facetLabel(locale, series.key)
+    // A detail's key is an attribute slug, the same vocabulary a silhouette uses.
     case 'detail':
       return facetLabel(locale, series.key)
     // A motif is free text the model wrote, clustered by `motifKey`. There is no label table for

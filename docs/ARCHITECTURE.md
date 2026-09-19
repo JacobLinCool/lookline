@@ -192,8 +192,10 @@ route handler; Looks without a generated image get their composition poster rend
 ## Verification gates
 
 `pnpm check` runs `format:check`, `lint`, `typecheck`, `test`, and `build`. Reproduction from a
-clean clone: `pnpm install`, `pnpm db:migrate`, `pnpm seed` (100k products + simulation into
-`data/lookline.sqlite`), `pnpm d1:migrate:local && pnpm d1:local` (copy into the dev D1),
+clean clone: `pnpm install`, the Kaggle csv files in `data/hm/` and
+`pnpm --filter @lookline/hm aggregate` (see docs/ONBOARDING.md), `pnpm db:migrate`, `pnpm seed`
+(105k H&M articles + simulated people into `data/lookline.sqlite`),
+`pnpm d1:migrate:local && pnpm d1:local` (copy into the dev D1),
 `pnpm dev`. Production: `wrangler d1 create lookline`, `wrangler r2 bucket create lookline-media`,
 `pnpm d1:migrate:remote && pnpm d1:remote`, `pnpm deploy`. On the shared account both
 resources already exist and a collaborator needs a scoped API token instead —

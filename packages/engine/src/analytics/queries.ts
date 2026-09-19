@@ -290,7 +290,7 @@ export async function loadProductsLite(
  */
 export async function loadSupply(db: Database): Promise<Map<string, SupplyCell>> {
   const result = await db.all(sql`
-    select coalesce(j.value, '') as aesthetic, category_group as "group", color_family as color,
+    select coalesce(j.value, '') as aesthetic, category_group as "group", colour_family as color,
            count(*) as supply, 0 as low
     from articles left join json_each(articles.aesthetics) j
     group by 1, 2, 3

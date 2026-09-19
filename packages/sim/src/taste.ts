@@ -148,14 +148,20 @@ export function buildTasteVector(input: TasteInput): number[] {
   return v
 }
 
-/** Weighted copy of the colour and axis blocks (dims [0, 20)), L2-normalised. */
+/**
+ * Weighted copy of the colour and axis blocks, L2-normalised. They start where
+ * `colorFamilyIndex` puts them — the aesthetic block occupies everything before that, and a
+ * persona's taste vector never fills it, so reading from 0 returns zeros for every persona and
+ * makes every pair look identically unalike.
+ */
+const TASTE_START = colorFamilyIndex('black')
 const TASTE_DIMS = 20
 export function tasteKey(v: readonly number[]): Float64Array {
   const out = new Float64Array(TASTE_DIMS)
   let norm = 0
   for (let i = 0; i < TASTE_DIMS; i++) {
     const w = i < 12 ? TASTE_BLOCK_WEIGHTS.colors : TASTE_BLOCK_WEIGHTS.axes
-    const x = (v[i] ?? 0) * w
+    const x = (v[TASTE_START + i] ?? 0) * w
     out[i] = x
     norm += x * x
   }

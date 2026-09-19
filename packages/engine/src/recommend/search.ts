@@ -384,7 +384,6 @@ async function runSearch(
   const { plan, page, total, facets } = buildSearchQuery(db, query, { withText })
   const [rows, totalRows, facetRows] = await Promise.all([page, total, db.all(facets)])
   const items = rows.map((r) => ({ ...(r.product as Article), brandName: r.brandName }))
-  const matched = Number(totalRows[0]?.n ?? 0)
   return {
     items,
     total: Number(totalRows[0]?.n ?? 0),

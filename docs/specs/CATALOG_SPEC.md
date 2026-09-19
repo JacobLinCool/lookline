@@ -1810,7 +1810,11 @@ export const DEFAULT_CATALOG_SEED: number; export const DEFAULT_CATALOG_SIZE: nu
 export const LINE_WORDS: readonly string[]; export const ATTRIBUTE_SCHEMAS; export const SUBCAT_ECON; export const NEIGHBOURS
 ```
 
-### 11.4 Seed script (`packages/catalog/scripts/seed.ts`, run by `pnpm seed:catalog`)
+### 11.4 Seed script (historical — the generated catalogue it describes is gone)
+
+The catalogue is now the H&M articles file, imported by `packages/hm/scripts/import.ts`, which
+`pnpm seed:catalog` runs. The generator below produced the 100k synthetic products it replaced;
+the section is kept because the taxonomy and affinity rules above it still describe live code.
 
 1. `loadEnv()`; `seed = Number(process.env.CATALOG_SEED ?? DEFAULT_CATALOG_SEED)`, `size =
 Number(process.env.CATALOG_SIZE ?? DEFAULT_CATALOG_SIZE)`.
