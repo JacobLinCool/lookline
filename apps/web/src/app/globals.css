@@ -1,0 +1,238 @@
+@import 'tailwindcss';
+
+/*
+ * Lookline — "The Rack".
+ * A well-lit store: white wall, one steel rail, paper tags. The garment is the only colour on the
+ * page; the interface is the rail and the tags. Ink carries every primary action, tag red marks the
+ * single thing that needs attention. Bricolage Grotesque is the signage voice, Inter does the
+ * operating work.
+ */
+@theme {
+  --color-ink: #171717;
+  --color-paper: #f7f6f3; /* the wall — page ground */
+  --color-card: #ffffff; /* paper tag / tile surface */
+  --color-mist: #efeeea; /* recessed panel */
+  --color-line: #d6d5cf; /* the rail — 1px */
+  --color-muted: #6d6e69;
+  --color-accent: #c8321e; /* tag red — scarce */
+  --color-accent-soft: #f8e3de;
+
+  --radius-xs: 3px; /* paper tag */
+  --radius-sm: 6px; /* controls */
+  --radius-md: 8px; /* tiles, panels */
+  --radius-lg: 12px;
+
+  --shadow-lift: 0 14px 28px -12px rgb(23 23 23 / 0.28), 0 2px 6px rgb(23 23 23 / 0.06);
+  --shadow-sheet: 0 -8px 24px -16px rgb(23 23 23 / 0.25);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Fonts come from next/font (src/app/layout.tsx); system faces carry CJK. */
+@theme inline {
+  --font-sans:
+    var(--font-inter), 'Inter', ui-sans-serif, system-ui, 'PingFang TC', 'Noto Sans TC',
+    -apple-system, 'Segoe UI', sans-serif;
+  --font-display:
+    var(--font-bricolage), 'Bricolage Grotesque', ui-sans-serif, system-ui, 'PingFang TC',
+    'Noto Sans TC', 'Helvetica Neue', Arial, sans-serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    caret-color: var(--color-ink);
+    scrollbar-color: var(--color-line) transparent;
+  }
+
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-line);
+  }
+
+  html {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background-color: var(--color-ink);
+    color: var(--color-paper);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-optical-sizing: auto;
+    text-wrap: balance;
+    letter-spacing: -0.015em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  img,
+  svg {
+    display: block;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-muted);
+    opacity: 0.85;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Keep the prototype presentation clean while Next dev mode stays running. */
+  nextjs-portal {
+    display: none;
+  }
+}
+
+/* Small quiet label (field labels, meta). Sentence case, no tracking. */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--color-muted);
+}
+
+/* Signage voice: Bricolage Grotesque, tight, optical size follows the rendered size. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-optical-sizing: auto;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+}
+
+/* One rail line above a group. */
+@utility hairline {
+  border-top-width: 1px;
+  border-top-style: solid;
+  border-top-color: var(--color-line);
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Pull it off the rail": the only lift in the system. */
+@utility tile-lift {
+  transition:
+    transform 180ms var(--ease-out-expo),
+    box-shadow 180ms var(--ease-out-expo);
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lift);
+    }
+  }
+}
+
+/* Horizontal rail track: edge-to-edge on phones, snapping, scrollbar hidden. */
+@utility rail-track {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 1.25rem;
+  padding-inline: 1.25rem;
+  margin-inline: -1.25rem;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  @media (min-width: 48rem) {
+    gap: 1rem;
+    scroll-padding-inline: 2rem;
+    padding-inline: 2rem;
+    margin-inline: -2rem;
+  }
+}
+
+@utility rail-item {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+
+/* Thin progress line for renders (indeterminate). */
+@utility progress-line {
+  position: relative;
+  height: 2px;
+  overflow: hidden;
+  background: var(--color-line);
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--color-ink);
+    animation: progress-slide 1.4s var(--ease-out-expo) infinite;
+  }
+}
+
+@keyframes progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}

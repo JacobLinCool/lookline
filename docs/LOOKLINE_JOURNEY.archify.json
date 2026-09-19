@@ -1,0 +1,323 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Lookline 完整數位時尚旅程",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "ready-now",
+        "label": "Ready Now",
+        "focus": ["intent", "discovery", "route", "ready_preview", "checkout", "look_card"],
+        "note": "真實庫存 SKU 從探索、試穿到購買與收藏卡。"
+      },
+      {
+        "id": "made-for-you",
+        "label": "Made for You",
+        "focus": [
+          "intent",
+          "discovery",
+          "route",
+          "custom_brief",
+          "feasibility",
+          "checkout",
+          "look_card"
+        ],
+        "note": "未被滿足的需求轉成可製造、可報價的客製商品。"
+      },
+      {
+        "id": "circle-loop",
+        "label": "Circle 借穿",
+        "focus": ["look_card", "circle_wardrobe", "borrow_try", "circle_offer", "checkout"],
+        "note": "已購衣櫃在朋友圈內產生借穿、優惠與新購買。"
+      },
+      {
+        "id": "influence-loop",
+        "label": "潮流擴散",
+        "focus": ["look_card", "circle_wardrobe", "borrow_try", "influence_graph"],
+        "note": "分享與互動事件只在內部形成需求與影響圖。"
+      }
+    ],
+    "output": "docs/LOOKLINE_JOURNEY.html"
+  },
+  "lanes": [
+    { "id": "customer", "label": "使用者可見體驗" },
+    { "id": "internal", "label": "內部系統（不對使用者顯示）", "variant": "exception" },
+    { "id": "atelier", "label": "Lookline Atelier" },
+    { "id": "circle", "label": "Circle 社交體驗" }
+  ],
+  "phases": [
+    { "id": "express", "label": "表達需求", "fromCol": 0, "toCol": 1 },
+    { "id": "experience", "label": "選路與體驗", "fromCol": 2, "toCol": 2, "variant": "emphasis" },
+    { "id": "value", "label": "交易、收藏與擴散", "fromCol": 3, "toCol": 4, "variant": "dashed" }
+  ],
+  "groups": [
+    {
+      "id": "physical_first",
+      "label": "真實 SKU 與可製造規格先於虛擬資產",
+      "lane": "customer",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "emphasis"
+    },
+    {
+      "id": "custom_path",
+      "label": "客製需求轉單",
+      "lane": "atelier",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "dashed"
+    },
+    {
+      "id": "social_path",
+      "label": "數位借穿與 Circle 轉換",
+      "lane": "circle",
+      "fromCol": 0,
+      "toCol": 3,
+      "variant": "default"
+    },
+    {
+      "id": "private_path",
+      "label": "原始事件、圖譜與需求聚合",
+      "lane": "internal",
+      "fromCol": 2,
+      "toCol": 4,
+      "variant": "security"
+    }
+  ],
+  "mainPath": ["intent", "discovery", "route", "ready_preview", "checkout", "look_card"],
+  "semanticChecks": {
+    "allowedRoots": ["intent", "circle_wardrobe"],
+    "allowedTerminals": ["look_card", "influence_graph"],
+    "requiredPaths": [
+      { "from": "intent", "to": "look_card" },
+      { "from": "custom_brief", "to": "look_card" },
+      { "from": "circle_wardrobe", "to": "checkout" }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "intent",
+      "lane": "customer",
+      "col": 0,
+      "type": "external",
+      "label": "說出想要的造型",
+      "sublabel": "文字、圖片或 Circle 靈感",
+      "width": 136
+    },
+    {
+      "id": "discovery",
+      "lane": "customer",
+      "col": 1,
+      "type": "frontend",
+      "label": "探索商品與穿搭",
+      "sublabel": "現貨、朋友衣櫃、未滿足需求",
+      "width": 136
+    },
+    {
+      "id": "route",
+      "lane": "internal",
+      "col": 2,
+      "type": "backend",
+      "label": "需求路由",
+      "sublabel": "真實 SKU 或可製造客製",
+      "tag": "不對使用者顯示",
+      "width": 136
+    },
+    {
+      "id": "ready_preview",
+      "lane": "customer",
+      "col": 2,
+      "type": "frontend",
+      "label": "Ready Now 試穿",
+      "sublabel": "只使用真實可購買 variant",
+      "width": 136
+    },
+    {
+      "id": "custom_brief",
+      "lane": "atelier",
+      "col": 2,
+      "type": "frontend",
+      "label": "Made for You brief",
+      "sublabel": "版型、材料、圖案與個人細節",
+      "width": 136
+    },
+    {
+      "id": "feasibility",
+      "lane": "atelier",
+      "col": 3,
+      "type": "security",
+      "label": "可製造性與報價",
+      "sublabel": "規格、交期、價格與權利確認",
+      "width": 136
+    },
+    {
+      "id": "checkout",
+      "lane": "customer",
+      "col": 3,
+      "type": "backend",
+      "label": "購買與履約",
+      "sublabel": "現貨訂單或正式 custom SKU",
+      "width": 136
+    },
+    {
+      "id": "look_card",
+      "lane": "customer",
+      "col": 4,
+      "type": "frontend",
+      "label": "Look Card 與分享",
+      "sublabel": "購買後發行、收藏、社群輸出",
+      "width": 136
+    },
+    {
+      "id": "circle_wardrobe",
+      "lane": "circle",
+      "col": 0,
+      "type": "database",
+      "label": "Circle Wardrobe",
+      "sublabel": "朋友選擇分享的已購商品",
+      "width": 136
+    },
+    {
+      "id": "borrow_try",
+      "lane": "circle",
+      "col": 1,
+      "type": "frontend",
+      "label": "Borrow a Look",
+      "sublabel": "試穿朋友的真實 SKU",
+      "width": 136
+    },
+    {
+      "id": "circle_offer",
+      "lane": "circle",
+      "col": 2,
+      "type": "backend",
+      "label": "Circle 專屬優惠",
+      "sublabel": "借穿後的限時購買機會",
+      "width": 136
+    },
+    {
+      "id": "influence_graph",
+      "lane": "internal",
+      "col": 4,
+      "type": "database",
+      "label": "Influence Graph",
+      "sublabel": "分享、借穿、成交、客製需求",
+      "tag": "內部洞察",
+      "width": 136
+    }
+  ],
+  "edges": [
+    { "id": "intent-discovery", "from": "intent", "to": "discovery", "role": "main" },
+    {
+      "id": "discovery-route",
+      "from": "discovery",
+      "to": "route",
+      "label": "理解需求",
+      "role": "main"
+    },
+    {
+      "id": "route-ready",
+      "from": "route",
+      "to": "ready_preview",
+      "label": "有可購買 SKU",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "ready-checkout",
+      "from": "ready_preview",
+      "to": "checkout",
+      "label": "選定 variant",
+      "role": "main"
+    },
+    {
+      "id": "route-custom",
+      "from": "route",
+      "to": "custom_brief",
+      "label": "沒有滿意商品",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "custom-feasibility",
+      "from": "custom_brief",
+      "to": "feasibility",
+      "label": "提交可選規格或靈感",
+      "variant": "dashed",
+      "role": "branch"
+    },
+    {
+      "id": "feasibility-checkout",
+      "from": "feasibility",
+      "to": "checkout",
+      "label": "核准 custom SKU",
+      "variant": "emphasis",
+      "role": "return"
+    },
+    {
+      "id": "checkout-card",
+      "from": "checkout",
+      "to": "look_card",
+      "label": "付款與訂單確認",
+      "variant": "emphasis",
+      "role": "main"
+    },
+    {
+      "id": "wardrobe-borrow",
+      "from": "circle_wardrobe",
+      "to": "borrow_try",
+      "label": "朋友開放借穿",
+      "role": "branch"
+    },
+    {
+      "id": "borrow-offer",
+      "from": "borrow_try",
+      "to": "circle_offer",
+      "label": "喜歡這個 look",
+      "role": "branch"
+    },
+    {
+      "id": "offer-checkout",
+      "from": "circle_offer",
+      "to": "checkout",
+      "label": "使用實際商品優惠",
+      "variant": "emphasis",
+      "role": "return"
+    },
+    {
+      "id": "card-graph",
+      "from": "look_card",
+      "to": "influence_graph",
+      "label": "分享、回流與成交事件",
+      "variant": "security",
+      "role": "async"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Physical-first contract",
+      "items": [
+        "Ready Now 永遠對應真實 SKU 與可購買 variant",
+        "客製預覽必須先有可製造規格與正式報價"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Collectible value",
+      "items": [
+        "購買後才發行 Look Card；preview 不是收藏卡",
+        "Custom、1 of 1 與 Circle Edition 必須符合真實產量"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Audience boundary",
+      "items": [
+        "使用者只看商品、可製造狀態、價格、交期與社交成果",
+        "模型、原始圖譜、成本、風險與營運規則只留在內部"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "name": "fashion-network",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lookline — a fashion network where people do fashion together (2026 Meichu Hackathon × Makalot)",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @lookline/web dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test --concurrency=1",
+    "lint": "oxlint .",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:generate": "pnpm --filter @lookline/db generate",
+    "db:migrate": "pnpm --filter @lookline/db migrate",
+    "db:reset": "pnpm --filter @lookline/db reset",
+    "seed": "pnpm seed:catalog && pnpm seed:social && pnpm analytics",
+    "seed:catalog": "pnpm --filter @lookline/catalog seed",
+    "seed:social": "pnpm --filter @lookline/sim seed",
+    "analytics": "pnpm --filter @lookline/engine analytics",
+    "evaluate": "pnpm --filter @lookline/sim evaluate",
+    "d1:migrate:local": "pnpm --filter @lookline/web d1:migrate:local",
+    "d1:migrate:remote": "pnpm --filter @lookline/web d1:migrate:remote",
+    "d1:local": "pnpm --filter @lookline/db d1:local",
+    "d1:dump": "pnpm --filter @lookline/db dump",
+    "d1:remote": "pnpm d1:dump && tsx scripts/d1-remote.ts",
+    "deploy": "pnpm --filter @lookline/web deploy"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0",
+    "tsx": "4.23.13",
+    "turbo": "2.10.13",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "packageManager": "pnpm@11.27.0"
+}

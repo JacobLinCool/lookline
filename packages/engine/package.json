@@ -1,0 +1,28 @@
+{
+  "name": "@lookline/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "analytics": "tsx scripts/analytics.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@google/genai": "2.23.0",
+    "@lookline/catalog": "workspace:*",
+    "@lookline/db": "workspace:*",
+    "nanoid": "6.0.1",
+    "openai": "7.17.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1"
+  }
+}

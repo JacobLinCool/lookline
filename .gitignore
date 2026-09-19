@@ -134,3 +134,21 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+.DS_Store
+
+# Lookline
+.turbo
+data/*
+!data/.gitkeep
+*.local
+*.shadow.md
+output/playwright/
+.playwright-cli/
+
+# Cloudflare / vinext
+.wrangler/
+.vinext/
+apps/web/next-env.d.ts
+.dev.vars
+.dev.vars.*

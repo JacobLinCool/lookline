@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" fill="#f8f6f1"/>
+  <text x="14" y="50" font-family="'Instrument Serif', 'Iowan Old Style', Georgia, serif" font-size="52" fill="#141311">L</text>
+  <circle cx="50" cy="47" r="5" fill="#7a1f2b"/>
+</svg>

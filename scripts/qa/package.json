@@ -1,0 +1,12 @@
+{
+  "name": "@lookline/qa-scripts",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@lookline/db": "workspace:*"
+  },
+  "devDependencies": {
+    "playwright-core": "1.63.0",
+    "tsx": "4.23.13"
+  }
+}

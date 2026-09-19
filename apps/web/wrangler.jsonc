@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lookline",
+  "main": "vinext/server/fetch-handler",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": { "directory": "dist/client", "not_found_handling": "none", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  // Image generation runs after the response via `after()` (waitUntil) and needs CPU headroom.
+  "limits": { "cpu_ms": 60000 },
+  // Create with `wrangler d1 create lookline` and paste the returned id below.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "lookline",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "../../packages/db/drizzle",
+    },
+  ],
+  // Create with `wrangler r2 bucket create lookline-media`.
+  "r2_buckets": [{ "binding": "STORAGE", "bucket_name": "lookline-media" }],
+  // Non-secret defaults. Secrets (SESSION_SECRET, GEMINI_API_KEY, OPENAI_API_KEY, TYPESAFE_API_KEY)
+  // live in `.dev.vars` locally and in `wrangler secret put <NAME>` for production.
+  "vars": {
+    "TYPESAFE_MODEL": "jev-1.13.0",
+    "OPENAI_TEXT_MODEL": "gpt-5.6-luna",
+    "OPENAI_IMAGE_MODEL": "gpt-image-2.5-flare",
+    "GEMINI_TEXT_MODEL": "gemini-3.5-flash-lite",
+    "GEMINI_IMAGE_MODEL": "gemini-3.1-flash-image",
+    "LLM_IMAGE_QUALITY": "high",
+  },
+}

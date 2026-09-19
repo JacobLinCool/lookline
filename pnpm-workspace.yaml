@@ -1,0 +1,18 @@
+packages:
+  - apps/*
+  - packages/*
+  - scripts/qa
+
+autoInstallPeers: true
+strictPeerDependencies: false
+savePrefix: ''
+minimumReleaseAge: 0
+
+allowBuilds:
+  esbuild: true
+  workerd: true
+  sharp: true
+  '@tailwindcss/oxide': true
+  unrs-resolver: true
+  '@google/genai': true
+  protobufjs: true

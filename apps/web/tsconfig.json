@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2023"],
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "incremental": true,
+    "allowJs": true,
+    "paths": { "@/*": ["./src/*"] },
+    "types": ["node", "react", "react-dom", "vite/client", "vinext/types"]
+  },
+  "include": ["vite.config.ts", "vitest.config.ts", "src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules", "dist", ".wrangler"]
+}

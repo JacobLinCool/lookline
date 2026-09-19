@@ -1,0 +1,129 @@
+.layout {
+  display: grid;
+  grid-template-columns: 17.5rem minmax(0, 1fr);
+  min-height: calc(100dvh - 3.5rem);
+}
+
+.rail {
+  position: sticky;
+  top: 3.5rem;
+  align-self: start;
+  height: calc(100dvh - 3.5rem);
+  overflow: hidden;
+}
+
+.railValues {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--color-line) transparent;
+  scrollbar-width: thin;
+}
+
+.workbench {
+  min-width: 0;
+}
+
+.resultGrid {
+  display: grid;
+  grid-template-columns: minmax(17rem, 0.85fr) minmax(24rem, 1.6fr);
+}
+
+.dimensionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.probabilityTrack,
+.relevanceTrack {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--color-mist);
+}
+
+.probabilityTrack {
+  height: 0.3125rem;
+}
+
+.relevanceTrack {
+  height: 0.1875rem;
+}
+
+.probabilityFill,
+.relevanceFill {
+  height: 100%;
+  transform-origin: left;
+  background: var(--color-ink);
+}
+
+.relevanceFill {
+  background: var(--color-accent);
+}
+
+.targetTrack {
+  position: relative;
+  height: 0.5rem;
+  border-radius: var(--radius-xs);
+  background: linear-gradient(90deg, var(--color-mist), var(--color-line));
+}
+
+.targetMarker {
+  position: absolute;
+  top: -0.1875rem;
+  width: 0.125rem;
+  height: 0.875rem;
+  transform: translateX(-50%);
+  background: var(--color-accent);
+}
+
+/* Measurement grid: functional ground for judging generated frames. */
+.imageStage {
+  min-height: 34rem;
+  background:
+    linear-gradient(var(--color-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-line) 1px, transparent 1px), var(--color-mist);
+  background-size: 2rem 2rem;
+}
+
+.generatedImage {
+  max-height: 68dvh;
+  width: auto;
+  max-width: 100%;
+  border-radius: var(--radius-md);
+  object-fit: contain;
+  box-shadow: var(--shadow-lift);
+}
+
+@media (max-width: 72rem) {
+  .resultGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 56rem) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .rail {
+    order: 2;
+    position: static;
+    height: auto;
+    max-height: 25rem;
+    border-top: 1px solid var(--color-line);
+    border-right: 0;
+  }
+
+  .workbench {
+    order: 1;
+  }
+
+  .dimensionGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .imageStage {
+    min-height: 26rem;
+  }
+}
