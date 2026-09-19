@@ -131,6 +131,52 @@ describe('provider request contracts', () => {
     expect(body).not.toHaveProperty('generationConfig.thinkingConfig')
   })
 
+  it('names each labelled reference so a composite can refer to it by role', async () => {
+    const png = { mimeType: 'image/png', data: imageBytes }
+    const references = [
+      { ...png, label: 'Garment 1' },
+      { ...png, label: 'Person reference 1' },
+    ]
+
+    const gemini = interceptHttp({
+      candidates: [
+        {
+          content: {
+            parts: [{ inlineData: { mimeType: 'image/png', data: imageBytes.toString('base64') } }],
+          },
+        },
+      ],
+    })
+    await createLlmClient({ env: { GEMINI_API_KEY: 'test-key' } }).generateImage({
+      prompt: 'Compose the outfit.',
+      referenceImages: references,
+    })
+    const geminiBody = (await gemini[0]!.json()) as {
+      contents: Array<{ parts: Array<Record<string, unknown>> }>
+    }
+    const parts = geminiBody.contents[0]!.parts
+    // Each name arrives immediately before the bytes it names.
+    expect(parts.map((part) => part.text ?? '[image]')).toEqual([
+      'Compose the outfit.',
+      'Garment 1:',
+      '[image]',
+      'Person reference 1:',
+      '[image]',
+    ])
+
+    vi.unstubAllGlobals()
+    const openai = interceptHttp({ data: [{ b64_json: imageBytes.toString('base64') }] })
+    await createLlmClient({ env: { OPENAI_API_KEY: 'test-key' } }).generateImage({
+      prompt: 'Compose the outfit.',
+      referenceImages: references,
+    })
+    const form = await openai[0]!.formData()
+    expect(form.getAll('image[]').map((file) => (file as File).name)).toEqual([
+      'garment-1.png',
+      'person-reference-1.png',
+    ])
+  })
+
   it('honours an explicit image quality setting and rejects invalid settings', async () => {
     const requests = interceptHttp({ data: [{ b64_json: imageBytes.toString('base64') }] })
     const client = createLlmClient({

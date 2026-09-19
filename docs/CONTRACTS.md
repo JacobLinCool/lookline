@@ -116,6 +116,12 @@ Guarantees:
   `GET /api/looks/[id]/image` (R2 object `looks.image_path`, or poster SVG fallback),
   `GET /api/avatars/[seed]` (SVG).
 - Routes and their purpose are listed in ARCHITECTURE.md.
+- `POST /api/admin/image` (engine lab) renders either a typed prompt (`application/json` with
+  `{ prompt, aspectRatio }`) or a composite (`multipart/form-data` with repeated `garment` and
+  `person` image parts, plus `stylePreset`, `aspectRatio`, `occasion?` and `notes?`). References
+  are labelled `Garment n` / `Person reference n` and the engine's `buildCompositePrompt` names
+  them, so the model is told which image is which. The response carries the composed `prompt`,
+  the provider and the model; nothing is persisted.
 - `POST /api/intent/stream` accepts `{ q, clarify?, previous? }` and streams newline-delimited JSON:
   `understood` → `result` → optional `refinement` → `done` (or `error` before `done`). The initial
   result uses the tested deterministic parser/ranker; refinement is explicitly applied by the user.

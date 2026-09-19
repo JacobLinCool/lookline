@@ -69,6 +69,7 @@ export const ui = {
     imagePrompt: 'Enter a prompt between 1 and 2,000 characters and choose a valid ratio.',
     imageUnavailable:
       'Image generation is unavailable. Check the configured image provider and retry.',
+    imageReferences: 'Attach up to 4 garment images and 4 person images, each 8 MB or smaller.',
     imageFailed: 'The image could not be generated. Review the prompt and try again.',
   },
 }

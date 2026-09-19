@@ -60,6 +60,7 @@ export const ui: UiMessages = {
     intentCompiler: '意圖編譯器無法使用，請檢查 TypeSafe 設定後重試。',
     imagePrompt: '請輸入 1 到 2,000 字的提示詞，並選擇有效的比例。',
     imageUnavailable: '圖片生成無法使用，請檢查設定的圖片供應商後重試。',
+    imageReferences: '服裝與人物參考圖各最多 4 張，每張 8 MB 以內。',
     imageFailed: '圖片沒有產生成功，請檢查提示詞後再試一次。',
   },
 }

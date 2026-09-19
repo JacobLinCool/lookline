@@ -45,6 +45,67 @@ function describeOccasion(occasion: string | null | undefined): string | null {
   return `The setting and body language suit ${clean}.`
 }
 
+export interface CompositePromptInput {
+  preset: StylePreset
+  /** How many garment images are attached, in order. */
+  garmentCount: number
+  /** How many images of the person are attached, in order. */
+  personCount: number
+  occasion?: string | null
+  /** Extra art direction typed by the operator; appended verbatim. */
+  notes?: string | null
+}
+
+export const GARMENT_LABEL = 'Garment'
+export const PERSON_LABEL = 'Person reference'
+
+/**
+ * The labels for a composite's reference images, in the order the provider receives them.
+ * The prompt names the images by these labels, so the caller must attach them in this order.
+ */
+export function compositeReferenceLabels(
+  garmentCount: number,
+  personCount: number,
+): readonly string[] {
+  return [
+    ...Array.from({ length: garmentCount }, (_, i) => `${GARMENT_LABEL} ${i + 1}`),
+    ...Array.from({ length: personCount }, (_, i) => `${PERSON_LABEL} ${i + 1}`),
+  ]
+}
+
+const listOf = (label: string, count: number): string =>
+  Array.from({ length: count }, (_, i) => `${label} ${i + 1}`).join(', ')
+
+/**
+ * The same Look photograph, composed from attached images instead of catalog rows: the person
+ * comes from their own reference images and each garment from its own image, so the model copies
+ * what it is shown rather than inventing from a description.
+ */
+export function buildCompositePrompt(input: CompositePromptInput): string {
+  const { preset, garmentCount, personCount, occasion, notes } = input
+  const subject =
+    personCount > 0
+      ? `Photograph the same person shown in ${listOf(PERSON_LABEL, personCount)}, keeping their identity, face, skin tone, hair and body exactly as they are. Those images are the person only; ignore whatever they are wearing in them.`
+      : 'Photograph one adult model, natural and relaxed, with a real, individual face.'
+  const garments =
+    garmentCount > 0
+      ? `They are wearing, as one complete outfit, every garment shown in ${listOf(GARMENT_LABEL, garmentCount)}. Reproduce each garment exactly as photographed — its colour, material, pattern, cut, length and details — fitted naturally to the body and moving with it. Do not substitute, restyle or omit a garment, and add nothing that is not shown.`
+      : 'They are wearing a simple, well-cut outfit.'
+  const direction = `Art direction (${preset.name}): ${preset.prompt}`
+  const framing =
+    'Full-body or three-quarter fashion editorial; the person is the subject and the clothes are shown as worn, never as flat product shots. Photorealistic, high detail, magazine quality, natural skin.'
+  const paragraphs = [
+    subject,
+    garments,
+    direction,
+    describeOccasion(occasion),
+    notes?.trim() ? notes.trim() : null,
+    framing,
+    PROMPT_NEGATIVE_GUIDANCE,
+  ]
+  return paragraphs.filter((s): s is string => Boolean(s)).join('\n\n')
+}
+
 /** A rich, self-contained prompt for the image model (a few short paragraphs, plain text). */
 export function buildLookImagePrompt(input: LookPromptInput): string {
   const { preset, products, ownerName, occasion, hasReferencePhoto } = input

@@ -86,7 +86,17 @@ export const admin = {
     failed: 'Generation failed',
     error: 'Image generation failed.',
     promptLabel: 'Prompt',
+    /** With images attached the prompt is direction layered on the composite the engine builds. */
+    directionLabel: 'Direction',
     promptHint: (characters: number) => `${characters}/2,000 characters`,
+    garments: 'Garments',
+    person: 'Person',
+    addImages: 'Add images',
+    removeImage: (name: string) => `Remove ${name}`,
+    presetLabel: 'Style preset',
+    references: 'References',
+    composedPrompt: 'Composed prompt',
+    renderedBy: (provider: string, model: string) => `${provider} · ${model}`,
     ratioLabel: 'Aspect ratio',
     ratios: {
       '3:4': '3:4 · Editorial portrait',
@@ -95,9 +105,11 @@ export const admin = {
       '9:16': '9:16 · Story',
     },
     generate: 'Generate image',
+    compose: 'Compose the look',
     generating: 'Generating…',
     starters: 'Prompt starters',
     rendering: 'Rendering the prompt…',
+    composing: 'Composing the look…',
     alt: 'Generated fashion experiment',
     generatedIn: (seconds: string) => `Generated in ${seconds}s`,
     download: 'Download',
@@ -105,6 +117,8 @@ export const admin = {
     emptyTitle: 'The generated frame appears here',
     emptyBody:
       'Choose a prompt and ratio, then generate a real image without saving it to the catalog.',
+    compositeEmptyBody:
+      'Attach the garments and the person, then compose the Look without saving it to the catalog.',
   },
 }
 

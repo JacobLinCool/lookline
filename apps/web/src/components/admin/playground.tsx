@@ -7,9 +7,11 @@ import {
   Download,
   ImageIcon,
   Play,
+  Plus,
   RotateCcw,
   Search,
   SlidersHorizontal,
+  X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import type { SearchIntent } from '@lookline/engine'
@@ -37,7 +39,28 @@ interface ImageResult {
   image: string
   mimeType: string
   latencyMs: number
+  /** The prompt the engine actually sent, composed when references are attached. */
+  prompt: string
+  provider?: string
+  model?: string
+  references?: string[]
 }
+
+/** A reference image held only for this session; `url` is an object URL that must be revoked. */
+interface Attachment {
+  id: string
+  file: File
+  url: string
+}
+
+/** A style preset as the browser needs it: a name in each language, never the prompt. */
+interface PresetOption {
+  slug: string
+  name: string
+  labelZh: string
+}
+
+const MAX_REFERENCES = 4
 
 const INTENT_EXAMPLES = [
   '我想找冬天通勤穿的，紅色或藍色，不要太厚，看起來俐落一點。',
@@ -572,23 +595,105 @@ function IntentCompiler({
   )
 }
 
-function ImageStudio({ configured, activePanel }: { configured: boolean; activePanel: boolean }) {
+/** One role's references: paper tiles on a rail, plus a tile that opens the picker. */
+function ImageWell({
+  label,
+  name,
+  items,
+  disabled,
+  onAdd,
+  onRemove,
+}: {
+  label: string
+  name: string
+  items: Attachment[]
+  disabled: boolean
+  onAdd: (files: File[]) => void
+  onRemove: (id: string) => void
+}) {
   const { t } = useI18n()
+  const picker = useRef<HTMLInputElement>(null)
+  return (
+    <Field label={label}>
+      <ul className={styles.well}>
+        {items.map((item) => (
+          <li key={item.id} className={styles.thumb}>
+            {/* An object URL for a file the operator just chose; nothing is uploaded until generate. */}
+            <img src={item.url} alt="" />
+            <button
+              type="button"
+              className={styles.thumbRemove}
+              onClick={() => onRemove(item.id)}
+              disabled={disabled}
+              aria-label={t.admin.image.removeImage(item.file.name)}
+            >
+              <X aria-hidden />
+            </button>
+          </li>
+        ))}
+        {items.length < MAX_REFERENCES ? (
+          <li>
+            <button
+              type="button"
+              className={styles.addTile}
+              onClick={() => picker.current?.click()}
+              disabled={disabled}
+              aria-label={`${t.admin.image.addImages} · ${label}`}
+            >
+              <Plus aria-hidden />
+            </button>
+          </li>
+        ) : null}
+      </ul>
+      <input
+        ref={picker}
+        type="file"
+        name={name}
+        accept="image/*"
+        multiple
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(event) => {
+          onAdd([...(event.target.files ?? [])])
+          event.target.value = ''
+        }}
+      />
+    </Field>
+  )
+}
+
+function ImageStudio({
+  configured,
+  activePanel,
+  presets,
+}: {
+  configured: boolean
+  activePanel: boolean
+  presets: PresetOption[]
+}) {
+  const { t, locale } = useI18n()
   const [prompt, setPrompt] = useState(IMAGE_EXAMPLES[0]!)
   const [aspectRatio, setAspectRatio] = useState<'3:4' | '1:1' | '4:5' | '9:16'>('3:4')
+  const [stylePreset, setStylePreset] = useState(presets[0]?.slug ?? '')
+  const [garments, setGarments] = useState<Attachment[]>([])
+  const [people, setPeople] = useState<Attachment[]>([])
   const [result, setResult] = useState<ImageResult | null>(null)
-  const [submittedInput, setSubmittedInput] = useState<{
-    prompt: string
-    aspectRatio: '3:4' | '1:1' | '4:5' | '9:16'
-  } | null>(null)
+  const [submittedRatio, setSubmittedRatio] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const active = useRef<AbortController | null>(null)
+  const composite = garments.length + people.length > 0
 
+  // Object URLs outlive a render, so unmount revokes whatever is still attached.
+  const attachments = useRef<Attachment[]>([])
+  useEffect(() => {
+    attachments.current = [...garments, ...people]
+  }, [garments, people])
   useEffect(
     () => () => {
       active.current?.abort()
       active.current = null
+      for (const item of attachments.current) URL.revokeObjectURL(item.url)
     },
     [],
   )
@@ -598,8 +703,32 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
     active.current = null
     setBusy(false)
     setResult(null)
-    setSubmittedInput(null)
+    setSubmittedRatio(null)
     setError(null)
+  }
+
+  function attach(set: typeof setGarments, current: Attachment[]): (files: File[]) => void {
+    return (files) => {
+      cancelGeneration()
+      const room = MAX_REFERENCES - current.length
+      const added = files
+        .filter((file) => file.type.startsWith('image/'))
+        .slice(0, Math.max(0, room))
+        .map((file) => ({ id: crypto.randomUUID(), file, url: URL.createObjectURL(file) }))
+      if (!added.length) return
+      // A starter is a whole standalone prompt; as direction on a composite it would fight it.
+      if (IMAGE_EXAMPLES.includes(prompt)) setPrompt('')
+      set([...current, ...added])
+    }
+  }
+
+  function detach(set: typeof setGarments, current: Attachment[]): (id: string) => void {
+    return (id) => {
+      cancelGeneration()
+      const gone = current.find((item) => item.id === id)
+      if (gone) URL.revokeObjectURL(gone.url)
+      set(current.filter((item) => item.id !== id))
+    }
   }
 
   function updatePrompt(nextPrompt: string) {
@@ -612,24 +741,41 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
     setAspectRatio(nextRatio)
   }
 
+  function updateStylePreset(next: string) {
+    cancelGeneration()
+    setStylePreset(next)
+  }
+
   async function generate(event: FormEvent) {
     event.preventDefault()
-    if (!prompt.trim() || busy) return
+    if (busy || (!composite && !prompt.trim())) return
     const controller = new AbortController()
-    const submitted = { prompt: prompt.trim(), aspectRatio }
     active.current?.abort()
     active.current = controller
     setBusy(true)
     setResult(null)
-    setSubmittedInput(submitted)
+    setSubmittedRatio(aspectRatio)
     setError(null)
     try {
-      const response = await fetch('/api/admin/image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submitted),
-        signal: controller.signal,
-      })
+      // References travel as a multipart body; a bare prompt keeps the JSON path curl-friendly.
+      let request: RequestInit
+      if (composite) {
+        const body = new FormData()
+        for (const item of garments) body.append('garment', item.file)
+        for (const item of people) body.append('person', item.file)
+        body.set('notes', prompt.trim())
+        body.set('stylePreset', stylePreset)
+        body.set('aspectRatio', aspectRatio)
+        request = { method: 'POST', body, signal: controller.signal }
+      } else {
+        request = {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: prompt.trim(), aspectRatio }),
+          signal: controller.signal,
+        }
+      }
+      const response = await fetch('/api/admin/image', request)
       const body = (await response.json()) as ImageResult | { error: string }
       if (!response.ok) throw new Error('error' in body ? body.error : t.admin.image.error)
       if ('error' in body) throw new Error(body.error)
@@ -667,8 +813,37 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
             </Notice>
           ) : null}
           <div className="flex flex-col gap-5">
+            <ImageWell
+              label={t.admin.image.garments}
+              name="garment"
+              items={garments}
+              disabled={busy}
+              onAdd={attach(setGarments, garments)}
+              onRemove={detach(setGarments, garments)}
+            />
+            <ImageWell
+              label={t.admin.image.person}
+              name="person"
+              items={people}
+              disabled={busy}
+              onAdd={attach(setPeople, people)}
+              onRemove={detach(setPeople, people)}
+            />
+            {composite ? (
+              <Field label={t.admin.image.presetLabel} htmlFor="image-preset">
+                <Select
+                  id="image-preset"
+                  value={stylePreset}
+                  onChange={(event) => updateStylePreset(event.target.value)}
+                  options={presets.map((preset) => ({
+                    value: preset.slug,
+                    label: locale === 'zh-TW' ? preset.labelZh : preset.name,
+                  }))}
+                />
+              </Field>
+            ) : null}
             <Field
-              label={t.admin.image.promptLabel}
+              label={composite ? t.admin.image.directionLabel : t.admin.image.promptLabel}
               htmlFor="image-prompt"
               hint={t.admin.image.promptHint(prompt.length)}
             >
@@ -676,7 +851,7 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
                 id="image-prompt"
                 value={prompt}
                 onChange={(event) => updatePrompt(event.target.value)}
-                rows={11}
+                rows={composite ? 5 : 11}
                 maxLength={2_000}
                 className="resize-none"
               />
@@ -700,27 +875,35 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
               type="submit"
               size="lg"
               icon={<ImageIcon />}
-              disabled={!configured || busy || !prompt.trim()}
+              disabled={!configured || busy || (!composite && !prompt.trim())}
               full
             >
-              {busy ? t.admin.image.generating : t.admin.image.generate}
+              {busy
+                ? composite
+                  ? t.admin.image.composing
+                  : t.admin.image.generating
+                : composite
+                  ? t.admin.image.compose
+                  : t.admin.image.generate}
             </Button>
           </div>
-          <div className="mt-7 border-t border-line pt-5">
-            <p className="mb-3 text-[12px] font-medium text-muted">{t.admin.image.starters}</p>
-            <div className="flex flex-col gap-2">
-              {IMAGE_EXAMPLES.map((example, index) => (
-                <button
-                  key={example}
-                  type="button"
-                  onClick={() => updatePrompt(example)}
-                  className="border-t border-line py-2 text-left text-[11px] text-muted transition-colors first:border-0 hover:text-ink"
-                >
-                  {index + 1}. {example.slice(0, 74)}…
-                </button>
-              ))}
+          {composite ? null : (
+            <div className="mt-7 border-t border-line pt-5">
+              <p className="mb-3 text-[12px] font-medium text-muted">{t.admin.image.starters}</p>
+              <div className="flex flex-col gap-2">
+                {IMAGE_EXAMPLES.map((example, index) => (
+                  <button
+                    key={example}
+                    type="button"
+                    onClick={() => updatePrompt(example)}
+                    className="border-t border-line py-2 text-left text-[11px] text-muted transition-colors first:border-0 hover:text-ink"
+                  >
+                    {index + 1}. {example.slice(0, 74)}…
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </form>
 
         <div
@@ -729,9 +912,11 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
           {busy ? (
             <div className="flex flex-col items-center gap-4 text-center" aria-live="polite">
               <div className="h-72 w-56 animate-pulse rounded-md bg-card shadow-lift" />
-              <p className="text-[12px] text-muted">{t.admin.image.rendering}</p>
+              <p className="text-[12px] text-muted">
+                {composite ? t.admin.image.composing : t.admin.image.rendering}
+              </p>
             </div>
-          ) : result && submittedInput ? (
+          ) : result && submittedRatio ? (
             <div className="flex w-full flex-col items-center gap-5">
               {/* A data URL is intentionally rendered directly; generated playground images are not persisted. */}
               <img src={result.image} alt={t.admin.image.alt} className={styles.generatedImage} />
@@ -739,6 +924,11 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
                 <span className="tabular text-[11px] text-muted">
                   {t.admin.image.generatedIn((result.latencyMs / 1_000).toFixed(1))}
                 </span>
+                {result.provider && result.model ? (
+                  <span className="text-[11px] text-muted">
+                    {t.admin.image.renderedBy(result.provider, result.model)}
+                  </span>
+                ) : null}
                 <a
                   href={result.image}
                   download={`lookline-playground.${result.mimeType === 'image/jpeg' ? 'jpg' : result.mimeType.split('/')[1] || 'png'}`}
@@ -748,12 +938,18 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
                   {t.admin.image.download}
                 </a>
               </div>
-              <div className="max-w-xl rounded-sm bg-card px-4 py-3 text-center">
-                <p className="text-[12px] font-medium text-muted">
-                  {t.admin.image.submittedPrompt(submittedInput.aspectRatio)}
+              {result.references?.length ? (
+                <p className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-[11px] text-muted">
+                  <span className="font-medium">{t.admin.image.references}</span>
+                  <span className="font-mono">{result.references.join(' · ')}</span>
                 </p>
-                <p className="mt-1 text-[11px] leading-relaxed text-ink">
-                  “{submittedInput.prompt}”
+              ) : null}
+              <div className="max-w-xl rounded-sm bg-card px-4 py-3">
+                <p className="text-[12px] font-medium text-muted">
+                  {t.admin.image.submittedPrompt(submittedRatio)}
+                </p>
+                <p className="mt-1 max-h-40 overflow-y-auto text-[11px] leading-relaxed whitespace-pre-line text-ink">
+                  {result.prompt}
                 </p>
               </div>
             </div>
@@ -761,7 +957,9 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
             <div className="max-w-sm rounded-md bg-card p-7 text-center shadow-lift">
               <ImageIcon className="mx-auto mb-4 size-7 text-muted" aria-hidden="true" />
               <h3 className="text-[15px]">{t.admin.image.emptyTitle}</h3>
-              <p className="mt-1 text-[12px] text-muted">{t.admin.image.emptyBody}</p>
+              <p className="mt-1 text-[12px] text-muted">
+                {composite ? t.admin.image.compositeEmptyBody : t.admin.image.emptyBody}
+              </p>
             </div>
           )}
         </div>
@@ -772,10 +970,12 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
 
 export function AdminPlayground({
   ontology,
+  presets,
   intentConfigured,
   imageConfigured,
 }: {
   ontology: Ontology
+  presets: PresetOption[]
   intentConfigured: boolean
   imageConfigured: boolean
 }) {
@@ -840,7 +1040,7 @@ export function AdminPlayground({
           </div>
         </header>
         <IntentCompiler configured={intentConfigured} activePanel={tab === 'intent'} />
-        <ImageStudio configured={imageConfigured} activePanel={tab === 'image'} />
+        <ImageStudio configured={imageConfigured} activePanel={tab === 'image'} presets={presets} />
       </section>
     </div>
   )

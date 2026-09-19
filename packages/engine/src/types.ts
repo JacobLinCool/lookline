@@ -38,11 +38,19 @@ export interface LlmJsonRequest<T> {
   purpose?: string
 }
 
+/** An image handed to the model, optionally named so the prompt can refer to it by role. */
+export interface ReferenceImage {
+  mimeType: string
+  data: Buffer
+  /** e.g. `Garment 1` or `Person reference 2`; providers receive it alongside the bytes. */
+  label?: string
+}
+
 export interface LlmImageRequest {
   signal?: AbortSignal
   timeoutMs?: number
   prompt: string
-  referenceImages?: Array<{ mimeType: string; data: Buffer }>
+  referenceImages?: ReferenceImage[]
   aspectRatio?: '3:4' | '1:1' | '4:5' | '9:16'
   purpose?: string
 }
