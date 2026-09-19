@@ -8,7 +8,7 @@ import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: '挑一張多人卡 · Lookline' }
+  return { title: '挑一張多人卡', robots: { index: false } }
 }
 
 /** Same four-candidate mechanism as a personal card; the difference is what settling produces. */

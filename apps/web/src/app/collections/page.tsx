@@ -18,7 +18,7 @@ import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: '收藏組合 · Lookline' }
+  return { title: '收藏組合', robots: { index: false } }
 }
 
 const ERRORS: Record<string, string> = {

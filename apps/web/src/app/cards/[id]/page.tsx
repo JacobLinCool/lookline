@@ -21,9 +21,9 @@ export async function generateMetadata({
     .innerJoin(personas, eq(personas.id, cards.personaId))
     .where(eq(cards.id, id))
     .limit(1)
-  if (!card) return { title: 'Card · Lookline' }
+  if (!card) return { title: 'Card' }
   const origin = await siteOrigin()
-  const title = `${card.persona} · ${card.code} · Lookline`
+  const title = `${card.persona} · ${card.code}`
   const description = `一張 Lookline 小卡，編號 ${card.code}，可以在平台上查證發行資料。`
   return {
     title,

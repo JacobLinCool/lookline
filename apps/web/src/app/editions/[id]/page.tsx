@@ -20,9 +20,9 @@ export async function generateMetadata({
     .innerJoin(collections, eq(collections.id, collectionEditions.collectionId))
     .where(eq(collectionEditions.id, id))
     .limit(1)
-  if (!edition) return { title: 'Edition · Lookline' }
+  if (!edition) return { title: 'Edition' }
   const origin = await siteOrigin()
-  const title = `${edition.title} · 限量 ${edition.size} 份 · Lookline`
+  const title = `${edition.title} · 限量 ${edition.size} 份`
   const description = `一張多人小卡，發行 ${edition.size} 份，每位參與者各持 1 份。`
   return {
     title,

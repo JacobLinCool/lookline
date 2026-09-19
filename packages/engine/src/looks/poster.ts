@@ -8,6 +8,7 @@
 import { createRng, findAesthetic, hashSeed, type Rng } from '@lookline/catalog'
 import type { LookPosterInput, StylePreset } from '../types'
 import { darken, lighten, luminance, mixHex, normalizeHex } from './color'
+import { MAX_PIECES_PER_CARD } from '../cards/rules'
 import { findStylePreset } from './presets'
 import { SHAPES, shapeFamilyFor } from './shapes'
 
@@ -15,7 +16,8 @@ export const POSTER_WIDTH = 900
 export const POSTER_HEIGHT = 1200
 
 const SANS = "'Helvetica Neue', Helvetica, Arial, ui-sans-serif, system-ui, sans-serif"
-const MAX_SHAPES = 8
+/** The cap is a product rule, kept with the others; the layout below is what it was chosen for. */
+export const POSTER_MAX_PIECES = MAX_PIECES_PER_CARD
 const MARGIN = 64
 
 export function escapeXml(text: string): string {
@@ -123,7 +125,7 @@ function composeShapes(
   ink: string,
   area: Area = FULL_STAGE,
 ): Placed[] {
-  const items = articles.slice(0, MAX_SHAPES)
+  const items = articles.slice(0, POSTER_MAX_PIECES)
   const { top: areaTop, bottom: areaBottom, left: areaLeft, right: areaRight } = area
   const placed: Placed[] = []
   const withShape = items

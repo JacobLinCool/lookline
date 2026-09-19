@@ -1,6 +1,14 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { and, articles as articlesTable, cardSessions, eq, inArray, personas } from '@lookline/db'
+import {
+  and,
+  articles as articlesTable,
+  cardSessions,
+  cards,
+  eq,
+  inArray,
+  personas,
+} from '@lookline/db'
 import {
   MAX_CANDIDATES_PER_SESSION,
   candidatesOf,
@@ -13,7 +21,9 @@ import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: '挑一張定稿 · Lookline' }
+  // The layout's template appends the site name; saying it here too made every tab read
+  // "… · Lookline · Lookline".
+  return { title: '挑一張定稿', robots: { index: false } }
 }
 
 /**
@@ -56,6 +66,12 @@ export default async function StudioSessionPage({
   const nameById = new Map(worn.map((w) => [w.id, w.name]))
 
   const made = await candidatesOf(db, id)
+  // A settled session has exactly one card; the page links to it instead of stopping dead.
+  const [issued] = await db
+    .select({ id: cards.id })
+    .from(cards)
+    .where(eq(cards.sessionId, id))
+    .limit(1)
   const items: CandidateItem[] = made.map((c) => ({
     id: c.id,
     position: c.position,
@@ -92,6 +108,7 @@ export default async function StudioSessionPage({
         candidates={items}
         max={MAX_CANDIDATES_PER_SESSION}
         settled={session.state !== 'open'}
+        issuedCardId={issued?.id ?? null}
       />
     </Container>
   )

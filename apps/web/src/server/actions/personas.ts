@@ -2,7 +2,7 @@
 
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
-import { eq, personaTransfers, personas, users } from '@lookline/db'
+import { and, eq, personaTransfers, personas, users } from '@lookline/db'
 import {
   acceptTransfer,
   cancelTransfer,
@@ -33,7 +33,7 @@ async function ownedPersona(personaId: string, userId: string) {
 export async function createPersonaAction(formData: FormData): Promise<ActionResult> {
   const user = await requireUser('/me/personas')
   const displayName = name(formData.get('displayName'))
-  if (!displayName) return { ok: false, message: 'Give the persona a name.' }
+  if (!displayName) return { ok: false, message: '請給這位 persona 一個名字。' }
   const kind = formData.get('kind') === 'avatar' ? 'avatar' : 'person'
   await createPersona(getDb().db, {
     id: `per_${nanoid(12)}`,
@@ -50,9 +50,9 @@ export async function renamePersonaAction(formData: FormData): Promise<ActionRes
   const user = await requireUser('/me/personas')
   const personaId = String(formData.get('personaId') ?? '')
   const displayName = name(formData.get('displayName'))
-  if (!displayName) return { ok: false, message: 'Give the persona a name.' }
+  if (!displayName) return { ok: false, message: '請給這位 persona 一個名字。' }
   if (!(await ownedPersona(personaId, user.id))) {
-    return { ok: false, message: 'That persona is not yours to edit.' }
+    return { ok: false, message: '這位 persona 不是你管理的。' }
   }
   // Renaming does not touch cards already issued: their artwork and number are fixed.
   await getDb().db.update(personas).set({ displayName }).where(eq(personas.id, personaId))
@@ -72,28 +72,25 @@ export async function offerPersonaAction(formData: FormData): Promise<ActionResu
     .trim()
     .replace(/^@/, '')
   const persona = await ownedPersona(personaId, user.id)
-  if (!persona) return { ok: false, message: 'That persona is not yours to transfer.' }
-  if (!handle) return { ok: false, message: 'Who should receive it?' }
+  if (!persona) return { ok: false, message: '這位 persona 不是你管理的。' }
+  if (!handle) return { ok: false, message: '要交給誰？請填對方的帳號。' }
 
   const { db } = getDb()
   const [recipient] = await db.select().from(users).where(eq(users.handle, handle)).limit(1)
-  if (!recipient) return { ok: false, message: `No account called @${handle}.` }
-  if (recipient.id === user.id) return { ok: false, message: 'It is already yours.' }
+  if (!recipient) return { ok: false, message: `找不到帳號 @${handle}。` }
+  if (recipient.id === user.id) return { ok: false, message: '這位 persona 已經是你的了。' }
 
-  const existing = await db
+  // Ask for the pending offer, not for the oldest of all of them. Reading every row and taking
+  // the first by `createdAt` picked up a cancelled one, let the guard through, and left the
+  // insert to fail on the partial unique index — a 500 after transfer, cancel, transfer, transfer.
+  const [live] = await db
     .select({ id: personaTransfers.id })
     .from(personaTransfers)
-    .where(eq(personaTransfers.personaId, personaId))
-  if (existing.length > 0) {
-    const [live] = await db
-      .select({ id: personaTransfers.id, state: personaTransfers.state })
-      .from(personaTransfers)
-      .where(eq(personaTransfers.personaId, personaId))
-      .orderBy(personaTransfers.createdAt)
-    if (live?.state === 'pending') {
-      return { ok: false, message: 'There is already an offer waiting on this persona.' }
-    }
-  }
+    .where(
+      and(eq(personaTransfers.personaId, personaId), eq(personaTransfers.state, 'pending')),
+    )
+    .limit(1)
+  if (live) return { ok: false, message: '這個 persona 已經有一筆邀請在等待中。' }
 
   await offerTransfer(db, {
     id: `tr_${nanoid(12)}`,
@@ -120,12 +117,12 @@ export async function acceptPersonaAction(formData: FormData): Promise<ActionRes
   if (result.ok) return { ok: true }
   const reason =
     result.reason === 'expired'
-      ? 'That offer has expired.'
+      ? '這筆邀請已經過期了。'
       : result.reason === 'wrong-recipient'
-        ? 'That offer was not made to you.'
+        ? '這筆邀請不是給你的。'
         : result.reason === 'stale'
-          ? 'The persona changed since the offer was made. Ask for a new one.'
-          : 'That offer is no longer open.'
+          ? '這位 persona 在邀請送出後有變動，請對方重新送一次。'
+          : '這筆邀請已經不是待處理狀態了。'
   return { ok: false, message: reason }
 }
 
@@ -139,7 +136,7 @@ export async function cancelPersonaOfferAction(formData: FormData): Promise<Acti
     .where(eq(personaTransfers.id, transferId))
     .limit(1)
   if (!offer || offer.fromUserId !== user.id) {
-    return { ok: false, message: 'That offer is not yours to cancel.' }
+    return { ok: false, message: '這筆邀請不是你送出的。' }
   }
   await cancelTransfer(db, { transferId, now: new Date() })
   revalidatePath('/me/personas')

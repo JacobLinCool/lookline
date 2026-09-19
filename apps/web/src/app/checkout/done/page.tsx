@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Sparkles } from 'lucide-react'
 import { and, brands, desc, eq, inArray, articles, purchases } from '@lookline/db'
+import { creditsForPurchaseLine } from '@lookline/engine'
 import { Flash } from '@/components/looks/flash'
 import { orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
 import {
@@ -58,6 +59,12 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
     unitPrice: purchase.price,
   }))
   const count = lines.reduce((sum, l) => sum + l.qty, 0)
+  // #34's whole point is that buying earns card credits, and this is the page where it happens.
+  // Counted from the same rule the ledger used, so the number here is the number that was granted.
+  const creditsEarned = rows.reduce(
+    (sum, { purchase }) => sum + creditsForPurchaseLine(purchase.price, purchase.quantity),
+    0,
+  )
   const purchaseIds = rows.map((r) => r.purchase.id)
   const createHref =
     purchaseIds.length > 0 ? `/looks/new?purchases=${purchaseIds.join(',')}` : '/looks/new'
@@ -75,6 +82,21 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
         }
       />
       <Flash error={params.error} className="mb-6" />
+
+      {creditsEarned > 0 ? (
+        <Notice
+          tone="info"
+          className="mb-6"
+          title={t.bag.done.creditsEarned(creditsEarned)}
+          action={
+            <Button href="/studio" size="sm" variant="secondary" icon={<Sparkles />}>
+              {t.bag.done.makeCard}
+            </Button>
+          }
+        >
+          {t.bag.done.creditsNote}
+        </Notice>
+      ) : null}
 
       {rows.length > 0 ? (
         <div className="grid gap-10 md:grid-cols-12">

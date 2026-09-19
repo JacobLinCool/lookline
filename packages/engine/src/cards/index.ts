@@ -22,15 +22,17 @@ export {
   CREDIT_RULE_VERSION,
   CREDIT_THRESHOLD_USD,
   MAX_CANDIDATES_PER_SESSION,
+  MAX_PIECES_PER_CARD,
   creditThresholdTwd,
   creditsForPurchaseLine,
   entitlementQuantity,
   CARD_TIERS,
   ownedRatioOf,
   tierForRatio,
-  verificationCode,
   type CardTier,
 } from './rules'
+
+export { verificationCode } from './codes'
 
 export {
   creditBalance,
@@ -63,7 +65,6 @@ export {
   availableArticles,
   grantEntitlement,
   lendArticle,
-  ownedRatio,
   revokeLoan,
   type AvailableArticle,
   type EntitlementInput,

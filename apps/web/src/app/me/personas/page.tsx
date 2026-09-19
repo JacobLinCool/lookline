@@ -7,7 +7,7 @@ import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: 'Personas · Lookline' }
+  return { title: 'Personas', robots: { index: false } }
 }
 
 /**

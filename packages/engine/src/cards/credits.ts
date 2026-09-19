@@ -53,20 +53,30 @@ async function hasOperation(db: Database, operationKey: string): Promise<boolean
 /**
  * Grant the credits a confirmed purchase line earns. Returns what was granted — `0` both when the
  * line does not qualify and when this key was already granted, which is what makes a retry safe.
+ *
+ * The check and the insert are two statements and D1 has no transaction to put around them, so
+ * the unique index on `operation_key` is what actually decides: two requests racing on the same
+ * key both pass the check, and the one that loses the insert reads the winner's row and reports
+ * the same `0` a sequential replay would.
  */
 export async function grantPurchaseCredits(db: Database, input: GrantInput): Promise<number> {
   const amount = creditsForPurchaseLine(input.unitPrice, input.quantity)
   if (amount === 0) return 0
   if (await hasOperation(db, input.operationKey)) return 0
-  await db.insert(creditLedger).values({
-    id: input.id,
-    ownerUserId: input.ownerUserId,
-    delta: amount,
-    reason: 'grant',
-    purchaseId: input.purchaseId,
-    ruleVersion: CREDIT_RULE_VERSION,
-    operationKey: input.operationKey,
-  })
+  try {
+    await db.insert(creditLedger).values({
+      id: input.id,
+      ownerUserId: input.ownerUserId,
+      delta: amount,
+      reason: 'grant',
+      purchaseId: input.purchaseId,
+      ruleVersion: CREDIT_RULE_VERSION,
+      operationKey: input.operationKey,
+    })
+  } catch (error) {
+    if (await hasOperation(db, input.operationKey)) return 0
+    throw error
+  }
   return amount
 }
 

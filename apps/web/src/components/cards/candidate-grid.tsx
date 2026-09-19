@@ -25,11 +25,14 @@ export function CandidateGrid({
   candidates,
   max,
   settled,
+  issuedCardId,
 }: {
   sessionId: string
   candidates: CandidateItem[]
   max: number
   settled: boolean
+  /** Set once the session has produced a card, so the settled state can link to it. */
+  issuedCardId: string | null
 }) {
   const [picked, setPicked] = useState<string | null>(null)
   // The first candidate is selected by default, but the list is empty on the first render and a
@@ -103,7 +106,12 @@ export function CandidateGrid({
           ) : null}
         </div>
       ) : (
-        <p className="text-[13px] text-muted">這次製卡已經定稿。</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-[13px] text-muted">這次製卡已經定稿。</p>
+          {/* Without this the page is a dead end: the card it produced is one click away and
+              nothing on screen said where. */}
+          {issuedCardId ? <Button href={`/cards/${issuedCardId}`}>看這張卡</Button> : null}
+        </div>
       )}
     </div>
   )

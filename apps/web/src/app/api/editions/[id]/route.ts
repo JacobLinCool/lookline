@@ -1,6 +1,14 @@
-import { and, cardCopies, cardSessions, collectionEditions, collections, eq } from '@lookline/db'
+import {
+  and,
+  cardCandidates,
+  cardCopies,
+  cardSessions,
+  collectionEditions,
+  collections,
+  eq,
+} from '@lookline/db'
 import { renderLookPosterSvg } from '@lookline/engine'
-import { cardArtFromSnapshot } from '@/server/card-art'
+import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
 import { svgResponse } from '@/server/svg'
 
@@ -24,10 +32,15 @@ export async function GET(
       editionSize: collectionEditions.editionSize,
       title: collections.title,
       snapshot: cardSessions.articleSnapshot,
+      candidateId: cardCandidates.id,
+      candidatePosition: cardCandidates.position,
     })
     .from(collectionEditions)
     .innerJoin(collections, eq(collections.id, collectionEditions.collectionId))
     .innerJoin(cardSessions, eq(cardSessions.id, collectionEditions.sessionId))
+    // `imagePath` is the candidate that was chosen; the edition is drawn from its seed so the
+    // issued picture is the one the group picked rather than a fresh arrangement.
+    .innerJoin(cardCandidates, eq(cardCandidates.id, collectionEditions.imagePath))
     .where(eq(collectionEditions.id, id))
     .limit(1)
   if (!edition) return new Response('Not found', { status: 404 })
@@ -53,18 +66,9 @@ export async function GET(
     groups: art.groups.length > 0 ? art.groups : undefined,
     palette: art.palette,
     aesthetics: [],
-    seed: hash(edition.id),
+    seed: candidateSeed(edition.candidateId, edition.candidatePosition),
     editionNumber: copy?.editionNumber,
     editionOf: edition.editionSize,
   })
   return svgResponse(svg, { cacheControl: 'public, max-age=31536000, immutable' })
-}
-
-function hash(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
 }

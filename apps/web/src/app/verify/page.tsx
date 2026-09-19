@@ -3,7 +3,7 @@ import { Container, PageHeader } from '@/components/ui'
 import { VerifyForm } from '@/components/cards/verify-form'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: '查證 · Lookline', description: '輸入卡片編號，確認它的發行資料。' }
+  return { title: '查證', description: '輸入卡片編號，確認它的發行資料。' }
 }
 
 /** Where a number printed on a card is typed back in. */

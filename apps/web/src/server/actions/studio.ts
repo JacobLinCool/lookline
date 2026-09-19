@@ -3,9 +3,10 @@
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { and, cardSessions, eq, personas } from '@lookline/db'
+import { and, cardSessions, cards, eq, lt, personas } from '@lookline/db'
 import {
   MAX_CANDIDATES_PER_SESSION,
+  MAX_PIECES_PER_CARD,
   addCandidate,
   availableArticles,
   candidatesOf,
@@ -26,6 +27,48 @@ import { getDb } from '@/server/db'
 
 /** A session is abandoned if it is not settled within the hour; its credit can then be released. */
 const SESSION_TTL_MS = 3_600_000
+
+/**
+ * Close a session whose hour has run out and hand its credit back.
+ *
+ * Without this `expiresAt` was written and never read: an abandoned session held its credit for
+ * good, and the studio would still generate into it days later. There is no scheduler here, so
+ * the next touch of a session is what retires it — and `releaseCredit` keys off the session, so
+ * two concurrent touches release once between them.
+ */
+async function expireIfStale(
+  db: ReturnType<typeof getDb>['db'],
+  session: { id: string; ownerUserId: string; state: string; expiresAt: Date },
+): Promise<boolean> {
+  if (session.state !== 'open' || session.expiresAt.getTime() > Date.now()) return false
+  await releaseCredit(db, {
+    id: `led_release_${session.id}`,
+    ownerUserId: session.ownerUserId,
+    sessionId: session.id,
+    operationKey: `release:${session.id}`,
+  })
+  await db
+    .update(cardSessions)
+    .set({ state: 'expired', settledAt: new Date() })
+    .where(and(eq(cardSessions.id, session.id), eq(cardSessions.state, 'open')))
+  return true
+}
+
+/** Retire any of this account's sessions that ran out while it was away. */
+export async function expireStaleSessions(userId: string): Promise<void> {
+  const { db } = getDb()
+  const stale = await db
+    .select()
+    .from(cardSessions)
+    .where(
+      and(
+        eq(cardSessions.ownerUserId, userId),
+        eq(cardSessions.state, 'open'),
+        lt(cardSessions.expiresAt, new Date()),
+      ),
+    )
+  for (const session of stale) await expireIfStale(db, session)
+}
 
 /**
  * Open a studio session: hold one credit, fix the persona and the clothes.
@@ -55,6 +98,9 @@ export async function startSessionAction(formData: FormData): Promise<void> {
     .filter((id) => bySource.has(id))
     .map((id) => ({ articleId: id, source: bySource.get(id)! }))
   if (chosen.length === 0) redirect('/studio?error=unauthorised')
+  // A card is one outfit. Without a cap the whole wardrobe could go on it, and the renderer would
+  // draw all of it — forty garments is an inventory, not a look.
+  if (chosen.length > MAX_PIECES_PER_CARD) redirect('/studio?error=too-many')
 
   const sessionId = `cs_${nanoid(12)}`
   const reserved = await reserveCredit(db, {
@@ -104,6 +150,9 @@ export async function generateCandidateAction(formData: FormData): Promise<Actio
     .where(and(eq(cardSessions.id, sessionId), eq(cardSessions.ownerUserId, user.id)))
     .limit(1)
   if (!session) return { ok: false, message: '找不到這個製卡階段。' }
+  if (await expireIfStale(db, session)) {
+    return { ok: false, message: '這個製卡階段已經過期，額度已經退回。' }
+  }
 
   // Re-check the loans: one revoked since the session opened must stop it. Only for a personal
   // card, where the clothes are being used out of this account's wardrobe. An edition draws on
@@ -155,7 +204,16 @@ export async function settleCardAction(formData: FormData): Promise<void> {
     .where(and(eq(cardSessions.id, sessionId), eq(cardSessions.ownerUserId, user.id)))
     .limit(1)
   if (!session) redirect('/studio?error=session')
-  if (session.state === 'settled') redirect(`/cards/${session.id}`)
+  if (session.state === 'settled') {
+    // `cards_session_idx` is unique, so the session names exactly one card. Redirecting with the
+    // session's own id sent a resubmitted settle to `/cards/cs_…`, which is a 404.
+    const [issued] = await db
+      .select({ id: cards.id })
+      .from(cards)
+      .where(eq(cards.sessionId, session.id))
+      .limit(1)
+    redirect(issued ? `/cards/${issued.id}` : '/me')
+  }
 
   const snapshot = session.articleSnapshot ?? []
   const ratio = ownedRatioOf(snapshot)

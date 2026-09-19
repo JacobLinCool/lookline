@@ -23,11 +23,11 @@ export async function generateMetadata({
   const origin = await siteOrigin()
   const url = `${origin}/verify/${encodeURIComponent(code)}`
   return {
-    title: `查證 ${code} · Lookline`,
+    title: `查證 ${code}`,
     description: '確認這張小卡的發行資料。',
     metadataBase: new URL(origin),
     alternates: { canonical: url },
-    openGraph: { title: `查證 ${code} · Lookline`, url },
+    openGraph: { title: `查證 ${code}`, url },
   }
 }
 

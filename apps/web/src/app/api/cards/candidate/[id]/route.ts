@@ -7,7 +7,7 @@ import {
 } from '@lookline/db'
 import { renderLookPosterSvg } from '@lookline/engine'
 import { getSessionUser } from '@/server/auth'
-import { cardArtFromSnapshot } from '@/server/card-art'
+import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
 import { svgResponse } from '@/server/svg'
 
@@ -58,17 +58,8 @@ export async function GET(
     groups: art.groups.length > 0 ? art.groups : undefined,
     palette: art.palette,
     aesthetics: [],
-    seed: hash(`${row.candidateId}:${row.position}`),
+    // The issued card is drawn from this same seed, so what was picked is what is issued.
+    seed: candidateSeed(row.candidateId, row.position),
   })
   return svgResponse(svg, { cacheControl: 'private, max-age=300' })
-}
-
-/** FNV-1a, so a candidate always composes the same way. */
-function hash(s: string): number {
-  let h = 2166136261
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return h >>> 0
 }

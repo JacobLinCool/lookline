@@ -4,7 +4,6 @@
  *
  * Pure: no database, no clock. Everything here is decided from a purchase line's own snapshot.
  */
-import { customAlphabet } from 'nanoid'
 import { currencyRate } from '../constants/currency'
 
 /**
@@ -41,6 +40,13 @@ export function creditsForPurchaseLine(unitPrice: number, quantity: number): num
 }
 
 /** Every purchased item enters the wardrobe, whatever it cost. */
+/**
+ * The most garments one card may carry. It is a product rule and a rendering limit at once: the
+ * poster lays out this many legibly, so the picker stops here rather than letting the renderer
+ * drop the rest without saying so.
+ */
+export const MAX_PIECES_PER_CARD = 8
+
 export function entitlementQuantity(quantity: number): number {
   return Math.max(0, quantity)
 }
@@ -80,8 +86,9 @@ export function tierForRatio(ratio: number): CardTier {
 }
 
 /**
- * Owned share of the pieces on a card, counting each article once however many times it was
- * picked. An empty selection is not a card, and answers 0.
+ * Owned share of the pieces on a card: owned over all, by count and not by price, counting each
+ * article once however many times it was picked. One definition, because the ratio stored on a
+ * card and the tier read off it must never disagree about that. An empty selection answers 0.
  */
 export function ownedRatioOf(
   pieces: ReadonlyArray<{ articleId: string; source: 'purchase' | 'loan' }>,
@@ -92,17 +99,4 @@ export function ownedRatioOf(
   let owned = 0
   for (const source of seen.values()) if (source === 'purchase') owned += 1
   return Math.round((owned / seen.size) * 1000) / 1000
-}
-
-/**
- * Codes are read off a card and typed into the verification box, so the alphabet leaves out
- * everything that fails that trip: nanoid's own `-` and `_` (which collide with the `LL-` prefix
- * and with each other in handwriting), and the 0/O, 1/I/L pairs.
- */
-const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
-const codeBody = customAlphabet(CODE_ALPHABET, 8)
-
-/** A fresh verification code, e.g. `LL-7KQD3XJP`. Unique-indexed wherever it is stored. */
-export function verificationCode(): string {
-  return `LL-${codeBody()}`
 }

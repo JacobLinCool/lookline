@@ -2,6 +2,12 @@
 
 import { useState } from 'react'
 import { Check, Sparkles } from 'lucide-react'
+import {
+  CARD_TIERS,
+  MAX_PIECES_PER_CARD,
+  ownedRatioOf,
+  tierForRatio,
+} from '@lookline/engine/cards/rules'
 import { Avatar, Button, ProductImage, Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { startSessionAction } from '@/server/actions/studio'
@@ -19,25 +25,22 @@ export interface PickerArticle {
   categoryGroup: string
   /** Where the right to wear it comes from — shown, because it decides the card's tier. */
   source: 'purchase' | 'loan'
+  /** Null when the catalogue has no photograph, so no request is made for one that 404s. */
+  imagePath: string | null
 }
 
-/** Owned over total, counting each article once. Mirrors `ownedRatioOf` on the server. */
+/**
+ * The same ratio and the same bands the server will record, imported rather than restated: a
+ * second copy of the boundaries here would eventually disagree with the tier printed on the card.
+ */
 function tierOf(picked: PickerArticle[]): { label: string; ratio: number } {
   if (picked.length === 0) return { label: '—', ratio: 0 }
-  const owned = picked.filter((p) => p.source === 'purchase').length
-  const ratio = owned / picked.length
-  const label =
-    ratio >= 1
-      ? '全數自有'
-      : ratio >= 0.75
-        ? '多數自有'
-        : ratio >= 0.5
-          ? '半數自有'
-          : ratio >= 0.25
-            ? '部分自有'
-            : '全數借用'
-  return { label, ratio }
+  const ratio = ownedRatioOf(picked)
+  return { label: tierForRatio(ratio).labelZh, ratio }
 }
+
+/** Every band, for the legend under the count. */
+export const TIER_LABELS = CARD_TIERS.map((t) => t.labelZh)
 
 export function StudioPicker({
   personas,
@@ -55,6 +58,9 @@ export function StudioPicker({
 
   const chosen = articles.filter((a) => picked.includes(a.articleId))
   const tier = tierOf(chosen)
+  // The renderer draws this many and no more, so the picker stops there rather than letting the
+  // server drop the rest silently.
+  const full = picked.length >= MAX_PIECES_PER_CARD
   const canStart = credits > 0 && picked.length > 0 && personaId
 
   return (
@@ -72,7 +78,7 @@ export function StudioPicker({
               <button
                 type="button"
                 onClick={() => setPersonaId(p.id)}
-                data-selected={personaId === p.id}
+                aria-pressed={personaId === p.id}
                 className={cn(
                   'flex items-center gap-2 rounded-md border px-3 py-2 text-[14px] transition-colors',
                   personaId === p.id ? 'border-ink bg-ink text-paper' : 'border-line hover:bg-mist',
@@ -90,7 +96,7 @@ export function StudioPicker({
         <div className="flex items-baseline justify-between">
           <h2 className="text-[13px] font-medium">衣櫃</h2>
           <span className="text-[12px] text-muted">
-            選了 {picked.length} 件 · 等級 {tier.label}
+            選了 {picked.length}/{MAX_PIECES_PER_CARD} 件 · 等級 {tier.label}
             {chosen.length > 0 ? `（自有 ${Math.round(tier.ratio * 100)}%）` : ''}
           </span>
         </div>
@@ -101,6 +107,8 @@ export function StudioPicker({
               <li key={a.articleId}>
                 <button
                   type="button"
+                  aria-pressed={on}
+                  disabled={!on && full}
                   onClick={() =>
                     setPicked((prev) =>
                       prev.includes(a.articleId)
@@ -111,9 +119,15 @@ export function StudioPicker({
                   className={cn(
                     'relative flex w-full flex-col gap-1 rounded-md border p-1 text-left transition-colors',
                     on ? 'border-ink' : 'border-transparent hover:border-line',
+                    !on && full && 'opacity-40',
                   )}
                 >
-                  <ProductImage articleId={a.articleId} alt={a.name} aspect="3/4" />
+                  <ProductImage
+                    articleId={a.articleId}
+                    imagePath={a.imagePath}
+                    alt={a.name}
+                    aspect="3/4"
+                  />
                   {on ? (
                     <span className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-ink text-paper">
                       <Check className="size-3" aria-hidden />

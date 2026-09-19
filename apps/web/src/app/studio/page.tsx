@@ -1,18 +1,19 @@
 import type { Metadata } from 'next'
 import { ShoppingBag, Sparkles } from 'lucide-react'
 import { eq, inArray, articles as articlesTable, personas } from '@lookline/db'
-import { availableArticles, creditBalance } from '@lookline/engine'
+import { MAX_PIECES_PER_CARD, availableArticles, creditBalance } from '@lookline/engine'
 import { Button, Container, EmptyState, Notice, PageHeader } from '@/components/ui'
 import {
   StudioPicker,
   type PickerArticle,
   type PickerPersona,
 } from '@/components/cards/studio-picker'
+import { expireStaleSessions } from '@/server/actions/studio'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: '製卡工作室 · Lookline' }
+  return { title: '製卡工作室', robots: { index: false } }
 }
 
 const ERRORS: Record<string, string> = {
@@ -21,6 +22,7 @@ const ERRORS: Record<string, string> = {
   unauthorised: '挑的衣服不在你的衣櫃裡，也沒有朋友借給你。',
   credits: '額度不足。每件滿 NT$320 的購買會給 3 次。',
   session: '找不到那個製卡階段。',
+  'too-many': `一張卡最多放 ${MAX_PIECES_PER_CARD} 件。`,
 }
 
 /**
@@ -33,6 +35,9 @@ export default async function StudioPage({
   searchParams: Promise<{ persona?: string; error?: string }>
 }) {
   const user = await requireUser('/studio')
+  // No scheduler here, so arriving at the studio is what retires sessions that ran out of time
+  // and hands their credits back.
+  await expireStaleSessions(user.id).catch(() => {})
   const { db } = getDb()
   const params = await searchParams
 
@@ -50,6 +55,7 @@ export default async function StudioPage({
           name: articlesTable.name,
           colorFamily: articlesTable.colorFamily,
           categoryGroup: articlesTable.categoryGroup,
+          imagePath: articlesTable.imagePath,
         })
         .from(articlesTable)
         .where(inArray(articlesTable.id, ids))
@@ -63,6 +69,9 @@ export default async function StudioPage({
       name: byId.get(w.articleId)!.name,
       categoryGroup: byId.get(w.articleId)!.categoryGroup,
       source: w.source,
+      // 440 of the catalogue's articles were never photographed; passing the path through is what
+      // keeps those tiles on the tonal ground instead of asking for an image that 404s.
+      imagePath: byId.get(w.articleId)!.imagePath,
     }))
 
   const people: PickerPersona[] = mine.map((p) => ({

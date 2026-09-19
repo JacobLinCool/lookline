@@ -25,8 +25,7 @@ import {
   type Database,
   type EntitlementSource,
 } from '@lookline/db'
-import { MAX_CANDIDATES_PER_SESSION } from './rules'
-import { ownedRatio } from './wardrobe'
+import { MAX_CANDIDATES_PER_SESSION, ownedRatioOf } from './rules'
 
 export interface ArticleRef {
   articleId: string
@@ -106,25 +105,50 @@ export async function addCandidate(
     .where(eq(cardSessions.id, input.sessionId))
     .limit(1)
   if (!session || session.state !== 'open') return { ok: false, reason: 'session-closed' }
-  const existing = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(cardCandidates)
-    .where(eq(cardCandidates.sessionId, input.sessionId))
-  const used = Number(existing[0]?.n ?? 0)
-  if (used >= session.max) return { ok: false, reason: 'full' }
-  const position = used + 1
-  await db.insert(cardCandidates).values({
-    id: input.id,
-    sessionId: input.sessionId,
-    attemptId: input.attemptId,
-    imagePath: input.imagePath,
-    position,
-  })
+
+  // Reading the places taken and inserting are two statements with no transaction around them,
+  // so two generates racing pick the same position and `card_candidates_position_idx` refuses the
+  // second. That is the index doing its job, not an error to raise: look again and take the next
+  // place. The position comes from the highest one taken rather than from the count, so a retry
+  // always moves forward; the cap is counted separately, and bounds the loop.
+  let position = 0
+  for (let attempt = 0; attempt <= session.max; attempt++) {
+    const taken = await placesTaken(db, input.sessionId)
+    if (taken.used >= session.max) return { ok: false, reason: 'full' }
+    position = taken.highest + 1
+    try {
+      await db.insert(cardCandidates).values({
+        id: input.id,
+        sessionId: input.sessionId,
+        attemptId: input.attemptId,
+        imagePath: input.imagePath,
+        position,
+      })
+      break
+    } catch (error) {
+      if (attempt === session.max) throw error
+    }
+  }
+
   await db
     .update(generationAttempts)
     .set({ state: 'succeeded', finishedAt: input.now })
     .where(eq(generationAttempts.id, input.attemptId))
   return { ok: true, position }
+}
+
+async function placesTaken(
+  db: Database,
+  sessionId: string,
+): Promise<{ used: number; highest: number }> {
+  const rows = await db
+    .select({
+      n: sql<number>`count(*)`,
+      highest: sql<number>`coalesce(max(${cardCandidates.position}), 0)`,
+    })
+    .from(cardCandidates)
+    .where(eq(cardCandidates.sessionId, sessionId))
+  return { used: Number(rows[0]?.n ?? 0), highest: Number(rows[0]?.highest ?? 0) }
 }
 
 export async function candidatesOf(db: Database, sessionId: string): Promise<CardCandidate[]> {
@@ -176,7 +200,9 @@ export async function settleCard(db: Database, input: SettleCardInput): Promise<
     imagePath: candidate.imagePath,
     verificationCode: input.verificationCode,
     tier: input.tier,
-    ownedRatio: ownedRatio(snapshot),
+    // The same function the tier is read from, so a card's ratio and its tier can never
+    // disagree about whether a piece picked twice counts twice.
+    ownedRatio: ownedRatioOf(snapshot),
     articleSnapshot: snapshot,
   })
   await db
@@ -196,7 +222,9 @@ export interface IssueEditionInput {
   now: Date
 }
 
-export type IssueResult = { ok: true; editionSize: number } | { ok: false; reason: 'no-members' }
+export type IssueResult =
+  | { ok: true; editionSize: number }
+  | { ok: false; reason: 'no-members' | 'session-closed' }
 
 /**
  * Issue one artwork to a whole collection. Every participating persona gets its own numbered copy
@@ -205,6 +233,14 @@ export type IssueResult = { ok: true; editionSize: number } | { ok: false; reaso
  */
 export async function issueEdition(db: Database, input: IssueEditionInput): Promise<IssueResult> {
   if (input.copies.length === 0) return { ok: false, reason: 'no-members' }
+  // Same guard as `settleCard`: a settled session answers with a reason rather than throwing on
+  // `collection_editions_session_idx` when a stale form is posted twice.
+  const [session] = await db
+    .select({ state: cardSessions.state })
+    .from(cardSessions)
+    .where(eq(cardSessions.id, input.sessionId))
+    .limit(1)
+  if (!session || session.state !== 'open') return { ok: false, reason: 'session-closed' }
   const editionSize = input.copies.length
   await db.insert(collectionEditions).values({
     id: input.editionId,

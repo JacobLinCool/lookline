@@ -1121,6 +1121,10 @@ export const creditLedger = sqliteTable(
     delta: integer('delta').notNull(),
     reason: text('reason', { enum: CREDIT_REASON_VALUES }).notNull(),
     purchaseId: text('purchase_id').references(() => purchases.id),
+    /**
+     * No foreign key on purpose: the reservation row is written before the session it pays for
+     * exists, so the constraint would refuse the one insert that has to come first.
+     */
     sessionId: text('session_id'),
     /** Which version of the grant rules decided this row. */
     ruleVersion: text('rule_version').notNull(),

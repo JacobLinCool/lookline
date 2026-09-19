@@ -68,3 +68,17 @@ export async function cardArtFromSnapshot(
   }))
   return { articles, groups, palette }
 }
+
+/**
+ * The seed a candidate was drawn with. An issued card and an edition are drawn from the seed of
+ * the candidate that was chosen, not from their own id — seeding them separately laid the same
+ * garments out differently, so what arrived was never the picture that was picked.
+ */
+export function candidateSeed(candidateId: string, position: number): number {
+  let h = 2166136261
+  for (const ch of `${candidateId}:${position}`) {
+    h ^= ch.charCodeAt(0)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}

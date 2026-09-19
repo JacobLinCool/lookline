@@ -22,7 +22,7 @@ import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: '收藏 · Lookline' }
+  return { title: '收藏', robots: { index: false } }
 }
 
 const ERRORS: Record<string, string> = {
