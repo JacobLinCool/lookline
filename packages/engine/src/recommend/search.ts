@@ -302,7 +302,10 @@ export function buildSearchQuery(
   opts: { withText?: boolean } = {},
 ) {
   const plan = planSearch(query, opts)
-  const where = and(...plan.where)
+  // `and()` of nothing is `undefined`, which drizzle's own `.where()` reads as "no filter"
+  // but the raw facet query below interpolates as an empty `where` clause — a syntax error
+  // on exactly the unfiltered /shop that has the most to show.
+  const where = and(...plan.where) ?? sql`1 = 1`
   const base = db
     .select({ product: articles, brandName: brands.name })
     .from(articles)
