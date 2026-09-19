@@ -40,6 +40,10 @@
 
 @layer base {
   :root {
+    /* Shared shell geometry: content height plus each navigation bar's border/safe area. */
+    --shell-bar-height: 3.5rem;
+    --shell-header-height: calc(var(--shell-bar-height) + 1px);
+    --shell-tabs-height: calc(var(--shell-bar-height) + 1px + env(safe-area-inset-bottom));
     color-scheme: light;
     caret-color: var(--color-ink);
     scrollbar-color: var(--color-line) transparent;
@@ -84,6 +88,22 @@
 
   p {
     text-wrap: pretty;
+  }
+
+  /*
+   * Signage tracking is cut for Bricolage's Latin letterforms. Han characters are already set on
+   * a full em body, so the same negative tracking reads as crowding; Chinese headings run at the
+   * face's own spacing and break between characters rather than between words.
+   */
+  :lang(zh) h1,
+  :lang(zh) h2,
+  :lang(zh) h3,
+  :lang(zh) h4 {
+    letter-spacing: normal;
+    line-height: 1.3;
+    word-break: normal;
+    line-break: strict;
+    overflow-wrap: anywhere;
   }
 
   img,
@@ -157,6 +177,12 @@
   font-optical-sizing: auto;
   line-height: 1.02;
   letter-spacing: -0.02em;
+}
+
+/* Han characters carry their own sidebearings; the Latin signage tracking would crowd them. */
+:lang(zh) .display {
+  line-height: 1.24;
+  letter-spacing: normal;
 }
 
 /* One rail line above a group. */
@@ -234,5 +260,54 @@
   }
   to {
     transform: translateX(260%);
+  }
+}
+
+/* Keep the rail (navigation) fixed while its contents exchange, without waiting for an exit. */
+::view-transition-group(page-content) {
+  animation-duration: 160ms;
+  animation-timing-function: var(--ease-out-expo);
+}
+::view-transition-old(page-content) {
+  animation: page-leave 100ms ease-out both;
+}
+::view-transition-new(page-content) {
+  animation: page-arrive 160ms var(--ease-out-expo) both;
+}
+::view-transition {
+  pointer-events: none;
+}
+@keyframes page-leave {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes page-arrive {
+  from {
+    opacity: 0;
+  }
+}
+.navigation-pending {
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 2px;
+  height: 2px;
+  background: currentColor;
+  transform-origin: left;
+  animation: navigation-acknowledge 120ms var(--ease-out-expo) both;
+}
+@keyframes navigation-acknowledge {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(page-content),
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content) {
+    animation-duration: 60ms;
+  }
+  .navigation-pending {
+    animation: none;
   }
 }

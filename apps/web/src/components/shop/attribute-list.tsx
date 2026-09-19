@@ -1,30 +1,50 @@
-import type { Product } from '@lookline/db'
-import { humanize } from '@/server/format'
+import { DETAIL_VALUES } from '@lookline/catalog'
+import type { Article } from '@lookline/db'
+import { getI18n } from '@/i18n/server'
+import { facetValueLabel, occasionLabel, seasonLabel } from '@/i18n/taxonomy'
+import type { Locale } from '@/i18n/config'
 
 interface Row {
   label: string
   value: string | null
 }
 
-const MAX_ROWS = 8
+const MAX_ROWS = 10
 
-function list(values: readonly string[]): string | null {
-  return values.length > 0 ? values.map(humanize).join(', ') : null
-}
-
-/** The few facts a shopper checks before buying; raw catalog fields never appear here. */
-export function AttributeList({ product }: { product: Product }) {
+/**
+ * The few facts a shopper checks before buying; raw catalog fields never appear here. Every
+ * value is one of the search facets' own slugs, read through that facet's vocabulary, so a
+ * `short` sleeve and a `short` length each read as themselves. A column the vision pass has
+ * not filled is simply absent — an unknown is not "none".
+ */
+export async function AttributeList({ product }: { product: Article }) {
+  const { t, locale } = await getI18n()
+  const facet = (id: Parameters<typeof facetValueLabel>[1], value: string | null) =>
+    value ? facetValueLabel(locale, id, value) : null
+  const list = (values: readonly string[], label: (locale: Locale, slug: string) => string) =>
+    values.length > 0 ? t.shop.list(values.map((value) => label(locale, value))) : null
+  const details = DETAIL_VALUES.filter((d) => product.attributes[d.slug] === true).map(
+    (d) => d.slug,
+  )
   const rows: Row[] = [
-    { label: 'Material', value: humanize(product.material) },
-    { label: 'Fit', value: product.fit ? humanize(product.fit) : null },
-    { label: 'Silhouette', value: product.silhouette ? humanize(product.silhouette) : null },
-    { label: 'Length', value: product.length ? humanize(product.length) : null },
-    { label: 'Neckline', value: product.neckline ? humanize(product.neckline) : null },
-    { label: 'Sleeve', value: product.sleeve ? humanize(product.sleeve) : null },
-    { label: 'Closure', value: product.closure ? humanize(product.closure) : null },
-    { label: 'Pattern', value: product.pattern !== 'solid' ? humanize(product.pattern) : null },
-    { label: 'Occasions', value: list(product.occasions) },
-    { label: 'Seasons', value: list(product.seasons) },
+    { label: t.shop.attributes.material, value: facet('material', product.material) },
+    { label: t.shop.attributes.silhouette, value: facet('silhouette', product.silhouette) },
+    { label: t.shop.attributes.fit, value: facet('fit', product.fit) },
+    { label: t.shop.attributes.length, value: facet('length', product.length) },
+    { label: t.shop.attributes.neckline, value: facet('neckline', product.neckline) },
+    { label: t.shop.attributes.sleeve, value: facet('sleeve', product.sleeve) },
+    { label: t.shop.attributes.closure, value: facet('closure', product.closure) },
+    {
+      label: t.shop.attributes.pattern,
+      value: product.pattern !== 'solid' ? facet('pattern', product.pattern) : null,
+    },
+    { label: t.shop.attributes.printSubject, value: facet('printSubject', product.printSubject) },
+    {
+      label: t.shop.attributes.details,
+      value: list(details, (l, slug) => facetValueLabel(l, 'detail', slug)),
+    },
+    { label: t.shop.attributes.occasions, value: list(product.occasions, occasionLabel) },
+    { label: t.shop.attributes.seasons, value: list(product.seasons, seasonLabel) },
   ]
   const shown = rows
     .filter((r): r is Row & { value: string } => r.value !== null)

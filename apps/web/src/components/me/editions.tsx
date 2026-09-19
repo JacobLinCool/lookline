@@ -6,6 +6,7 @@ import {
   type LookCardOwner,
   type LookLineageHint,
 } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
 
 export interface EditionItem {
   look: Look
@@ -15,15 +16,21 @@ export interface EditionItem {
 }
 
 /** The viewer's Looks (own, or made together), newest first. */
-export function EditionsGrid({
+export async function EditionsGrid({
   items,
   viewerHandle,
 }: {
   items: EditionItem[]
   viewerHandle: string
 }) {
+  const { t } = await getI18n()
   if (items.length === 0) {
-    return <EmptyState title="No Looks yet" action={<Button href="/looks/new">New Look</Button>} />
+    return (
+      <EmptyState
+        title={t.me.looks.empty}
+        action={<Button href="/looks/new">{t.me.newLook}</Button>}
+      />
+    )
   }
   return (
     <ul className="grid grid-cols-2 gap-x-4 gap-y-7 md:grid-cols-3 lg:grid-cols-4">

@@ -1,10 +1,11 @@
 /**
- * Intent → 64-d style vector (ENGINE_SPEC §1.9) with query-side aesthetic normalisation, colour
+ * Intent → 32-d style vector (ENGINE_SPEC §1.9) with query-side colour
  * priors, axis targets, category one-hots and the Engine 03 preference blend.
  */
 import {
   AXES,
-  aestheticIndex,
+  STYLE_BLOCKS,
+  STYLE_DIMENSIONS,
   axisIndex,
   categoryGroupIndex,
   colorFamilyIndex,
@@ -33,17 +34,19 @@ export const FALLBACK_AESTHETICS: ReadonlyArray<readonly [string, number]> = [
   ['normcore', 0.4],
 ]
 
-/** `look.styleVector` when present, else the mean of its products' vectors with G zeroed. */
+/** `look.styleVector` when present, else the mean of its articles' vectors with G zeroed. */
 export function referenceLookVector(look: {
   styleVector?: readonly number[] | null
-  products?: ReadonlyArray<{ styleVector: readonly number[] }>
+  articles?: ReadonlyArray<{ styleVector: readonly number[] }>
 }): number[] | null {
-  if (look.styleVector && look.styleVector.length === 64) return look.styleVector.slice()
-  const products = look.products ?? []
-  if (products.length === 0) return null
+  if (look.styleVector && look.styleVector.length === STYLE_DIMENSIONS)
+    return look.styleVector.slice()
+  const articles = look.articles ?? []
+  if (articles.length === 0) return null
   const out = zeroVector()
-  for (const p of products)
-    for (let i = 0; i < 64; i++) out[i] = (out[i] ?? 0) + (p.styleVector[i] ?? 0) / products.length
+  for (const p of articles)
+    for (let i = 0; i < STYLE_DIMENSIONS; i++)
+      out[i] = (out[i] ?? 0) + (p.styleVector[i] ?? 0) / articles.length
   for (let i = BLOCK.G[0]; i < BLOCK.G[1]; i++) out[i] = 0
   return out
 }
@@ -64,52 +67,21 @@ export function intentToVector(
   const it = intent as IntentExt
   const v = zeroVector()
 
-  // A: aesthetics
+  // The aesthetic block is gone: the catalogue names no aesthetic, so an aesthetic in the intent
+  // has nothing to match against. It still narrows retrieval through the lexicon and still reads
+  // back in the explanation — and it still picks the colours below, since a named style implies
+  // a palette even when the catalogue cannot confirm one.
   const weights: Record<string, number> = { ...it.aestheticWeights }
   if (Object.keys(weights).length === 0) for (const slug of it.aesthetics) weights[slug] = 1
-  for (const [slug, w] of Object.entries(weights)) {
-    const key = canonicalAesthetic(slug)
-    if (!key) continue
-    const i = aestheticIndex(key)
-    if (i >= 0) v[i] = Math.max(v[i] ?? 0, clamp01(w))
-  }
-  for (const token of it.mustAvoid) {
-    if (token.startsWith('aesthetic:')) {
-      const i = aestheticIndex(token.slice(10))
-      if (i >= 0) v[i] = 0
-    }
-  }
-  let aestheticSum = 0
-  for (let i = 0; i < 32; i++) aestheticSum += v[i] ?? 0
-  if (aestheticSum === 0 && it.mode === 'browse' && (opts.trendingAesthetics?.length ?? 0) > 0) {
-    for (const slug of opts.trendingAesthetics!.slice(0, 3)) {
-      const i = aestheticIndex(canonicalAesthetic(slug) ?? '')
-      if (i >= 0) v[i] = 0.6
-    }
-    for (let i = 0; i < 32; i++) aestheticSum += v[i] ?? 0
-  }
-  if (aestheticSum === 0) {
-    for (const [slug, w] of FALLBACK_AESTHETICS) {
-      const i = aestheticIndex(slug)
-      if (i >= 0) v[i] = w
-    }
-  }
-  if (opts.referenceVector && it.referenceRole === 'style-source') {
-    const ref = opts.referenceVector
-    for (let i = 0; i < 32; i++) v[i] = 0.5 * (v[i] ?? 0) + 0.5 * (ref[i] ?? 0)
-  }
-  let maxA = 0
-  for (let i = 0; i < 32; i++) maxA = Math.max(maxA, v[i] ?? 0)
-  if (maxA > 0) for (let i = 0; i < 32; i++) v[i] = (v[i] ?? 0) / maxA
 
   // C: colours
   for (const f of it.colorFamilies) v[colorFamilyIndex(f)] = 1
   for (const [f, w] of Object.entries(it.colorWeights ?? {})) {
     const i = colorFamilyIndex(f as ColorFamily)
-    if (i >= 32) v[i] = Math.max(v[i] ?? 0, clamp01(w))
+    if (i >= 0) v[i] = Math.max(v[i] ?? 0, clamp01(w))
   }
   let colourSum = 0
-  for (let i = 32; i < 44; i++) colourSum += v[i] ?? 0
+  for (let i = STYLE_BLOCKS.colors[0]; i < STYLE_BLOCKS.colors[1]; i++) colourSum += v[i] ?? 0
   if (colourSum === 0 && Object.keys(weights).length > 0) {
     for (const [slug, w] of Object.entries(weights)) {
       const key = canonicalAesthetic(slug)
@@ -117,18 +89,19 @@ export function intentToVector(
       const prior = AESTHETIC_COLOR_PRIOR[key] ?? {}
       for (const [f, pw] of Object.entries(prior) as Array<[ColorFamily, number]>) {
         const i = colorFamilyIndex(f)
-        v[i] = Math.max(v[i] ?? 0, pw * clamp01(w))
+        v[i] = Math.max(v[i] ?? 0, pw * clamp01(w as number))
       }
     }
   }
   if (opts.referenceVector && it.referenceRole === 'style-source') {
     const ref = opts.referenceVector
-    for (let i = 32; i < 44; i++) v[i] = 0.4 * (v[i] ?? 0) + 0.6 * (ref[i] ?? 0)
+    for (let i = STYLE_BLOCKS.colors[0]; i < STYLE_BLOCKS.colors[1]; i++)
+      v[i] = 0.4 * (v[i] ?? 0) + 0.6 * (ref[i] ?? 0)
   }
   for (const token of it.mustAvoid) {
     if (token.startsWith('color:')) {
       const i = colorFamilyIndex(token.slice(6) as ColorFamily)
-      if (i >= 32) v[i] = 0
+      if (i >= 0) v[i] = 0
     }
   }
 
@@ -148,10 +121,11 @@ export function intentToVector(
   // G: category groups
   if (it.mode !== 'outfit') for (const g of it.categoryGroups) v[categoryGroupIndex(g)] = 1
 
-  // preference blend (Engine 03 hook): A, C, X only
-  if (base && base.length >= 52) {
+  // preference blend (Engine 03 hook): colours and axes, never the group one-hot
+  if (base && base.length >= STYLE_DIMENSIONS) {
     const beta = opts.eventCount === undefined ? 0.25 : Math.min(0.4, 0.1 + 0.02 * opts.eventCount)
-    for (let i = 0; i < 52; i++) v[i] = (1 - beta) * (v[i] ?? 0) + beta * clamp01(base[i] ?? 0)
+    for (let i = 0; i < STYLE_BLOCKS.groups[0]; i++)
+      v[i] = (1 - beta) * (v[i] ?? 0) + beta * clamp01(base[i] ?? 0)
   }
   return v
 }

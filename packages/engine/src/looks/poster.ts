@@ -8,6 +8,7 @@
 import { createRng, findAesthetic, hashSeed, type Rng } from '@lookline/catalog'
 import type { LookPosterInput, StylePreset } from '../types'
 import { darken, lighten, luminance, mixHex, normalizeHex } from './color'
+import { MAX_PIECES_PER_CARD } from '../cards/rules'
 import { findStylePreset } from './presets'
 import { SHAPES, shapeFamilyFor } from './shapes'
 
@@ -15,7 +16,8 @@ export const POSTER_WIDTH = 900
 export const POSTER_HEIGHT = 1200
 
 const SANS = "'Helvetica Neue', Helvetica, Arial, ui-sans-serif, system-ui, sans-serif"
-const MAX_SHAPES = 8
+/** The cap is a product rule, kept with the others; the layout below is what it was chosen for. */
+export const POSTER_MAX_PIECES = MAX_PIECES_PER_CARD
 const MARGIN = 64
 
 export function escapeXml(text: string): string {
@@ -28,6 +30,7 @@ export function escapeXml(text: string): string {
 }
 
 const fmt = (n: number): string => (Math.round(n * 100) / 100).toString()
+const pad = (n: number): string => String(Math.max(1, Math.round(n))).padStart(3, '0')
 
 type Theme = StylePreset['theme']
 
@@ -107,15 +110,26 @@ interface Placed {
  * Lay the garments out like a flat lay: a loose grid inside the stage, big pieces first, a little
  * seeded drift and a few degrees of tilt so the pieces read as placed by hand, never scattered.
  */
-function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] {
-  const items = input.products.slice(0, MAX_SHAPES)
-  const areaTop = 190
-  const areaBottom = 780
-  const areaLeft = 90
-  const areaRight = POSTER_WIDTH - 90
+interface Area {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
+const FULL_STAGE: Area = { top: 190, bottom: 780, left: 90, right: POSTER_WIDTH - 90 }
+
+function composeShapes(
+  articles: LookPosterInput['articles'],
+  rng: Rng,
+  ink: string,
+  area: Area = FULL_STAGE,
+): Placed[] {
+  const items = articles.slice(0, POSTER_MAX_PIECES)
+  const { top: areaTop, bottom: areaBottom, left: areaLeft, right: areaRight } = area
   const placed: Placed[] = []
   const withShape = items
-    .map((p, i) => ({ p, i, shape: SHAPES[shapeFamilyFor(p.silhouetteId, p.categoryGroup)] }))
+    .map((p, i) => ({ p, i, shape: SHAPES[shapeFamilyFor(p.subcategory, p.categoryGroup)] }))
     .toSorted((a, b) => b.shape.weight - a.shape.weight || a.i - b.i)
   const n = withShape.length
   const cols = n <= 1 ? 1 : n <= 4 ? 2 : 3
@@ -132,7 +146,8 @@ function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] 
     const cx = areaLeft + cellW * (col + 0.5) + jitterX
     const cy = areaTop + cellH * (row + 0.5) + jitterY
     const fill = normalizeHex(p.colorHex) ?? ink
-    const secondary = p.secondaryColorHex ? normalizeHex(p.secondaryColorHex) : null
+    // The catalogue has no second colour; H&M files each colourway as its own article.
+    const secondary = null
     placed.push({
       d: shape.d,
       fill,
@@ -145,6 +160,48 @@ function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] 
     })
   })
   return placed
+}
+
+interface Band {
+  shapes: Placed[]
+  label: string | null
+  labelX: number
+  labelY: number
+}
+
+/** Stage bounds: the rounded rectangle the garments lie on. */
+const STAGE = { x: MARGIN, y: 150, width: POSTER_WIDTH - MARGIN * 2, height: 670 } as const
+
+/**
+ * One band per subject for a group card, each captioned with that subject's name — the card has
+ * to say whose clothes are whose, not just show everyone's pieces in one heap. Up to three
+ * subjects stack; more than that splits into two columns so the bands stay tall enough to read.
+ */
+function layOutBands(input: LookPosterInput, rng: Rng, ink: string): Band[] {
+  const groups = input.groups ?? []
+  if (groups.length === 0) {
+    return [{ shapes: composeShapes(input.articles, rng, ink), label: null, labelX: 0, labelY: 0 }]
+  }
+  const cols = groups.length <= 3 ? 1 : 2
+  const rows = Math.ceil(groups.length / cols)
+  const cellW = STAGE.width / cols
+  const cellH = STAGE.height / rows
+  const captionH = 34
+  return groups.map((group, i) => {
+    const left = STAGE.x + cellW * (i % cols)
+    const top = STAGE.y + cellH * Math.floor(i / cols)
+    return {
+      shapes: composeShapes(group.articles, rng, ink, {
+        top: top + captionH,
+        bottom: top + cellH - 10,
+        left: left + 26,
+        right: left + cellW - 26,
+      }),
+      label: group.name,
+      labelX: left + 26,
+      labelY: top + 26,
+    }
+  })
 }
 
 function shapeMarkup(s: Placed, index: number, ink: string, background: string): string {
@@ -221,7 +278,8 @@ export function renderLookPosterSvg(input: LookPosterInput): string {
   )
 
   // defs: shade gradient, per-shape pattern fills
-  const shapes = composeShapes(input, rng, ink)
+  const bands = layOutBands(input, rng, ink)
+  const shapes = bands.flatMap((b) => b.shapes)
   parts.push('<defs>')
   parts.push(
     '<linearGradient id="shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".16"/></linearGradient>',
@@ -237,46 +295,67 @@ export function renderLookPosterSvg(input: LookPosterInput): string {
     `<rect x="${MARGIN}" y="150" width="${POSTER_WIDTH - MARGIN * 2}" height="670" rx="14" fill="${stage}"/>`,
   )
 
-  // 2. composition
+  // 2. composition — one band per subject on a group card, a single flat lay otherwise
   parts.push('<g>')
-  shapes.forEach((s, i) => parts.push(shapeMarkup(s, i, ink, bg)))
+  let index = 0
+  for (const band of bands) {
+    if (band.label) {
+      parts.push(
+        `<text x="${fmt(band.labelX)}" y="${fmt(band.labelY)}" font-family="${SANS}" font-size="19" font-weight="700" fill="${muted}">${escapeXml(band.label)}</text>`,
+      )
+    }
+    for (const shape of band.shapes) {
+      parts.push(shapeMarkup(shape, index, ink, bg))
+      index += 1
+    }
+  }
   parts.push('</g>')
 
-  // 3. header: preset name left, edition number right (the one accent)
-  const edition = input.editionNumber ?? 1
-  const editionLabel = `No. ${String(Math.max(1, Math.round(edition))).padStart(3, '0')}`
-  parts.push(
-    `<text x="${MARGIN}" y="98" font-family="${SANS}" font-size="20" fill="${muted}">${escapeXml(`Lookline · ${theme.name}`)}</text>`,
-  )
-  parts.push(
-    `<text x="${POSTER_WIDTH - MARGIN}" y="104" text-anchor="end" font-family="${SANS}" font-size="36" font-weight="700" letter-spacing="-1" fill="${accent}">${escapeXml(editionLabel)}</text>`,
-  )
-
-  // 4. title block + owner + aesthetics
-  const { size, maxChars } = titleFontSize(input.title)
-  const lines = wrapTitle(input.title, maxChars, 3)
-  const lineHeight = size * 1.0
   const paletteBarY = POSTER_HEIGHT - 82
-  const ownerY = paletteBarY - 40
-  const titleBottom = ownerY - 50
-  const titleTop = titleBottom - lineHeight * (lines.length - 1)
-  parts.push(
-    `<g font-family="${SANS}" font-size="${size}" font-weight="700" letter-spacing="${fmt(-size * 0.03)}" fill="${ink}">`,
-  )
-  lines.forEach((line, i) => {
+
+  // 3. header, title, owner — everything made of words, which the share export leaves out
+  const words = input.chrome !== 'artwork'
+  if (words) {
+    // A copy says which one it is; the edition's own artwork says only how many exist, because
+    // printing a number on the picture every copy shares would make each of them claim to be it.
+    const editionLabel =
+      input.editionNumber !== undefined
+        ? `No. ${pad(input.editionNumber)}${input.editionOf ? `/${pad(input.editionOf)}` : ''}`
+        : input.editionOf
+          ? `Edition of ${Math.max(1, Math.round(input.editionOf))}`
+          : 'No. 001'
     parts.push(
-      `<text x="${MARGIN}" y="${fmt(titleTop + i * lineHeight)}">${escapeXml(line)}</text>`,
+      `<text x="${MARGIN}" y="98" font-family="${SANS}" font-size="20" fill="${muted}">${escapeXml(`Lookline · ${theme.name}`)}</text>`,
     )
-  })
-  parts.push('</g>')
-  parts.push(
-    `<text x="${MARGIN}" y="${ownerY}" font-family="${SANS}" font-size="22" fill="${ink}">${escapeXml(`by ${input.ownerName}`)}</text>`,
-  )
-  const aesthetics = input.aesthetics.slice(0, 3).map(aestheticLabel).join(' · ')
-  if (aesthetics) {
     parts.push(
-      `<text x="${POSTER_WIDTH - MARGIN}" y="${ownerY}" text-anchor="end" font-family="${SANS}" font-size="18" fill="${muted}">${escapeXml(aesthetics)}</text>`,
+      `<text x="${POSTER_WIDTH - MARGIN}" y="104" text-anchor="end" font-family="${SANS}" font-size="36" font-weight="700" letter-spacing="-1" fill="${accent}">${escapeXml(editionLabel)}</text>`,
     )
+
+    // 4. title block + owner + aesthetics
+    const { size, maxChars } = titleFontSize(input.title)
+    const lines = wrapTitle(input.title, maxChars, 3)
+    const lineHeight = size * 1.0
+    const ownerY = paletteBarY - 40
+    const titleBottom = ownerY - 50
+    const titleTop = titleBottom - lineHeight * (lines.length - 1)
+    parts.push(
+      `<g font-family="${SANS}" font-size="${size}" font-weight="700" letter-spacing="${fmt(-size * 0.03)}" fill="${ink}">`,
+    )
+    lines.forEach((line, i) => {
+      parts.push(
+        `<text x="${MARGIN}" y="${fmt(titleTop + i * lineHeight)}">${escapeXml(line)}</text>`,
+      )
+    })
+    parts.push('</g>')
+    parts.push(
+      `<text x="${MARGIN}" y="${ownerY}" font-family="${SANS}" font-size="22" fill="${ink}">${escapeXml(`by ${input.ownerName}`)}</text>`,
+    )
+    const aesthetics = input.aesthetics.slice(0, 3).map(aestheticLabel).join(' · ')
+    if (aesthetics) {
+      parts.push(
+        `<text x="${POSTER_WIDTH - MARGIN}" y="${ownerY}" text-anchor="end" font-family="${SANS}" font-size="18" fill="${muted}">${escapeXml(aesthetics)}</text>`,
+      )
+    }
   }
 
   // 5. palette bar + piece count
@@ -292,9 +371,11 @@ export function renderLookPosterSvg(input: LookPosterInput): string {
   parts.push(
     `<rect x="${MARGIN}" y="${paletteBarY}" width="${fmt(barW)}" height="12" fill="none" stroke="${mixHex(ink, bg, 0.7)}" stroke-width="1"/>`,
   )
-  parts.push(
-    `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.products.length} piece${input.products.length === 1 ? '' : 's'}`)}</text>`,
-  )
+  if (words) {
+    parts.push(
+      `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.articles.length} piece${input.articles.length === 1 ? '' : 's'}`)}</text>`,
+    )
+  }
 
   parts.push('</svg>')
   return parts.join('')

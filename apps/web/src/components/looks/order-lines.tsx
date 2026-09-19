@@ -1,13 +1,18 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { Price, ProductImage } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
 import { cn } from '@/lib/cn'
 import { displayName } from '@/lib/product-name'
 import { formatTwd } from '@/server/format'
+import { colorNameLabel } from '@/i18n/taxonomy'
 
 export interface OrderLine {
-  product: Pick<Product, 'id' | 'name' | 'price'> & { brandName: string; colorName?: string | null }
+  product: Pick<Article, 'id' | 'name' | 'price' | 'imagePath'> & {
+    brandName: string
+    colorName?: string | null
+  }
   size: string | null
   qty: number
   /** Unit price at purchase time; defaults to the product price. */
@@ -29,7 +34,7 @@ export function orderSubtotal(
 }
 
 /** Order lines: artwork, name, size × qty, line total. */
-export function OrderLines({
+export async function OrderLines({
   lines,
   compact = false,
   className,
@@ -38,6 +43,7 @@ export function OrderLines({
   compact?: boolean
   className?: string
 }) {
+  const { t, locale } = await getI18n()
   return (
     <ul className={cn('flex flex-col', className)}>
       {lines.map((line, index) => (
@@ -50,7 +56,11 @@ export function OrderLines({
             className={cn('shrink-0', compact ? 'w-16' : 'w-24')}
             aria-label={line.product.name}
           >
-            <ProductImage productId={line.product.id} alt={line.product.name} />
+            <ProductImage
+              articleId={line.product.id}
+              imagePath={line.product.imagePath}
+              alt={line.product.name}
+            />
           </Link>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <p className="truncate text-[12px] text-muted">{line.product.brandName}</p>
@@ -60,8 +70,8 @@ export function OrderLines({
               </Link>
             </h3>
             <p className="tabular text-[13px] text-muted">
-              {line.size ? `Size ${line.size}` : 'One size'}
-              {line.product.colorName ? ` · ${line.product.colorName}` : ''}
+              {line.size ? t.looks.line.size(line.size) : t.looks.line.oneSize}
+              {line.product.colorName ? ` · ${colorNameLabel(locale, line.product.colorName)}` : ''}
               {' · '}
               {formatTwd(line.unitPrice ?? line.product.price)} × {line.qty}
             </p>

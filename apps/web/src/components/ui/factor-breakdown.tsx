@@ -1,19 +1,7 @@
 import type { Explanation, ExplanationFactor, FactorName } from '@lookline/engine'
+import { DEFAULT_LOCALE, type Locale } from '@/i18n'
+import { CATALOGS } from '@/i18n/messages'
 import { cn } from '@/lib/cn'
-
-/** Human labels for engine factor names (shared with pages that list factors). */
-export const FACTOR_LABELS: Record<FactorName, string> = {
-  style_similarity: 'Style match',
-  attribute_match: 'Attributes',
-  budget_fit: 'Budget fit',
-  user_preference: 'Your taste',
-  social_signal: 'Social signal',
-  trend_momentum: 'Trend momentum',
-  brand_affinity: 'Brand affinity',
-  popularity_prior: 'Popularity',
-  diversity: 'Diversity',
-  compatibility: 'Compatibility',
-}
 
 /** Muted editorial hues, one per factor, stable across the app. */
 export const FACTOR_COLORS: Record<FactorName, string> = {
@@ -31,8 +19,8 @@ export const FACTOR_COLORS: Record<FactorName, string> = {
 
 const FALLBACK_COLOR = '#9a968d'
 
-export function factorLabel(name: string): string {
-  return (FACTOR_LABELS as Record<string, string>)[name] ?? name.replace(/_/g, ' ')
+export function factorLabel(name: string, locale: Locale = DEFAULT_LOCALE): string {
+  return CATALOGS[locale].ui.factors[name] ?? name.replace(/_/g, ' ')
 }
 
 export function factorColor(name: string): string {
@@ -51,8 +39,10 @@ export interface FactorBreakdownProps {
   compact?: boolean
   /** Show `factor.evidence` under each legend row (default true). */
   showEvidence?: boolean
-  /** Label next to the total, e.g. "Score". */
+  /** Label next to the total, e.g. "Score"; defaults to the locale's word for it. */
   scoreLabel?: string
+  /** The reader's language; factor names and the score label follow it. */
+  locale?: Locale
   className?: string
 }
 
@@ -65,9 +55,12 @@ export function FactorBreakdown({
   explanation,
   compact = false,
   showEvidence = true,
-  scoreLabel = 'Score',
+  scoreLabel,
+  locale = DEFAULT_LOCALE,
   className,
 }: FactorBreakdownProps) {
+  const label = (name: string) => factorLabel(name, locale)
+  const score = scoreLabel ?? CATALOGS[locale].ui.score
   const factors = explanation.factors.filter((f) => Number.isFinite(f.contribution))
   const positives = factors
     .filter((f) => f.contribution > 0)
@@ -86,7 +79,7 @@ export function FactorBreakdown({
     return (
       <span
         key={`${negative ? 'n' : 'p'}-${f.factor}`}
-        title={`${factorLabel(f.factor)} ${formatContribution(f.contribution)}`}
+        title={`${label(f.factor)} ${formatContribution(f.contribution)}`}
         className="h-full min-w-px"
         style={{
           width: `${width}%`,
@@ -103,7 +96,7 @@ export function FactorBreakdown({
       <div className="flex items-baseline justify-between gap-4">
         <p className="text-[13px] text-ink">{explanation.prose ?? explanation.summary}</p>
         <p className="tabular shrink-0 text-[12px] text-muted">
-          {scoreLabel} <span className="font-medium text-ink">{total.toFixed(2)}</span>
+          {score} <span className="font-medium text-ink">{total.toFixed(2)}</span>
         </p>
       </div>
 
@@ -140,7 +133,7 @@ export function FactorBreakdown({
                       : color,
                   }}
                 />
-                <span className="text-[13px]">{factorLabel(f.factor)}</span>
+                <span className="text-[13px]">{label(f.factor)}</span>
                 <span className={cn('tabular text-[13px]', negative ? 'text-accent' : 'text-ink')}>
                   {formatContribution(f.contribution)}
                 </span>
@@ -154,7 +147,9 @@ export function FactorBreakdown({
           })}
         </ul>
       ) : null}
-      {factors.length === 0 ? <p className="text-[12px] text-muted">No factors recorded.</p> : null}
+      {factors.length === 0 ? (
+        <p className="text-[12px] text-muted">{CATALOGS[locale].ui.noFactors}</p>
+      ) : null}
     </div>
   )
 }

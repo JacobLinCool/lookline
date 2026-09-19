@@ -1,11 +1,17 @@
 /**
  * Catalog search (ENGINE_SPEC §2.4 `searchProducts`): FTS5 full-text over name + description
  * (prefix terms, AND-ed, ranked with `bm25`), a lexicon parse of the query mapped to filters and a
- * style vector (cosine over `product_vectors`), filters, sorts, pagination and facets over a
- * capped sample of the filtered set.
+ * style vector (cosine over `article_vectors`), filters, sorts, pagination and facets.
  */
-import { LEXICON, aestheticIndex, colorFamilyIndex, findColor, zeroVector } from '@lookline/catalog'
-import type { CategoryGroup, ColorFamily } from '@lookline/catalog'
+import {
+  LEXICON,
+  SEARCH_FACETS,
+  aestheticIndex,
+  colorFamilyIndex,
+  findColor,
+  zeroVector,
+} from '@lookline/catalog'
+import type { CategoryGroup, ColorFamily, SearchFacetId, SearchFacetKey } from '@lookline/catalog'
 import {
   and,
   asc,
@@ -14,31 +20,42 @@ import {
   count,
   desc,
   eq,
+  articleRowid,
+  ftsAnd,
+  ftsConceptsQuery,
   ftsHitsSubquery,
   ftsMatch,
   ftsQuery,
   ftsRank,
-  gt,
   gte,
   inArray,
-  jsonArrayOverlaps,
+  isNotNull,
   lte,
-  notInArray,
-  productVectors,
-  products,
-  productsFts,
+  articleVectors,
+  articles,
+  articlesFts,
   rowsOf,
   sql,
 } from '@lookline/db'
-import type { Database, Product } from '@lookline/db'
-import type { ProductSearch, ProductSearchResult } from '../types'
+import type { Database, Article } from '@lookline/db'
+import {
+  COUNTED_COLUMN_FACETS,
+  COUNTED_FACETS,
+  aestheticCountsSql,
+  aestheticRows,
+  facetCountChunks,
+  facetCountsSql,
+  facetExcludes,
+  facetIncludes,
+} from '../decisions/facets'
+import { parseKeywords } from '../decisions/keywords'
+import type { FacetCount, ProductSearch, ProductSearchFacets, ProductSearchResult } from '../types'
 import { AESTHETIC_TABLES } from './aesthetics'
 import { isFamily, isGroup } from './intent-view'
 import { RETRIEVAL_BLOCK_WEIGHTS, blockScale } from './vector'
 
 export const SEARCH_PAGE_SIZE = 24
 export const SEARCH_PAGE_MAX = 100
-export const FACET_SAMPLE = 5000
 export const FACET_TOP = 12
 /** Weight of the style cosine next to the (negated) bm25 rank in relevance order. */
 export const RELEVANCE_COSINE_WEIGHT = 2
@@ -118,8 +135,16 @@ export function scanQuery(q: string): QueryScan {
     patterns: [],
   }
   for (const t of termIndex) {
+    // A single Han character inside a longer word is not that word. `麻` is linen, and `麻花`
+    // is a cable knit — matching the one inside the other turned a search for cable knits into
+    // a search for linen and dropped the rest of the query on the floor.
     const re = t.cjk
-      ? new RegExp(escapeRe(t.term), 'g')
+      ? new RegExp(
+          t.term.length === 1
+            ? `(?<!\\p{Script=Han})${escapeRe(t.term)}(?!\\p{Script=Han})`
+            : escapeRe(t.term),
+          'gu',
+        )
       : new RegExp(`(?<![a-z0-9])${escapeRe(t.term)}(?![a-z0-9])`, 'g')
     if (!re.test(text)) continue
     text = text.replace(re, ' ')
@@ -150,7 +175,10 @@ export function scanQuery(q: string): QueryScan {
     }
   }
   const residual = text.replace(/\s+/g, ' ').trim()
-  scan.residual = /[a-z0-9]/.test(residual) ? residual : ''
+  // Han counts as text. The check was ASCII-only, so a Chinese query matching no lexicon term
+  // left no residual and therefore no search at all — `荷葉邊` filtered on nothing and returned
+  // the whole catalogue.
+  scan.residual = /[a-z0-9]|\p{Script=Han}/u.test(residual) ? residual : ''
   return scan
 }
 
@@ -184,7 +212,9 @@ export interface SearchPlan {
   scan: QueryScan
   /** Residual free text (null when none or when the retry drops it). */
   text: string | null
-  /** FTS5 expression built from `text` (null when no token survives). */
+  /** Keyword concepts (alternatives within, AND across), sanitised. */
+  keywords: string[][]
+  /** FTS5 expression built from `text` and `keywords` (null when no token survives). */
   ftsExpr: string | null
   vector: number[] | null
   where: SqlChunk[]
@@ -197,54 +227,51 @@ export interface SearchPlan {
 
 export function planSearch(query: ProductSearch, opts: { withText?: boolean } = {}): SearchPlan {
   const scan = scanQuery(query.q ?? '')
-  const where: SqlChunk[] = [gt(products.stock, 0)]
+  // The 440 articles H&M never photographed. `ProductImage` renders an empty tonal ground for
+  // them, and the vision pass skips them, so they have no aesthetic, pattern or fit to be ranked
+  // or filtered by — they could only ever appear as a blank tile. 0.4% of the catalogue.
+  const where: SqlChunk[] = [isNotNull(articles.imagePath)]
   let lexiconFilters = false
-  if (query.department) where.push(eq(products.department, query.department))
-  if (query.categoryGroups?.length)
-    where.push(inArray(products.categoryGroup, query.categoryGroups))
-  else if (scan.groups.length > 0 && scan.subcategories.length === 0) {
-    where.push(inArray(products.categoryGroup, scan.groups))
-    lexiconFilters = true
+  if (query.department) where.push(eq(articles.department, query.department))
+  // What the lexicon read out of `q`, applied only where the explicit filter is silent.
+  const scanned: Partial<Record<SearchFacetKey, readonly string[]>> = {
+    categoryGroups: scan.subcategories.length === 0 ? scan.groups : [],
+    colorFamilies: scan.colorFamilies,
+    // An aesthetic narrows the SQL as well as steering the style vector, now that the vision pass
+    // tags articles with one. Articles it has not reached carry `[]` and match nothing, which is
+    // the honest answer: an untagged article is not known to be minimalist.
+    aesthetics: scan.aesthetics,
+    materials: scan.materials,
+    patterns: scan.patterns,
   }
-  if (query.category) where.push(eq(products.category, query.category))
-  if (query.subcategory) where.push(eq(products.subcategory, query.subcategory))
+  for (const facet of SEARCH_FACETS) {
+    const included = query[facet.key]
+    if (included?.length) where.push(facetIncludes(facet, included))
+    else if (scanned[facet.key]?.length) {
+      where.push(facetIncludes(facet, scanned[facet.key]!))
+      lexiconFilters = true
+    }
+    const excluded = query[facet.excludeKey]
+    if (excluded?.length) where.push(facetExcludes(facet, excluded))
+  }
+  if (query.category) where.push(eq(articles.category, query.category))
+  if (query.subcategory) where.push(eq(articles.subcategory, query.subcategory))
   else if (scan.subcategories.length > 0) {
-    where.push(inArray(products.subcategory, scan.subcategories))
+    where.push(inArray(articles.subcategory, scan.subcategories))
     lexiconFilters = true
   }
-  if (query.colorFamilies?.length) where.push(inArray(products.colorFamily, query.colorFamilies))
-  else if (scan.colorFamilies.length > 0) {
-    where.push(inArray(products.colorFamily, scan.colorFamilies))
-    lexiconFilters = true
-  }
-  const aesthetics = [...new Set([...(query.aesthetics ?? []), ...scan.aesthetics])]
-  if (aesthetics.length > 0) {
-    where.push(jsonArrayOverlaps(products.aesthetics, aesthetics))
-    if (scan.aesthetics.length > 0) lexiconFilters = true
-  }
-  if (query.excludedCategoryGroups?.length)
-    where.push(notInArray(products.categoryGroup, query.excludedCategoryGroups))
-  if (query.excludedColorFamilies?.length)
-    where.push(notInArray(products.colorFamily, query.excludedColorFamilies))
-  if (query.excludedAesthetics?.length)
-    where.push(sql`not ${jsonArrayOverlaps(products.aesthetics, query.excludedAesthetics)}`)
-  if (scan.materials.length > 0) {
-    where.push(inArray(products.material, scan.materials))
-    lexiconFilters = true
-  }
-  if (scan.patterns.length > 0) {
-    where.push(inArray(products.pattern, scan.patterns))
-    lexiconFilters = true
-  }
-  if (query.brandId !== undefined) where.push(eq(products.brandId, query.brandId))
+  if (query.brandId !== undefined) where.push(eq(articles.brandId, query.brandId))
   if (query.priceMin !== undefined && query.priceMin !== null)
-    where.push(gte(products.price, Math.round(query.priceMin)))
+    where.push(gte(articles.price, Math.round(query.priceMin)))
   if (query.priceMax !== undefined && query.priceMax !== null)
-    where.push(lte(products.price, Math.round(query.priceMax)))
+    where.push(lte(articles.price, Math.round(query.priceMax)))
   const withText = opts.withText ?? true
   const text = withText && scan.residual ? scan.residual : null
-  const ftsExpr = text ? ftsQuery(text) : null
-  if (ftsExpr) where.push(sql`${products.id} in ${ftsHitsSubquery(ftsExpr)}`)
+  // Keywords are already known to be free text: they never pass through the lexicon and the
+  // no-text retry never drops them, only the residual of `q`.
+  const keywords = parseKeywords(query.keywords ?? [])
+  const ftsExpr = ftsAnd(text ? ftsQuery(text) : null, ftsConceptsQuery(keywords))
+  if (ftsExpr) where.push(sql`${articleRowid} in ${ftsHitsSubquery(ftsExpr)}`)
   const vector = scanVector(scan, query.aesthetics ?? [])
   const pageSize = Math.max(
     1,
@@ -254,6 +281,7 @@ export function planSearch(query: ProductSearch, opts: { withText?: boolean } = 
   return {
     scan,
     text,
+    keywords,
     ftsExpr,
     vector,
     where,
@@ -278,27 +306,27 @@ export function orderFor(plan: SearchPlan): SqlChunk[] {
   const cos = plan.vector ? cosineExpr(blockScale(plan.vector, RETRIEVAL_BLOCK_WEIGHTS)) : null
   switch (plan.sort) {
     case 'price_asc':
-      return [asc(products.price), asc(products.id)]
+      return [asc(articles.price), asc(articles.id)]
     case 'price_desc':
-      return [desc(products.price), asc(products.id)]
+      return [desc(articles.price), asc(articles.id)]
     case 'popular':
-      return [desc(products.popularity), asc(products.id)]
+      return [desc(articles.popularity), asc(articles.id)]
     case 'new':
-      return [desc(products.createdAt), asc(products.id)]
+      return [desc(articles.createdAt), asc(articles.id)]
     case 'trending':
-      return [desc(products.trendScore), desc(products.popularity), asc(products.id)]
+      return [desc(articles.trendScore), desc(articles.popularity), asc(articles.id)]
     default: {
       if (plan.ftsExpr && cos) {
         return [
           desc(sql`(-(${ftsRank})) + ${RELEVANCE_COSINE_WEIGHT} * ${cos}`),
-          desc(products.popularity),
-          asc(products.id),
+          desc(articles.popularity),
+          asc(articles.id),
         ]
       }
       // bm25 is a cost: lower ranks first.
-      if (plan.ftsExpr) return [asc(ftsRank), desc(products.popularity), asc(products.id)]
-      if (cos) return [desc(cos), asc(products.id)]
-      return [desc(products.popularity), asc(products.id)]
+      if (plan.ftsExpr) return [asc(ftsRank), desc(articles.popularity), asc(articles.id)]
+      if (cos) return [desc(cos), asc(articles.id)]
+      return [desc(articles.popularity), asc(articles.id)]
     }
   }
 }
@@ -310,19 +338,26 @@ export function buildSearchQuery(
   opts: { withText?: boolean } = {},
 ) {
   const plan = planSearch(query, opts)
-  const where = and(...plan.where)
+  // `and()` of nothing is `undefined`, which drizzle's own `.where()` reads as "no filter"
+  // but the raw facet query below interpolates as an empty `where` clause — a syntax error
+  // on exactly the unfiltered /shop that has the most to show.
+  const where = and(...plan.where) ?? sql`1 = 1`
   const base = db
-    .select({ product: products, brandName: brands.name })
-    .from(products)
-    .innerJoin(brands, eq(brands.id, products.brandId))
+    .select({ product: articles, brandName: brands.name })
+    .from(articles)
+    .innerJoin(brands, eq(brands.id, articles.brandId))
     .$dynamic()
   const withVectors = needsVectorJoin(plan)
-    ? base.innerJoin(productVectors, eq(productVectors.productId, products.id))
+    ? base.innerJoin(articleVectors, eq(articleVectors.articleId, articles.id))
     : base
   const joined = needsFtsJoin(plan)
     ? withVectors.innerJoin(
-        productsFts,
-        and(eq(productsFts.rowid, products.id), ftsMatch(plan.ftsExpr!)),
+        articlesFts,
+        // `articles.id` is H&M's ten-character `article_id`; the FTS side is the integer rowid
+        // the virtual table keys on. Comparing them matched nothing, so every relevance-sorted
+        // text search returned an empty page next to a total that counted the real hits — the
+        // count uses the WHERE clause, which joins on `articleRowid` and is correct.
+        and(eq(articlesFts.rowid, articleRowid), ftsMatch(plan.ftsExpr!)),
       )
     : withVectors
   const page = joined
@@ -330,17 +365,15 @@ export function buildSearchQuery(
     .orderBy(...orderFor(plan))
     .limit(plan.pageSize)
     .offset((plan.page - 1) * plan.pageSize)
-  const total = db.select({ n: count() }).from(products).where(where)
-  const facets = sql`
-    with sample as (
-      select ${products.categoryGroup} as category_group, ${products.colorFamily} as color_family, ${products.aesthetics} as aesthetics
-      from ${products} where ${where} limit ${FACET_SAMPLE}
-    )
-    select 'group' as dim, category_group as key, count(*) as n from sample group by 2
-    union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2
-    union all select 'aesthetic' as dim, a.value as key, count(*) as n from sample, json_each(sample.aesthetics) as a group by 2
-  `
-  return { plan, page, total, facets }
+  const total = db.select({ n: count() }).from(articles).where(where)
+  // Counted over the whole filtered set, not a capped head of it: `article_id` carries H&M's own
+  // ordering, so the first N rows of a filter are not a sample of it — they were missing entire
+  // category groups. Two statements, run together: a filtered aggregate per category group and
+  // colour family (one pass, the rows the `total` count reads) and a `group by` over the
+  // aesthetics JSON text; `facetCountsSql` records what the other shapes cost on D1.
+  const facets = facetCountsSql(COUNTED_COLUMN_FACETS, where)
+  const aestheticFacets = aestheticCountsSql(where)
+  return { plan, page, total, facets, aestheticFacets }
 }
 
 export interface FacetRow {
@@ -349,20 +382,68 @@ export interface FacetRow {
   n: number
 }
 
-export function aggregateFacets(
-  rows: readonly FacetRow[],
-): NonNullable<ProductSearchResult['facets']> {
-  const pick = (dim: string) =>
-    rows
-      .filter((r) => r.dim === dim && r.key)
-      .map((r) => ({ key: r.key, count: Number(r.n) }))
-      .toSorted((a, b) => b.count - a.count || a.key.localeCompare(b.key))
-      .slice(0, FACET_TOP)
-  return {
-    categoryGroups: pick('group'),
-    colorFamilies: pick('color'),
-    aesthetics: pick('aesthetic'),
+/** The single row of a facet-count query → one `(facet, value, count)` per counted value. */
+export function facetRows(
+  row: Record<string, unknown> | undefined,
+  facets: readonly (typeof SEARCH_FACETS)[number][] = COUNTED_FACETS,
+): FacetRow[] {
+  if (!row) return []
+  const rows: FacetRow[] = []
+  for (const chunk of facetCountChunks(facets)) {
+    const cell = row[chunk.alias]
+    let counts: Record<string, unknown> = {}
+    try {
+      counts = typeof cell === 'string' ? (JSON.parse(cell) as Record<string, unknown>) : {}
+    } catch {
+      counts = {}
+    }
+    for (const key of chunk.values) rows.push({ dim: chunk.id, key, n: Number(counts[key] ?? 0) })
   }
+  return rows
+}
+
+/** The counted values of one facet, most common first, unknown and absent values dropped. */
+export function pickFacet(
+  facet: (typeof SEARCH_FACETS)[number],
+  rows: readonly FacetRow[],
+): FacetCount[] {
+  return rows
+    .filter(
+      (r) => r.dim === facet.id && r.key && r.n > 0 && facet.values.some((v) => v.slug === r.key),
+    )
+    .map((r) => ({ key: r.key, count: Number(r.n) }))
+    .toSorted((a, b) => b.count - a.count || a.key.localeCompare(b.key))
+    .slice(0, FACET_TOP)
+}
+
+/** Counts for the facets every search carries; a facet absent here has not been counted. */
+export function aggregateFacets(rows: readonly FacetRow[]): ProductSearchFacets {
+  return Object.fromEntries(
+    COUNTED_FACETS.map((facet) => [facet.key, pickFacet(facet, rows)]),
+  ) as ProductSearchFacets
+}
+
+/**
+ * The value counts of one facet over the rows `query` matches (its own selections in that facet
+ * included, so a shopper sees what else the current results hold). One pass, one statement —
+ * the price of opening that facet's row in the rail, paid only then.
+ */
+export async function countFacet(
+  db: Database,
+  query: ProductSearch,
+  facetId: SearchFacetId,
+): Promise<FacetCount[]> {
+  const facet = SEARCH_FACETS.find((f) => f.id === facetId)
+  if (!facet) throw new Error(`Unknown facet ${facetId}`)
+  const plan = planSearch(query)
+  const where = and(...plan.where) ?? sql`1 = 1`
+  if (facet.storage === 'json-array')
+    return pickFacet(
+      facet,
+      aestheticRows(rowsOf<{ key: unknown; n: unknown }>(await db.all(aestheticCountsSql(where)))),
+    )
+  const result = await db.all(facetCountsSql([facet], where))
+  return pickFacet(facet, facetRows(rowsOf<Record<string, unknown>>(result)[0], [facet]))
 }
 
 async function runSearch(
@@ -370,15 +451,25 @@ async function runSearch(
   query: ProductSearch,
   withText: boolean,
 ): Promise<ProductSearchResult & { plan: SearchPlan }> {
-  const { plan, page, total, facets } = buildSearchQuery(db, query, { withText })
-  const [rows, totalRows, facetRows] = await Promise.all([page, total, db.all(facets)])
-  const items = rows.map((r) => ({ ...(r.product as Product), brandName: r.brandName }))
+  const { plan, page, total, facets, aestheticFacets } = buildSearchQuery(db, query, {
+    withText,
+  })
+  const [rows, totalRows, facetResult, aestheticResult] = await Promise.all([
+    page,
+    total,
+    db.all(facets),
+    db.all(aestheticFacets),
+  ])
+  const items = rows.map((r) => ({ ...(r.product as Article), brandName: r.brandName }))
   return {
     items,
     total: Number(totalRows[0]?.n ?? 0),
     page: plan.page,
     pageSize: plan.pageSize,
-    facets: aggregateFacets(rowsOf<FacetRow>(facetRows)),
+    facets: aggregateFacets([
+      ...facetRows(rowsOf<Record<string, unknown>>(facetResult)[0], COUNTED_COLUMN_FACETS),
+      ...aestheticRows(rowsOf<{ key: unknown; n: unknown }>(aestheticResult)),
+    ]),
     plan,
   }
 }

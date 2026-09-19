@@ -440,3 +440,58 @@ describe('parser behaviour', () => {
     expect((performance.now() - t0) / 200).toBeLessThan(15)
   })
 })
+
+describe('sleeves', () => {
+  it('carries a stated sleeve as a constraint token, in either polarity', () => {
+    // `fits` is matched against `articles.fit`; the sleeve lives in its own column, so it travels
+    // as a mustHave token and reaches retrieval as a requirement.
+    expect(parseIntentOffline('我想穿休閒風要長袖').mustHave).toContain('sleeve:long')
+    expect(parseIntentOffline('long sleeve top').mustHave).toContain('sleeve:long')
+    expect(parseIntentOffline('我要短袖').mustHave).toContain('sleeve:short')
+    expect(parseIntentOffline('不要長袖').mustAvoid).toContain('sleeve:long')
+    expect(parseIntentOffline('不要長袖').mustHave).not.toContain('sleeve:long')
+  })
+})
+
+describe('negation scope in Chinese', () => {
+  const parse = (q: string) => parseIntentOffline(q)
+
+  it('stops at 的, because the noun after it is what is being asked for', () => {
+    // `不要紅色的洋裝` is a dress, just not a red one. Negating through 的 excluded dresses
+    // outright and returned the opposite of the request.
+    const red = parse('不要紅色的洋裝')
+    expect(red.categoryGroups).toEqual(['dresses'])
+    expect(red.mustAvoid).toEqual(['color:red'])
+
+    const lace = parse('不要蕾絲邊的洋裝')
+    expect(lace.categoryGroups).toEqual(['dresses'])
+    expect(lace.mustAvoid).toEqual(['attribute:laceTrim'])
+
+    const cotton = parse('不要棉的洋裝')
+    expect(cotton.categoryGroups).toEqual(['dresses'])
+    expect(cotton.mustAvoid).toContain('material:cotton-jersey')
+  })
+
+  it('keeps running when 的 hands the clause to another modifier, not a noun', () => {
+    // Two refusals and no head noun. Cutting at the first 的 dropped the white, which is the
+    // regression the head-noun test exists to catch.
+    const both = parse('不要黑色的和白色的')
+    expect(both.mustAvoid).toEqual(expect.arrayContaining(['color:black', 'color:white']))
+    const two = parse('不要蕾絲的、不要雪紡的洋裝')
+    expect(two.categoryGroups).toEqual(['dresses'])
+    expect(two.mustAvoid).toEqual(expect.arrayContaining(['material:lace', 'material:chiffon']))
+  })
+
+  it('still negates the category when no 的 hands the clause to a head noun', () => {
+    const bare = parse('不要洋裝')
+    expect(bare.categoryGroups).toEqual([])
+    expect(bare.mustAvoid).toEqual(['group:dresses'])
+    // A trailing modifier with nothing after it is negated as it always was.
+    expect(parse('不要紅色').mustAvoid).toEqual(['color:red'])
+  })
+
+  it('leaves English alone, where the structure is different', () => {
+    const en = parse('no red dresses')
+    expect(en.mustAvoid).toEqual(expect.arrayContaining(['color:red', 'group:dresses']))
+  })
+})

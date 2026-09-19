@@ -1,6 +1,6 @@
 /**
  * Integration test of `recordFeedback` / `getPreferenceProfile` against a migrated in-memory
- * SQLite database (the same dialect as D1): two generated catalog products, a throw-away user, a
+ * SQLite database (the same dialect as D1): two generated catalog articles, a throw-away user, a
  * handful of events, then the profile.
  */
 import {
@@ -10,11 +10,12 @@ import {
   feedbackEvents,
   insertAll,
   preferenceSnapshots,
-  products,
+  articles,
   users,
 } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
-import { aestheticIndex, generateBrands, generateProduct } from '@lookline/catalog'
+import { STYLE_DIMENSIONS, aestheticIndex } from '@lookline/catalog'
+import { fixtureBrands, makeProduct } from '../recommend/testing/fixtures'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getPreferenceProfile, recordFeedback } from './index'
 import { BANDIT_STATE_ID } from './bandit'
@@ -25,13 +26,13 @@ const USER_ID = 'u_test_engine03'
 const SESSION = `is_test_${USER_ID}`
 
 let handle: DbHandle
-let productId = 0
-let otherProductId = 0
+let articleId = ''
+let otherProductId = ''
 let productAesthetics: string[] = []
 
 beforeAll(async () => {
   handle = await createTestDb()
-  const brandRecords = generateBrands(SEED)
+  const brandRecords = fixtureBrands(SEED)
   await insertAll(
     handle.db,
     brands,
@@ -43,16 +44,18 @@ beforeAll(async () => {
       homeAesthetics: b.homeAesthetics,
       homeDepartments: b.homeDepartments,
       priceMultiplier: b.priceMultiplier,
-      origin: b.origin,
-      description: b.description,
+      origin: null,
+      description: null,
     })),
     { maxParams: 30_000 },
   )
-  const [first, second] = [1, 2].map((i) => generateProduct(i, SEED, brandRecords))
-  await insertAll(handle.db, products, [first!, second!], { maxParams: 30_000 })
-  productId = first!.id
+  const [first, second] = [1, 2].map((i) => makeProduct(i, SEED, brandRecords))
+  const rows = [first!, second!].map(({ brandName: _brandName, ...row }) => row)
+  await insertAll(handle.db, articles, rows, { maxParams: 20_000 })
+  articleId = first!.id
   otherProductId = second!.id
-  productAesthetics = first!.aesthetics ?? []
+  // The catalogue tags no aesthetics; the profile's top tags come from the style vector.
+  productAesthetics = []
   await handle.db
     .insert(users)
     .values({ id: USER_ID, handle: USER_ID, displayName: 'Engine 03 test', department: 'unisex' })
@@ -71,7 +74,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'impression',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       context: { armId: 'taste-led', contextVector: [1, 0, 0, 0, 0.8, 0, 1, 0], position: 0 },
@@ -80,7 +83,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'click',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       createdAt: at(1),
@@ -88,7 +91,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'save',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       createdAt: at(2),
@@ -98,12 +101,12 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
       .select({ p: users.preferenceVector, g: users.giftPreferenceVector })
       .from(users)
       .where(eq(users.id, USER_ID))
-    expect(afterSave?.p).toHaveLength(64)
+    expect(afterSave?.p).toHaveLength(STYLE_DIMENSIONS)
     expect(afterSave?.g).toBeNull()
     const [product] = await db
-      .select({ v: products.styleVector })
-      .from(products)
-      .where(eq(products.id, productId))
+      .select({ v: articles.styleVector })
+      .from(articles)
+      .where(eq(articles.id, articleId))
     const primary = productAesthetics[0]
     if (primary) {
       const idx = aestheticIndex(primary)
@@ -115,7 +118,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'purchase',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       context: { forKind: 'self' },
@@ -137,7 +140,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'purchase',
-      productId: otherProductId,
+      articleId: otherProductId,
       forOthers: true,
       context: { forKind: 'other', forLabel: 'dad' },
       createdAt: at(4),
@@ -147,7 +150,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
       .from(users)
       .where(eq(users.id, USER_ID))
     expect(afterGift!.p).toEqual(beforeGift!.p)
-    expect(afterGift!.g).toHaveLength(64)
+    expect(afterGift!.g).toHaveLength(STYLE_DIMENSIONS)
     const snaps2 = await db
       .select()
       .from(preferenceSnapshots)
@@ -157,14 +160,14 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'save',
-      productId: otherProductId,
+      articleId: otherProductId,
       forOthers: true,
       createdAt: at(5),
     })
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'save',
-      productId: otherProductId,
+      articleId: otherProductId,
       forOthers: true,
       createdAt: at(6),
     })
@@ -190,13 +193,12 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     const profile = await getPreferenceProfile(db, USER_ID)
     expect(profile.userId).toBe(USER_ID)
     expect(profile.eventCount).toBe(6)
-    expect(profile.vector).toHaveLength(64)
-    expect(profile.giftVector).toHaveLength(64)
-    expect(profile.topAesthetics.length).toBeGreaterThan(0)
-    expect(profile.topAesthetics[0]!.evidence.length).toBeGreaterThan(0)
-    expect(profile.topAesthetics[0]!.evidence.join(' ')).toMatch(/bought|saved|clicked/)
-    expect(profile.giftTopAesthetics.length).toBeGreaterThan(0)
-    expect(profile.giftTopAesthetics[0]!.evidence.join(' ')).toContain('for dad')
+    expect(profile.vector).toHaveLength(STYLE_DIMENSIONS)
+    expect(profile.giftVector).toHaveLength(STYLE_DIMENSIONS)
+    // No aesthetic tags in the catalogue, so a profile reports colour families instead.
+    expect(profile.topAesthetics).toEqual([])
+    expect(profile.topColorFamilies.length).toBeGreaterThan(0)
+    expect(profile.giftTopColorFamilies.length).toBeGreaterThan(0)
     expect(profile.snapshots).toHaveLength(2)
     expect(profile.snapshots[0]!.version).toBe(2)
     expect(profile.bandit?.arms.find((a) => a.name === 'taste-led')?.pulls).toBe(1)

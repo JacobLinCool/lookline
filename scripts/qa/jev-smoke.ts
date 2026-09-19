@@ -1,4 +1,4 @@
-import { loadEnv } from '@lookline/db'
+import { loadEnv } from '@lookline/db/node'
 import { resolveFilters, type FilterState } from '../../packages/engine/src/decisions/filters'
 loadEnv()
 const cases: { id: string; text: string; base?: FilterState }[] = [

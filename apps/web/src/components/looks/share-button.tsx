@@ -3,6 +3,7 @@
 import { Check, Link2 } from 'lucide-react'
 import { useState, useTransition } from 'react'
 import { Button, type ButtonSize, type ButtonVariant } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
 import { shareLookAction } from '@/server/actions/looks'
 
 interface ShareButtonProps {
@@ -27,6 +28,7 @@ export function ShareButton({
   size,
   full,
 }: ShareButtonProps) {
+  const { t } = useI18n()
   const [state, setState] = useState<State>('idle')
   const [pending, startTransition] = useTransition()
   const url = typeof window === 'undefined' ? sharePath : `${window.location.origin}${sharePath}`
@@ -62,7 +64,7 @@ export function ShareButton({
         icon={state === 'copied' ? <Check /> : <Link2 />}
         aria-live="polite"
       >
-        {state === 'copied' ? 'Link copied' : 'Share'}
+        {state === 'copied' ? t.looks.share.copied : t.common.share}
       </Button>
       {state === 'shown' ? (
         <span className="text-[12px] break-all text-muted select-all">{url}</span>

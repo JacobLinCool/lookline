@@ -75,14 +75,18 @@ Guarantees:
 Exports (see `src/index.ts`): `getLlm`, `parseIntent`, `parseIntentOffline`, `intentToVector`,
 `recommend`, `similarProducts`, `completeTheLook`, `searchProducts`, `recordFeedback`,
 `getPreferenceProfile`, `evaluatePreferenceLoop`, `recordInteraction`, `recordPurchase`,
-`createLook`, `suggestRemix`, `createAsk`, `answerAsk`, `deriveLookStyle`, `STYLE_PRESETS`,
+`createLook`, `suggestRemix`, `deriveLookStyle`, `STYLE_PRESETS`,
 `renderLookPosterSvg`, `buildLookImagePrompt`, `runAnalytics`, `getTrendDashboard`, `getLineage`,
-`getUserNetwork`.
+`getUserNetwork`, `countFacet`, `resolveFilters`, `extractSearchKeywords`, `extractFacetCandidates`.
 
 Guarantees:
 
 - Every LLM-backed function works with no API keys (`provider: 'offline'`) and never throws
   because of a provider error.
+- `parseIntent` answers from the closed-option decision (`provider: 'jev'`) unless `routeIntent`
+  escalates, and its `route` says why it did; `ctx.deferRefinement` returns that answer with a
+  `refine()` the caller runs out of band. Without `TYPESAFE_API_KEY` it degrades to the previous
+  lexicon-plus-LLM path.
 - `recommend` returns items whose `explanation.factors` sum (Σ contribution) equals `score` within
   floating error, so the UI can render the breakdown honestly.
 - `recordPurchase` writes the `purchases` row, the `PURCHASE` (and `BUY_FOR`) interactions, and a
@@ -98,7 +102,7 @@ Guarantees:
 ## `@lookline/sim`
 
 - `scripts/seed.ts` creates personas (`users` with `isPersona = true`, `sim_personas`), a social
-  history of purchases, Looks (posters are rendered on demand by the web image route), Asks, remixes,
+  history of purchases, Looks (posters are rendered on demand by the web image route), remixes,
   Together editions, shares, reactions and feedback events by calling the engine write paths with
   deterministic ids and timestamps spread over the last 60 days. It must produce visible
   propagation chains (depth ≥ 4) that cross social clusters, and at least 8 demo-ready personas
@@ -114,19 +118,36 @@ Guarantees:
   (`SESSION_SECRET`).
 - Image routes: `GET /api/products/[id]/image` (SVG via `renderProductSvg`, immutable cache),
   `GET /api/looks/[id]/image` (R2 object `looks.image_path`, or poster SVG fallback),
+  owner-only `GET /api/previews/[id]/image` (temporary preview image or poster),
   `GET /api/avatars/[seed]` (SVG).
 - Routes and their purpose are listed in ARCHITECTURE.md.
+- `POST /api/admin/image` (engine lab) renders either a typed prompt (`application/json` with
+  `{ prompt, aspectRatio }`) or a composite (`multipart/form-data` with repeated `garment` and
+  `person` image parts, plus `stylePreset`, `aspectRatio`, `occasion?` and `notes?`). References
+  are labelled `Garment n` / `Person reference n` and the engine's `buildCompositePrompt` names
+  them, so the model is told which image is which. The response carries the composed `prompt`,
+  the provider and the model; nothing is persisted.
 - `POST /api/intent/stream` accepts `{ q, clarify?, previous? }` and streams newline-delimited JSON:
   `understood` → `result` → optional `refinement` → `done` (or `error` before `done`). The initial
   result uses the tested deterministic parser/ranker; refinement is explicitly applied by the user.
   Disconnects abort model enrichment. Impression logging runs after the response and is not a
   condition for rendering results.
+- Interface copy is owned by `apps/web/src/i18n/messages/<locale>/<surface>.ts`, one module per
+  surface, typed against the English catalog. Catalog nouns are not copied there: they come from
+  `@lookline/catalog` through `apps/web/src/i18n/taxonomy.ts`. See [two languages](specs/I18N_SPEC.md).
 - `POST /api/filters/resolve` accepts `{ utterance, base, revision }` and returns validated
-  `{ filters, unresolved, revision, model, contractVersion, latencyMs }` from TypeSafe Jev.
+  `{ filters, unresolved, hints, freeText, revision, model, contractVersion, latencyMs }` from
+  TypeSafe Jev (`filters-v3`); `hints` lists what the sentence leaves unsaid (`occasion`,
+  `budget`, …) for Shop to ask about, and `freeText` says the sentence names something the
+  attributes cannot carry. `POST /api/filters/keywords` `{ utterance, revision }` then returns
+  `{ keywords, revision, provider, model, contractVersion, latencyMs }` — English full-text
+  concepts from the fast generative model, or 503 when no provider answered.
   `POST /api/voice/token` returns a short-lived, single-use, model-constrained Gemini token.
-  Both require authenticated same-origin requests. See [live filters](specs/REALTIME_FILTER_SPEC.md).
-  Shop uses repeated `categoryGroups`, `colorFamilies`, `aesthetics` and corresponding
-  `excluded…` URL fields; SQL applies OR within a facet, AND across facets and explicit exclusions.
+  All three require authenticated same-origin requests. See [live filters](specs/REALTIME_FILTER_SPEC.md).
+  Shop's URL carries every `SEARCH_FACETS` pair of `@lookline/catalog` as repeated fields
+  (`categoryGroups`/`excludedCategoryGroups` … `details`/`excludedDetails`) plus repeated
+  `keywords`; SQL applies OR within a facet, AND across facets and explicit exclusions.
+  `GET /api/articles/facets?facet=<id>&…` counts one construction facet over the same search.
 - `createLookDraft` persists a product composition before scheduling image rendering with `after`.
   `GET /api/looks/[id]/generate` reports image state; owner-only `POST` with `{ stylePreset }`
   claims a generation and returns 202; owner-only `DELETE` with `{ generationId }` cancels that
@@ -134,11 +155,53 @@ Guarantees:
   write ownership; provider work is bounded by the shared 25 s budget. Expired leases become
   retryable failures without deleting the previous visual. Missing credentials leave an explicitly
   labelled composition; a failed provider never masquerades as a completed image.
-- `createLook` and `answerAsk` accept an optional `deferFeedback` scheduler as their third argument.
+- `createLook` accepts an optional `deferFeedback` scheduler as its third argument.
   Web callers supply `after`; simulation callers await feedback by default so replay is complete
-  before analytics. Core Look/Ask records and social edges remain on the persistence path.
+  before analytics. Core Look records and social edges remain on the persistence path.
 
 ## Verification
 
 Root: `pnpm check` = `format:check`, `lint`, `typecheck`, `test`, `build`.
-End-to-end: `pnpm db:migrate && pnpm seed && pnpm evaluate && pnpm d1:migrate:local && pnpm d1:local && pnpm dev`.
+End-to-end (after the Kaggle csv files and `pnpm --filter @lookline/hm aggregate` — docs/ONBOARDING.md):
+`pnpm db:migrate && pnpm seed && pnpm evaluate && pnpm d1:migrate:local && pnpm d1:local && pnpm dev`.
+
+## Cards, personas and credits (`@lookline/engine` cards module)
+
+Shared contract for the purchase (#34), persona (#35), studio (#36), collection (#37) and sharing
+(#38) work. See docs/DATA_MODEL.md for why holding is derived and credits are a ledger.
+
+- `creditsForPurchaseLine(unitPrice, quantity)` decides entitlement from the line's own snapshot.
+  The threshold is `creditThresholdTwd()` — US$10 at the project's fixed demo rate, NT$320 — and
+  deliberately not `toTwd`, whose rounding to the nearest 50 or 100 would move the boundary.
+  `CREDIT_RULE_VERSION` is recorded on every ledger row it decides.
+- `grantPurchaseCredits`, `reserveCredit`, `settleCredit`, `releaseCredit` all take an
+  `operationKey` that is stable across retries of the same logical act. Granting or settling twice
+  under one key is a no-op; `reserveCredit` returns `false` only when there was nothing left to
+  reserve. `creditBalance` is the sum of the ledger and the only definition of how many an account
+  has.
+- `createPersona`, `personasOf`, `offerTransfer`, `transferPreview`, `acceptTransfer`,
+  `cancelTransfer`. `transferPreview` reports what an offer will move before it is accepted;
+  `acceptTransfer` returns `{ ok: false, reason }` for a wrong recipient, an expired or already
+  settled offer, or a stale version.
+- `cardHolder` and `holdingsOf` derive holding through the persona. Nothing else should read or
+  write an owner on a card.
+- `grantEntitlement`, `lendArticle`, `revokeLoan`, `availableArticles`, `ownedRatio`.
+  `availableArticles` returns owned and borrowed articles with the source of each, which is what a
+  card snapshots and what `ownedRatio` measures.
+- `openSession`, `startAttempt`, `failAttempt`, `addCandidate`, `candidatesOf`, `settleCard`,
+  `addCollectionMember`, `membersOf`, `issueEdition`. `addCandidate` refuses past
+  `MAX_CANDIDATES_PER_SESSION` and on a closed session, so cancelling and reopening cannot wash out
+  unlimited candidates. `issueEdition` mints one numbered copy per participating persona.
+
+Authorisation, stated once so every caller enforces the same thing: the signed-in account may act
+only on personas whose `ownerUserId` is itself; it may dress them only in what `availableArticles`
+returns for it; a card's author is fixed at issue whoever later holds it; and a transfer may be
+accepted only by its named recipient, once, before it expires.
+
+## Home discovery
+
+`@lookline/engine/discovery` owns `trending`, `preferences`, `recent`, `recordArticleView`,
+`friendActivity`, explicit invitation/acceptance/removal and sharing operations. The web endpoints
+never accept an alternate user ID for personalized reads or VIEW writes. Friendship is an explicit
+recipient-confirmed relationship, not an inferred recommendation edge. See
+[Home discovery](specs/HOME_DISCOVERY_SPEC.md) for DTOs' semantics, permission and query boundaries.

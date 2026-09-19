@@ -16,14 +16,14 @@ export function ProductGrid({
   className?: string
 }) {
   const grid = useRef<HTMLUListElement>(null)
-  const previous = useRef(new Map<number, { x: number; y: number }>())
+  const previous = useRef(new Map<string, { x: number; y: number }>())
   const previousWidth = useRef<number | undefined>(undefined)
   useLayoutEffect(() => {
     const width = grid.current?.clientWidth
     if (previousWidth.current !== width) previous.current.clear()
     previousWidth.current = width
     const nodes = Array.from(grid.current?.children ?? []) as HTMLLIElement[]
-    const positions = new Map<number, { x: number; y: number }>()
+    const positions = new Map<string, { x: number; y: number }>()
     const animations: Animation[] = []
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches
     for (const [index, node] of nodes.entries()) {
@@ -74,6 +74,7 @@ export function ProductGrid({
           <ProductCard
             product={{
               id: product.id,
+              imagePath: product.imagePath,
               name: product.name,
               price: product.price,
               brandName: product.brandName,

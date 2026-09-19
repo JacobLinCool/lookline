@@ -5,15 +5,106 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1789787126088,
+      "when": 1789807912408,
       "tag": "0000_init",
       "breakpoints": true
     },
     {
       "idx": 1,
       "version": "6",
-      "when": 1789787126484,
+      "when": 1789807912409,
       "tag": "0001_vectors_fts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789823571534,
+      "tag": "0002_previews",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789900000000,
+      "tag": "0003_vision",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789910000000,
+      "tag": "0004_colour_family",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789990000000,
+      "tag": "0005_vision_passes",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790000000000,
+      "tag": "0006_caption_split",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790010000000,
+      "tag": "0007_flat_attributes",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790030000000,
+      "tag": "0009_pattern_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790040000000,
+      "tag": "0010_chinese_search",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790050000000,
+      "tag": "0011_personas_and_cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790060000000,
+      "tag": "0012_session_collection",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790070000000,
+      "tag": "0013_collection_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790080000000,
+      "tag": "0014_retire_asks",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1789851531664,
+      "tag": "0015_home_discovery",
       "breakpoints": true
     }
   ]

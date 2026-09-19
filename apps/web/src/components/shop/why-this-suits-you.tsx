@@ -1,11 +1,13 @@
 import Link from 'next/link'
 import { cosineSimilarity } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { getPreferenceProfile, type Explanation, type ExplanationFactor } from '@lookline/engine'
 import { FactorBreakdown, Tag } from '@/components/ui'
+import type { Locale } from '@/i18n/config'
+import type { Messages } from '@/i18n/messages'
+import { getI18n } from '@/i18n/server'
+import { aestheticLabel, colorFamilyLabel } from '@/i18n/taxonomy'
 import { getDb } from '@/server/db'
-import { humanize } from '@/server/format'
-import { COLOR_FAMILY_LABELS } from './constants'
 import { callEngine } from './engine'
 
 const clamp01 = (n: number) => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0)
@@ -23,62 +25,78 @@ const factor = (
   evidence,
 })
 
+/** The article's aesthetics that are also among the profile's top tags, in the profile's order. */
+function sharedAesthetics(
+  product: Article,
+  profile: Awaited<ReturnType<typeof getPreferenceProfile>>,
+): string[] {
+  return profile.topAesthetics
+    .map((a) => a.slug)
+    .filter((slug) => product.aesthetics.includes(slug))
+}
+
 /**
  * Builds a three-factor explanation from the learned profile and the product. Contributions are
  * weight × value, so the score shown by FactorBreakdown is exactly their sum.
  */
 function buildExplanation(
-  product: Product,
+  product: Article,
   profile: Awaited<ReturnType<typeof getPreferenceProfile>>,
   similarity: number,
+  t: Messages,
+  locale: Locale,
 ): Explanation {
-  const topSlugs = profile.topAesthetics.map((a) => a.slug)
-  const shared = product.aesthetics.filter((a) => topSlugs.includes(a))
-  const denominator = Math.max(1, Math.min(product.aesthetics.length, Math.max(1, topSlugs.length)))
-  const aestheticOverlap = clamp01(shared.length / denominator)
+  // The vision pass tags each article with up to three aesthetics; the overlap is the share of
+  // the profile's top-aesthetic weight the article carries. An untagged article overlaps nothing,
+  // which is the honest reading of an empty column, not a claim that it clashes.
+  const shared = sharedAesthetics(product, profile)
+  const weight = profile.topAesthetics.reduce((sum, a) => sum + Math.max(0, a.weight), 0)
+  const aestheticOverlap =
+    weight > 0
+      ? shared.reduce(
+          (sum, slug) =>
+            sum + Math.max(0, profile.topAesthetics.find((a) => a.slug === slug)?.weight ?? 0),
+          0,
+        ) / weight
+      : 0
   const colourMatch = profile.topColorFamilies.find((c) => c.family === product.colorFamily)
   const attributeValue = clamp01(0.7 * aestheticOverlap + 0.3 * (colourMatch ? 1 : 0))
   const trendValue = clamp01(product.trendScore)
+  const evidence = t.shop.fit.evidence
 
   const factors: ExplanationFactor[] = [
     factor(
       'user_preference',
       0.6,
       clamp01(similarity),
-      similarity >= 0.7
-        ? 'Close to the pieces you usually choose'
-        : similarity >= 0.4
-          ? 'Shares some of your usual style preferences'
-          : 'Different from the pieces you usually choose',
+      similarity >= 0.7 ? evidence.close : similarity >= 0.4 ? evidence.partly : evidence.different,
     ),
     factor(
       'attribute_match',
       0.25,
       attributeValue,
-      [
-        shared.length > 0
-          ? `shares ${shared.map(humanize).join(', ')} with your top aesthetics`
-          : 'no overlap with your top aesthetics yet',
+      evidence.join([
+        shared.length
+          ? evidence.shares(t.shop.list(shared.map((slug) => aestheticLabel(locale, slug))))
+          : evidence.sharesNothing,
         colourMatch
-          ? `${COLOR_FAMILY_LABELS[product.colorFamily as keyof typeof COLOR_FAMILY_LABELS] ?? humanize(product.colorFamily)} is one of your colours`
-          : 'colour outside your usual palette',
-      ].join('; '),
+          ? t.shop.fit.colourIsYours(colorFamilyLabel(locale, product.colorFamily))
+          : evidence.colourOutside,
+      ]),
     ),
     factor(
       'trend_momentum',
       0.15,
       trendValue,
-      trendValue > 0
-        ? `network trend score ${trendValue.toFixed(2)} from Looks, remixes and asks`
-        : 'no trend momentum recorded for this piece yet',
+      trendValue > 0 ? evidence.trend(trendValue.toFixed(2)) : evidence.noTrend,
     ),
   ]
   const lead =
     similarity >= 0.7
-      ? 'Close to your taste'
+      ? t.shop.fit.close
       : similarity >= 0.4
-        ? 'Partly your taste'
-        : 'A change from what you usually pick'
+        ? t.shop.fit.partly
+        : t.shop.fit.different
   return { summary: lead, factors }
 }
 
@@ -91,17 +109,18 @@ export async function WhyThisSuitsYou({
   userId,
   engineView = false,
 }: {
-  product: Product
+  product: Article
   userId: string | null
   engineView?: boolean
 }) {
+  const { t, locale } = await getI18n()
   if (!userId) {
     return (
       <Link
         href={`/login?next=${encodeURIComponent(`/p/${product.id}`)}`}
         className="w-fit text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-ink hover:decoration-ink"
       >
-        Sign in to see your fit
+        {t.shop.fit.signIn}
       </Link>
     )
   }
@@ -111,7 +130,7 @@ export async function WhyThisSuitsYou({
   )
   if (!profile.ok) return null
   if (!profile.value.vector) {
-    return <p className="text-[13px] text-muted">Save a few pieces to see your fit.</p>
+    return <p className="text-[13px] text-muted">{t.shop.fit.empty}</p>
   }
 
   const similarity = await callEngine('cosineSimilarity', async () =>
@@ -119,15 +138,13 @@ export async function WhyThisSuitsYou({
   )
   if (!similarity.ok) return null
 
-  const explanation = buildExplanation(product, profile.value, similarity.value)
-  const shared = product.aesthetics.filter((a) =>
-    profile.value.topAesthetics.some((t) => t.slug === a),
-  )
+  const explanation = buildExplanation(product, profile.value, similarity.value, t, locale)
+  const shared = sharedAesthetics(product, profile.value)
   const colourMatch = profile.value.topColorFamilies.some((c) => c.family === product.colorFamily)
-  const colourLabel =
-    COLOR_FAMILY_LABELS[product.colorFamily as keyof typeof COLOR_FAMILY_LABELS] ??
-    humanize(product.colorFamily)
-  const line = [explanation.summary, colourMatch ? `${colourLabel} is one of your colours` : null]
+  const line = [
+    explanation.summary,
+    colourMatch ? t.shop.fit.colourIsYours(colorFamilyLabel(locale, product.colorFamily)) : null,
+  ]
     .filter(Boolean)
     .join(' · ')
 
@@ -138,14 +155,18 @@ export async function WhyThisSuitsYou({
         <div className="flex flex-wrap gap-1.5">
           {shared.slice(0, 3).map((slug) => (
             <Tag key={slug} href={`/shop?aesthetics=${encodeURIComponent(slug)}`}>
-              {profile.value.topAesthetics.find((t) => t.slug === slug)?.name ?? humanize(slug)}
+              {aestheticLabel(locale, slug)}
             </Tag>
           ))}
         </div>
       ) : null}
       {engineView ? (
         <div className="mt-1 rounded-md bg-mist p-4">
-          <FactorBreakdown explanation={explanation} scoreLabel="Fit" />
+          <FactorBreakdown
+            explanation={explanation}
+            scoreLabel={t.shop.fit.score}
+            locale={locale}
+          />
         </div>
       ) : null}
     </div>

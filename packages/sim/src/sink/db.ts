@@ -1,30 +1,27 @@
 /**
  * Database sink: every social write goes through the engine write paths (`recordPurchase`,
- * `createLook`, `suggestRemix`, `createAsk`, `answerAsk`, `recordInteraction`,
+ * `createLook`, `suggestRemix`, `recordInteraction`,
  * `recordFeedback`) and searches become `intent_sessions` rows via the offline intent parser.
  * Look posters are not stored: the web image route renders `renderLookPosterSvg` on demand for
  * every Look without an `imagePath` (only generated images live in R2).
  */
 import {
-  and,
-  gt,
   inArray,
   insertAll,
   intentSessions,
-  products,
+  articles,
   simPersonas,
   sql,
   users,
   type Database,
 } from '@lookline/db'
 import {
-  answerAsk,
-  createAsk,
   createLook,
   intentToVector,
   parseIntentOffline,
   recordFeedback,
   recordInteraction,
+  fulfilPurchaseLines,
   recordPurchase,
   suggestRemix,
 } from '@lookline/engine'
@@ -40,23 +37,18 @@ export interface DbSinkOptions {
 }
 
 const POOL_COLUMNS = {
-  id: products.id,
-  department: products.department,
-  categoryGroup: products.categoryGroup,
-  subcategory: products.subcategory,
-  price: products.price,
-  colorFamily: products.colorFamily,
-  colorHex: products.colorHex,
-  secondaryColorHex: products.secondaryColorHex,
-  aesthetics: products.aesthetics,
-  sizeSystem: products.sizeSystem,
-  sizes: products.sizes,
-  popularity: products.popularity,
-  name: products.name,
-  silhouetteId: products.silhouetteId,
-  pattern: products.pattern,
-  imageSeed: products.imageSeed,
-  styleVector: products.styleVector,
+  id: articles.id,
+  department: articles.department,
+  categoryGroup: articles.categoryGroup,
+  subcategory: articles.subcategory,
+  price: articles.price,
+  colorFamily: articles.colorFamily,
+  colorHex: articles.colorHex,
+  outfitRole: articles.outfitRole,
+  popularity: articles.popularity,
+  name: articles.name,
+  pattern: articles.pattern,
+  styleVector: articles.styleVector,
 } as const
 
 export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink {
@@ -108,9 +100,9 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
     async loadPool(): Promise<SimProduct[]> {
       const rows = await db
         .select(POOL_COLUMNS)
-        .from(products)
-        .where(and(gt(products.stock, 0), sql`${products.id} % ${modulo} = 0`))
-        .orderBy(products.id)
+        .from(articles)
+        .where(sql`cast(${articles.id} as integer) % ${modulo} = 0`)
+        .orderBy(articles.id)
       return rows
     },
 
@@ -118,8 +110,8 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
       if (ids.length === 0) return []
       return db
         .select(POOL_COLUMNS)
-        .from(products)
-        .where(inArray(products.id, [...ids]))
+        .from(articles)
+        .where(inArray(articles.id, [...ids]))
     },
 
     async recordSearch(input) {
@@ -165,6 +157,18 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
 
     async recordPurchase(input) {
       const row = await recordPurchase(db, input)
+      // What checkout does after recording, so a simulated buyer ends up in the same state as a
+      // real one: the piece in their wardrobe and, above the threshold, credits to make a card
+      // with. Without this a seeded database had 5,000 purchases and nobody who could use them.
+      await fulfilPurchaseLines(db, row.userId, [
+        {
+          purchaseId: row.id,
+          articleId: row.articleId,
+          unitPrice: row.price,
+          quantity: row.quantity,
+          size: row.size,
+        },
+      ])
       return { price: row.price }
     },
 
@@ -185,14 +189,6 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
       } catch {
         return []
       }
-    },
-
-    async createAsk(input) {
-      await createAsk(db, input)
-    },
-
-    async answerAsk(input) {
-      await answerAsk(db, input)
     },
   }
 }

@@ -8,18 +8,22 @@ export * as schema from './schema'
 export { createD1Db, type D1Like, type Database } from './client'
 export { TABLE_ORDER, type TableName } from './tables'
 export {
-  productVectors,
+  articleVectors,
   VECTOR_COLUMNS,
   unitVector,
   cosineExpr,
-  productVectorRow,
-  productVectorsInsertSql,
+  articleVectorRow,
+  articleVectorsInsertSql,
 } from './vectors'
 export {
-  productsFts,
+  articleRowid,
+  articlesFts,
   FTS_REBUILD_SQL,
   FTS_MAX_TOKENS,
   ftsQuery,
+  ftsConceptsQuery,
+  ftsAnd,
+  spaceCjk,
   ftsMatch,
   ftsHitsSubquery,
   ftsRank,
@@ -36,7 +40,9 @@ export {
   rowsOf,
   insertAll,
 } from './sql'
+export type { SQL } from 'drizzle-orm'
 export {
+  getTableColumns,
   sql,
   eq,
   ne,

@@ -1,4 +1,4 @@
-import { aestheticIndex, cosineRange, toStyleVector } from '@lookline/catalog'
+import { STYLE_DIMENSIONS, colorFamilyIndex, cosineRange, toStyleVector } from '@lookline/catalog'
 import { describe, expect, it } from 'vitest'
 import {
   applyEvent,
@@ -17,7 +17,6 @@ const T0 = new Date(Date.UTC(2026, 0, 1))
 const at = (days: number): Date => new Date(T0.getTime() + days * DAY)
 
 const gorp = toStyleVector({
-  aesthetics: { gorpcore: 1, techwear: 0.6 },
   colorFamily: 'green',
   axes: {
     formality: 0.2,
@@ -32,7 +31,6 @@ const gorp = toStyleVector({
   categoryGroup: 'outerwear',
 })
 const glam = toStyleVector({
-  aesthetics: { glam: 1 },
   colorFamily: 'multi-metallic',
   axes: {
     formality: 0.85,
@@ -72,18 +70,19 @@ describe('learning rate and decay', () => {
 })
 
 describe('departmentPrior', () => {
-  it('is a 64-d flat, non-committal taste with department colour skew', () => {
+  it('is a 32-d flat, non-committal taste with department colour skew', () => {
     for (const d of ['women', 'men', 'unisex', 'kids'] as const) {
       const p = departmentPrior(d)
-      expect(p).toHaveLength(64)
+      expect(p).toHaveLength(STYLE_DIMENSIONS)
       for (let i = BLOCK.X[0]; i < BLOCK.X[1]; i++) expect(p[i]).toBe(0.5)
       for (let i = BLOCK.G[0]; i < BLOCK.G[1]; i++) expect(p[i]).toBeCloseTo(1 / 12, 10)
-      const a = p.slice(0, 32)
-      expect(Math.max(...a)).toBeLessThan(0.3)
-      expect(a.reduce((s, x) => s + x, 0)).toBeCloseTo(1.6, 6)
+      // The colour block carries the whole taste prior now that aesthetics are gone.
+      const c = p.slice(BLOCK.C[0], BLOCK.C[1])
+      expect(Math.max(...c)).toBeLessThan(0.6)
+      expect(c.reduce((s, x) => s + x, 0)).toBeCloseTo(1.16, 6)
     }
     // men skew away from pink relative to women
-    const pinkIdx = 32 + 6
+    const pinkIdx = colorFamilyIndex('pink')
     expect(departmentPrior('men')[pinkIdx]!).toBeLessThan(departmentPrior('women')[pinkIdx]!)
     // returns copies
     const p = departmentPrior('women')
@@ -94,8 +93,9 @@ describe('departmentPrior', () => {
 
 describe('applyEvent', () => {
   const p0 = departmentPrior('unisex')
-  const g = aestheticIndex('gorpcore')
-  const gl = aestheticIndex('glam')
+  // `gorp` is green; `glam` is the pink piece it is compared against.
+  const g = colorFamilyIndex('green')
+  const gl = colorFamilyIndex('multi-metallic')
 
   it('moves toward a positively rewarded item and a purchase never decreases p[a] where v[a] = 1', () => {
     const state = createState(p0)
@@ -107,7 +107,7 @@ describe('applyEvent', () => {
     expect(state.mass).toBe(1)
     expect(state.lastAt).toEqual(at(0))
     // every dim with v = 1 moved up, every dim with v = 0 moved down
-    expect(state.p[32 + 8]!).toBeGreaterThan(p0[32 + 8]!) // green
+    expect(state.p[g]!).toBeGreaterThan(p0[g]!) // green
     expect(state.p[gl]!).toBeLessThan(p0[gl]!)
   })
 
@@ -168,7 +168,7 @@ describe('applyEvent', () => {
     }
   })
 
-  it('20 gorpcore saves → cos(p_A, e_gorpcore) > .85 and every dim stays in [0, 1]', () => {
+  it('20 saves of one piece → cos(p, that piece) > .85 and every dim stays in [0, 1]', () => {
     const events = Array.from({ length: 20 }, (_, i) => ({
       vector: gorp,
       reward: 0.4,
@@ -176,9 +176,9 @@ describe('applyEvent', () => {
       at: at(i),
     }))
     const state = foldEvents(events, p0)
-    const e = Array.from({ length: 32 }, () => 0)
-    e[g] = 1
-    expect(cosineRange(state.p, e, 0, 32)).toBeGreaterThan(0.85)
+    // Against the piece itself, not a one-hot: with the aesthetic block gone, colour is one of
+    // twelve dimensions among axes and groups, so no single dimension can dominate the cosine.
+    expect(cosineRange(state.p, gorp, 0, STYLE_DIMENSIONS)).toBeGreaterThan(0.85)
     for (const x of state.p) {
       expect(x).toBeGreaterThanOrEqual(0)
       expect(x).toBeLessThanOrEqual(1)

@@ -2,7 +2,7 @@
  * Hidden taste vectors: aesthetics from a cluster archetype (plus a neighbour and a stray tag),
  * colour families from the catalog colour prior of the primaries, axes from the engine's axis
  * prior with persona noise. The group block carries the persona's category propensity (never
- * used for similarity). Also the block-weighted cosine used to match products to a taste.
+ * used for similarity). Also the block-weighted cosine used to match articles to a taste.
  */
 import {
   AESTHETICS,
@@ -11,7 +11,6 @@ import {
   CATEGORY_GROUPS,
   COLOR_FAMILIES,
   STYLE_DIMENSIONS,
-  aestheticIndex,
   axisIndex,
   categoryGroupIndex,
   colorFamilyIndex,
@@ -42,11 +41,10 @@ export const AESTHETIC_AXIS_PRIOR: Readonly<Record<string, Readonly<Record<Axis,
     ]),
   )
 
-/** Block weights of the taste cosine (aesthetics dominate, colours matter, axes soften, groups ignored). */
-export const TASTE_BLOCK_WEIGHTS: Readonly<Record<'aesthetics' | 'colors' | 'axes', number>> = {
-  aesthetics: 1,
-  colors: 0.6,
-  axes: 0.4,
+/** Block weights of the taste cosine (colours carry it, axes soften, groups ignored). */
+export const TASTE_BLOCK_WEIGHTS: Readonly<Record<'colors' | 'axes', number>> = {
+  colors: 1,
+  axes: 0.6,
 }
 
 /** Category-group propensity per department (sums to 1), used for purchase group choice. */
@@ -117,32 +115,22 @@ export function buildTasteVector(input: TasteInput): number[] {
   const { rng, department } = input
   const [a1, a2] = input.primaries
   const v = zeroVector()
-  const set = (slug: string, w: number): void => {
-    const i = aestheticIndex(slug)
-    if (i >= 0) v[i] = Math.max(v[i] ?? 0, clamp01(w))
-  }
-  // aesthetics (4 draws)
-  set(a1, 1)
-  set(a2, rng.float(0.55, 0.8))
+
+  // colours: max-merged prior of the primaries, a neighbour and the extra, one stray family
   const neighbours = neighboursOf(a1)
   const nb = neighbours.length > 0 ? rng.pick(neighbours) : a2
-  set(nb, rng.float(0.25, 0.45))
-  const strayIndex = rng.int(0, 31)
-  if ((v[strayIndex] ?? 0) === 0) v[strayIndex] = rng.float(0.1, 0.25)
-  else rng.next()
-  if (input.extra) set(input.extra, 0.55)
-
-  // colours: max-merged prior of the primaries (weighted), one stray family (2 draws)
   const merge = (slug: string, scale: number): void => {
     const prior = AESTHETIC_COLOR_PRIOR[slug as keyof typeof AESTHETIC_COLOR_PRIOR]
     if (!prior) return
     for (const [family, w] of Object.entries(prior)) {
       const i = colorFamilyIndex(family as ColorFamily)
-      if (i >= 32 && typeof w === 'number') v[i] = Math.max(v[i] ?? 0, clamp01(w * scale))
+      if (i >= 0 && typeof w === 'number') v[i] = Math.max(v[i] ?? 0, clamp01(w * scale))
     }
   }
   merge(a1, 1)
-  merge(a2, 0.7)
+  merge(a2, rng.float(0.55, 0.8))
+  merge(nb, rng.float(0.25, 0.45))
+  if (input.extra) merge(input.extra, 0.55)
   const strayFamily = COLOR_FAMILIES[rng.int(0, COLOR_FAMILIES.length - 1)]!
   const fi = colorFamilyIndex(strayFamily)
   v[fi] = Math.max(v[fi] ?? 0, rng.float(0.2, 0.4))
@@ -160,24 +148,26 @@ export function buildTasteVector(input: TasteInput): number[] {
   return v
 }
 
-/** Weighted copy of the first 52 dims (aesthetics/colours/axes), L2-normalised. */
+/**
+ * Weighted copy of the colour and axis blocks, L2-normalised. They start where
+ * `colorFamilyIndex` puts them — the aesthetic block occupies everything before that, and a
+ * persona's taste vector never fills it, so reading from 0 returns zeros for every persona and
+ * makes every pair look identically unalike.
+ */
+const TASTE_START = colorFamilyIndex('black')
+const TASTE_DIMS = 20
 export function tasteKey(v: readonly number[]): Float64Array {
-  const out = new Float64Array(52)
+  const out = new Float64Array(TASTE_DIMS)
   let norm = 0
-  for (let i = 0; i < 52; i++) {
-    const w =
-      i < 32
-        ? TASTE_BLOCK_WEIGHTS.aesthetics
-        : i < 44
-          ? TASTE_BLOCK_WEIGHTS.colors
-          : TASTE_BLOCK_WEIGHTS.axes
-    const x = (v[i] ?? 0) * w
+  for (let i = 0; i < TASTE_DIMS; i++) {
+    const w = i < 12 ? TASTE_BLOCK_WEIGHTS.colors : TASTE_BLOCK_WEIGHTS.axes
+    const x = (v[TASTE_START + i] ?? 0) * w
     out[i] = x
     norm += x * x
   }
   if (norm > 0) {
     const inv = 1 / Math.sqrt(norm)
-    for (let i = 0; i < 52; i++) out[i] = (out[i] ?? 0) * inv
+    for (let i = 0; i < TASTE_DIMS; i++) out[i] = (out[i] ?? 0) * inv
   }
   return out
 }
@@ -185,28 +175,13 @@ export function tasteKey(v: readonly number[]): Float64Array {
 /** Cosine of two `tasteKey` vectors. */
 export function keyDot(a: Float64Array, b: Float64Array): number {
   let s = 0
-  for (let i = 0; i < 52; i++) s += (a[i] ?? 0) * (b[i] ?? 0)
+  for (let i = 0; i < TASTE_DIMS; i++) s += (a[i] ?? 0) * (b[i] ?? 0)
   return s
 }
 
-/** Block-weighted cosine between two style vectors (aesthetics/colours/axes only). */
+/** Block-weighted cosine between two style vectors (colours and axes only). */
 export function tasteSimilarity(a: readonly number[], b: readonly number[]): number {
   return keyDot(tasteKey(a), tasteKey(b))
-}
-
-export function topAesthetics(v: readonly number[], n = 3): string[] {
-  const out: Array<[number, number]> = []
-  for (let i = 0; i < 32; i++) out.push([v[i] ?? 0, i])
-  out.sort((x, y) => y[0] - x[0] || x[1] - y[1])
-  return out
-    .filter(([w]) => w > 0)
-    .slice(0, n)
-    .map(([, i]) => slugAt(i))
-}
-
-const SLUG_AT: readonly string[] = AESTHETICS.map((a) => a.slug)
-export function slugAt(i: number): string {
-  return SLUG_AT[i] ?? ''
 }
 
 export { STYLE_DIMENSIONS }

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { displayName } from '@/lib/product-name'
-import { Price, ProductImage, Tag } from '@/components/ui'
+import { ColorName, Price, ProductImage, Tag } from '@/components/ui'
 import type { ShopProduct } from './data'
 
 export interface ProductOptionProps {
@@ -44,7 +44,8 @@ export function ProductOption({
     >
       <div className="relative">
         <ProductImage
-          productId={product.id}
+          articleId={product.id}
+          imagePath={product.imagePath}
           alt={product.name}
           className="ring-2 ring-transparent ring-offset-2 ring-offset-paper transition-shadow group-has-checked:ring-ink"
         />
@@ -73,7 +74,9 @@ export function ProductOption({
         </p>
         <div className="flex items-baseline justify-between gap-3">
           <Price amount={product.price} size="sm" />
-          <span className="truncate text-[12px] text-muted">{product.colorName}</span>
+          <span className="truncate text-[12px] text-muted">
+            <ColorName value={product.colorName} />
+          </span>
         </div>
       </div>
       {footer ? <div className="px-0.5">{footer}</div> : null}
@@ -93,7 +96,12 @@ export function ProductLine({
 }) {
   const body = (
     <>
-      <ProductImage productId={product.id} alt={product.name} className="w-14 shrink-0" />
+      <ProductImage
+        articleId={product.id}
+        imagePath={product.imagePath}
+        alt={product.name}
+        className="w-14 shrink-0"
+      />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12px] text-muted">{product.brandName}</p>
         <p className="truncate text-[14px] leading-snug font-medium">

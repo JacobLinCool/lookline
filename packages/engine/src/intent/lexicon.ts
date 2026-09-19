@@ -6,7 +6,7 @@
  * `SPEC_AESTHETIC_ALIASES`. Engine phrase sections (tier 0) win over catalog sections (tier 1)
  * when both match the same longest span, except `aesthetic` and `occasion`, which always fire.
  */
-import { COLORS, LEXICON, SUBCATEGORIES } from '@lookline/catalog'
+import { COLORS, DESIGN_DETAILS, LEXICON, SUBCATEGORIES } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily, Department } from '@lookline/catalog'
 import {
   CATALOG_OCCASION_MAP,
@@ -31,6 +31,7 @@ export type Section =
   | 'material'
   | 'pattern'
   | 'fit'
+  | 'sleeve'
   | 'season'
   | 'department'
   | 'occasion'
@@ -453,6 +454,7 @@ export function buildDictionary(): Dictionary {
   catalogSection('material', LEXICON.materials)
   catalogSection('pattern', LEXICON.patterns)
   catalogSection('fit', LEXICON.fits)
+  catalogSection('sleeve', LEXICON.sleeves)
   catalogSection('season', LEXICON.seasons)
   catalogSection('department', LEXICON.departments)
 
@@ -498,6 +500,19 @@ export function buildDictionary(): Dictionary {
       addEntry(
         map,
         { term, section: 'attribute', value: row.value, meta: { polarity: row.polarity } },
+        false,
+      )
+  }
+  // The construction details the vision pass writes into `articles.attributes`. Generated from
+  // the catalog table rather than retyped here, so a detail can never be askable-for without
+  // being storable, or the reverse. `logo` already has its own rows above, including the
+  // negative ones ("no logo"), which are what people actually say.
+  for (const detail of DESIGN_DETAILS) {
+    if (detail.slug === 'logo') continue
+    for (const term of [detail.labelZh, detail.name, ...detail.synonyms])
+      addEntry(
+        map,
+        { term, section: 'attribute', value: detail.slug, meta: { polarity: 'have' } },
         false,
       )
   }
@@ -673,21 +688,53 @@ export const NEGATABLE: ReadonlySet<Section> = new Set<Section>([
   'aesthetic',
   'modifier',
   'fit',
+  'sleeve',
   'occasion',
 ])
 
 /**
+ * Chinese marks what a modifier attaches to with 的, and the noun after it is the thing being
+ * asked for, not a second thing being refused. `不要紅色的洋裝` is a dress, just not a red one —
+ * negating through 的 excluded dresses outright and returned the opposite of the request.
+ *
+ * So a negation stops there — but only when a head noun really follows. `不要黑色的和白色的` is
+ * two refusals and no noun, and cutting at the first 的 dropped the white.
+ */
+const CJK_MODIFIER_MARK = /[的之]/gu
+
+/**
+ * What 的 can hand a clause to. A garment category is a head noun; a colour or a material is
+ * another modifier, so `不要黑色的和白色的` has no head and the negation keeps running — cutting
+ * it at the first 的 dropped the white.
+ */
+const HEAD_NOUN: ReadonlySet<Section> = new Set<Section>(['subcategory', 'group'])
+
+/** The first 的 in `[from, to)` that a head noun follows, or −1 when none does. */
+function modifierBoundary(text: string, hits: Hit[], from: number, to: number): number {
+  CJK_MODIFIER_MARK.lastIndex = 0
+  for (const m of text.slice(from, to).matchAll(CJK_MODIFIER_MARK)) {
+    const at = from + (m.index ?? 0)
+    if (hits.some((h) => HEAD_NOUN.has(h.section) && h.start > at && h.start < to)) return at
+  }
+  return -1
+}
+
+/**
  * §1.4 step 4: after each negation trigger, the next ≤ 4 negatable hits in the same clause are
- * negated. Returns the scope ranges so leftover tokens (brand names) can be collected.
+ * negated, stopping at a 的 that hands the rest of the clause to a head noun. Returns the scope
+ * ranges so leftover tokens (brand names) can be collected.
  */
 export function applyNegation(
   hits: Hit[],
   clauseEndOf: (clause: number) => number,
+  text = '',
 ): Array<{ start: number; end: number; clause: number }> {
   const scopes: Array<{ start: number; end: number; clause: number }> = []
   for (const trigger of hits) {
     if (trigger.section !== 'negation') continue
-    const end = clauseEndOf(trigger.clause)
+    const clauseTo = clauseEndOf(trigger.clause)
+    const boundary = modifierBoundary(text, hits, trigger.end, clauseTo)
+    const end = boundary >= 0 ? boundary : clauseTo
     scopes.push({ start: trigger.end, end, clause: trigger.clause })
     let count = 0
     for (const h of hits) {

@@ -27,7 +27,7 @@ export function supplyKey(aesthetic: string, group: string, color: string | null
 
 export interface ManufacturingInput {
   events: readonly TrendEvent[]
-  products: ReadonlyMap<number, ProductLite>
+  articles: ReadonlyMap<string, ProductLite>
   /** Intent sessions of the last 14 days. */
   intents: readonly IntentSessionLite[]
   /** Intent session ids that led to a purchase. */
@@ -123,7 +123,7 @@ interface Cell {
   days7: Set<string>
   remixes14d: number
   purchases14d: number
-  products: Map<number, number>
+  articles: Map<string, number>
   roots: Set<string>
   subcategories: Map<string, number>
 }
@@ -157,7 +157,7 @@ export function buildRationale(p: {
     p.color ? ` · ${colorFamilyName(p.color)}` : ''
   }`
   const low = p.supply > 0 ? ` (${pct(p.lowStockShare)} low stock)` : ''
-  const en = `${label.en} (${label.zh}): ${cell}. Last 14 days: ${p.demandIntents14d} searches, ${p.remixes} remixes, ${p.purchases} purchases across ${p.clusters} taste clusters, ${pct(p.conversion)} conversion; ${p.supply} products in stock${low}.`
+  const en = `${label.en} (${label.zh}): ${cell}. Last 14 days: ${p.demandIntents14d} searches, ${p.remixes} remixes, ${p.purchases} purchases across ${p.clusters} taste clusters, ${pct(p.conversion)} conversion; ${p.supply} articles in stock${low}.`
   const lowZh = p.supply > 0 ? `，其中 ${pct(p.lowStockShare)} 低庫存` : ''
   const zh = `建議${label.zh}：${cell}。近 14 天 ${p.demandIntents14d} 次搜尋、${p.remixes} 次 remix、${p.purchases} 筆購買，跨 ${p.clusters} 個品味圈，轉換率 ${pct(p.conversion)}；現有庫存 ${p.supply} 款${lowZh}。`
   return { en, zh }
@@ -184,7 +184,7 @@ export function recommendManufacturing(
         days7: new Set(),
         remixes14d: 0,
         purchases14d: 0,
-        products: new Map(),
+        articles: new Map(),
         roots: new Set(),
         subcategories: new Map(),
       }
@@ -197,10 +197,11 @@ export function recommendManufacturing(
     const age = dayDiff(e.day, input.endDay)
     if (age < 0 || age > 13) continue
     const seen = new Set<Cell>()
-    for (const pid of e.productIds) {
-      const p = input.products.get(pid)
+    for (const pid of e.articleIds) {
+      const p = input.articles.get(pid)
       if (!p) continue
-      for (const a of p.aesthetics) {
+      // Was one cell per aesthetic; the product type stands in for it now.
+      for (const a of [p.subcategory]) {
         for (const color of [p.colorFamily, null]) {
           const cell = cellFor(a, p.categoryGroup, color)
           if (seen.has(cell)) continue
@@ -209,7 +210,7 @@ export function recommendManufacturing(
           if (age <= 6 && e.weight > 0) cell.days7.add(e.day)
           if (e.type === 'REMIX') cell.remixes14d++
           if (e.type === 'PURCHASE') cell.purchases14d++
-          if (e.weight > 0) cell.products.set(pid, (cell.products.get(pid) ?? 0) + e.weight)
+          if (e.weight > 0) cell.articles.set(pid, (cell.articles.get(pid) ?? 0) + e.weight)
           if (e.rootLookId) cell.roots.add(e.rootLookId)
           if (age <= 6 && SUBCATEGORY_EVENT_TYPES.has(e.type)) {
             cell.subcategories.set(p.subcategory, (cell.subcategories.get(p.subcategory) ?? 0) + 1)
@@ -272,9 +273,9 @@ export function recommendManufacturing(
         (a, b) => b[1] - a[1] || compareStrings(a[0], b[0]),
       )[0]?.[0] ?? null
     const dominantSilhouette = dominantSubcategory
-      ? ([...cell.products.keys()]
-          .map((id) => input.products.get(id))
-          .find((p) => p?.subcategory === dominantSubcategory)?.silhouette ?? null)
+      ? ([...cell.articles.keys()]
+          .map((id) => input.articles.get(id))
+          .find((p) => p?.subcategory === dominantSubcategory)?.subcategory ?? null)
       : null
     const clusterIds = Object.keys(pairRow?.evidence.byCluster ?? {})
       .map(Number)
@@ -324,8 +325,8 @@ export function recommendManufacturing(
         dominantSilhouette,
         topRootLooks: [...cell.roots].toSorted(compareStrings).slice(0, 3),
         sampleIntents: matching.slice(0, 3).map((s) => s.utterance),
-        topProducts: [...cell.products.entries()]
-          .toSorted((a, b) => b[1] - a[1] || a[0] - b[0])
+        topProducts: [...cell.articles.entries()]
+          .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
           .slice(0, 5)
           .map(([id]) => id),
         clusterLabels: clusterIds.map((id) => input.clusterLabels?.get(id) ?? `cluster ${id}`),

@@ -11,10 +11,11 @@ import {
   loadProductsByIds,
   loadUser,
 } from '@/components/social/data'
+import { getI18n } from '@/i18n/server'
 import { recordFeedbackFor } from '@/server/actions/feedback'
 import { createGuest, getSessionUser, safeNextPath } from '@/server/auth'
 import { getDb } from '@/server/db'
-import type { ReferencePhoto } from '@/server/looks'
+import { MAX_PHOTO_BYTES, type ReferencePhoto } from '@/server/looks'
 import { createLookDraft } from '@/server/look-generation'
 
 /**
@@ -23,7 +24,7 @@ import { createLookDraft } from '@/server/look-generation'
  * reactToLookAction  `<form>` on /l/[token]. Fields: `token`, `displayName?` (guest name when
  *                    signed out). Writes REACT viewer → owner once per viewer.
  * createRemixAction  `<form>` on /looks/[id]/remix. Fields: `sourceLookId`, `forUserId?`,
- *                    `productId` (repeated), `stylePreset`, `title?`, `photo?` (file), `budget?`.
+ *                    `articleId` (repeated), `stylePreset`, `title?`, `photo?` (file), `budget?`.
  *                    Creates a `remix` Look for the viewer (redirect → /looks/<newId>), or, with
  *                    `forUserId`, an `edition` owned by that person + a STYLE interaction
  *                    (redirect → the remix page with `?created=<newId>` and the share link).
@@ -35,12 +36,9 @@ function text(value: FormDataEntryValue | null, max = 500): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function ints(values: FormDataEntryValue[]): number[] {
-  return [
-    ...new Set(
-      values.map((v) => Number(v)).filter((n): n is number => Number.isInteger(n) && n > 0),
-    ),
-  ]
+/** Article ids from a form: ten digits, leading zeros kept. */
+function ints(values: FormDataEntryValue[]): string[] {
+  return [...new Set(values.map(String).filter((v) => /^\d{10}$/.test(v)))]
 }
 
 function withParams(path: string, params: Record<string, string | null | undefined>): string {
@@ -50,10 +48,16 @@ function withParams(path: string, params: Record<string, string | null | undefin
   return qs ? `${path}?${qs}` : path
 }
 
-async function readPhoto(value: FormDataEntryValue | null): Promise<ReferencePhoto | null> {
-  if (!(value instanceof File) || value.size === 0) return null
-  if (!value.type.startsWith('image/')) return null
-  return { mimeType: value.type, data: Buffer.from(await value.arrayBuffer()) }
+async function readPhoto(
+  value: FormDataEntryValue | null,
+): Promise<{ photo: ReferencePhoto | null; error: string | null }> {
+  if (!(value instanceof File) || value.size === 0) return { photo: null, error: null }
+  if (!value.type.startsWith('image/')) return { photo: null, error: 'photoType' }
+  if (value.size > MAX_PHOTO_BYTES) return { photo: null, error: 'photoSize' }
+  return {
+    photo: { mimeType: value.type, data: Buffer.from(await value.arrayBuffer()) },
+    error: null,
+  }
 }
 
 export async function reactToLookAction(formData: FormData): Promise<void> {
@@ -104,29 +108,31 @@ export async function createRemixAction(formData: FormData): Promise<void> {
   const source = await loadLookById(sourceLookId)
   if (!source) redirect('/')
 
-  const productIds = ints(formData.getAll('productId'))
-  if (productIds.length === 0) redirect(withParams(page, { error: 'products' }))
-  const found = await loadProductsByIds(productIds)
-  if (found.length === 0) redirect(withParams(page, { error: 'products' }))
+  const articleIds = ints(formData.getAll('articleId'))
+  if (articleIds.length === 0) redirect(withParams(page, { error: 'articles' }))
+  const found = await loadProductsByIds(articleIds)
+  if (found.length === 0) redirect(withParams(page, { error: 'articles' }))
 
   const requestedPreset = text(formData.get('stylePreset'), 64)
   const stylePreset =
     STYLE_PRESETS.find((p) => p.slug === requestedPreset)?.slug ??
     (requestedPreset || source.look.stylePreset)
-  const photo = await readPhoto(formData.get('photo'))
+  const { photo, error: photoError } = await readPhoto(formData.get('photo'))
+  if (photoError) redirect(withParams(page, { error: photoError }))
 
   const recipient = forUserId ? await loadUser(forUserId) : null
   if (forUserId && !recipient) redirect(withParams(page, { error: 'recipient' }))
 
+  const { t } = await getI18n()
   const customTitle = text(formData.get('title'), 120)
   const title = recipient
-    ? customTitle || `Styled by ${user.displayName} for ${recipient.displayName}`
-    : customTitle || `${user.displayName} remix of ${source.look.title}`
+    ? customTitle || t.looks.titles.styledFor(user.displayName, recipient.displayName)
+    : customTitle || t.looks.titles.remixOf(user.displayName, source.look.title)
 
   const created = await attempt(() =>
     createLookDraft({
       ownerId: recipient ? recipient.id : user.id,
-      productIds: found.map((p) => p.id),
+      articleIds: found.map((p) => p.id),
       stylePreset,
       kind: recipient ? 'edition' : 'remix',
       parentLookId: source.look.id,
@@ -157,10 +163,10 @@ export async function createRemixAction(formData: FormData): Promise<void> {
   const kept = new Set(found.map((p) => p.id))
   after(async () => {
     await Promise.all(
-      source.products.map((p) =>
+      source.articles.map((p) =>
         recordFeedbackFor(user.id, {
           kind: 'remix',
-          productId: p.id,
+          articleId: p.id,
           lookId: created.value.id,
           context: { kept: kept.has(p.id), sourceLookId: source.look.id },
         }),

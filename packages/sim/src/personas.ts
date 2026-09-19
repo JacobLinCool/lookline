@@ -8,7 +8,7 @@ import { createRng, hashSeed, logUniformInt, type Rng } from '@lookline/catalog'
 import type { Department } from '@lookline/db'
 import { CLUSTER_ARCHETYPES, CLUSTER_COUNT, clusterBySlug } from './clusters'
 import { asciiHandle, pickName } from './names'
-import { buildTasteVector, clamp01, topAesthetics } from './taste'
+import { buildTasteVector, clamp01 } from './taste'
 import type { Persona, PersonaParams } from './types'
 
 export const DEFAULT_PERSONA_COUNT = 1200
@@ -35,24 +35,24 @@ interface DemoSpec {
 export const DEMO_PERSONAS: readonly DemoSpec[] = [
   {
     handle: 'jacob',
-    displayName: 'Jacob Lin 林宇翔',
+    displayName: 'Jacob Lin',
     department: 'men',
     cluster: 'gorp-hikers',
     bio: 'Builds things on weekdays, climbs Qixing on weekends. Gorpcore by necessity, techwear by taste; the friend who always has a spare shell jacket.',
     extra: 'city-boy',
     gift: { label: 'for my sister', department: 'women', primaries: ['k-street', 'minimalist'] },
     budget: 6000,
-    params: { activity: 0.9, remixPropensity: 0.45, askPropensity: 0.5, shareRadius: 6 },
+    params: { activity: 0.9, remixPropensity: 0.45, shareRadius: 6 },
   },
   {
     handle: 'alice',
     displayName: 'Alice Chen',
     department: 'women',
     cluster: 'taipei-quiet-lux',
-    bio: 'Product lead in Xinyi, quiet-luxury believer: camel coats, one good bag, nothing that shouts. Asks friends before every big purchase and answers theirs at 2 a.m.',
+    bio: 'Article lead in Xinyi, quiet-luxury believer: camel coats, one good bag, nothing that shouts. Texts friends before every big purchase and answers theirs at 2 a.m.',
     gift: { label: 'for Mom', department: 'women', primaries: ['romantic', 'quiet-luxury'] },
     budget: 12000,
-    params: { activity: 0.85, remixPropensity: 0.3, askPropensity: 0.7, shareRadius: 5 },
+    params: { activity: 0.85, remixPropensity: 0.3, shareRadius: 5 },
   },
   {
     handle: 'mei',
@@ -62,7 +62,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
     bio: 'Florist in Yangmei with a balcony full of herbs. Romantic and cottagecore, puff sleeves on purpose, film camera always in the tote.',
     gift: { label: 'for my partner', department: 'men', primaries: ['workwear', 'city-boy'] },
     budget: 4500,
-    params: { activity: 0.85, remixPropensity: 0.35, askPropensity: 0.45, shareRadius: 5 },
+    params: { activity: 0.85, remixPropensity: 0.35, shareRadius: 5 },
   },
   {
     handle: 'ken',
@@ -72,7 +72,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
     bio: 'Bicycle commuter, Popeye magazine subscriber, wide trousers and clean sneakers. Remixes friends’ Looks into something you could actually cycle in.',
     extra: 'gorpcore',
     budget: 7000,
-    params: { activity: 0.85, remixPropensity: 0.6, askPropensity: 0.3, shareRadius: 5 },
+    params: { activity: 0.85, remixPropensity: 0.6, shareRadius: 5 },
   },
   {
     handle: 'yuki',
@@ -86,7 +86,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
       primaries: ['quiet-luxury', 'scandi'],
     },
     budget: 8000,
-    params: { activity: 0.8, remixPropensity: 0.35, askPropensity: 0.4, shareRadius: 4 },
+    params: { activity: 0.8, remixPropensity: 0.35, shareRadius: 4 },
   },
   {
     handle: 'noah',
@@ -100,7 +100,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
       primaries: ['athleisure', 'clean-girl'],
     },
     budget: 4000,
-    params: { activity: 0.8, remixPropensity: 0.25, askPropensity: 0.35, shareRadius: 4 },
+    params: { activity: 0.8, remixPropensity: 0.25, shareRadius: 4 },
   },
   {
     handle: 'hana',
@@ -110,7 +110,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
     bio: 'Pilates instructor in Tianmu. Balletcore and coquette: wrap cardigans, ribbons, mesh; the first to try a new silhouette and the first to share it.',
     extra: 'y2k',
     budget: 5000,
-    params: { activity: 0.9, remixPropensity: 0.5, askPropensity: 0.55, shareRadius: 6 },
+    params: { activity: 0.9, remixPropensity: 0.5, shareRadius: 6 },
   },
   {
     handle: 'leo',
@@ -120,7 +120,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
     bio: 'Runs a leather workshop in Wanhua. Raw denim, chore coats, boots resoled twice. Buys little, buys well, and knows what his customers will wear next season.',
     gift: { label: 'for Dad', department: 'men', primaries: ['western', 'workwear'] },
     budget: 6500,
-    params: { activity: 0.75, remixPropensity: 0.3, askPropensity: 0.25, shareRadius: 4 },
+    params: { activity: 0.75, remixPropensity: 0.3, shareRadius: 4 },
   },
   {
     handle: 'aria',
@@ -131,17 +131,17 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
     extra: 'avant-garde',
     gift: { label: 'for my brother', department: 'men', primaries: ['streetwear', 'k-street'] },
     budget: 15000,
-    params: { activity: 0.9, remixPropensity: 0.45, askPropensity: 0.5, shareRadius: 6 },
+    params: { activity: 0.9, remixPropensity: 0.45, shareRadius: 6 },
   },
   {
     handle: 'ravi',
     displayName: 'Ravi Patel',
     department: 'men',
     cluster: 'dark-academia-club',
-    bio: 'Doctoral student near Gongguan. Dark academia and preppy: tweed, oxford shirts, a fountain pen that leaks. Answers style Asks with footnotes.',
+    bio: 'Doctoral student near Gongguan. Dark academia and preppy: tweed, oxford shirts, a fountain pen that leaks. Styles friends with footnotes.',
     gift: { label: 'for my niece', department: 'kids', primaries: ['kidcore', 'preppy'] },
     budget: 5500,
-    params: { activity: 0.8, remixPropensity: 0.3, askPropensity: 0.45, shareRadius: 4 },
+    params: { activity: 0.8, remixPropensity: 0.3, shareRadius: 4 },
   },
 ]
 
@@ -257,7 +257,9 @@ function demoPersona(spec: DemoSpec, index: number, seed: number): Persona {
     socialCluster: cluster,
     isPersona: true,
     archetype: archetype.slug,
-    primaryAesthetics: topAesthetics(hidden, 3),
+    primaryAesthetics: spec.extra
+      ? [...archetype.aesthetics, spec.extra]
+      : [...archetype.aesthetics],
     hiddenVector: hidden,
     giftHiddenVector: gift,
     giftDepartment: spec.gift?.department ?? null,
@@ -304,7 +306,6 @@ function generatedPersona(index: number, seed: number, taken: Set<string>): Pers
   const params: PersonaParams = {
     activity: clamp01(rng.normal(0.35, 0.18)),
     remixPropensity: rng.float(0.05, 0.45),
-    askPropensity: rng.float(0.05, 0.6),
     shareRadius: rng.int(1, 6),
   }
   params.activity = Math.min(0.95, Math.max(0.05, params.activity))
@@ -321,7 +322,7 @@ function generatedPersona(index: number, seed: number, taken: Set<string>): Pers
     socialCluster: cluster,
     isPersona: false,
     archetype: archetype.slug,
-    primaryAesthetics: topAesthetics(hidden, 3),
+    primaryAesthetics: [...archetype.aesthetics],
     hiddenVector: hidden,
     giftHiddenVector: gift,
     giftDepartment: hasGift ? giftPick[1] : null,

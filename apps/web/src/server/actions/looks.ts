@@ -7,21 +7,22 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { Visibility } from '@lookline/db'
-import { and, eq, inArray, interactions, looks, products, users } from '@lookline/db'
+import { and, eq, inArray, interactions, looks, articles, users } from '@lookline/db'
 import { recordInteraction } from '@lookline/engine'
+import { getI18n } from '@/i18n/server'
+import type { Messages } from '@/i18n'
 import { getSessionUser, requireUser, safeNextPath } from '@/server/auth'
 import { getDb } from '@/server/db'
 import {
   DEFAULT_STYLE_PRESET,
   SOURCE_LOOK_COOKIE,
-  describeEngineError,
   loadStoredPhoto,
+  MAX_PHOTO_BYTES,
   sanitizeId,
   savePhoto,
   type ReferencePhoto,
 } from '@/server/looks'
 
-const MAX_PHOTO_BYTES = 8 * 1024 * 1024
 const MAX_LOOK_PRODUCTS = 8
 const VISIBILITIES: readonly Visibility[] = ['private', 'link', 'public']
 const SOURCE_COOKIE_TTL = 30 * 24 * 60 * 60
@@ -41,11 +42,6 @@ function readPresetSlug(value: FormDataEntryValue | null): string {
   return /^[a-z0-9][a-z0-9-]*$/.test(slug) ? slug : DEFAULT_STYLE_PRESET
 }
 
-function readInt(value: FormDataEntryValue | null): number | null {
-  const n = Number(value)
-  return Number.isInteger(n) && n > 0 ? n : null
-}
-
 function withParam(path: string, key: string, value: string): string {
   const url = new URL(path, 'http://lookline.local')
   url.searchParams.set(key, value)
@@ -54,13 +50,14 @@ function withParam(path: string, key: string, value: string): string {
 
 async function readPhoto(
   value: FormDataEntryValue | null,
+  t: Messages,
 ): Promise<{ photo: ReferencePhoto | null; error: string | null }> {
   if (!(value instanceof File) || value.size === 0) return { photo: null, error: null }
   if (!value.type.startsWith('image/')) {
-    return { photo: null, error: 'The photo must be an image file.' }
+    return { photo: null, error: t.looks.errors.photoType }
   }
   if (value.size > MAX_PHOTO_BYTES) {
-    return { photo: null, error: 'The photo must be 8 MB or smaller.' }
+    return { photo: null, error: t.looks.errors.photoSize }
   }
   const data = Buffer.from(await value.arrayBuffer())
   return { photo: { mimeType: value.type, data }, error: null }
@@ -68,44 +65,45 @@ async function readPhoto(
 
 /**
  * `<form action={createLookAction} encType="multipart/form-data">` on `/looks/new`.
- * Fields: `productId` (repeated checkbox values), `stylePreset` (slug), `occasion`, `title`,
- * `visibility` (private | link | public), `photo` (file, ≤ 8 MB, image/*), `useSavedPhoto` (on),
+ * Fields: `articleId` (repeated checkbox values), `stylePreset` (slug), `occasion`, `title`,
+ * `visibility` (private | link | public), `photo` (file, ≤ 15 MB, image/*), `useSavedPhoto` (on),
  * `rememberPhoto` (on), `return` (path to come back to on validation errors).
  */
 export async function createLookAction(formData: FormData): Promise<void> {
   const user = await requireUser('/looks/new')
+  const { t } = await getI18n()
   const back = safeNextPath(formData.get('return'), '/looks/new')
 
-  const productIds = [
+  const articleIds = [
     ...new Set(
       formData
-        .getAll('productId')
-        .map(readInt)
-        .filter((n): n is number => n !== null),
+        .getAll('articleId')
+        .map(String)
+        .filter((id) => /^\d{10}$/.test(id)),
     ),
   ].slice(0, MAX_LOOK_PRODUCTS)
-  if (productIds.length === 0) {
-    redirect(withParam(back, 'error', 'Pick at least one piece to put in the edition.'))
+  if (articleIds.length === 0) {
+    redirect(withParam(back, 'error', t.looks.errors.pickPiece))
   }
 
   const known = await getDb()
-    .db.select({ id: products.id })
-    .from(products)
-    .where(inArray(products.id, productIds))
+    .db.select({ id: articles.id })
+    .from(articles)
+    .where(inArray(articles.id, articleIds))
   const knownIds = new Set(known.map((r) => r.id))
-  const validIds = productIds.filter((id) => knownIds.has(id))
+  const validIds = articleIds.filter((id) => knownIds.has(id))
   if (validIds.length === 0) {
-    redirect(withParam(back, 'error', 'Those products are no longer in the catalog.'))
+    redirect(withParam(back, 'error', t.looks.errors.unknownProducts))
   }
 
   const stylePreset = readPresetSlug(formData.get('stylePreset'))
   const occasion = readText(formData.get('occasion'), 80) || null
-  const title = readText(formData.get('title'), 80) || `${user.displayName} · Edition`
+  const title = readText(formData.get('title'), 80) || t.looks.titles.edition(user.displayName)
   const visibility = readVisibility(formData.get('visibility'), 'link')
   const rememberPhoto = formData.get('rememberPhoto') === 'on'
   const useSavedPhoto = formData.get('useSavedPhoto') === 'on'
 
-  const { photo, error: photoError } = await readPhoto(formData.get('photo'))
+  const { photo, error: photoError } = await readPhoto(formData.get('photo'), t)
   if (photoError) redirect(withParam(back, 'error', photoError))
 
   let referencePhoto: ReferencePhoto | null = photo
@@ -121,11 +119,10 @@ export async function createLookAction(formData: FormData): Promise<void> {
   }
 
   let lookId: string | null = null
-  let failure: string | null = null
   try {
     const look = await createLookDraft({
       ownerId: user.id,
-      productIds: validIds,
+      articleIds: validIds,
       stylePreset,
       title,
       occasion,
@@ -136,9 +133,8 @@ export async function createLookAction(formData: FormData): Promise<void> {
     lookId = look.id
   } catch (error) {
     console.warn('[looks] createLookDraft failed', error)
-    failure = describeEngineError('look', error)
   }
-  if (!lookId) redirect(withParam(back, 'error', failure ?? 'The Look could not be created.'))
+  if (!lookId) redirect(withParam(back, 'error', t.looks.errors.notCreated))
 
   revalidatePath('/me')
   redirect(`/looks/${lookId}`)
@@ -185,30 +181,25 @@ export async function shareLookAction(lookId: string): Promise<ShareLookResult> 
     return { ok: true, path, recorded: true }
   } catch (error) {
     console.warn('[looks] SHARE interaction failed', error)
-    return {
-      ok: true,
-      path,
-      recorded: false,
-      reason: describeEngineError('reaction', error),
-    }
+    return { ok: true, path, recorded: false, reason: 'engine' }
   }
 }
 
 /** `<form action={reactToLookAction}>` with hidden `lookId`. One REACT per user per Look. */
 export async function reactToLookAction(formData: FormData): Promise<ActionResult> {
+  const { t } = await getI18n()
   const id = sanitizeId(formData.get('lookId'))
-  if (!id) return { ok: false, message: 'This Look is unavailable.' }
+  if (!id) return { ok: false, message: t.looks.errors.unavailable }
   const user = await getSessionUser()
-  if (!user) return { ok: false, message: 'Sign in to react.' }
+  if (!user) return { ok: false, message: t.looks.errors.signInToReact }
   const { db } = getDb()
   const [look] = await db
     .select({ ownerId: looks.ownerId, visibility: looks.visibility })
     .from(looks)
     .where(eq(looks.id, id))
     .limit(1)
-  if (!look || look.ownerId === user.id)
-    return { ok: false, message: 'This Look cannot receive your reaction.' }
-  if (look.visibility === 'private') return { ok: false, message: 'This Look is private.' }
+  if (!look || look.ownerId === user.id) return { ok: false, message: t.looks.errors.cannotReact }
+  if (look.visibility === 'private') return { ok: false, message: t.looks.errors.private }
 
   const [existing] = await db
     .select({ id: interactions.id })
@@ -233,7 +224,7 @@ export async function reactToLookAction(formData: FormData): Promise<ActionResul
     })
   } catch (error) {
     console.warn('[looks] REACT interaction failed', error)
-    failure = describeEngineError('reaction', error)
+    failure = t.looks.errors.reactionNotSaved
   }
   revalidatePath(`/looks/${id}`)
   return failure ? { ok: false, message: failure } : { ok: true }
@@ -243,7 +234,7 @@ export async function reactToLookAction(formData: FormData): Promise<ActionResul
 export async function setLookVisibilityAction(formData: FormData): Promise<void> {
   const id = sanitizeId(formData.get('lookId'))
   if (!id) redirect('/')
-  const user = await requireUser(`/looks/${id}`)
+  const [user, { t }] = await Promise.all([requireUser(`/looks/${id}`), getI18n()])
   const visibility = readVisibility(formData.get('visibility'), 'link')
   const [updated] = await getDb()
     .db.update(looks)
@@ -255,7 +246,7 @@ export async function setLookVisibilityAction(formData: FormData): Promise<void>
     withParam(
       `/looks/${id}`,
       updated ? 'notice' : 'error',
-      updated ? 'visibility' : 'Only the owner can change visibility.',
+      updated ? 'visibility' : t.looks.errors.ownerOnlyVisibility,
     ),
   )
 }

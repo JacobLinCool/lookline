@@ -1,10 +1,11 @@
 import { after } from 'next/server'
 import { nanoid } from 'nanoid'
-import { eq, intentSessions, users, type LlmProvider, type User } from '@lookline/db'
+import { eq, intentSessions, users, type IntentProvider, type User } from '@lookline/db'
 import {
   getLlm,
   parseIntent,
   recommend,
+  type IntentResultExt,
   type FactorName,
   type Intent,
   type IntentContext,
@@ -42,10 +43,13 @@ export interface ParseOk {
   ok: true
   intent: Intent
   vector: number[]
-  provider: LlmProvider
+  /** `jev` when the decision stage answered on its own, otherwise the generative provider. */
+  provider: IntentProvider
   latencyMs: number
-  /** Text model behind `provider`, when the LLM client can tell us. */
+  /** Model behind `provider`, when the client can tell us. */
   model: string | null
+  /** Set when the route escalated and the refinement is running in `after()`. */
+  refining?: boolean
 }
 
 export interface Understanding {
@@ -70,6 +74,8 @@ export interface RecommendOk {
   candidates: number
   weights: Record<FactorName, number>
   timings: Record<string, number>
+  /** The bandit's blend arm, logged on every impression of this slate (§4.4). */
+  arm?: { name: string; contextVector: number[] }
 }
 
 export interface Recommendation {
@@ -365,19 +371,25 @@ export async function understand(input: RunIntentInput): Promise<Understanding> 
     : { intent: null, error: null }
 
   let parse: ParseOk | EngineFailure
+  let refine: (() => Promise<IntentResultExt>) | null = null
   try {
     const result = await parseIntent(utterance, {
       ...intentContext(input.user, locale, previous.intent),
       offline: input.offline,
       signal: input.signal,
+      // The decision stage is fast enough to answer in band; the generative escalation is not,
+      // so it runs after the response and rewrites the session row.
+      deferRefinement: true,
     })
+    refine = result.refine ?? null
     parse = {
       ok: true,
       intent: result.intent,
       vector: result.vector,
       provider: result.provider,
       latencyMs: result.latencyMs,
-      model: result.provider === 'offline' ? null : llmModel(),
+      model: result.model ?? (result.provider === 'offline' ? null : llmModel()),
+      refining: refine !== null,
     }
   } catch (error) {
     parse = describeEngineError(error, 'parseIntent')
@@ -402,6 +414,26 @@ export async function understand(input: RunIntentInput): Promise<Understanding> 
     } catch (error) {
       console.warn('[intent] could not persist intent session', error)
     }
+  }
+
+  if (parse.ok && persisted && refine) {
+    const run = refine
+    after(async () => {
+      try {
+        const refined = await run()
+        await getDb()
+          .db.update(intentSessions)
+          .set({
+            intent: toJson(refined.intent),
+            intentVector: refined.vector.length === 64 ? refined.vector : null,
+            provider: refined.provider,
+            latencyMs: Math.round(refined.latencyMs),
+          })
+          .where(eq(intentSessions.id, sessionId))
+      } catch (error) {
+        console.warn('[intent] refinement failed; the decision stands', error)
+      }
+    })
   }
 
   return {
@@ -457,6 +489,7 @@ export async function recommendFor(
       candidates: response.candidates,
       weights: response.weights,
       timings: response.timings,
+      arm: response.arm,
     }
   } catch (error) {
     result = describeEngineError(error, 'recommend')
@@ -478,7 +511,7 @@ export async function recommendFor(
               })),
               outfits: result.outfits.map((outfit) => ({
                 id: outfit.id,
-                productIds: outfit.items.map((item) => item.product.id),
+                articleIds: outfit.items.map((item) => item.product.id),
                 total: outfit.total,
                 compatibility: outfit.compatibility,
               })),
@@ -498,10 +531,14 @@ export async function recommendFor(
         result.items.slice(0, IMPRESSION_COUNT).map((item, index) =>
           recordFeedbackFor(userId, {
             kind: 'impression',
-            productId: item.product.id,
+            articleId: item.product.id,
             intentSessionId: sessionId,
             position: index + 1,
             forOthers: parse.intent.recipient.kind === 'other',
+            // Without both of these the slate's reward cannot be attributed to the arm (§4.4).
+            ...(result.arm
+              ? { context: { armId: result.arm.name, contextVector: result.arm.contextVector } }
+              : {}),
           }),
         ),
       )

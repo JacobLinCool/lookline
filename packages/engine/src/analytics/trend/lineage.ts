@@ -24,7 +24,6 @@ export interface LineageStatRow {
   uniquePeople: number
   clustersReached: number
   shares: number
-  asks: number
   remixes: number
   purchases: number
   gmv: number
@@ -123,7 +122,7 @@ export function collectTree(forest: LineageForest, rootId: string, maxNodes = In
   return { order, depthOf }
 }
 
-const PEOPLE_TYPES = new Set(['SAVE', 'REACT', 'ASK', 'ADVISE', 'SHARE'])
+const PEOPLE_TYPES = new Set(['SAVE', 'REACT', 'SHARE'])
 
 interface LookIndex {
   interactionsByLook: Map<string, InteractionLite[]>
@@ -160,7 +159,6 @@ export function statsForTree(
   const people = new Set<string>()
   const clusters = new Set<number>()
   let shares = 0
-  let asks = 0
   let remixes = 0
   let purchases = 0
   let gmv = 0
@@ -177,7 +175,6 @@ export function statsForTree(
     for (const ix of index.interactionsByLook.get(id) ?? []) {
       if (PEOPLE_TYPES.has(ix.type)) people.add(ix.actorUserId)
       if (ix.type === 'SHARE') shares++
-      else if (ix.type === 'ASK') asks++
     }
     for (const p of index.purchasesByLook.get(id) ?? []) {
       if (p.userId === root.ownerId) continue
@@ -194,7 +191,6 @@ export function statsForTree(
     uniquePeople: people.size,
     clustersReached: Math.max(1, clusters.size),
     shares,
-    asks,
     remixes,
     purchases,
     gmv,

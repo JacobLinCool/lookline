@@ -3,7 +3,7 @@
 Lookline is a fashion network prototype built for the 2026 Meichu Hackathon × Makalot challenge
 ("一句話，讀懂消費者要什麼"). It is a commerce platform whose social layer grows out of purchases:
 every purchase can become a **Look** (a personal digital edition), Looks travel between people
-(Ask / Make It Mine / Together / Share), and the resulting interaction graph is first-party trend
+(Make It Mine / Together / Share), and the resulting interaction graph is first-party trend
 data that feeds back into recommendation and into manufacturing decisions.
 
 This document is the contract every package follows. Change it before changing a boundary.
@@ -14,7 +14,6 @@ This document is the contract every package follows. Change it before changing a
 | ------------ | ------------------------------------------------------------------------------------------------------------ |
 | Trend Maker  | The platform creates and propagates trends instead of only observing external ones.                          |
 | Look         | The social object. An image + products + owner + lineage. Created after a purchase, remixed by others.       |
-| Ask          | "Which fits me better?" A/B card sent to a friend. Produces `ASK`/`ADVISE` edges.                            |
 | Make It Mine | Remix: keep aesthetic/mood/palette, swap in products that fit the remixer. Produces `REMIX`/`INSPIRE` edges. |
 | Together     | Two or more people's Looks become a shared edition for an occasion. Produces `TOGETHER` edges.               |
 | Engine 01    | Intent understanding: one sentence → structured intent, with explicit assumptions and clarifications.        |
@@ -119,6 +118,15 @@ Layout, in order:
 `CATEGORY_GROUPS`) and the `toStyleVector()` function. Everything else imports them. Similarity is
 cosine.
 
+## Languages
+
+English and Traditional Chinese (Taiwan), chosen by the `ll_locale` cookie and otherwise by
+`Accept-Language`; URLs carry no locale prefix so a filtered `/shop` link is shareable between
+readers of either language. Interface copy lives in `apps/web/src/i18n/messages/<locale>/`, typed
+against the English catalog; catalog nouns are read from `@lookline/catalog`'s own `labelZh`
+through `apps/web/src/i18n/taxonomy.ts` and are never re-typed as translations. See
+[two languages](specs/I18N_SPEC.md).
+
 ## Money, departments, sizes
 
 - Prices are integer TWD (`price` column). The intent parser converts other currencies.
@@ -128,18 +136,18 @@ cosine.
 ## Identifiers
 
 - Catalog entities (`brands`, `products`): integer primary keys, plus stable `slug`.
-- App entities (`users`, `looks`, `interactions`, `asks`, `purchases`, ...): text primary keys.
+- App entities (`users`, `looks`, `interactions`, `purchases`, ...): text primary keys.
   Generated data (simulation) uses deterministic ids like `u_000123`; runtime uses nanoid.
 
 ## Data model (owned by `packages/db`)
 
 Core tables: `brands`, `products`, `users`, `sessions`, `purchases`, `looks`, `look_products`,
-`look_participants`, `interactions`, `asks`, `ask_responses`, `relationships`,
+`look_participants`, `interactions`, `relationships`,
 `intent_sessions`, `feedback_events`, `preference_snapshots`, `lineage_stats`, `trend_signals`.
 `packages/db/src/schema.ts` is the single source of truth; `docs/DATA_MODEL.md` explains semantics.
 
-`interactions.type` enum: `VIEW, SEARCH, SAVE, DISMISS, SHARE, REACT, ASK, ADVISE, STYLE, REMIX,
-TOGETHER, INSPIRE, LOOK_CREATE, PURCHASE, BUY_FOR`.
+`interactions.type` enum: `VIEW, SEARCH, SAVE, DISMISS, SHARE, REACT, STYLE, REMIX, TOGETHER,
+INSPIRE, LOOK_CREATE, PURCHASE, BUY_FOR`.
 
 ## Engines (owned by `packages/engine`)
 
@@ -163,17 +171,17 @@ TOGETHER, INSPIRE, LOOK_CREATE, PURCHASE, BUY_FOR`.
 
 Routes:
 
-| Route                      | Purpose                                                                                                               |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `/`                        | "Say it in one sentence" — Engine 01 + 02 demo: intent card, outfit(s), explanations, budget bar                      |
-| `/shop`, `/p/[id]`         | Browse/search the 100k catalog; product page with "why for you", similar, complete-the-look                           |
-| `/bag`, `/checkout`        | Purchase; "Who is this for?" (Me / Someone else / Prefer not to say)                                                  |
-| `/looks/new`               | Create My Edition: photo or avatar + style preset + products → generated Look                                         |
-| `/looks/[id]`              | Look page: image, creator, shoppable products, lineage; Ask / Make It Mine / Together / Share                         |
-| `/l/[token]`, `/a/[token]` | Shared Look and Ask cards; work without an account (guest user)                                                       |
-| `/me`                      | Wardrobe / editions, learned preference profile with evidence, purchase history                                       |
-| `/trends`                  | Trend Maker dashboard: propagation trees, momentum, cross-cluster spread, manufacturing signals, Engine 03 evaluation |
-| `/api/...`                 | JSON endpoints used by client components and by the README reproduction steps                                         |
+| Route               | Purpose                                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `/`                 | "Say it in one sentence" — Engine 01 + 02 demo: intent card, outfit(s), explanations, budget bar                      |
+| `/shop`, `/p/[id]`  | Browse/search the 100k catalog; product page with "why for you", similar, complete-the-look                           |
+| `/bag`, `/checkout` | Purchase; "Who is this for?" (Me / Someone else / Prefer not to say)                                                  |
+| `/looks/new`        | Create My Edition: photo or avatar + style preset + products → generated Look                                         |
+| `/looks/[id]`       | Look page: image, creator, shoppable products, lineage; Make It Mine / Together / Share                               |
+| `/l/[token]`        | Shared Look card; works without an account (guest user)                                                               |
+| `/me`               | Wardrobe / editions, learned preference profile with evidence, purchase history                                       |
+| `/trends`           | Trend Maker dashboard: propagation trees, momentum, cross-cluster spread, manufacturing signals, Engine 03 evaluation |
+| `/api/...`          | JSON endpoints used by client components and by the README reproduction steps                                         |
 
 Auth is a signed cookie session over `sessions`. Demo personas are selectable from `/login`.
 Generated Look images and owner photos live in R2 (`looks/<lookId>-<generationId>.png`,
@@ -183,7 +191,11 @@ route handler; Looks without a generated image get their composition poster rend
 ## Verification gates
 
 `pnpm check` runs `format:check`, `lint`, `typecheck`, `test`, and `build`. Reproduction from a
-clean clone: `pnpm install`, `pnpm db:migrate`, `pnpm seed` (100k products + simulation into
-`data/lookline.sqlite`), `pnpm d1:migrate:local && pnpm d1:local` (copy into the dev D1),
+clean clone: `pnpm install`, the Kaggle csv files in `data/hm/` and
+`pnpm --filter @lookline/hm aggregate` (see docs/ONBOARDING.md), `pnpm db:migrate`, `pnpm seed`
+(105k H&M articles + simulated people into `data/lookline.sqlite`),
+`pnpm d1:migrate:local && pnpm d1:local` (copy into the dev D1),
 `pnpm dev`. Production: `wrangler d1 create lookline`, `wrangler r2 bucket create lookline-media`,
-`pnpm d1:migrate:remote && pnpm d1:remote`, `pnpm deploy`.
+`pnpm d1:migrate:remote && pnpm d1:remote`, `pnpm deploy`. On the shared account both
+resources already exist and a collaborator needs a scoped API token instead —
+see [onboarding](ONBOARDING.md).

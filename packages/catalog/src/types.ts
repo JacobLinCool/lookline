@@ -2,7 +2,7 @@
  * Public types of @lookline/catalog. These are a cross-package contract (docs/CONTRACTS.md):
  * keep names and shapes stable; add fields, do not rename.
  */
-import type { BrandTier, Department, NewBrand, NewProduct, SizeSystem } from '@lookline/db'
+import type { BrandTier, Department, NewBrand, SizeSystem } from '@lookline/db'
 
 export type CategoryGroup =
   | 'tops'
@@ -130,14 +130,9 @@ export interface GeneratedBrand extends Omit<NewBrand, 'createdAt' | 'id'> {
   tier: BrandTier
 }
 
-export interface GeneratedProduct extends Omit<NewProduct, 'createdAt' | 'id' | 'styleVector'> {
-  id: number
-  styleVector: number[]
-}
-
 export interface StyleVectorInput {
-  /** aesthetic slug → weight in [0, 1] */
-  aesthetics: Readonly<Record<string, number>>
+  /** Aesthetic slug → weight in [0, 1]; unknown slugs are ignored. */
+  aesthetics?: Readonly<Record<string, number>>
   colorFamily: ColorFamily
   secondaryColorFamily?: ColorFamily | null
   axes: Partial<Record<Axis, number>>
@@ -145,7 +140,7 @@ export interface StyleVectorInput {
 }
 
 export interface VectorDescription {
-  aesthetics: Array<{ slug: string; name: string; weight: number }>
+  aesthetics: Array<{ slug: string; weight: number }>
   colorFamilies: Array<{ family: ColorFamily; weight: number }>
   axes: Record<Axis, number>
   categoryGroups: Array<{ group: CategoryGroup; weight: number }>
@@ -193,6 +188,7 @@ export interface Lexicon {
   occasions: readonly LexEntry[]
   seasons: readonly LexEntry[]
   fits: readonly LexEntry[]
+  sleeves: readonly LexEntry[]
 }
 
 export interface CatalogGenOptions {

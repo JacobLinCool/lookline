@@ -5,6 +5,15 @@
 import { AESTHETICS, AXES, CATEGORY_GROUPS, COLOR_FAMILIES } from './taxonomy'
 import type { Axis, CategoryGroup, ColorFamily, StyleVectorInput, VectorDescription } from './types'
 
+/**
+ * 64 dimensions: aesthetic tags, colour family, style axes, category group — the layout
+ * docs/ARCHITECTURE.md always described.
+ *
+ * The aesthetic block was dropped for a while because the H&M catalogue names no aesthetic
+ * anywhere, so all 32 dimensions were zero on every row and a cosine over them was a coin toss
+ * dressed as similarity. The vision pass (`@lookline/hm`) reads a style off the photograph, which
+ * is what fills them; an article it has not seen simply has a zero block, exactly as before.
+ */
 export const STYLE_DIMENSIONS = 64
 
 export type StyleBlock = 'aesthetics' | 'colors' | 'axes' | 'groups'
@@ -39,12 +48,12 @@ export function zeroVector(): number[] {
   return Array.from({ length: STYLE_DIMENSIONS }, () => 0)
 }
 
-/** §8.1: sparse aesthetic block, colour block (primary 1.0 / secondary ≥ 0.4), 8 axes, group one-hot. */
+/** Aesthetic weights, colour block (primary 1.0 / secondary ≥ 0.4), 8 axes, group one-hot. */
 export function toStyleVector(input: StyleVectorInput): number[] {
   const v = zeroVector()
-  for (const [slug, weight] of Object.entries(input.aesthetics)) {
+  for (const [slug, weight] of Object.entries(input.aesthetics ?? {})) {
     const i = aestheticIndex(slug)
-    if (i >= 0) v[i] = clamp01(weight)
+    if (i >= 0) v[i] = Math.max(v[i] ?? 0, clamp01(weight))
   }
   const primary = colorFamilyIndex(input.colorFamily)
   if (primary >= 32) v[primary] = 1
@@ -116,16 +125,11 @@ export function blendVectors(
   return out
 }
 
-/** Top-5 aesthetics with names, non-zero colour families, the 8 axes, non-zero groups. */
+/** Non-zero aesthetics, non-zero colour families, the 8 axes, non-zero groups. */
 export function describeVector(v: readonly number[]): VectorDescription {
-  const aesthetics = AESTHETICS.map((a) => ({
-    slug: a.slug,
-    name: a.name,
-    weight: v[a.index] ?? 0,
-  }))
+  const aesthetics = AESTHETICS.map((a) => ({ slug: a.slug, weight: v[a.index] ?? 0 }))
     .filter((a) => a.weight > 0)
-    .toSorted((x, y) => y.weight - x.weight || aestheticIndex(x.slug) - aestheticIndex(y.slug))
-    .slice(0, 5)
+    .toSorted((x, y) => y.weight - x.weight)
   const colorFamilies = COLOR_FAMILIES.map((family) => ({
     family,
     weight: v[colorFamilyIndex(family)] ?? 0,
@@ -166,7 +170,7 @@ export function weightStyleVector(
 
 /**
  * Rebuild the `StyleVectorInput` of a product from its stored vector and columns, so that
- * `toStyleVector(productStyleInput(p))` deep-equals `p.styleVector` for generated products.
+ * `toStyleVector(productStyleInput(p))` deep-equals `p.styleVector` for generated articles.
  */
 export function productStyleInput(p: {
   styleVector: readonly number[]
@@ -377,6 +381,7 @@ export function pairScore(a: PairScoreInput, b: PairScoreInput): number {
   const formA = a.styleVector[f] ?? 0
   const formB = b.styleVector[f] ?? 0
   const formality = 1 - Math.min(1, Math.abs(formA - formB) / FORMALITY_TOLERANCE)
-  const overlap = cosineRange(a.styleVector, b.styleVector, 0, 32)
+  // Was the aesthetic block; with no aesthetic in the catalogue it reads the whole vector.
+  const overlap = cosineRange(a.styleVector, b.styleVector, 0, STYLE_DIMENSIONS)
   return 0.5 * colorHarmony(a.colorFamily, b.colorFamily) + 0.3 * formality + 0.2 * overlap
 }

@@ -1,6 +1,6 @@
 /**
  * Smoke run of `evaluatePreferenceLoop` on the default config (200 users × 30 rounds × 5,000
- * products × k = 10, seed 20260918). Prints the summary, a few rounds of the series and the wall
+ * articles × k = 10, seed 20260918). Prints the summary, a few rounds of the series and the wall
  * time; exits 1 when the pre-registered criterion fails or the run exceeds 10 s.
  *
  *   pnpm --filter @lookline/engine exec tsx scripts/evaluate-smoke.ts [--seed 1] [--users 40] [--rounds 12]
@@ -41,7 +41,7 @@ if (process.argv.includes('--json')) {
   const s = result.summary
   console.log(`evaluatePreferenceLoop ${JSON.stringify(config)}`)
   console.log(
-    `catalog: ${s['catalogSize']} products (${s['catalogSource'] === 1 ? 'generateProduct' : 'synthetic fallback'}), ${s['users']} users, ${s['rounds']} rounds, k=${s['k']}`,
+    `catalog: ${s['catalogSize']} articles (${s['catalogSource'] === 1 ? 'generateProduct' : 'synthetic fallback'}), ${s['users']} users, ${s['rounds']} rounds, k=${s['k']}`,
   )
   console.log(`wall time: ${durationMs} ms`)
   console.log('')

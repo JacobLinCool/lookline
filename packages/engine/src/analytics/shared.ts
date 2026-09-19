@@ -92,8 +92,7 @@ export interface InteractionLite {
   actorUserId: string
   targetUserId: string | null
   lookId: string | null
-  productId: number | null
-  askId: string | null
+  articleId: string | null
   type: InteractionType
   sourceInteractionId: string | null
   createdAt: Date
@@ -102,13 +101,12 @@ export interface InteractionLite {
 export interface PurchaseLite {
   id: string
   userId: string
-  productId: number
+  articleId: string
   quantity: number
   price: number
   forKind: PurchaseFor
   forUserId: string | null
   sourceLookId: string | null
-  sourceAskId: string | null
   sourceInteractionId: string | null
   intentSessionId: string | null
   createdAt: Date
@@ -131,35 +129,21 @@ export interface ParticipantLite {
 
 export interface LookProductLite {
   lookId: string
-  productId: number
+  articleId: string
 }
 
 export interface ProductLite {
-  id: number
-  aesthetics: string[]
+  id: string
   categoryGroup: string
   subcategory: string
   colorFamily: string
-  silhouette: string | null
-  silhouetteId: string
-  stock: number
   price: number
-}
-
-export interface AskLite {
-  id: string
-  askerId: string
-  targetUserId: string | null
-  lookId: string | null
-  createdAt: Date
-}
-
-export interface AskResponseLite {
-  askId: string
-  responderUserId: string | null
-  choiceProductId: number | null
-  styledLookId: string | null
-  createdAt: Date
+  /** Catalog aesthetic slugs from the vision pass; empty for an article it has not reached. */
+  aesthetics: string[]
+  /** `articles.attributes`; the design-detail keys in it drive the `detail` dimension. */
+  attributes: Record<string, string | number | boolean>
+  /** Clustered print motif; `''` for an unprinted article or one the print pass has not read. */
+  printMotif: string
 }
 
 export interface IntentSessionLite {

@@ -26,56 +26,52 @@ function slots(): RemixSlot[] {
       id: 101,
       name: 'Mono Merino Sweater',
       categoryGroup: 'tops',
+      outfitRole: 'top',
       subcategory: 'crewneck-sweater',
-      silhouetteId: 'sweater',
       colorName: 'Ecru',
       colorHex: '#E9E3D3',
       colorFamily: 'white',
       aesthetics: ['quiet-luxury', 'scandi'],
       price: 2800,
-      sizes: ['S', 'M'],
       popularity: 0.8,
     }),
     makeProduct({
       id: 102,
       name: 'Neon Graphic Hoodie',
       categoryGroup: 'tops',
+      outfitRole: 'top',
       subcategory: 'hoodie',
-      silhouetteId: 'hoodie',
       colorName: 'Tangerine',
       colorHex: '#F07E26',
       colorFamily: 'yellow-orange',
       aesthetics: ['streetwear', 'y2k'],
       price: 1900,
-      sizes: ['M', 'L'],
       popularity: 0.9,
     }),
     makeProduct({
       id: 103,
       name: 'Stone Cashmere Crewneck',
       categoryGroup: 'tops',
+      outfitRole: 'top',
       subcategory: 'crewneck-sweater',
-      silhouetteId: 'sweater',
       colorName: 'Stone',
       colorHex: '#B8AD9A',
       colorFamily: 'neutral',
       aesthetics: ['quiet-luxury', 'minimalist'],
       price: 9000,
-      sizes: ['XS', 'S', 'M'],
       popularity: 0.4,
     }),
     makeProduct({
       id: 104,
       name: 'Boxy Tee',
       categoryGroup: 'tops',
+      outfitRole: 'top',
       subcategory: 'tee',
-      silhouetteId: 'tee',
       colorName: 'Optic White',
       colorHex: '#F8F8F6',
       colorFamily: 'white',
       aesthetics: ['normcore'],
       price: 600,
-      sizes: ['L'],
       popularity: 0.2,
     }),
   ].map(withBrand)
@@ -84,45 +80,39 @@ function slots(): RemixSlot[] {
       id: 201,
       name: 'Pleated Wool Trousers',
       categoryGroup: 'bottoms',
+      outfitRole: 'bottom',
       subcategory: 'wide-leg-trousers',
-      silhouetteId: 'pants-wide',
       colorName: 'Charcoal',
       colorHex: '#4A4B50',
       colorFamily: 'grey',
       aesthetics: ['quiet-luxury', 'corporate-chic'],
       price: 3600,
-      sizeSystem: 'numeric-waist',
-      sizes: ['28', '30'],
       popularity: 0.6,
     }),
     makeProduct({
       id: 202,
       name: 'Cargo Pants',
       categoryGroup: 'bottoms',
+      outfitRole: 'bottom',
       subcategory: 'cargo-pants',
-      silhouetteId: 'pants-cargo',
       colorName: 'Olive',
       colorHex: '#6E6C3E',
       colorFamily: 'green',
       aesthetics: ['gorpcore'],
       price: 2200,
-      sizeSystem: 'numeric-waist',
-      sizes: ['28', '30'],
       popularity: 0.7,
     }),
     makeProduct({
       id: 203,
       name: 'Slate Midi Skirt',
       categoryGroup: 'bottoms',
+      outfitRole: 'bottom',
       subcategory: 'midi-skirt',
-      silhouetteId: 'skirt-midi',
       colorName: 'Slate',
       colorHex: '#6B7280',
       colorFamily: 'grey',
       aesthetics: ['minimalist', 'scandi'],
       price: 1500,
-      sizeSystem: 'numeric-waist',
-      sizes: ['28'],
       popularity: 0.5,
     }),
   ].map(withBrand)
@@ -167,18 +157,24 @@ describe('remix ranking', () => {
     const free = chooseRemixItems(slots(), ctx())
     expect(free.map((i) => i.role)).toEqual(['top', 'bottom'])
     // no budget: the stone crewneck keeps both the neutral palette and the subcategory
-    expect(free[0]!.product.id).toBe(103)
-    expect(free[1]!.product.id).toBe(201)
+    expect(free[0]!.product.id).toBe('0000000103')
+    expect(free[1]!.product.id).toBe('0000000201')
     expect(free[0]!.explanation.summary).toMatch(/instead of/)
-    expect(free.every((item) => item.product.id !== 102)).toBe(true)
+    expect(free.every((item) => item.product.id !== '0000000102')).toBe(true)
     // with a budget the NT$9,000 crewneck loses to the ecru merino sweater in size M
     const budgeted = chooseRemixItems(slots(), ctx({ budget: 8000 }))
-    expect(budgeted[0]!.product.id).toBe(101)
+    expect(budgeted[0]!.product.id).toBe('0000000101')
     expect(budgeted.reduce((s, item) => s + item.product.price, 0)).toBeLessThanOrEqual(8000)
   })
 
-  it('respects sizes and swaps to cheaper options under a budget', () => {
-    expect(filterBySize(slots()[0]!.candidates, ctx()).map((p) => p.id)).toEqual([101, 102, 103])
+  // Sizes no longer filter — the catalogue ships none, so every candidate is kept.
+  it('keeps every candidate and swaps to cheaper options under a budget', () => {
+    expect(filterBySize(slots()[0]!.candidates, ctx()).map((p) => p.id)).toEqual([
+      '0000000101',
+      '0000000102',
+      '0000000103',
+      '0000000104',
+    ])
     const cheap = chooseRemixItems(slots(), ctx({ budget: 4000 }))
     const total = cheap.reduce((s, item) => s + item.product.price, 0)
     expect(total).toBeLessThanOrEqual(4000)
@@ -198,6 +194,7 @@ describe('remix ranking', () => {
     const s = slots()
     const items = chooseRemixItems(s, ctx())
     const kept = keptAesthetics(['quiet-luxury', 'minimalist', 'preppy'], items)
+    // The chosen pieces carry the first two tags and not `preppy`, so that is what survives.
     expect(kept).toEqual(['quiet-luxury', 'minimalist'])
     const palette = keptPalette(fixtureLook().map(withBrand), items)
     expect(palette).toEqual(['#D9CDB8', '#4A4B50'])

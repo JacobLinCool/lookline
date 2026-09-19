@@ -3,10 +3,8 @@
  * and the sink interface the simulation writes through (Postgres via the engine write paths,
  * or an in-memory sink for tests).
  */
-import type { Department, Product } from '@lookline/db'
+import type { Department, Article } from '@lookline/db'
 import type {
-  AnswerAskInput,
-  CreateAskInput,
   CreateLookInput,
   FeedbackInput,
   InteractionInput,
@@ -22,8 +20,6 @@ export interface PersonaParams {
   activity: number
   /** Base probability of remixing a Look a friend shared, in (0, 1). */
   remixPropensity: number
-  /** Base probability of sending an Ask on an active day, in (0, 1). */
-  askPropensity: number
   /** How many closest friends receive shares (1–6). */
   shareRadius: number
 }
@@ -150,28 +146,6 @@ export type PlannedEvent =
       remixPurchaseId: string | null
     })
   | (EventBase & {
-      kind: 'ask'
-      userId: string
-      friendId: string
-      askId: string
-      askKind: 'choose' | 'style_me'
-      occasion: string
-      budget: number
-      /** Look the Ask is about (trend-seed Looks), when any. */
-      lookId: string | null
-    })
-  | (EventBase & {
-      kind: 'answer'
-      askId: string
-      userId: string
-      askerId: string
-      /** The asker buys the chosen option afterwards (choose Asks only). */
-      purchaseId: string | null
-      /** The responder's styled Look for style_me Asks. */
-      styledLookId: string | null
-      styledPreset: string
-    })
-  | (EventBase & {
       kind: 'together'
       userId: string
       lookId: string
@@ -232,23 +206,18 @@ export interface SimPlan {
 
 /** The product columns the simulation needs (taste matching, sizes, posters). */
 export type SimProduct = Pick<
-  Product,
+  Article,
   | 'id'
   | 'department'
   | 'categoryGroup'
+  | 'outfitRole'
   | 'subcategory'
   | 'price'
   | 'colorFamily'
   | 'colorHex'
-  | 'secondaryColorHex'
-  | 'aesthetics'
-  | 'sizeSystem'
-  | 'sizes'
   | 'popularity'
   | 'name'
-  | 'silhouetteId'
   | 'pattern'
-  | 'imageSeed'
 > & { styleVector: number[] }
 
 export type Deterministic<T> = T & { id: string; createdAt: Date }
@@ -264,10 +233,10 @@ export interface SearchInput {
 export interface SimSink {
   /** Insert users + sim_personas rows. */
   insertPersonas(personas: readonly Persona[], createdAt: Date): Promise<void>
-  /** Candidate products the simulation chooses from (a sample of the catalog). */
+  /** Candidate articles the simulation chooses from (a sample of the catalog). */
   loadPool(): Promise<SimProduct[]>
   /** Products by id that may be missing from the pool (e.g. from `suggestRemix`). */
-  loadProducts(ids: readonly number[]): Promise<SimProduct[]>
+  loadProducts(ids: readonly string[]): Promise<SimProduct[]>
   recordSearch(input: SearchInput): Promise<void>
   recordInteraction(input: Deterministic<InteractionInput>): Promise<void>
   recordFeedback(input: Deterministic<FeedbackInput>): Promise<void>
@@ -276,10 +245,8 @@ export interface SimSink {
     input: Deterministic<CreateLookInput>,
     poster: string | null,
   ): Promise<{ depth: number; rootLookId: string }>
-  /** Product ids of a "Make It Mine" suggestion (may be empty). */
-  suggestRemix(sourceLookId: string, userId: string): Promise<number[]>
-  createAsk(input: Deterministic<CreateAskInput>): Promise<void>
-  answerAsk(input: Deterministic<AnswerAskInput>): Promise<void>
+  /** Article ids of a "Make It Mine" suggestion (may be empty). */
+  suggestRemix(sourceLookId: string, userId: string): Promise<string[]>
   /** Optional: called once after the run. */
   finish?(): Promise<void>
 }
@@ -314,8 +281,6 @@ export interface SimSummary {
   skipped: Record<PlannedEventKind, number>
   purchases: number
   looks: Record<'edition' | 'remix' | 'together', number>
-  asks: number
-  answers: number
   interactions: number
   feedback: number
   trendSeeds: Array<{ slug: string; rootLookId: string; carrierId: string; looks: number }>

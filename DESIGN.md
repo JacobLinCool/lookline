@@ -196,7 +196,28 @@ title row, then a horizontally scrolling track that bleeds to the viewport edge 
 items, and hides its scrollbar. Item widths: sm 8.5/10.5rem, md 10.5/13rem, lg 14/17rem, xl 17/22rem
 (phone/desktop).
 
+**Home discovery (`/`, before a query).** Natural-language search opens the page above clearly
+named horizontal rails: Trending, two preference groups, recently viewed products and friends'
+activity. The shared ProductCard carries real catalog photography in its existing 3:4 frame.
+At phone widths, example sentences occupy one horizontally scrolling row of 44px controls so
+Trending photography remains in the first viewport at 375px; from 768px the examples can wrap
+and use 36px controls. Discovery cards are 168px wide below 768px and 208px above, with 16px gaps.
+Each track reserves 352px on phones and 410px from 768px across content and state changes.
+The first header reserves 80px; later headers reserve 112px on phones and 80px from 768px,
+leaving room for localized titles and a short explanation beside the paging controls.
+
 **Grids.** Catalogs and wardrobes use 2 columns on phones, 3 at 48rem, 4 at 80rem.
+
+**Shop Talk (`/shop-talk`).** At 1280px and above, a 13rem filter rail sits beside a narrower
+three-column product grid, with chat in a separate right column (`minmax(20rem, 26%)`). The workspace
+fills the visual viewport below the shared shell header; the title and toolbar take their natural
+space, and filters, products and transcript scroll independently in the remaining height. Below
+1280px, filters use a disclosure and chat becomes an expandable fixed bottom sheet. Its expanded
+height is 72dvh, capped to the available visual viewport after the shell header and visible bottom
+navigation. Keyboard changes update its height and bottom offset; below 768px, only the visible
+part of the bottom navigation adds clearance. At a visual viewport height of 500px or less, the
+composer uses a compact row to keep input and audio controls accessible. Products retain two
+columns below 768px and three above it.
 
 **Navigation.** Desktop: a sticky 3.5rem top bar with the wordmark, Find / Shop / Wardrobe, Bag and
 the person. Phones: the same bar without links, plus a fixed 3.5rem bottom tab bar with four labelled
@@ -206,7 +227,7 @@ Makalot, Prototype tour, Engine lab, the Engine view switch.
 ### Named rules
 
 **The First Viewport Rule.** On every page the largest thing above the fold is an image; on Find it
-is the input sitting over a rail of real Looks. Controls never push content below the fold on a
+is the input sitting over a rail of real garments. Controls never push content below the fold on a
 390px screen.
 
 **The Rail-or-Grid Rule.** Curated sets hang on rails; catalogs stand in grids. Never a stack of
@@ -214,9 +235,13 @@ same-size cards.
 
 ## Elevation & Depth
 
-Flat by default. Depth exists in one place: a tile lifted off the rail on hover
+Flat by default. Product depth comes from a tile lifted off the rail on hover
 (`translateY(-4px)` with `0 14px 28px -12px rgb(23 23 23 / 0.28)`, 180ms expo ease-out). Sticky
-bars use a 95% wall tint with a light backdrop blur. Nothing else casts a shadow.
+bars use a 95% wall tint with a light backdrop blur. The Shop Talk sheet below is the sole additional
+shadow treatment documented here.
+
+The Shop Talk bottom sheet uses the shared sheet shadow (`0 -8px 24px -16px rgb(23 23 23 / 0.25)`)
+to separate its fixed surface from the catalog; its desktop chat column remains flat.
 
 ## Shapes
 
@@ -265,6 +290,26 @@ line, at most one supporting line, one action.
 `Section` draws a rail line and a title row; `Rail` draws a title row over a scrolling track.
 Neither renders an eyebrow.
 
+### Home discovery rails
+
+Each rail has a signage title (20px on phones, 22px from 768px), an optional muted explanation
+(13px) and two labelled 44px paging buttons. Each track scrolls independently by touch, buttons
+or keyboard; arrow keys page the focused track, while Home and End reach its edges. Buttons
+reflect the current scroll boundary. Paging is smooth unless reduced motion is requested.
+The track exposes its name and busy state to assistive technology.
+
+Trending, preferences, recent history and friends' activity load independently; the two
+preference rails share their request. Skeletons match the product geometry. A failed group
+keeps its own retry control, while signed-out and empty states use the recessed panel tone
+with a relevant action. Existing product captions and friend attribution remain outside the
+photography; Look Cards retain their own imagery and link to the card detail.
+
+### Example sentence controls
+
+White paper controls with a rail border and the shared control radius. Each example remains a
+real search link; enhanced interaction fills and submits the sentence field. Long labels truncate
+within the phone's single scrolling row, and the border turns ink on hover.
+
 ### Progress
 
 An indeterminate 2px `progress-line` under an image or input while something generates; skeletons
@@ -277,6 +322,23 @@ no sentences narrating progress.
 flat lay with ±5° tilt, the title in a bold grotesque, "by <owner>", up to three aesthetics, a thin
 palette bar and the piece count, the edition number in the preset's accent. No texture words, no hex
 codes, no uppercase.
+
+### Shop Talk conversation
+
+Chat keeps the existing neutral palette and shared control radii. Bricolage titles sit above an
+Inter transcript (0.875rem, 1.65 line height); user messages have a recessed panel ground, while
+assistant messages sit directly on the page. The composer remains outside the scrolling transcript,
+with separate microphone and speaker controls, each exposing its own pressed state. Both start off;
+typed messages can begin silently, and the explicit voice action enables both. Message arrival uses
+a 140ms ease-out fade and 3px rise only when reduced motion is not requested.
+
+**The Shop Talk Direct Update Rule.** On `/shop-talk`, conversation replaces the sentence field,
+hints and apply controls. Assistant filter updates act directly on the catalog; manual changes
+remain visible in the transcript. Google Search only helps interpret unfamiliar named references;
+product discovery stays in the site's Jev/catalog flow, without external search results, suggestion
+cards or source links. Uncertain preferences remain conversational and do not trigger alerts.
+Actual service failures retain retry or reconnect actions; an unavailable catalog remains distinct
+from a successful search with no matches.
 
 ### Named rules
 
@@ -304,3 +366,7 @@ visible and distinct, expressed as form (skeleton, progress line, tag, notice) r
 - **Don't** show scores, percentages, confidence or field names to a shopper.
 - **Don't** nest cards, border layout groups, or list aesthetic chips under a product.
 - **Don't** use red for anything that is not the one thing to notice.
+
+### Page navigation
+
+The shell remains stable while route content crossfades in 160 ms. Link pending feedback reflects the router request, and streaming destinations expose a quiet loading state. Live filters and transcripts do not trigger route animations. Reduced motion uses a brief 60 ms dissolve.

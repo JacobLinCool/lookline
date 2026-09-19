@@ -3,9 +3,14 @@
  * mapping of solver states to the contract `Outfit`.
  */
 import { createHash } from 'node:crypto'
-import { categoryGroupIndex, colorFamilyIndex } from '@lookline/catalog'
+import {
+  STYLE_BLOCKS,
+  STYLE_DIMENSIONS,
+  categoryGroupIndex,
+  colorFamilyIndex,
+} from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
-import type { Department, Product } from '@lookline/db'
+import type { Department, Article } from '@lookline/db'
 import type { Explanation, ExplanationFactor, Outfit, RankedItem } from '../../types'
 import { colorFamilyLabel, subcategoryLabel } from '../aesthetics'
 import { renderSummary, sortFactors } from '../explain'
@@ -68,8 +73,8 @@ const NEUTRAL_PRIOR: ReadonlyArray<ColorFamily> = ['black', 'white', 'neutral', 
 /** Intent vector with the slot's category one-hot; accessories blend the colour block with neutrals. */
 export function slotVector(intentVector: readonly number[], slot: SlotSpec): number[] {
   const v = intentVector.slice(0, 64)
-  while (v.length < 64) v.push(0)
-  for (let i = 52; i < 64; i++) v[i] = 0
+  while (v.length < STYLE_DIMENSIONS) v.push(0)
+  for (let i = STYLE_BLOCKS.groups[0]; i < STYLE_BLOCKS.groups[1]; i++) v[i] = 0
   for (const g of slot.groups) v[categoryGroupIndex(g)] = 1
   if (slot.groups.every((g) => ACCESSORY_GROUPS.has(g))) {
     for (let i = 32; i < 44; i++) v[i] = 0.5 * (v[i] ?? 0)
@@ -105,29 +110,31 @@ function slotBudgetMax(input: BuildOutfitsInput, slot: SlotSpec): number | null 
   return null
 }
 
-function sha1Id(ids: readonly number[]): string {
+function sha1Id(ids: readonly string[]): string {
   return createHash('sha1')
-    .update(ids.toSorted((a, b) => a - b).join(','))
+    .update(ids.toSorted((a, b) => a.localeCompare(b)).join(','))
     .digest('hex')
     .slice(0, 12)
 }
 
 /** Mean of the items' A/C/X blocks (clamped) with the category groups unioned (private deriveLookStyle). */
-export function outfitStyleVector(products: readonly Product[]): number[] {
-  const v = Array.from({ length: 64 }, () => 0)
-  if (products.length === 0) return v
-  for (const p of products) {
-    for (let i = 0; i < 52; i++) v[i] = (v[i] ?? 0) + (p.styleVector[i] ?? 0) / products.length
+export function outfitStyleVector(articles: readonly Article[]): number[] {
+  const v = Array.from({ length: STYLE_DIMENSIONS }, () => 0)
+  if (articles.length === 0) return v
+  const groupsFrom = STYLE_BLOCKS.groups[0]
+  for (const p of articles) {
+    for (let i = 0; i < groupsFrom; i++)
+      v[i] = (v[i] ?? 0) + (p.styleVector[i] ?? 0) / articles.length
     const g = categoryGroupIndex(p.categoryGroup as CategoryGroup)
-    if (g >= 52) v[g] = 1
+    if (g >= groupsFrom) v[g] = 1
   }
-  for (let i = 0; i < 52; i++) v[i] = clamp01(v[i] ?? 0)
+  for (let i = 0; i < groupsFrom; i++) v[i] = clamp01(v[i] ?? 0)
   return v
 }
 
-function dominantFamily(products: readonly Product[]): { family: string; hex: string } | null {
+function dominantFamily(articles: readonly Article[]): { family: string; hex: string } | null {
   const counts = new Map<string, { n: number; hex: string }>()
-  for (const p of products) {
+  for (const p of articles) {
     const c = counts.get(p.colorFamily) ?? { n: 0, hex: p.colorHex }
     c.n += 1
     counts.set(p.colorFamily, c)
@@ -143,7 +150,7 @@ const COMPAT_WEIGHT = 0.35
 /** Rescale an item's factors ×0.60 and append the in-outfit compatibility factor. */
 export function outfitItem(
   placed: PlacedItem,
-  others: readonly Product[],
+  others: readonly Article[],
   intent: EngineIntent,
   season: Season | null | undefined,
   partner: PartnerLook | null | undefined,
@@ -151,7 +158,7 @@ export function outfitItem(
   const locale = localeOf(intent)
   const item = placed.item
   const scores: number[] = []
-  let best: { p: Product; s: number } | null = null
+  let best: { p: Article; s: number } | null = null
   for (const o of others) {
     if (isUnscoredPair(item.product, o)) continue
     const s = compat(item.product, o, season).score
@@ -215,21 +222,21 @@ export function toOutfit(
 ): Outfit {
   const locale = localeOf(intent)
   const season = intent.season ?? null
-  const products = state.items.map((it) => it.item.product)
+  const articles = state.items.map((it) => it.item.product)
   const items = state.items.map((placed) =>
     outfitItem(
       placed,
-      products.filter((p) => p.id !== placed.item.product.id),
+      articles.filter((p) => p.id !== placed.item.product.id),
       intent,
       season,
       partner,
     ),
   )
-  const total = products.reduce((s, p) => s + p.price, 0)
-  const pairs = pairingSentences(products, locale, season)
+  const total = articles.reduce((s, p) => s + p.price, 0)
+  const pairs = pairingSentences(articles, locale, season)
   const compatibility =
     pairs.length > 0 ? pairs.reduce((s, p) => s + p.compat.score, 0) / pairs.length : 1
-  const styleVector = outfitStyleVector(products)
+  const styleVector = outfitStyleVector(articles)
   const budgetMax = budget.scope === 'total' ? budget.max : null
   const util = budgetMax ? Math.min(1, total / budgetMax) : 1
   const meanStyle =
@@ -296,7 +303,7 @@ export function toOutfit(
   ]
   factors[1]!.contribution = factors[1]!.weight * factors[1]!.value
   const outfit: Outfit = {
-    id: sha1Id(products.map((p) => p.id)),
+    id: sha1Id(articles.map((p) => p.id)),
     items,
     total,
     compatibility,
@@ -427,7 +434,7 @@ export async function buildOutfits(input: BuildOutfitsInput): Promise<BuildOutfi
   const outfits = states.map((s) => toOutfit(s, input.intent, input.budget, partner, caveats))
   timings.outfitSolve = performance.now() - t1
 
-  const seen = new Set<number>()
+  const seen = new Set<string>()
   const slotItems: RankedItem[] = []
   for (const items of ranked.values()) {
     for (const it of items) {
@@ -438,7 +445,9 @@ export async function buildOutfits(input: BuildOutfitsInput): Promise<BuildOutfi
   }
   return {
     outfits,
-    slotItems: slotItems.toSorted((a, b) => b.score - a.score || a.product.id - b.product.id),
+    slotItems: slotItems.toSorted(
+      (a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id),
+    ),
     candidates,
     relaxed,
     timings,

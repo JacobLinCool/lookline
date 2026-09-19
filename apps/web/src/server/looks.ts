@@ -1,5 +1,16 @@
-import { STYLE_PRESETS, type StylePreset } from '@lookline/engine'
+import type { Article } from '@lookline/db'
+import {
+  compositeReferenceLabels,
+  STYLE_PRESETS,
+  type ReferenceImage,
+  type StylePreset,
+} from '@lookline/engine'
+import type { Locale } from '@/i18n/config'
+import { colorLabel } from '@/i18n/taxonomy'
 import { getStorage, isSafeKey } from './storage'
+
+/** The largest reference photo a Look accepts; `vite.config.ts` keeps the transport above it. */
+export const MAX_PHOTO_BYTES = 15 * 1024 * 1024
 
 export interface ReferencePhoto {
   mimeType: string
@@ -24,9 +35,19 @@ export function resolveStylePreset(slug: string): StylePreset {
   return preset
 }
 
-/** Human preset name for a slug (used by captions and cards). */
-export function presetName(slug: string): string {
-  return resolveStylePreset(slug).name
+/**
+ * A preset in the reader's language. The engine ships the Chinese label with the preset, so this
+ * picks one; it never translates.
+ */
+export function presetLabel(locale: Locale, slug: string): string {
+  const preset = STYLE_PRESETS.find((p) => p.slug === slug)
+  if (!preset) return slug
+  return locale === 'zh-TW' ? preset.labelZh : preset.name
+}
+
+/** `{ value, label }` options for a preset `<Select>` in the reader's language. */
+export function presetOptions(locale: Locale): Array<{ value: string; label: string }> {
+  return STYLE_PRESETS.map((p) => ({ value: p.slug, label: presetLabel(locale, p.slug) }))
 }
 
 /**
@@ -56,14 +77,38 @@ export async function loadStoredPhoto(
   }
 }
 
+/** The most product photos one render attaches; past this, garments fall back to text only. */
+export const MAX_GARMENT_IMAGES = 6
+
+/**
+ * A Look's pieces ready for `buildLookImagePrompt`, with their product photos loaded, and the
+ * reference images in the order `lookReferenceLabels` names them (garments, then the person).
+ * An article whose photo is missing or unreadable is still described in words.
+ */
+export async function loadLookReferences<A extends Pick<Article, 'imagePath'>>(
+  articles: readonly A[],
+  person: ReferencePhoto | null,
+): Promise<{ articles: (A & { hasImage: boolean })[]; referenceImages: ReferenceImage[] }> {
+  const photos = await Promise.all(
+    articles.map((a, i) => (i < MAX_GARMENT_IMAGES ? loadStoredPhoto(a.imagePath) : null)),
+  )
+  const garments = photos.filter((p): p is ReferencePhoto => p !== null)
+  const labels = compositeReferenceLabels(garments.length, person ? 1 : 0)
+  return {
+    articles: articles.map((a, i) => ({ ...a, hasImage: photos[i] !== null })),
+    referenceImages: [...garments, ...(person ? [person] : [])].map((image, i) => ({
+      ...image,
+      label: labels[i],
+    })),
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Purchase attribution (cookies + searchParams read by /checkout)
 // ---------------------------------------------------------------------------
 
 /** Last Look the visitor added to the bag from; read by `/checkout` for `sourceLookId`. */
 export const SOURCE_LOOK_COOKIE = 'll_source_look'
-/** Ask the visitor last answered / opened; read by `/checkout` for `sourceAskId`. */
-export const SOURCE_ASK_COOKIE = 'll_source_ask'
 /** Latest "say it in one sentence" turn; read by `/checkout` for `intentSessionId`. */
 export const INTENT_SESSION_COOKIE = 'll_intent_session'
 
@@ -72,18 +117,4 @@ export function sanitizeId(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return /^[A-Za-z0-9_-]{1,64}$/.test(trimmed) ? trimmed : null
-}
-
-/** Keep service diagnostics in server logs and show a useful action failure. */
-export function describeEngineError(
-  action: 'look' | 'reaction' | 'purchase',
-  error: unknown,
-): string {
-  console.warn(`[looks] ${action} failed`, error)
-  const messages = {
-    look: 'Your Look could not be saved. Please try again.',
-    reaction: 'Your reaction could not be saved. Please try again.',
-    purchase: 'Your order could not be placed. Please try again.',
-  }
-  return messages[action]
 }

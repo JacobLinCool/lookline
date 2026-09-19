@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DAY_MS } from '../shared'
-import type {
-  AskResponseLite,
-  InteractionLite,
-  LookLite,
-  ParticipantLite,
-  PurchaseLite,
-} from '../shared'
+import type { InteractionLite, LookLite, ParticipantLite, PurchaseLite } from '../shared'
 import { deriveRelationships, trust, type RelationshipInput } from './relationships'
 
 const NOW = new Date('2026-09-18T00:00:00Z')
@@ -19,14 +13,13 @@ const ix = (
   id: `ix_${++seq}`,
   targetUserId: null,
   lookId: null,
-  productId: null,
-  askId: null,
+  articleId: null,
   sourceInteractionId: null,
   createdAt: NOW,
   ...partial,
 })
 const purchase = (
-  partial: Partial<PurchaseLite> & Pick<PurchaseLite, 'userId' | 'productId'>,
+  partial: Partial<PurchaseLite> & Pick<PurchaseLite, 'userId' | 'articleId'>,
 ): PurchaseLite => ({
   id: `pu_${++seq}`,
   quantity: 1,
@@ -34,7 +27,6 @@ const purchase = (
   forKind: 'self',
   forUserId: null,
   sourceLookId: null,
-  sourceAskId: null,
   sourceInteractionId: null,
   intentSessionId: null,
   createdAt: NOW,
@@ -50,103 +42,30 @@ const look = (partial: Partial<LookLite> & Pick<LookLite, 'id' | 'ownerId'>): Lo
 const empty = (): RelationshipInput => ({
   interactions: [],
   purchases: [],
-  asks: [],
-  askResponses: [],
   looks: [],
   lookParticipants: [],
 })
 const weight = (score: number): number => 1 - Math.exp(-score / 4)
 
 describe('deriveRelationships', () => {
-  it('asks: base 1.0 with a 30-day half-life', () => {
+  it('styles: base 1.5 with a 30-day half-life', () => {
     const rows = deriveRelationships(
       {
         ...empty(),
         interactions: [
-          ix({ actorUserId: 'A', targetUserId: 'B', type: 'ASK', createdAt: daysAgo(0) }),
-          ix({ actorUserId: 'A', targetUserId: 'C', type: 'ASK', createdAt: daysAgo(30) }),
+          ix({ actorUserId: 'A', targetUserId: 'B', type: 'STYLE', createdAt: daysAgo(0) }),
+          ix({ actorUserId: 'A', targetUserId: 'C', type: 'STYLE', createdAt: daysAgo(30) }),
         ],
       },
       NOW,
     )
     const ab = rows.find((r) => r.aUserId === 'A' && r.bUserId === 'B')!
     const ac = rows.find((r) => r.aUserId === 'A' && r.bUserId === 'C')!
-    expect(ab.kind).toBe('asks')
-    expect(ab.weight).toBeCloseTo(weight(1), 6)
+    expect(ab.kind).toBe('styles')
+    expect(ab.weight).toBeCloseTo(weight(1.5), 6)
     expect(ab.count).toBe(1)
-    expect(ac.weight).toBeCloseTo(weight(0.5), 6)
+    expect(ac.weight).toBeCloseTo(weight(0.75), 6)
     expect(ac.lastAt).toEqual(daysAgo(30))
-  })
-
-  it('trusts: 2.0 when the advice is bought within 7 days, 1.0 when saved, else 0.3', () => {
-    const responses: AskResponseLite[] = [
-      {
-        askId: 'ask1',
-        responderUserId: 'B',
-        choiceProductId: 7,
-        styledLookId: null,
-        createdAt: daysAgo(10),
-      },
-      {
-        askId: 'ask2',
-        responderUserId: 'C',
-        choiceProductId: 8,
-        styledLookId: null,
-        createdAt: daysAgo(10),
-      },
-      {
-        askId: 'ask3',
-        responderUserId: 'D',
-        choiceProductId: 9,
-        styledLookId: null,
-        createdAt: daysAgo(10),
-      },
-    ]
-    const rows = deriveRelationships(
-      {
-        ...empty(),
-        askResponses: responses,
-        interactions: [
-          ix({
-            id: 'adv1',
-            actorUserId: 'B',
-            targetUserId: 'A',
-            type: 'ADVISE',
-            askId: 'ask1',
-            createdAt: daysAgo(10),
-          }),
-          ix({
-            id: 'adv2',
-            actorUserId: 'C',
-            targetUserId: 'A',
-            type: 'ADVISE',
-            askId: 'ask2',
-            createdAt: daysAgo(10),
-          }),
-          ix({
-            id: 'adv3',
-            actorUserId: 'D',
-            targetUserId: 'A',
-            type: 'ADVISE',
-            askId: 'ask3',
-            createdAt: daysAgo(10),
-          }),
-          ix({ actorUserId: 'A', type: 'SAVE', productId: 8, createdAt: daysAgo(8) }),
-        ],
-        purchases: [
-          purchase({ userId: 'A', productId: 7, sourceAskId: 'ask1', createdAt: daysAgo(8) }),
-          // too late to count as "followed"
-          purchase({ userId: 'A', productId: 9, sourceAskId: 'ask3', createdAt: daysAgo(1) }),
-        ],
-      },
-      NOW,
-    )
-    const decay = 2 ** (-10 / 30)
-    const t = (b: string) =>
-      rows.find((r) => r.kind === 'trusts' && r.aUserId === 'A' && r.bUserId === b)!
-    expect(t('B').weight).toBeCloseTo(weight(2 * decay), 6)
-    expect(t('C').weight).toBeCloseTo(weight(1 * decay), 6)
-    expect(t('D').weight).toBeCloseTo(weight(0.3 * decay), 6)
   })
 
   it('inspired_by from remixes (1.5) and attributed purchases (2.5); remixed is the inverse view', () => {
@@ -157,7 +76,7 @@ describe('deriveRelationships', () => {
           look({ id: 'l1', ownerId: 'B' }),
           look({ id: 'l2', ownerId: 'A', kind: 'remix', parentLookId: 'l1' }),
         ],
-        purchases: [purchase({ userId: 'C', productId: 1, sourceLookId: 'l1' })],
+        purchases: [purchase({ userId: 'C', articleId: '0000000001', sourceLookId: 'l1' })],
       },
       NOW,
     )
@@ -178,7 +97,9 @@ describe('deriveRelationships', () => {
         ...empty(),
         looks: [look({ id: 't1', ownerId: 'A', kind: 'together' })],
         lookParticipants: participants,
-        purchases: [purchase({ userId: 'A', productId: 3, forKind: 'other', forUserId: 'C' })],
+        purchases: [
+          purchase({ userId: 'A', articleId: '0000000003', forKind: 'other', forUserId: 'C' }),
+        ],
       },
       NOW,
     )
@@ -203,7 +124,12 @@ describe('deriveRelationships', () => {
           }),
         ],
         purchases: [
-          purchase({ userId: 'A', productId: 1, sourceLookId: 'l9', createdAt: daysAgo(2) }),
+          purchase({
+            userId: 'A',
+            articleId: '0000000001',
+            sourceLookId: 'l9',
+            createdAt: daysAgo(2),
+          }),
         ],
       },
       NOW,
@@ -218,8 +144,8 @@ describe('deriveRelationships', () => {
       {
         ...empty(),
         interactions: [
-          ix({ actorUserId: 'A', targetUserId: 'B', type: 'ASK', createdAt: daysAgo(300) }),
-          ix({ actorUserId: 'A', targetUserId: 'A', type: 'ASK' }),
+          ix({ actorUserId: 'A', targetUserId: 'B', type: 'STYLE', createdAt: daysAgo(300) }),
+          ix({ actorUserId: 'A', targetUserId: 'A', type: 'STYLE' }),
         ],
       },
       NOW,
@@ -232,8 +158,8 @@ describe('deriveRelationships', () => {
       {
         ...empty(),
         interactions: [
-          ix({ actorUserId: 'A', targetUserId: 'B', type: 'ASK', createdAt: daysAgo(3) }),
-          ix({ actorUserId: 'A', targetUserId: 'B', type: 'ASK', createdAt: daysAgo(1) }),
+          ix({ actorUserId: 'A', targetUserId: 'B', type: 'STYLE', createdAt: daysAgo(3) }),
+          ix({ actorUserId: 'A', targetUserId: 'B', type: 'STYLE', createdAt: daysAgo(1) }),
         ],
       },
       NOW,
@@ -241,14 +167,14 @@ describe('deriveRelationships', () => {
     expect(rows).toHaveLength(1)
     expect(rows[0]!.count).toBe(2)
     expect(rows[0]!.lastAt).toEqual(daysAgo(1))
-    expect(rows[0]!.weight).toBeCloseTo(weight(2 ** (-3 / 30) + 2 ** (-1 / 30)), 6)
+    expect(rows[0]!.weight).toBeCloseTo(weight(1.5 * (2 ** (-3 / 30) + 2 ** (-1 / 30))), 6)
   })
 })
 
 describe('trust', () => {
   it('is the clamped weighted sum of §5.1', () => {
-    expect(trust({ trusts: 0.5, asks: 0.2 })).toBeCloseTo(0.6, 9)
-    expect(trust({ trusts: 1, inspired_by: 1, styles: 1 })).toBe(1)
+    expect(trust({ inspired_by: 0.5, styles: 0.2 })).toBeCloseTo(0.47, 9)
+    expect(trust({ inspired_by: 1, styles: 1 })).toBe(1)
     expect(trust({ remixed: 1 })).toBe(0)
   })
 })

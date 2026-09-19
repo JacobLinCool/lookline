@@ -17,8 +17,11 @@
  * 1. `finalHitRate` (full, final round) > `baselineHitRate` (static, final round);
  * 2. `oracleNdcg ≥ finalNdcg`;
  * 3. `|placeboNdcg − baselineNdcg| ≤ 0.05`;
- * 4. `finalCosine ≥ initialCosine + 0.05` (the learned vector moves toward the truth; the colour
- *    and axis blocks it shares with the prior cap the attainable gain, hence the modest bar).
+ * 4. `finalCosine ≥ initialCosine + 0.05` (the learned vector moves toward the truth). The bar
+ *    was cut to 0.03 while the 32 aesthetic dimensions were dropped for want of anything to fill
+ *    them: taste had only colour and the axes left to express itself in, both of which the prior
+ *    already covers, which capped how far the learned vector could travel. The vision pass fills
+ *    the block, the prior deliberately starts it at zero, and the default config now gains 0.157.
  */
 import { CATEGORY_GROUPS, createRng, hashSeed } from '@lookline/catalog'
 import type { Department } from '@lookline/db'
@@ -124,11 +127,11 @@ function armWeights(name: ArmName): Record<FactorName, number> {
 }
 
 function groupShareByDepartment(
-  products: readonly EvalProduct[],
+  articles: readonly EvalProduct[],
 ): Partial<Record<Department, number[]>> {
   const out: Partial<Record<Department, number[]>> = {}
   const counts = new Map<Department, number[]>()
-  for (const p of products) {
+  for (const p of articles) {
     let row = counts.get(p.department)
     if (!row) {
       row = Array.from({ length: CATEGORY_GROUPS.length }, () => 0)
@@ -147,7 +150,7 @@ function groupShareByDepartment(
 function truthFor(
   user: SyntheticUser,
   pool: CandidatePool,
-  products: readonly EvalProduct[],
+  articles: readonly EvalProduct[],
   k: number,
   relevantShare: number,
 ): Truth {
@@ -156,7 +159,7 @@ function truthFor(
   const hNorm = prefNorm(user.hidden)
   for (let i = 0; i < n; i++) {
     const item = pool.items[i]!
-    const p = products[item.product]!
+    const p = articles[item.product]!
     const budgetOk =
       p.price <= user.budgetMax
         ? 1
@@ -217,11 +220,11 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
   const poolSize = Math.max(k, opts.poolSize ?? DEFAULT_POOL)
   const relevantShare = opts.relevantShare ?? DEFAULT_RELEVANT_SHARE
 
-  const catalog = buildEvalCatalog(config.catalogSize, config.seed, opts.catalogSource ?? 'auto')
-  const products = catalog.products
-  const popularityMax = products.reduce((m, p) => Math.max(m, p.popularity), 0)
+  const catalog = buildEvalCatalog(config.catalogSize, config.seed)
+  const articles = catalog.articles
+  const popularityMax = articles.reduce((m, p) => Math.max(m, p.popularity), 0)
   const users = makeSyntheticUsers(config.users, config.seed, {
-    groupShare: groupShareByDepartment(products),
+    groupShare: groupShareByDepartment(articles),
   })
   const priors = new Map<Department, number[]>()
   const priorOf = (d: Department): number[] => {
@@ -241,7 +244,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
     if (!pool) {
       const template = templatesFor(department)[t]!
       pool = buildPool(
-        products,
+        articles,
         department,
         template,
         intentVectorFor(template),
@@ -257,7 +260,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
     const key = user.index * 64 + t
     let truth = truths.get(key)
     if (!truth) {
-      truth = truthFor(user, pool, products, k, relevantShare)
+      truth = truthFor(user, pool, articles, k, relevantShare)
       truths.set(key, truth)
     }
     return truth
@@ -364,7 +367,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
           budgetMax,
           brandCounts: condition === 'static' || condition === 'oracle' ? null : uc.brandCounts,
         }
-        const slate = rankPool(pool, products, weights, rankUser, k)
+        const slate = rankPool(pool, articles, weights, rankUser, k)
 
         // Click model
         const events: SlateEvent[] = []
@@ -372,7 +375,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
         let hit = 0
         let dcg = 0
         slate.forEach((item, position) => {
-          const product = products[pool.items[item]!.product]!
+          const product = articles[pool.items[item]!.product]!
           if (truth.relevant.has(item)) hit = 1
           dcg += (2 ** (truth.grade[item] ?? 0) - 1) / Math.log2(position + 2)
           const rng = createRng(hashSeed(config.seed, 'click', user.index, round, product.id))
@@ -412,12 +415,12 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
         // Learning
         if (condition === 'learned' || condition === 'full') {
           for (const e of events)
-            learnEvent(uc, products[pool.items[e.item]!.product]!, e.reward, now, p0)
+            learnEvent(uc, articles[pool.items[e.item]!.product]!, e.reward, now, p0)
         } else if (condition === 'placebo') {
           for (const e of events)
             placeboQueue.push({
               uc,
-              product: products[pool.items[e.item]!.product]!,
+              product: articles[pool.items[e.item]!.product]!,
               reward: e.reward,
               p0,
             })
@@ -484,10 +487,10 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
       const fullUsers = perUser.get('full')!
       users.forEach((user, i) => {
         const eff = effective(fullUsers[i]!.state, now, priorOf(user.department))
-        const top3 = Array.from({ length: BLOCK.A[1] }, (_, d) => d)
+        const top3 = Array.from({ length: BLOCK.C[1] }, (_, d) => d)
           .toSorted((a, b) => (eff.vector[b] ?? 0) - (eff.vector[a] ?? 0) || a - b)
           .slice(0, 3)
-        const hidden = Array.from({ length: BLOCK.A[1] }, (_, d) => d).filter(
+        const hidden = Array.from({ length: BLOCK.C[1] }, (_, d) => d).filter(
           (d) => (user.hidden[d] ?? 0) >= 0.7,
         )
         const hits = hidden.filter((d) => top3.includes(d)).length
@@ -550,8 +553,9 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
       eventTotals.purchase / Math.max(1, users.length * series.length),
     ),
     meanDismissesPerRound: roundTo(eventTotals.dismiss / Math.max(1, users.length * series.length)),
-    catalogSource: catalog.source === 'generated' ? 1 : 0,
-    catalogSize: products.length,
+    // Kept at 0: the harness has only the synthetic catalogue now.
+    catalogSource: 0,
+    catalogSize: articles.length,
     users: users.length,
     rounds: series.length,
     k,

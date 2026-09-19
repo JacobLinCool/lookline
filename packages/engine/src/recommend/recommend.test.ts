@@ -1,8 +1,17 @@
+import { STYLE_DIMENSIONS } from '@lookline/catalog'
 import { describe, expect, it } from 'vitest'
+import { LinUCB } from '../preference/bandit'
 import { sumContributions } from './explain'
-import { completeTheLookWith, runRecommend, similarProductsWith } from './index'
+import type { RankUser } from './factors'
+import {
+  DEFAULT_WEIGHTS,
+  chooseArm,
+  completeTheLookWith,
+  runRecommend,
+  similarProductsWith,
+} from './index'
 import { MemoryRetriever } from './retrieve'
-import { makeCatalog, makeContext, makeIntent } from './testing/fixtures'
+import { FIXTURE_NOW, makeCatalog, makeContext, makeIntent } from './testing/fixtures'
 import { fallbackIntentVector } from './intent-vector'
 
 const rows = makeCatalog(2000, 42)
@@ -27,7 +36,7 @@ describe('runRecommend (MemoryRetriever)', () => {
     expect(res.items.length).toBeLessThanOrEqual(8)
     expect(res.candidates).toBeGreaterThan(0)
     expect(res.outfits).toEqual([])
-    expect(res.intentVector.length).toBe(64)
+    expect(res.intentVector.length).toBe(STYLE_DIMENSIONS)
     expect(res.timings.retrieve).toBeGreaterThanOrEqual(0)
     for (const x of res.items) {
       expect(x.product.price).toBeLessThanOrEqual(3000)
@@ -42,7 +51,6 @@ describe('runRecommend (MemoryRetriever)', () => {
         r.subcategory === 'hoodie' &&
         r.colorFamily === 'black' &&
         r.price <= 3000 &&
-        r.stock > 0 &&
         r.department !== 'men' &&
         r.department !== 'kids',
     )
@@ -111,7 +119,7 @@ describe('runRecommend (MemoryRetriever)', () => {
       expect(o.budget).toBe(5000)
       expect(o.total).toBe(o.items.reduce((s, x) => s + x.product.price, 0))
       expect(o.compatibility).toBeGreaterThan(0)
-      expect(o.styleVector.length).toBe(64)
+      expect(o.styleVector.length).toBe(STYLE_DIMENSIONS)
       const roles = new Set(o.items.map((x) => x.role))
       expect(roles.has('shoes')).toBe(true)
       expect(roles.has('dress') || (roles.has('top') && roles.has('bottom'))).toBe(true)
@@ -126,7 +134,7 @@ describe('runRecommend (MemoryRetriever)', () => {
       }
       expect(o.items.filter((x) => x.role === 'outer').length).toBeLessThanOrEqual(1)
     }
-    // diversified: no two outfits share > 80% of their products
+    // diversified: no two outfits share > 80% of their articles
     for (let i = 0; i < res.outfits.length; i++) {
       for (let j = i + 1; j < res.outfits.length; j++) {
         const a = new Set(res.outfits[i]!.items.map((x) => x.product.id))
@@ -186,10 +194,8 @@ describe('runRecommend (MemoryRetriever)', () => {
 })
 
 describe('similarProductsWith / completeTheLookWith', () => {
-  it('similar products share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
-    const anchor = rows.find(
-      (r) => r.stock > 0 && r.categoryGroup === 'tops' && r.department === 'women',
-    )!
+  it('similar articles share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
+    const anchor = rows.find((r) => r.categoryGroup === 'tops' && r.department === 'women')!
     const items = await similarProductsWith(anchor, { retriever, context }, { limit: 6 })
     expect(items.length).toBeGreaterThan(0)
     expect(items.length).toBeLessThanOrEqual(6)
@@ -203,8 +209,7 @@ describe('similarProductsWith / completeTheLookWith', () => {
   })
   it('complete the look pins the product and stays under the budget', async () => {
     const anchor = rows.find(
-      (r) =>
-        r.stock > 0 && r.categoryGroup === 'tops' && r.department === 'women' && r.price < 2000,
+      (r) => r.categoryGroup === 'tops' && r.department === 'women' && r.price < 2000,
     )!
     const outfits = await completeTheLookWith(
       anchor,
@@ -220,5 +225,63 @@ describe('similarProductsWith / completeTheLookWith', () => {
       expect(o.items.some((x) => x.product.categoryGroup === 'bottoms')).toBe(true)
       expect(o.items.some((x) => x.product.categoryGroup === 'footwear')).toBe(true)
     }
+  })
+})
+
+describe('chooseArm (§4.4 — the bandit reaches the blend)', () => {
+  const user: RankUser = {
+    id: 'u_1',
+    department: 'women',
+    eventCount: 25,
+    giftEventCount: 0,
+    preference: null,
+    giftPreference: null,
+    budgetHint: null,
+    brandCounts: new Map(),
+    trusted: [
+      { userId: 'u_2', displayName: 'A', strength: 0.5 },
+      { userId: 'u_3', displayName: 'B', strength: 0.4 },
+    ],
+    createdAt: new Date(FIXTURE_NOW.getTime() - 30 * 86_400_000),
+  }
+  const withUser = () => makeContext({ user })
+
+  it('stays out of the way without a bandit or for a guest', () => {
+    const intent = makeIntent()
+    expect(chooseArm(null, intent, withUser(), { userId: 'u_1', outfit: false })).toBeNull()
+    expect(chooseArm(new LinUCB(), intent, withUser(), { outfit: false })).toBeNull()
+  })
+
+  it('builds the 8-d context out of the loaded user, not a cold-start default', () => {
+    const arm = chooseArm(new LinUCB(), makeIntent(), withUser(), {
+      userId: 'u_1',
+      outfit: true,
+    })
+    expect(arm).not.toBeNull()
+    const x = arm!.contextVector
+    expect(x).toHaveLength(8)
+    expect(x[1]).toBeCloseTo(25 / 50) // eventCount
+    expect(x[3]).toBeCloseTo(2 / 10) // trusted people
+    expect(x[5]).toBe(1) // outfit mode
+    expect(x[7]).toBeCloseTo(30 / 60) // days since signup
+    expect(arm!.name).toBe('balanced') // a fresh bandit ties to table order
+  })
+
+  it('reports the arm on the response so the impression can be attributed', async () => {
+    const res = await runRecommend(
+      { intent: makeIntent(), userId: 'u_1', limit: 4 },
+      { retriever, context: withUser(), bandit: new LinUCB() },
+    )
+    expect(res.arm?.name).toBe('balanced')
+    expect(res.arm?.contextVector).toHaveLength(8)
+  })
+
+  it('an explicit weights override keeps the bandit out of it', async () => {
+    const res = await runRecommend(
+      { intent: makeIntent(), userId: 'u_1', limit: 4, weights: { social_signal: 0.9 } },
+      { retriever, context: withUser(), bandit: new LinUCB() },
+    )
+    expect(res.arm).toBeUndefined()
+    expect(res.weights.social_signal).toBeGreaterThan(DEFAULT_WEIGHTS.social_signal)
   })
 })

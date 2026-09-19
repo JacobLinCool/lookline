@@ -29,7 +29,7 @@ function event(partial: Partial<TrendEvent> & Pick<TrendEvent, 'day' | 'weight'>
     type: 'VIEW',
     keys: [KEY],
     cluster: null,
-    productIds: [],
+    articleIds: [],
     lookId: null,
     rootLookId: null,
     gmv: 0,
@@ -129,7 +129,6 @@ describe('computeTrendSignals', () => {
         uniquePeople: 25,
         clustersReached: 2,
         shares: 0,
-        asks: 0,
         remixes: 0,
         purchases: 0,
         gmv: 0,
@@ -211,18 +210,18 @@ describe('momentum and emerging rules', () => {
 })
 
 describe('buildTrendEvents', () => {
+  const ID = '0000000001'
   const product: ProductLite = {
-    id: 1,
-    aesthetics: ['minimalist', 'quiet-luxury'],
+    id: ID,
     categoryGroup: 'outerwear',
     subcategory: 'trench-coat',
     colorFamily: 'neutral',
-    silhouette: 'a-line',
-    silhouetteId: 'outerwear-trench',
-    stock: 10,
     price: 3000,
+    aesthetics: ['quiet-luxury'],
+    attributes: { belt: true, lined: true },
+    printMotif: 'palm',
   }
-  const products = new Map([[1, product]])
+  const articles = new Map([[ID, product]])
   const looks: LookLite[] = [
     {
       id: 'l1',
@@ -239,8 +238,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: 'l1',
-      productId: null,
-      askId: null,
+      articleId: null,
       type: 'REMIX',
       sourceInteractionId: null,
       createdAt: new Date(`${END}T03:00:00Z`),
@@ -250,8 +248,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: null,
-      productId: 1,
-      askId: null,
+      articleId: '0000000001',
       type: 'DISMISS',
       sourceInteractionId: null,
       createdAt: new Date(`${END}T03:00:00Z`),
@@ -261,8 +258,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: null,
-      productId: 1,
-      askId: null,
+      articleId: '0000000001',
       type: 'PURCHASE', // derived from the purchases table instead
       sourceInteractionId: null,
       createdAt: new Date(`${END}T03:00:00Z`),
@@ -272,13 +268,12 @@ describe('buildTrendEvents', () => {
     {
       id: 'p1',
       userId: 'u3',
-      productId: 1,
+      articleId: '0000000001',
       quantity: 2,
       price: 3000,
       forKind: 'other',
       forUserId: 'u4',
       sourceLookId: 'l1',
-      sourceAskId: null,
       sourceInteractionId: null,
       intentSessionId: null,
       createdAt: new Date(`${END}T05:00:00Z`),
@@ -300,9 +295,9 @@ describe('buildTrendEvents', () => {
     interactions,
     purchases,
     looks,
-    lookProducts: [{ lookId: 'l1', productId: 1 }],
+    lookArticles: [{ lookId: 'l1', articleId: ID }],
     intents,
-    products,
+    articles,
     clusterOf: new Map([
       ['u1', 0],
       ['u2', 1],
@@ -310,17 +305,25 @@ describe('buildTrendEvents', () => {
     rootOf: new Map([['l1', 'l1']]),
   })
 
-  it('maps products, looks and intents to keys and weights', () => {
+  it('maps articles, looks and intents to keys and weights', () => {
+    // A tagged article moves its own aesthetics, and every design detail it carries.
     expect(productKeys(product)).toEqual(
       expect.arrayContaining([
-        trendKey('aesthetic', 'minimalist'),
         trendKey('aesthetic', 'quiet-luxury'),
         trendKey('category', 'outerwear'),
         trendKey('color', 'neutral'),
-        trendKey('silhouette', 'a-line'),
-        trendKey('aesthetic_category', 'minimalist|outerwear'),
+        trendKey('silhouette', 'trench-coat'),
+        trendKey('aesthetic_category', 'quiet-luxury|outerwear'),
+        trendKey('detail', 'belt'),
+        trendKey('motif', 'palm'),
       ]),
     )
+    // `lined` is a regex attribute, not a design detail, so it is not a dimension.
+    expect(productKeys(product)).not.toContain(trendKey('detail', 'lined'))
+    // An article the vision pass has not reached still moves the product type, as before.
+    const untagged = productKeys({ ...product, aesthetics: [], attributes: {} })
+    expect(untagged).toContain(trendKey('aesthetic', 'trench-coat'))
+    expect(untagged.some((k) => k.startsWith('detail::'))).toBe(false)
     expect(intentKeys(intents[0]!)).toEqual([
       trendKey('aesthetic', 'minimalist'),
       trendKey('aesthetic_category', 'minimalist|outerwear'),

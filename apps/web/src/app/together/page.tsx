@@ -1,19 +1,20 @@
 /**
  * /together — the judges' prototype tour: Ready Now, Made for You and Borrow a Look walked on live
- * catalog products with sample fulfilment states. Reached from the footer, not the primary nav.
+ * catalog articles with sample fulfilment states. Reached from the footer, not the primary nav.
  */
 import type { Metadata } from 'next'
-import { brands, desc, eq, gt, lookProducts, looks, products, users } from '@lookline/db'
+import { brands, desc, eq, lookArticles, looks, articles, users } from '@lookline/db'
 import {
   JourneyPrototype,
   type JourneyLook,
   type JourneyProduct,
 } from '@/components/together/journey'
+import { getI18n } from '@/i18n/server'
 import { getDb } from '@/server/db'
 
-export const metadata: Metadata = {
-  title: 'Prototype tour',
-  description: 'Ready Now, Made for You and Borrow a Look, on live catalog data.',
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.social.tour.title, description: t.social.tour.metaDescription }
 }
 
 interface JourneyData {
@@ -22,7 +23,7 @@ interface JourneyData {
   error: string | null
 }
 
-async function loadJourneyData(): Promise<JourneyData> {
+async function loadJourneyData(unavailable: string): Promise<JourneyData> {
   const { db } = getDb()
   try {
     const [lookRow] = await db
@@ -40,27 +41,27 @@ async function loadJourneyData(): Promise<JourneyData> {
 
     const lookRows = lookRow
       ? await db
-          .select({ product: products, brandName: brands.name, position: lookProducts.position })
-          .from(lookProducts)
-          .innerJoin(products, eq(lookProducts.productId, products.id))
-          .innerJoin(brands, eq(products.brandId, brands.id))
-          .where(eq(lookProducts.lookId, lookRow.id))
-          .orderBy(lookProducts.position)
+          .select({ product: articles, brandName: brands.name, position: lookArticles.position })
+          .from(lookArticles)
+          .innerJoin(articles, eq(lookArticles.articleId, articles.id))
+          .innerJoin(brands, eq(articles.brandId, brands.id))
+          .where(eq(lookArticles.lookId, lookRow.id))
+          .orderBy(lookArticles.position)
       : []
 
     const catalogRows = await db
-      .select({ product: products, brandName: brands.name })
-      .from(products)
-      .innerJoin(brands, eq(products.brandId, brands.id))
-      .where(gt(products.stock, 0))
-      .orderBy(desc(products.trendScore), desc(products.popularity))
+      .select({ product: articles, brandName: brands.name })
+      .from(articles)
+      .innerJoin(brands, eq(articles.brandId, brands.id))
+      .orderBy(desc(articles.trendScore), desc(articles.popularity))
       .limit(8)
 
-    const deduped = new Map<number, JourneyProduct>()
+    const deduped = new Map<string, JourneyProduct>()
     for (const row of [...lookRows, ...catalogRows]) {
       if (deduped.has(row.product.id)) continue
       deduped.set(row.product.id, {
         id: row.product.id,
+        imagePath: row.product.imagePath,
         name: row.product.name,
         brandName: row.brandName,
         price: row.product.price,
@@ -69,8 +70,6 @@ async function loadJourneyData(): Promise<JourneyData> {
         material: row.product.material,
         pattern: row.product.pattern,
         subcategory: row.product.subcategory,
-        sizes: row.product.sizes,
-        stock: row.product.stock,
       })
     }
 
@@ -92,12 +91,13 @@ async function loadJourneyData(): Promise<JourneyData> {
     return {
       products: [],
       sampleLook: null,
-      error: 'The live catalog is unavailable. Start the database and reload.',
+      error: unavailable,
     }
   }
 }
 
 export default async function TogetherHubPage() {
-  const data = await loadJourneyData()
+  const { t } = await getI18n()
+  const data = await loadJourneyData(t.social.tour.catalogUnavailable)
   return <JourneyPrototype {...data} />
 }

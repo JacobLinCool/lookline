@@ -28,6 +28,7 @@ import {
   type LabelEdge,
   type LabelNode,
 } from './graph/cluster'
+import { rebuildAndSaveBanditState } from '../preference/state'
 import { deriveRelationships } from './graph/relationships'
 import * as q from './queries'
 import { DAY_MS, addDays, compareStrings, dayKey, percentile, round } from './shared'
@@ -126,8 +127,6 @@ export async function runAnalytics(
     {
       interactions: raw.interactions,
       purchases: raw.purchases,
-      asks: raw.asks,
-      askResponses: raw.askResponses,
       looks: raw.looks,
       lookParticipants: raw.participants,
     },
@@ -184,8 +183,8 @@ export async function runAnalytics(
     for (const id of collectTree(forest, rootId).order) if (!rootOf.has(id)) rootOf.set(id, rootId)
   }
   const productsByLook = new Map<string, ProductLite[]>()
-  for (const lp of raw.lookProducts) {
-    const p = raw.products.get(lp.productId)
+  for (const lp of raw.lookArticles) {
+    const p = raw.articles.get(lp.articleId)
     if (!p) continue
     const list = productsByLook.get(lp.lookId)
     if (list) list.push(p)
@@ -199,9 +198,9 @@ export async function runAnalytics(
     interactions: raw.interactions,
     purchases: raw.purchases,
     looks: raw.looks,
-    lookProducts: raw.lookProducts,
+    lookArticles: raw.lookArticles,
     intents: raw.intents,
-    products: raw.products,
+    articles: raw.articles,
     clusterOf,
     rootOf,
   })
@@ -228,7 +227,7 @@ export async function runAnalytics(
   for (const p of raw.purchases) if (p.intentSessionId) sessionsWithPurchase.add(p.intentSessionId)
   const manufacturingRows = recommendManufacturing({
     events,
-    products: raw.products,
+    articles: raw.articles,
     intents: raw.intents,
     sessionsWithPurchase,
     signals: latest,
@@ -239,19 +238,29 @@ export async function runAnalytics(
   const manufacturing = await q.rebuildManufacturing(db, manufacturingRows, now)
 
   // 7. product trend scores from the last 14 days of weighted events
-  const productWeight = new Map<number, number>()
+  const productWeight = new Map<string, number>()
   const cutoff = addDays(endDay, -13)
   for (const e of events) {
     if (e.day < cutoff || e.day > endDay || e.weight <= 0) continue
-    for (const pid of e.productIds) productWeight.set(pid, (productWeight.get(pid) ?? 0) + e.weight)
+    for (const pid of e.articleIds) productWeight.set(pid, (productWeight.get(pid) ?? 0) + e.weight)
   }
   const top = percentile([...productWeight.values()], 0.95)
-  const scores = new Map<number, number>()
+  const scores = new Map<string, number>()
   if (top > 0) {
     for (const [pid, w] of productWeight)
       scores.set(pid, round(Math.min(1, Math.log1p(w) / Math.log1p(top))))
   }
   await q.updateTrendScores(db, scores)
+
+  // 8. bandit replay. Without it the first request that needs the bandit rebuilds from every
+  // attributed feedback row on the spot; here it is one batch job like the rest of this function.
+  let banditSlates = 0
+  try {
+    const bandit = await rebuildAndSaveBanditState(db, now)
+    for (const a of bandit.summary()) banditSlates += a.pulls
+  } catch (error) {
+    console.warn('[analytics] bandit replay skipped', error)
+  }
 
   return {
     relationships,
@@ -259,6 +268,7 @@ export async function runAnalytics(
     lineages,
     trendSignals,
     manufacturing,
+    banditSlates,
     durationMs: Math.round(performance.now() - started),
   }
 }
@@ -276,7 +286,12 @@ function labelFor(dimension: TrendSeries['dimension'], key: string): string {
     case 'color':
       return colorFamilyName(key)
     case 'silhouette':
+    case 'detail':
       return humanizeSlug(key)
+    // A motif is free text the model wrote, already lower-cased and clustered; it is not a slug
+    // and has no label table, so it is shown as it is.
+    case 'motif':
+      return key
     case 'aesthetic_category': {
       const { dimension: _d, key: raw } = splitTrendKey(trendKey(dimension, key))
       const i = raw.indexOf('|')
@@ -403,7 +418,6 @@ export async function getTrendDashboard(
     headline: {
       looks: headline.looks,
       remixes: headline.remixes,
-      asks: headline.asks,
       togethers: headline.togethers,
       shares: headline.shares,
       purchases: headline.purchases,
@@ -539,7 +553,7 @@ export async function getLineage(db: Database, lookId: string): Promise<LineageT
     return {
       look: l,
       owner,
-      products: productsByLook.get(id) ?? [],
+      articles: productsByLook.get(id) ?? [],
       children,
       purchases: agg?.count ?? 0,
       gmv: agg?.gmv ?? 0,

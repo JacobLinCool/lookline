@@ -2,18 +2,11 @@
 
 import { Search } from 'lucide-react'
 import { Button, Input } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
 import { cn } from '@/lib/cn'
 import { ExampleChips } from './example-chips'
 
 export const SAY_IT_INPUT_ID = 'say-it-q'
-
-/** Bilingual examples; each exercises a different slot (occasion + budget, gift, reference, outfit). */
-export const EXAMPLE_SENTENCES = [
-  '下週要去朋友婚禮，預算五千，不想太正式',
-  'gift for my dad under $100, he likes hiking',
-  'something like a Tokyo streetwear look but for a woman, under NT$4,000',
-  '幫我配一套約會穿搭，喜歡韓系簡約',
-] as const
 
 export interface SayItFormProps {
   /** Current sentence, echoed into the field. */
@@ -37,6 +30,8 @@ export function SayItForm({
   examples = !compact,
   className,
 }: SayItFormProps) {
+  const { t } = useI18n()
+  const sayIt = t.home.sayIt
   return (
     <div className={cn('flex w-full flex-col gap-4', className)}>
       <form
@@ -55,7 +50,7 @@ export function SayItForm({
       >
         {!compact ? (
           <label htmlFor={SAY_IT_INPUT_ID} className="sr-only">
-            What are you dressing for?
+            {sayIt.label}
           </label>
         ) : null}
         <Input
@@ -63,10 +58,8 @@ export function SayItForm({
           name="q"
           size={compact ? 'md' : 'lg'}
           defaultValue={q}
-          placeholder={
-            compact ? 'Change the sentence' : 'A wedding next week, under NT$5,000, not too formal'
-          }
-          aria-label={compact ? 'Your sentence' : undefined}
+          placeholder={compact ? sayIt.compactPlaceholder : sayIt.placeholder}
+          aria-label={compact ? sayIt.compactLabel : undefined}
           autoComplete="off"
           maxLength={500}
           required
@@ -79,10 +72,10 @@ export function SayItForm({
           icon={<Search />}
           className={cn(!compact && 'md:h-16 md:px-6')}
         >
-          Find pieces
+          {sayIt.submit}
         </Button>
       </form>
-      {examples ? <ExampleChips examples={EXAMPLE_SENTENCES} inputId={SAY_IT_INPUT_ID} /> : null}
+      {examples ? <ExampleChips examples={sayIt.examples} inputId={SAY_IT_INPUT_ID} /> : null}
     </div>
   )
 }

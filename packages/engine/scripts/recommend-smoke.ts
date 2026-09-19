@@ -2,7 +2,7 @@
  * Engine 02 smoke run against the seeded local catalog: recommend / searchProducts /
  * similarProducts / completeTheLook for 6 intents (3 中文, 3 English incl. a gift and an outfit),
  * printing timings and top results. Run: `pnpm --filter @lookline/engine exec tsx scripts/recommend-smoke.ts`.
- * When the products table is empty it says so and exits 0.
+ * When the articles table is empty it says so and exits 0.
  */
 import { sql } from '@lookline/db'
 import { createLocalDb, loadEnv } from '@lookline/db/node'
@@ -167,14 +167,14 @@ function printResponse(res: RecommendResponse): void {
 
 async function main(): Promise<void> {
   const count = Number(
-    (await db.all<{ c: number }>(sql`select count(*) as c from products`))[0]?.c ?? 0,
+    (await db.all<{ c: number }>(sql`select count(*) as c from articles`))[0]?.c ?? 0,
   )
   const vectors = Number(
     (await db.all<{ c: number }>(sql`select count(*) as c from product_vectors`))[0]?.c ?? 0,
   )
-  console.log(`products=${count} product_vectors=${vectors}`)
+  console.log(`articles=${count} product_vectors=${vectors}`)
   if (count === 0) {
-    console.log('products table is empty — nothing to smoke-test (run pnpm seed:catalog first)')
+    console.log('articles table is empty — nothing to smoke-test (run pnpm seed:catalog first)')
     return
   }
   const persona = (
@@ -228,8 +228,8 @@ async function main(): Promise<void> {
   }
 
   const anchor = (
-    await db.all<{ id: number }>(
-      sql`select id from products where stock > 0 and category_group = 'tops' and department = 'women' order by popularity desc limit 1`,
+    await db.all<{ id: string }>(
+      sql`select article_id as id from articles where category_group = 'tops' and department = 'women' order by popularity desc limit 1`,
     )
   )[0]?.id
   if (anchor) {

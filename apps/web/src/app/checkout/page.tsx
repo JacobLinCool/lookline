@@ -1,24 +1,23 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
-import { brands, eq, inArray, products } from '@lookline/db'
+import { brands, eq, inArray, articles } from '@lookline/db'
 import { Flash } from '@/components/looks/flash'
 import { OrderLines, orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
 import { RecipientPicker } from '@/components/looks/recipient-picker'
 import { SubmitButton } from '@/components/looks/submit-button'
 import { Button, Container, EmptyState, PageHeader, Price, Tag } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
 import { placeOrderAction } from '@/server/actions/purchase'
 import { requireUser } from '@/server/auth'
 import { getBag } from '@/server/bag'
 import { getDb } from '@/server/db'
-import { formatTwd, pluralize } from '@/server/format'
-import {
-  INTENT_SESSION_COOKIE,
-  SOURCE_ASK_COOKIE,
-  SOURCE_LOOK_COOKIE,
-  sanitizeId,
-} from '@/server/looks'
+import { formatTwd } from '@/server/format'
+import { INTENT_SESSION_COOKIE, SOURCE_LOOK_COOKIE, sanitizeId } from '@/server/looks'
 
-export const metadata: Metadata = { title: 'Checkout' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.bag.checkout.metaTitle }
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -27,28 +26,31 @@ const first = (v: string | string[] | undefined): string | undefined =>
 
 export default async function CheckoutPage({ searchParams }: { searchParams: SearchParams }) {
   await requireUser('/checkout')
-  const [params, lines, store] = await Promise.all([searchParams, getBag(), cookies()])
+  const [params, lines, store, { t }] = await Promise.all([
+    searchParams,
+    getBag(),
+    cookies(),
+    getI18n(),
+  ])
 
-  // Attribution: explicit searchParams (?look= ?ask= ?from=) win over cookies set while browsing.
+  // Attribution: explicit searchParams (?look= ?from=) win over cookies set while browsing.
   const sourceLookId =
     sanitizeId(first(params.look)) ?? sanitizeId(store.get(SOURCE_LOOK_COOKIE)?.value)
-  const sourceAskId =
-    sanitizeId(first(params.ask)) ?? sanitizeId(store.get(SOURCE_ASK_COOKIE)?.value)
   const intentSessionId =
     sanitizeId(first(params.from)) ?? sanitizeId(store.get(INTENT_SESSION_COOKIE)?.value)
 
-  const ids = [...new Set(lines.map((l) => l.productId))]
+  const ids = [...new Set(lines.map((l) => l.articleId))]
   const rows =
     ids.length > 0
       ? await getDb()
-          .db.select({ product: products, brandName: brands.name })
-          .from(products)
-          .innerJoin(brands, eq(products.brandId, brands.id))
-          .where(inArray(products.id, ids))
+          .db.select({ product: articles, brandName: brands.name })
+          .from(articles)
+          .innerJoin(brands, eq(articles.brandId, brands.id))
+          .where(inArray(articles.id, ids))
       : []
   const byId = new Map(rows.map((r) => [r.product.id, { ...r.product, brandName: r.brandName }]))
   const orderLines: OrderLine[] = lines.flatMap((line) => {
-    const product = byId.get(line.productId)
+    const product = byId.get(line.articleId)
     return product ? [{ product, size: line.size, qty: line.qty }] : []
   })
   const count = orderLines.reduce((sum, l) => sum + l.qty, 0)
@@ -57,12 +59,12 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   if (orderLines.length === 0) {
     return (
       <Container size="narrow" className="pb-24">
-        <PageHeader title="Checkout" />
+        <PageHeader title={t.bag.checkout.title} />
         <EmptyState
-          title="Your bag is empty."
+          title={t.bag.empty}
           action={
             <Button href="/shop" variant="secondary">
-              Browse the Shop
+              {t.bag.browseShop}
             </Button>
           }
         />
@@ -73,8 +75,8 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   return (
     <Container size="narrow" className="pb-24">
       <PageHeader
-        title="Checkout"
-        description={`${pluralize(count, 'piece')} · ${formatTwd(subtotal)}`}
+        title={t.bag.checkout.title}
+        description={t.bag.checkout.summary(count, formatTwd(subtotal))}
       />
       <Flash error={params.error} className="mb-6" />
 
@@ -82,25 +84,24 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
 
       <form action={placeOrderAction} className="mt-8 flex flex-col gap-8">
         <input type="hidden" name="sourceLookId" value={sourceLookId ?? ''} />
-        <input type="hidden" name="sourceAskId" value={sourceAskId ?? ''} />
         <input type="hidden" name="intentSessionId" value={intentSessionId ?? ''} />
 
         <RecipientPicker defaultValue="self" />
 
         <div className="flex items-baseline justify-between border-t border-line pt-4">
-          <span className="text-[14px] font-medium">Total</span>
+          <span className="text-[14px] font-medium">{t.bag.checkout.total}</span>
           <Price amount={subtotal} size="lg" />
         </div>
 
         <div className="flex flex-wrap items-center gap-4">
-          <SubmitButton size="lg" pendingLabel="Placing order…">
-            Place order · {formatTwd(subtotal)}
+          <SubmitButton size="lg" pendingLabel={t.bag.checkout.placing}>
+            {t.bag.checkout.placeOrder(formatTwd(subtotal))}
           </SubmitButton>
           <Button href="/bag" variant="link">
-            Back to bag
+            {t.bag.checkout.backToBag}
           </Button>
           <Tag tone="outline" className="ml-auto">
-            Sample · no payment
+            {t.bag.checkout.sample}
           </Tag>
         </div>
       </form>

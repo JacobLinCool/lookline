@@ -17,11 +17,13 @@ import {
   looks,
   ne,
   preferenceSnapshots,
-  products,
+  articles,
   relationships,
   users,
   type Database,
+  type RelationshipKind,
 } from '@lookline/db'
+import { TRUST_MIN, trustFromRows } from '../recommend/context'
 import type { FeedbackInput, PreferenceProfile } from '../types'
 import { collectSlates } from './bandit'
 import {
@@ -44,14 +46,14 @@ const PROFILE_EVENT_LIMIT = 2000
 
 async function loadEventVector(
   db: Database,
-  productId: number | null | undefined,
+  articleId: string | null | undefined,
   lookId: string | null | undefined,
 ): Promise<number[] | null> {
-  if (productId != null) {
+  if (articleId != null) {
     const [row] = await db
-      .select({ vector: products.styleVector })
-      .from(products)
-      .where(eq(products.id, productId))
+      .select({ vector: articles.styleVector })
+      .from(articles)
+      .where(eq(articles.id, articleId))
       .limit(1)
     const v = asVector(row?.vector)
     if (v) return v
@@ -82,17 +84,17 @@ async function loadProfileEvents(
       forOthers: feedbackEvents.forOthers,
       context: feedbackEvents.context,
       createdAt: feedbackEvents.createdAt,
-      productId: feedbackEvents.productId,
+      articleId: feedbackEvents.articleId,
       lookId: feedbackEvents.lookId,
       intentSessionId: feedbackEvents.intentSessionId,
-      productVector: products.styleVector,
-      productName: products.name,
+      productVector: articles.styleVector,
+      productName: articles.name,
       brandName: brands.name,
       lookVector: looks.styleVector,
     })
     .from(feedbackEvents)
-    .leftJoin(products, eq(feedbackEvents.productId, products.id))
-    .leftJoin(brands, eq(products.brandId, brands.id))
+    .leftJoin(articles, eq(feedbackEvents.articleId, articles.id))
+    .leftJoin(brands, eq(articles.brandId, brands.id))
     .leftJoin(looks, eq(feedbackEvents.lookId, looks.id))
     .where(eq(feedbackEvents.userId, userId))
     .orderBy(desc(feedbackEvents.createdAt), desc(feedbackEvents.id))
@@ -105,7 +107,7 @@ async function loadProfileEvents(
     forOthers: r.forOthers,
     context: r.context ?? {},
     createdAt: r.createdAt,
-    productId: r.productId,
+    articleId: r.articleId,
     lookId: r.lookId,
     intentSessionId: r.intentSessionId,
     vector: asVector(r.productVector) ?? asVector(r.lookVector),
@@ -126,7 +128,7 @@ export async function recordFeedback(db: Database, input: FeedbackInput): Promis
   await db.insert(feedbackEvents).values({
     id,
     userId: input.userId,
-    productId: input.productId ?? null,
+    articleId: input.articleId ?? null,
     lookId: input.lookId ?? null,
     intentSessionId: input.intentSessionId ?? null,
     kind: input.kind,
@@ -150,7 +152,7 @@ export async function recordFeedback(db: Database, input: FeedbackInput): Promis
     .limit(1)
   if (!user) return
   const p0 = departmentPrior(user.department)
-  const vector = await loadEventVector(db, input.productId, input.lookId)
+  const vector = await loadEventVector(db, input.articleId, input.lookId)
 
   // Meta state (n, mass, lastAt) of each target from the events before this one.
   const prior = await db
@@ -281,9 +283,9 @@ export async function getPreferenceProfile(
       .orderBy(desc(preferenceSnapshots.version))
       .limit(10),
     db
-      .select({ b: relationships.bUserId })
+      .select({ b: relationships.bUserId, kind: relationships.kind, weight: relationships.weight })
       .from(relationships)
-      .where(and(eq(relationships.aUserId, userId), eq(relationships.kind, 'trusts'))),
+      .where(eq(relationships.aUserId, userId)),
     loadBanditState(db, { now }),
   ])
   return buildProfile({
@@ -295,9 +297,20 @@ export async function getPreferenceProfile(
     events,
     snapshots,
     bandit,
-    trustedCount: trusted.length,
+    trustedCount: countTrusted(trusted),
     now,
   })
+}
+
+/** People `userId` trusts by the same rule the recommender's social channel uses. */
+function countTrusted(
+  rows: ReadonlyArray<{ b: string; kind: RelationshipKind; weight: number }>,
+): number {
+  const byPerson = new Map<string, Array<{ kind: RelationshipKind; weight: number }>>()
+  for (const r of rows) byPerson.set(r.b, [...(byPerson.get(r.b) ?? []), r])
+  let n = 0
+  for (const edges of byPerson.values()) if (trustFromRows(edges) >= TRUST_MIN) n++
+  return n
 }
 
 // Additions to the contract surface (distinctively named to avoid barrel collisions).

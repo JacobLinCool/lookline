@@ -3,16 +3,15 @@
  * keep names and shapes stable; add optional fields, do not rename or remove.
  */
 import type {
-  Ask,
-  AskResponse,
   Department,
   EvaluationRun,
   FeedbackKind,
+  IntentProvider,
   LineageStat,
   LlmProvider,
   Look,
   ManufacturingRecommendation,
-  Product,
+  Article,
   Purchase,
   PurchaseFor,
   Relationship,
@@ -21,7 +20,14 @@ import type {
   User,
   Visibility,
 } from '@lookline/db'
-import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
+import type {
+  Axis,
+  CategoryGroup,
+  ColorFamily,
+  SearchFacetField,
+  SearchFacetKey,
+  Season,
+} from '@lookline/catalog'
 
 // ---------------------------------------------------------------------------
 // LLM provider abstraction
@@ -38,11 +44,19 @@ export interface LlmJsonRequest<T> {
   purpose?: string
 }
 
+/** An image handed to the model, optionally named so the prompt can refer to it by role. */
+export interface ReferenceImage {
+  mimeType: string
+  data: Buffer
+  /** e.g. `Garment 1` or `Person reference 2`; providers receive it alongside the bytes. */
+  label?: string
+}
+
 export interface LlmImageRequest {
   signal?: AbortSignal
   timeoutMs?: number
   prompt: string
-  referenceImages?: Array<{ mimeType: string; data: Buffer }>
+  referenceImages?: ReferenceImage[]
   aspectRatio?: '3:4' | '1:1' | '4:5' | '9:16'
   purpose?: string
 }
@@ -127,7 +141,8 @@ export interface IntentContext {
 export interface IntentResult {
   intent: Intent
   vector: number[]
-  provider: LlmProvider
+  /** Who produced it: `jev` for the decision stage, a generative provider once it escalated. */
+  provider: IntentProvider
   /** Model id used by the provider (null for offline). */
   model?: string | null
   latencyMs: number
@@ -168,7 +183,7 @@ export interface Explanation {
 }
 
 export interface RankedItem {
-  product: Product
+  product: Article
   brandName: string
   score: number
   explanation: Explanation
@@ -192,7 +207,7 @@ export interface RecommendRequest {
   limit?: number
   outfits?: boolean
   outfitCount?: number
-  exclude?: number[]
+  exclude?: string[]
   intentSessionId?: string
   /** Override blend weights (used by the bandit and by evaluation). */
   weights?: Partial<Record<FactorName, number>>
@@ -205,10 +220,25 @@ export interface RecommendResponse {
   weights: Record<FactorName, number>
   intentVector: number[]
   timings: Record<string, number>
+  /**
+   * The blend arm the bandit picked and the context it was picked for (§4.4). Absent for guests
+   * and when `weights` were overridden. Both fields must reach the impression's `context` or the
+   * slate's reward cannot be attributed back to the arm.
+   */
+  arm?: { name: string; contextVector: number[] }
 }
 
+/**
+ * A catalog search. The facet pairs (`categoryGroups` / `excludedCategoryGroups`, …) are the
+ * `SEARCH_FACETS` registry of `@lookline/catalog`: values within one facet are OR, facets are
+ * AND, and an exclusion is enforced by SQL. `q` is free text the lexicon scans for taxonomy terms
+ * before the residual goes to full-text search; `keywords` are concepts already known to be free
+ * text (`whale|orca`, alternatives joined by `|`), AND-ed together and matched against the
+ * full-text index without a lexicon pass.
+ */
 export interface ProductSearch {
   q?: string
+  keywords?: string[]
   department?: Department
   categoryGroups?: CategoryGroup[]
   excludedCategoryGroups?: CategoryGroup[]
@@ -218,6 +248,26 @@ export interface ProductSearch {
   excludedAesthetics?: string[]
   colorFamilies?: ColorFamily[]
   excludedColorFamilies?: ColorFamily[]
+  materials?: string[]
+  excludedMaterials?: string[]
+  patterns?: string[]
+  excludedPatterns?: string[]
+  printSubjects?: string[]
+  excludedPrintSubjects?: string[]
+  silhouettes?: string[]
+  excludedSilhouettes?: string[]
+  fits?: string[]
+  excludedFits?: string[]
+  lengths?: string[]
+  excludedLengths?: string[]
+  necklines?: string[]
+  excludedNecklines?: string[]
+  sleeves?: string[]
+  excludedSleeves?: string[]
+  closures?: string[]
+  excludedClosures?: string[]
+  details?: string[]
+  excludedDetails?: string[]
   brandId?: number
   priceMin?: number
   priceMax?: number
@@ -225,27 +275,36 @@ export interface ProductSearch {
   page?: number
   pageSize?: number
 }
+/** Compile-time check that every registry facet has its pair of fields on `ProductSearch`. */
+export type ProductSearchFacetFields = Pick<ProductSearch, SearchFacetField>
+
+export interface FacetCount {
+  key: string
+  count: number
+}
+/**
+ * Counts per facet value over the whole filtered set, keyed by the facet's selection field. The
+ * semantic facets (category groups, colour families, aesthetics) are always present; a
+ * construction facet is absent until `countFacet` has been asked for it.
+ */
+export type ProductSearchFacets = {
+  categoryGroups: FacetCount[]
+  colorFamilies: FacetCount[]
+  aesthetics: FacetCount[]
+} & { [K in SearchFacetKey]?: FacetCount[] }
 
 export interface ProductSearchResult {
-  items: Array<Product & { brandName: string }>
+  items: Array<Article & { brandName: string }>
   total: number
   page: number
   pageSize: number
-  facets?: {
-    categoryGroups: Array<{ key: string; count: number }>
-    colorFamilies: Array<{ key: string; count: number }>
-    aesthetics: Array<{ key: string; count: number }>
-  }
+  facets?: ProductSearchFacets
 }
-
-// ---------------------------------------------------------------------------
-// Engine 03 — preference feedback loop
-// ---------------------------------------------------------------------------
 
 export interface FeedbackInput {
   userId: string
   kind: FeedbackKind
-  productId?: number | null
+  articleId?: string | null
   lookId?: string | null
   intentSessionId?: string | null
   position?: number | null
@@ -274,6 +333,8 @@ export interface PreferenceProfile {
   topColorFamilies: Array<{ family: ColorFamily; weight: number }>
   axes: Record<Axis, number>
   giftTopAesthetics: PreferenceAesthetic[]
+  /** Colour families of the taste-for-others vector. */
+  giftTopColorFamilies: Array<{ family: string; weight: number }>
   snapshots: Array<{ version: number; createdAt: Date; metrics: Record<string, number> }>
   /** Current bandit state summary, for the profile card. */
   bandit?: {
@@ -334,20 +395,19 @@ export interface DeterministicOptions {
 
 export interface PurchaseInput extends DeterministicOptions {
   userId: string
-  productId: number
+  articleId: string
   quantity?: number
   size?: string | null
   forKind?: PurchaseFor
   forUserId?: string | null
   forLabel?: string | null
   sourceLookId?: string | null
-  sourceAskId?: string | null
   intentSessionId?: string | null
 }
 
 export interface CreateLookInput extends DeterministicOptions {
   ownerId: string
-  productIds: number[]
+  articleIds: string[]
   stylePreset: string
   title?: string
   prompt?: string | null
@@ -372,33 +432,12 @@ export interface RemixSuggestion {
   palette: string[]
 }
 
-export interface CreateAskInput extends DeterministicOptions {
-  askerId: string
-  kind: 'choose' | 'style_me'
-  question: string
-  optionProductIds?: number[]
-  lookId?: string | null
-  targetUserId?: string | null
-  budget?: number | null
-  occasion?: string | null
-}
-
-export interface AnswerAskInput extends DeterministicOptions {
-  askId: string
-  responderUserId?: string | null
-  responderName?: string | null
-  choiceProductId?: number | null
-  styledLookId?: string | null
-  comment?: string | null
-}
-
 export interface InteractionInput extends DeterministicOptions {
   actorUserId: string
   type: import('@lookline/db').InteractionType
   targetUserId?: string | null
   lookId?: string | null
-  productId?: number | null
-  askId?: string | null
+  articleId?: string | null
   payload?: Record<string, unknown>
   sourceInteractionId?: string | null
 }
@@ -413,23 +452,29 @@ export interface LookPosterInput {
   title: string
   ownerName: string
   stylePreset: string
-  products: Array<
-    Pick<
-      Product,
-      | 'name'
-      | 'colorHex'
-      | 'silhouetteId'
-      | 'pattern'
-      | 'aesthetics'
-      | 'imageSeed'
-      | 'categoryGroup'
-      | 'secondaryColorHex'
-    >
-  >
+  articles: Array<Pick<Article, 'name' | 'colorHex' | 'subcategory' | 'pattern' | 'categoryGroup'>>
   palette: string[]
   aesthetics: string[]
   seed: number
   editionNumber?: number
+  /** Edition size. With `editionNumber` the card reads 1/N; alone it reads "Edition of N". */
+  editionOf?: number
+  /**
+   * `artwork` draws the ground, the garments and the palette and leaves every word out. The
+   * share export needs that: its text is laid out around the picture, by something that can
+   * reach a font with Chinese in it, which the rasteriser cannot.
+   */
+  chrome?: 'full' | 'artwork'
+  /**
+   * A multi-person card: one band per subject, each holding that subject's own pieces. Without
+   * this the poster is a single flat lay and nothing says whose clothes are whose.
+   */
+  groups?: Array<{
+    name: string
+    articles: Array<
+      Pick<Article, 'name' | 'colorHex' | 'subcategory' | 'pattern' | 'categoryGroup'>
+    >
+  }>
 }
 
 export interface StylePreset {
@@ -459,7 +504,7 @@ export interface UserSummary {
 export interface LineageNode {
   look: Look
   owner: UserSummary
-  products: Array<Product & { brandName: string }>
+  articles: Array<Article & { brandName: string }>
   children: LineageNode[]
   purchases: number
   gmv: number
@@ -501,7 +546,6 @@ export interface TrendDashboard {
   headline: {
     looks: number
     remixes: number
-    asks: number
     togethers: number
     shares: number
     purchases: number
@@ -517,7 +561,7 @@ export interface TrendDashboard {
   silhouettes: TrendSeries[]
   aestheticCategory: TrendSeries[]
   emerging: TrendSeries[]
-  topLineages: Array<{ stats: LineageStat; look: Look; owner: UserSummary; products: Product[] }>
+  topLineages: Array<{ stats: LineageStat; look: Look; owner: UserSummary; articles: Article[] }>
   influencers: Influencer[]
   clusters: Array<{ id: number; size: number; topAesthetics: string[]; label: string }>
   manufacturing: ManufacturingRecommendation[]
@@ -536,15 +580,15 @@ export interface AnalyticsSummary {
   lineages: number
   trendSignals: number
   manufacturing: number
+  /** Closed slates replayed into `bandit_state` (§4.4). */
+  banditSlates: number
   durationMs: number
 }
 
 export type {
-  Ask,
-  AskResponse,
   Look,
   Purchase,
-  Product,
+  Article,
   User,
   LineageStat,
   ManufacturingRecommendation,

@@ -65,11 +65,14 @@ export function openaiImage(
               {
                 ...common,
                 image: await Promise.all(
-                  refs.map((r, i) =>
-                    toFile(r.data, `reference-${i}.${r.mimeType.split('/')[1] ?? 'png'}`, {
+                  refs.map((r, i) => {
+                    const name = (r.label ?? `reference ${i + 1}`)
+                      .toLowerCase()
+                      .replaceAll(/[^a-z0-9]+/gu, '-')
+                    return toFile(r.data, `${name}.${r.mimeType.split('/')[1] ?? 'png'}`, {
                       type: r.mimeType,
-                    }),
-                  ),
+                    })
+                  }),
                 ),
               },
               { signal },

@@ -11,7 +11,6 @@ const T0 = Date.UTC(2026, 8, 1) // 1 Sep 2026
 const at = (days: number, hours = 0): Date => new Date(T0 + days * DAY + hours * 3_600_000)
 
 const gorp = toStyleVector({
-  aesthetics: { gorpcore: 0.95, techwear: 0.6 },
   colorFamily: 'green',
   axes: {
     formality: 0.2,
@@ -26,7 +25,6 @@ const gorp = toStyleVector({
   categoryGroup: 'outerwear',
 })
 const glam = toStyleVector({
-  aesthetics: { glam: 1 },
   colorFamily: 'multi-metallic',
   axes: {
     formality: 0.85,
@@ -58,7 +56,7 @@ function ev(
     forOthers: false,
     context: {},
     createdAt,
-    productId: seq,
+    articleId: String(seq).padStart(10, '0'),
     lookId: null,
     intentSessionId: null,
     vector,
@@ -146,7 +144,9 @@ describe('buildProfile', () => {
     expect(none.axes.warmth).toBe(0.5)
   })
 
-  it('top aesthetics: weight, confidence = w·(1 − e^{−n_tag/5}), evidence from the actual events', () => {
+  // The style space has no aesthetic dimensions, so a profile reports none; colour is what a
+  // learned taste can still be read off.
+  it('reports no aesthetics and reads taste off the colour block', () => {
     const events = [
       ev('save', 0.4, gorp, at(0)),
       ev('save', 0.4, gorp, at(1)),
@@ -157,24 +157,7 @@ describe('buildProfile', () => {
     ]
     const p = base(events)
     expect(p.eventCount).toBe(6)
-    expect(p.topAesthetics.length).toBeGreaterThan(0)
-    expect(p.topAesthetics.length).toBeLessThanOrEqual(5)
-    const top = p.topAesthetics[0]!
-    expect(top.slug).toBe('gorpcore')
-    expect(top.name).toBe('Gorpcore')
-    expect(top.weight).toBe(p.vector![aestheticIndex('gorpcore')])
-    expect(top.weight).toBeGreaterThanOrEqual(0.25)
-    // 5 positive events carry gorpcore ≥ .4
-    expect(top.confidence).toBeCloseTo(top.weight * (1 - Math.exp(-5 / 5)), 10)
-    expect(top.evidence).toHaveLength(3)
-    expect(top.evidence[0]).toBe('saved 3 pieces tagged gorpcore')
-    // the purchase has the largest |r|·decay·v[tag]
-    expect(top.evidence[1]).toBe('bought Northline Wool Overcoat (+1.00, 4 Sep)')
-    expect(top.evidence[2]).toMatch(/^saved Northline Trail Shell \(\+0\.40, [123] Sep\)$/)
-    // glam was only dismissed → not a top aesthetic
-    expect(p.topAesthetics.find((a) => a.slug === 'glam')).toBeUndefined()
-    const weights = p.topAesthetics.map((a) => a.weight)
-    expect(weights).toEqual(weights.toSorted((a, b) => b - a))
+    expect(p.topAesthetics).toEqual([])
     expect(p.topColorFamilies[0]!.family).toBe('green')
   })
 
@@ -188,22 +171,13 @@ describe('buildProfile', () => {
         productName: 'Sequin Dress',
       }),
       ev('save', 0.4, glam, at(4), { forOthers: true, productName: 'Sequin Dress' }),
-      ev('ask_choice', 0.15, glam, at(5), {
-        context: { role: 'adviser', chosen: true },
-        productName: 'Sequin Dress',
-      }),
+      ev('click', 0.1, glam, at(5), { forOthers: true, productName: 'Sequin Dress' }),
     ]
     const p = base(events)
-    expect(p.topAesthetics[0]!.slug).toBe('gorpcore')
-    expect(p.topAesthetics.find((a) => a.slug === 'glam')).toBeUndefined()
+    // Self taste is green (gorp), gift taste pink (glam) — the colour block is where they split.
+    expect(p.topColorFamilies[0]!.family).toBe('green')
     expect(p.giftVector).not.toBeNull()
-    expect(p.giftTopAesthetics[0]!.slug).toBe('glam')
-    expect(p.giftTopAesthetics[0]!.evidence).toContain(
-      'bought Northline Sequin Dress for mum (+1.00, 4 Sep)',
-    )
-    expect(p.giftVector![aestheticIndex('glam')]!).toBeGreaterThan(
-      p.vector![aestheticIndex('glam')]!,
-    )
+    expect(p.giftTopColorFamilies[0]!.family).toBe('multi-metallic')
   })
 
   it('uses the stored vector when present and lists the last 10 snapshots', () => {
@@ -220,11 +194,7 @@ describe('buildProfile', () => {
       metrics: { mass: i },
     }))
     const p = base(events, { preferenceVector: stored, snapshots })
-    expect(p.vector![aestheticIndex('scandi')]).toBeCloseTo(
-      0.9 * 2 ** (-8 / 45) + stored[aestheticIndex('scandi')]! * 0,
-      1,
-    )
-    expect(p.topAesthetics[0]!.slug).toBe('scandi')
+    expect(p.vector).not.toBeNull()
     expect(p.snapshots).toHaveLength(10)
     expect(p.snapshots[0]!.version).toBe(12)
     expect(p.snapshots[9]!.version).toBe(3)

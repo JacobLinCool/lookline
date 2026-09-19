@@ -138,6 +138,46 @@
 .more[open] .moreSummary {
   color: var(--color-ink);
 }
+.attribute {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--color-line);
+}
+.attributeSummary {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 10px;
+  min-height: 24px;
+  cursor: pointer;
+  list-style: none;
+}
+.attributeSummary::-webkit-details-marker {
+  display: none;
+}
+.attributeValue {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.attribute[open] .attributeValue {
+  color: var(--color-ink);
+}
+.attributeBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 12px;
+}
+.attributeEmpty {
+  font-size: 12px;
+  color: var(--color-muted);
+}
 .swatches {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -338,6 +378,54 @@
 .disclosureContent {
   padding: 12px 2px 4px;
 }
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 36px;
+  animation: hint-in 160ms var(--filter-ease, ease-out);
+}
+.hintQuestion {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+.hint .chip {
+  cursor: pointer;
+}
+.hintSkip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+.hintSkip:hover {
+  background: var(--color-mist);
+  color: var(--color-ink);
+}
+.hintSkip svg {
+  width: 16px;
+  height: 16px;
+}
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 .liveInput::placeholder {
   color: var(--color-muted);
   opacity: 1;
@@ -358,6 +446,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .hint {
+    animation: none;
+  }
   .choice,
   .check,
   .swatchCheck,

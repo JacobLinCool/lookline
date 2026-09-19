@@ -3,11 +3,14 @@
  * `completeTheLook`, `searchProducts`). `recommend` never writes feedback events or interactions:
  * the web layer logs impressions.
  */
-import { axisIndex, findColor, toStyleVector } from '@lookline/catalog'
+import { STYLE_BLOCKS, axisIndex, toStyleVector } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
-import { brands, eq, lookProducts, looks, products, users } from '@lookline/db'
-import type { Database, Department, Product } from '@lookline/db'
-import type { Outfit, RankedItem, RecommendRequest, RecommendResponse } from '../types'
+import { brands, eq, lookArticles, looks, articles, users } from '@lookline/db'
+import type { Article, Database, Department } from '@lookline/db'
+import type { FactorName, Outfit, RankedItem, RecommendRequest, RecommendResponse } from '../types'
+import { contextVector } from '../preference/bandit'
+import type { LinUCB } from '../preference/bandit'
+import { loadBanditState } from '../preference/state'
 import { templateForOccasion } from './aesthetics'
 import { loadContext } from './context'
 import type { ContextInput } from './context'
@@ -15,6 +18,7 @@ import type { RankContext } from './factors'
 import { computeIntentVector } from './intent-vector'
 import {
   budgetOf,
+  isGift,
   parseTokens,
   resolveDepartments,
   resolvedDepartment,
@@ -28,11 +32,12 @@ import { plansForTemplate, roleForGroup } from './outfit/templates'
 import { SqlRetriever, emptyParams, retrieveWithRelaxation } from './retrieve'
 import type { ChannelParams, Retriever, RetrieveParams } from './retrieve'
 import { rank } from './score'
-import { searchProducts } from './search'
+import { countFacet, searchProducts } from './search'
 import { RETRIEVAL_BLOCK_WEIGHTS, blockScale } from './vector'
-import { resolveWeights } from './weights'
+import { DEFAULT_WEIGHTS, resolveWeights } from './weights'
+import type { ArmName } from './weights'
 
-export { searchProducts }
+export { searchProducts, countFacet }
 export { SqlRetriever, PgRetriever, MemoryRetriever, retrieveWithRelaxation } from './retrieve'
 export type {
   Candidate,
@@ -72,6 +77,38 @@ export interface RecommendDeps {
   intentVector?: number[]
   seed?: number
   partner?: PartnerLook | null
+  /** The global bandit (§4.4). Absent → the default `balanced` blend, as before it was wired in. */
+  bandit?: LinUCB | null
+}
+
+/**
+ * Pick the blend arm for this request (§4.4). Returns `null` when there is no bandit or no signed-in
+ * user, which leaves `DEFAULT_WEIGHTS` in charge. The context vector is returned with the choice
+ * because the caller has to log both on the impression for the reward to be attributable.
+ */
+export function chooseArm(
+  bandit: LinUCB | null | undefined,
+  intent: EngineIntent,
+  context: ContextInput,
+  opts: { userId?: string; outfit: boolean },
+): { name: ArmName; weights: Record<FactorName, number>; contextVector: number[] } | null {
+  if (!bandit || !opts.userId) return null
+  const user = context.user
+  const eventCount = user?.eventCount ?? 0
+  const createdAt = user?.createdAt ?? null
+  const x = contextVector({
+    eventCount,
+    recipientOther: isGift(intent),
+    trustedCount: user?.trusted.length ?? 0,
+    confidence: intent.confidence,
+    outfit: opts.outfit,
+    hasBudgetMax: budgetOf(intent).max !== null,
+    daysSinceSignup: createdAt
+      ? Math.max(0, (context.now.getTime() - createdAt.getTime()) / 86_400_000)
+      : 0,
+  })
+  const choice = bandit.choose(x, { eventCount })
+  return { name: choice.name as ArmName, weights: choice.weights, contextVector: x }
 }
 
 /** Shared prefilters from the intent tokens (§1.2) and the request. */
@@ -100,9 +137,11 @@ export function baseParamsFor(
     excludeColorFamilies: avoid.colorFamilies,
     excludeSubcategories: avoid.subcategories,
     excludeBrandIds,
-    excludeProductIds: [...(req.exclude ?? [])],
+    excludeArticleIds: [...(req.exclude ?? [])],
     requireAttributes: Object.fromEntries(have.attributes.map((a) => [a, true as const])),
     excludeAttributes: Object.fromEntries(avoid.attributes.map((a) => [a, true as const])),
+    sleeves: have.sleeves,
+    excludeSleeves: avoid.sleeves,
   })
 }
 
@@ -126,7 +165,15 @@ export async function runRecommend(
   const intent = req.intent as EngineIntent
   const context = deps.context
   const user = context.user
-  const weights = resolveWeights(req.weights)
+  const wantOutfitsForArm = req.outfits ?? intent.mode === 'outfit'
+  // An explicit `req.weights` (evaluation, the engine lab) still wins; otherwise the arm decides.
+  const arm = req.weights
+    ? null
+    : chooseArm(deps.bandit, intent, context, {
+        userId: req.userId,
+        outfit: wantOutfitsForArm,
+      })
+  const weights = resolveWeights(req.weights, arm?.weights ?? DEFAULT_WEIGHTS)
   const base = user?.preference ?? null
   const intentVector = deps.intentVector ?? computeIntentVector(intent, base, user?.eventCount)
   const department = resolvedDepartment(intent, user?.department ?? null)
@@ -142,7 +189,7 @@ export async function runRecommend(
     popularityMax: context.popularityMax,
     weights,
   }
-  const wantOutfits = req.outfits ?? intent.mode === 'outfit'
+  const wantOutfits = wantOutfitsForArm
   let items: RankedItem[] = []
   let outfits: Outfit[] = []
   let candidates = 0
@@ -189,7 +236,9 @@ export async function runRecommend(
     if (items.length === 0) items = built.slotItems.slice(0, req.limit ?? 10)
   }
   timings.total = performance.now() - t0
-  return { items, outfits, candidates, weights, intentVector, timings }
+  const res: RecommendResponse = { items, outfits, candidates, weights, intentVector, timings }
+  if (arm) res.arm = { name: arm.name, contextVector: arm.contextVector }
+  return res
 }
 
 async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLook | null> {
@@ -200,10 +249,10 @@ async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLoo
       .innerJoin(users, eq(users.id, looks.ownerId))
       .where(eq(looks.id, lookId)),
     db
-      .select({ product: products })
-      .from(lookProducts)
-      .innerJoin(products, eq(products.id, lookProducts.productId))
-      .where(eq(lookProducts.lookId, lookId)),
+      .select({ product: articles })
+      .from(lookArticles)
+      .innerJoin(articles, eq(articles.id, lookArticles.articleId))
+      .where(eq(lookArticles.lookId, lookId)),
   ])
   const look = lookRows[0]
   if (!look) return null
@@ -226,7 +275,7 @@ async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLoo
   if (!styleVector && items.length > 0) {
     styleVector = Array.from({ length: 64 }, () => 0)
     for (const p of items) {
-      for (let i = 0; i < 52; i++)
+      for (let i = 0; i < STYLE_BLOCKS.groups[0]; i++)
         styleVector[i] = (styleVector[i] ?? 0) + (p.styleVector[i] ?? 0) / items.length
     }
   }
@@ -243,47 +292,56 @@ export async function recommend(db: Database, req: RecommendRequest): Promise<Re
   const t0 = performance.now()
   const intent = req.intent as EngineIntent
   const avoid = parseTokens(intent.mustAvoid)
-  const [context, partner] = await Promise.all([
+  const [context, partner, bandit] = await Promise.all([
     loadContext(db, { userId: req.userId ?? null, brandTokens: avoid.brands }),
     intent.referenceRole === 'coordinate-with' && intent.referenceLookId
       ? loadPartnerLook(db, intent.referenceLookId).catch(() => null)
       : Promise.resolve(null),
+    // A failure here must not cost a recommendation: without it the blend is simply `balanced`.
+    // `rebuild: false` keeps the replay off the request path: a missing row is the analytics job's
+    // to rebuild, not a visitor's scan of up to `REBUILD_ROW_LIMIT` feedback rows.
+    req.userId && !req.weights
+      ? loadBanditState(db, { now: new Date(), rebuild: false }).catch(() => null)
+      : Promise.resolve(null),
   ])
   const contextMs = performance.now() - t0
-  const res = await runRecommend(req, { retriever: new SqlRetriever(db), context, partner })
+  const res = await runRecommend(req, {
+    retriever: new SqlRetriever(db),
+    context,
+    partner,
+    bandit,
+  })
   res.timings.context = contextMs
   res.timings.total = performance.now() - t0
   return res
 }
 
 // ---------------------------------------------------------------------------
-// Product-anchored requests
+// Article-anchored requests
 // ---------------------------------------------------------------------------
 
 async function loadProduct(
   db: Database,
-  productId: number,
-): Promise<(Product & { brandName: string }) | null> {
+  articleId: string,
+): Promise<(Article & { brandName: string }) | null> {
   const rows = await db
-    .select({ product: products, brandName: brands.name })
-    .from(products)
-    .innerJoin(brands, eq(brands.id, products.brandId))
-    .where(eq(products.id, productId))
+    .select({ product: articles, brandName: brands.name })
+    .from(articles)
+    .innerJoin(brands, eq(brands.id, articles.brandId))
+    .where(eq(articles.id, articleId))
   const r = rows[0]
   return r ? { ...r.product, brandName: r.brandName } : null
 }
 
 /** Pseudo-intent from a product (§2.4): aesthetics 1.0/.6/.4, its colour family, axes from its vector. */
 export function pseudoIntent(
-  p: Product,
+  p: Article,
   mode: 'single' | 'outfit',
   opts: { budget?: { min?: number; max?: number } } = {},
 ): EngineIntent {
-  const ladder = [1, 0.6, 0.4]
+  // Was the article's own aesthetic tags; the catalogue has none, so an intent built from a
+  // product carries its measurable axes and no style label.
   const aestheticWeights: Record<string, number> = {}
-  p.aesthetics.slice(0, 3).forEach((slug, i) => {
-    aestheticWeights[slug] = ladder[i] ?? 0.3
-  })
   const axisTargets: Record<string, number> = {}
   const axes: Axis[] = [
     'formality',
@@ -305,7 +363,7 @@ export function pseudoIntent(
     subcategories: [],
     colors: [p.colorName],
     colorFamilies: [p.colorFamily as ColorFamily],
-    aesthetics: p.aesthetics.slice(0, 3),
+    aesthetics: [],
     materials: [],
     patterns: [],
     fits: [],
@@ -332,14 +390,14 @@ export function pseudoIntent(
   return intent
 }
 
-/** Vector of a pseudo-intent: the product's aesthetic ladder, colour and axes, group one-hot when single. */
-export function pseudoVector(p: Product, intent: EngineIntent): number[] {
-  const secondary = p.secondaryColorHex ? (findColor(p.secondaryColorHex)?.family ?? null) : null
+/** Vector of a pseudo-intent: the product's colour and axes, group one-hot when single. */
+export function pseudoVector(p: Article, intent: EngineIntent): number[] {
+  // One colour per article — H&M files each colourway separately.
+  const secondary = null
   const axes = Object.fromEntries(Object.entries(intent.axisTargets ?? {})) as Partial<
     Record<Axis, number>
   >
   return toStyleVector({
-    aesthetics: intent.aestheticWeights ?? {},
     colorFamily: p.colorFamily as ColorFamily,
     secondaryColorFamily: secondary,
     axes,
@@ -349,10 +407,10 @@ export function pseudoVector(p: Product, intent: EngineIntent): number[] {
 
 export async function similarProducts(
   db: Database,
-  productId: number,
+  articleId: string,
   opts: { limit?: number; userId?: string } = {},
 ): Promise<RankedItem[]> {
-  const product = await loadProduct(db, productId)
+  const product = await loadProduct(db, articleId)
   if (!product) return []
   const context = await loadContext(db, { userId: opts.userId ?? null })
   return similarProductsWith(product, { retriever: new SqlRetriever(db), context }, opts)
@@ -360,7 +418,7 @@ export async function similarProducts(
 
 /** Core of `similarProducts` (retriever-agnostic). */
 export async function similarProductsWith(
-  product: Product,
+  product: Article,
   deps: RecommendDeps,
   opts: { limit?: number; userId?: string } = {},
 ): Promise<RankedItem[]> {
@@ -401,10 +459,10 @@ export async function similarProductsWith(
 
 export async function completeTheLook(
   db: Database,
-  productId: number,
+  articleId: string,
   opts: { userId?: string; budget?: number; count?: number } = {},
 ): Promise<Outfit[]> {
-  const product = await loadProduct(db, productId)
+  const product = await loadProduct(db, articleId)
   if (!product) return []
   const context = await loadContext(db, { userId: opts.userId ?? null })
   return completeTheLookWith(product, { retriever: new SqlRetriever(db), context }, opts)
@@ -412,7 +470,7 @@ export async function completeTheLook(
 
 /** Core of `completeTheLook` (retriever-agnostic): plans B/A minus the product's group, product pinned. */
 export async function completeTheLookWith(
-  product: Product & { brandName: string },
+  product: Article & { brandName: string },
   deps: RecommendDeps,
   opts: { userId?: string; budget?: number; count?: number } = {},
 ): Promise<Outfit[]> {

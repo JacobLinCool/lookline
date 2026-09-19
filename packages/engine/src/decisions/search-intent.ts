@@ -519,7 +519,7 @@ export function buildSearchIntentQuestions(query: string): SearchIntentQuestionP
       instructions: `How does the request constrain ${dimension.label}? For example, "warm" is around or at_least; "not too formal" is at_most. Choose unconstrained when the request gives no signal.${dimension.guidance ? ` ${dimension.guidance}` : ''}`,
       criteria: {
         unconstrained: `No ${dimension.label} preference; this axis must not affect retrieval.`,
-        around: `Prefer products near the target ${dimension.label}.`,
+        around: `Prefer articles near the target ${dimension.label}.`,
         at_least: `Products should meet or exceed the target ${dimension.label}.`,
         at_most: `Products should not exceed the target ${dimension.label}.`,
       },

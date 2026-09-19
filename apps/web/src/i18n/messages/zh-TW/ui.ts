@@ -1,0 +1,67 @@
+import type { UiMessages } from '../en/ui'
+
+export const ui: UiMessages = {
+  siteDescription: '說出你要去哪裡，買到真實的單品，再變成朋友可以接著穿的 Look。',
+  notFoundTitle: '這裡沒有東西',
+  notFoundDescription: '這個頁面不存在，或這個 Look 從未被分享。',
+  notFoundAction: '回到尋找',
+  engineUnavailable: '引擎沒有回應。',
+  imageOf: (name: string) => `${name}，商品圖`,
+  avatarOf: (name: string) => `${name}，頭像`,
+  removeFilter: (label: string) => `移除篩選 ${label}`,
+  priceFrom: (amount: string) => `${amount} 起`,
+  was: (amount: string) => `原價 ${amount}`,
+
+  factors: {
+    style_similarity: '風格相符',
+    attribute_match: '條件相符',
+    budget_fit: '符合預算',
+    user_preference: '你的喜好',
+    social_signal: '朋友的選擇',
+    trend_momentum: '趨勢動能',
+    brand_affinity: '品牌偏好',
+    popularity_prior: '熱門程度',
+    diversity: '多樣性',
+    compatibility: '搭配性',
+  } as Record<string, string>,
+  lineage: {
+    after: (handle: string) => `延伸自 @${handle}`,
+    with: (handle: string) => `與 @${handle} 一起`,
+  },
+
+  instantForm: {
+    syncing: (confirmation: string) => `${confirmation} · 同步中`,
+    failed: '這個變更沒有儲存成功，請重試。',
+  },
+
+  score: '分數',
+  noFactors: '沒有紀錄任何因子。',
+
+  errors: {
+    tooLarge: '請求內容過大。',
+    invalidRequest: '篩選請求無效。',
+    wrongOrigin: '請從 Lookline 使用這項服務。',
+    signInRequired: '請先登入才能使用即時篩選與語音。',
+    slowDown: '請稍候再試一次。',
+    filtersUnavailable: '即時篩選暫時無法使用，請再試一次。',
+    keywordsUnavailable: '關鍵字搜尋暫時無法使用，屬性篩選仍然有效。',
+    productsUnavailable: '商品無法載入，請再試一次。',
+    sentenceTooLong: '請輸入 500 字以內的句子。',
+    recommendationsUnavailable: '推薦無法載入，請再試一次。',
+    invalidLookId: 'Look 編號無效。',
+    lookNotFound: '找不到這個 Look。',
+    lookOwnerOnly: '只有擁有者能產生這個 Look 的圖。',
+    choosePreset: '請選擇一種風格。',
+    missingGenerationId: '缺少產生編號。',
+    lookImageFailed: '圖片沒有產生成功，請再試一次。',
+    voiceLanguages: '請至少選擇一種支援的語音語言。',
+    voiceUnavailable: '語音暫時無法使用，可以繼續用打字的。',
+    voiceConnect: '語音無法連線，可以繼續用打字的，或再試一次。',
+    searchPhrase: '請輸入 1 到 500 字的搜尋句子。',
+    intentCompiler: '意圖編譯器無法使用，請檢查 TypeSafe 設定後重試。',
+    imagePrompt: '請輸入 1 到 2,000 字的提示詞，並選擇有效的比例。',
+    imageUnavailable: '圖片生成無法使用，請檢查設定的圖片供應商後重試。',
+    imageReferences: '服裝與人物參考圖各最多 4 張，每張 8 MB 以內。',
+    imageFailed: '圖片沒有產生成功，請檢查提示詞後再試一次。',
+  },
+}

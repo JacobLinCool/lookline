@@ -5,6 +5,7 @@
  * rank contexts.
  */
 import {
+  AXES,
   AESTHETICS,
   AESTHETIC_DEPT_MULT,
   COLORS,
@@ -15,18 +16,17 @@ import {
   colorFamilyWeight,
   createRng,
   findSubcategory,
-  generateBrands,
   hashSeed,
   materialsFor,
+  axisIndex,
   neighboursOf,
   occasionFavours,
   patternsFor,
-  sizeRunFor,
   subcategoriesFor,
   toStyleVector,
 } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Rng, Season } from '@lookline/catalog'
-import type { Department, Product } from '@lookline/db'
+import type { Article, BrandTier, Department } from '@lookline/db'
 import type { Intent } from '../../types'
 import type { ContextInput } from '../context'
 import type { RankContext } from '../factors'
@@ -74,14 +74,71 @@ const TIER_ADJ: Readonly<Record<string, number>> = {
   luxury: 0.06,
 }
 
-type BrandList = ReturnType<typeof generateBrands>
+/**
+ * Labels for the test catalogue. The real one is a single retailer, so these exist only here —
+ * ranking factors that measure brand concentration need more than one to measure.
+ */
+export interface FixtureBrand {
+  id: number
+  slug: string
+  name: string
+  tier: BrandTier
+  popularity: number
+  trend: number
+  size: number
+  homeAesthetics: string[]
+  homeDepartments: Department[]
+  priceMultiplier: number
+}
+
+type BrandList = FixtureBrand[]
+
+const TIER_SHAPE: Readonly<Record<BrandTier, { size: number; priceMultiplier: number }>> = {
+  budget: { size: 1, priceMultiplier: 0.7 },
+  mid: { size: 0.7, priceMultiplier: 1 },
+  premium: { size: 0.35, priceMultiplier: 1.7 },
+  luxury: { size: 0.15, priceMultiplier: 3 },
+}
 
 let cachedBrands: { seed: number; brands: BrandList } | null = null
 
 export function fixtureBrands(seed = 42): BrandList {
-  if (!cachedBrands || cachedBrands.seed !== seed)
-    cachedBrands = { seed, brands: generateBrands(seed) }
-  return cachedBrands.brands
+  if (cachedBrands?.seed === seed) return cachedBrands.brands
+  const rng = createRng(hashSeed('fixture-brands', seed))
+  const tiers: readonly BrandTier[] = ['budget', 'mid', 'premium', 'luxury']
+  const brands: BrandList = Array.from({ length: 12 }, (_, i) => {
+    const tier = tiers[i % tiers.length] as BrandTier
+    return {
+      id: i + 1,
+      slug: `label-${i + 1}`,
+      name: `Label ${String.fromCharCode(65 + i)}`,
+      tier,
+      popularity: rng.float(0.2, 1),
+      trend: rng.float(0, 1),
+      size: TIER_SHAPE[tier].size,
+      homeAesthetics: [rng.pick(AESTHETICS).slug, rng.pick(AESTHETICS).slug],
+      homeDepartments: ['women', 'men'],
+      priceMultiplier: TIER_SHAPE[tier].priceMultiplier,
+    }
+  })
+  cachedBrands = { seed, brands }
+  return brands
+}
+
+/** The outfit slot each category group occupies, for the fixture catalogue. */
+const OUTFIT_ROLE_BY_GROUP: Record<CategoryGroup, Article['outfitRole']> = {
+  tops: 'top',
+  bottoms: 'bottom',
+  dresses: 'full-body',
+  outerwear: 'outer',
+  footwear: 'shoes',
+  bags: 'bag',
+  accessories: 'accessory',
+  jewelry: 'jewelry',
+  activewear: 'top',
+  swimwear: 'swimwear',
+  loungewear: 'nightwear',
+  tailoring: 'outer',
 }
 
 const slugify = (s: string): string =>
@@ -205,10 +262,6 @@ export function makeProduct(
     if (w >= 0.3 && Object.keys(aestheticWeights).length < 4)
       aestheticWeights[s.slug] = Math.min(0.5, w)
   }
-  const aesthetics = Object.entries(aestheticWeights)
-    .toSorted((a, b) => b[1] - a[1])
-    .map(([slug]) => slug)
-
   const priceMul = brand.priceMultiplier * Math.exp(rng.normal(0, sub.sigma))
   const price = Math.max(100, Math.round((sub.basePrice * priceMul) / 10) * 10)
   const seasons = pickSeasons(rng, sub.seasonCode)
@@ -286,9 +339,6 @@ export function makeProduct(
     const extra = rng.pick(occasionPool).slug
     if (!occasions.includes(extra)) occasions.push(extra)
   }
-  const run = sizeRunFor(sub.sizeSystem, department)
-  const sizes = run.filter(() => rng.chance(0.85))
-  const stock = rng.chance(0.92) ? rng.int(3, 60) : 0
   const attributes: Record<string, string | number | boolean> = {}
   if ((group === 'outerwear' || group === 'bottoms') && rng.chance(0.5)) attributes.pockets = true
   if (sub.slug === 'hoodie' || sub.slug === 'parka' || sub.slug === 'windbreaker')
@@ -299,45 +349,70 @@ export function makeProduct(
     .replace(/\s+/g, ' ')
     .trim()
   const description = `${sub.name} by ${brand.name} in ${material?.name ?? 'mixed fibres'}, ${colour.name.toLowerCase()}, ${pattern?.name.toLowerCase() ?? 'solid'}. ${aestheticDef.definition}`
-  const row: Product = {
-    id: i,
+  const row: Article = {
+    id: String(i).padStart(10, '0'),
     slug: `p-${i}-${slugify(name)}`,
     brandId: brand.id,
+    productCode: String(i).padStart(7, '0'),
     name,
     description,
     department,
     categoryGroup: group,
+    outfitRole: OUTFIT_ROLE_BY_GROUP[group],
     category: sub.category,
     subcategory: sub.slug,
-    silhouetteId: sub.silhouetteId,
+    productGroup: sub.category,
+    section: 'Womens Everyday Collection',
+    indexName: department === 'kids' ? 'Children Sizes 92-140' : 'Ladieswear',
+    indexGroupName: department === 'men' ? 'Menswear' : 'Ladieswear',
     colorName: colour.name,
     colorHex: colour.hex,
+    // Never came through the H&M import, so there is no perceived master behind the family.
+    colorMaster: '',
     colorFamily: family,
-    secondaryColorHex: secondaryColour?.hex ?? null,
+    colorValue: 'Dark',
     pattern: pattern?.slug ?? 'solid',
     material: material?.slug ?? 'cotton-jersey',
-    fit,
-    silhouette: null,
-    length: null,
-    neckline: null,
-    sleeve: null,
-    closure: null,
+    fit: fit ?? '',
+    length: '',
+    neckline: '',
+    sleeve: '',
+    closure: '',
+    aesthetics: Object.entries(aestheticWeights)
+      .toSorted((a, b) => b[1] - a[1])
+      .map(([slug]) => slug),
+    silhouette: '',
+    printSubject: '',
+    styleCaption: '',
+    styleCaptionZh: '',
+    searchZh: '',
+    graphicalAppearance: 'Solid',
+    rise: '',
+    shoulder: '',
+    pocketStyle: '',
+    knitGauge: '',
+    padding: '',
+    stylingNote: '',
+    stylingNoteZh: '',
+    visionEvidence: '',
+    visionConfidence: 0,
+    printMotif: '',
+    printText: '',
     occasions,
     seasons,
-    aesthetics,
     attributes,
     styleVector,
     price,
     tier: brand.tier,
-    sizeSystem: sub.sizeSystem,
-    sizes: sizes.length > 0 ? [...sizes] : [...run],
-    stock,
-    rating: Math.round((3.6 + rng.float(0, 1.3)) * 10) / 10,
-    reviewCount: rng.int(0, 400),
+    salesCount: rng.int(0, 5000),
+    firstSoldAt: CREATED_AT,
+    lastSoldAt: CREATED_AT,
+    onlineRatio: rng.float(0, 1),
     popularity: Math.round(rng.float(0, 1) ** 2 * 1000) / 1000,
     trendScore: Math.round(rng.float(0, 1) * 1000) / 1000,
-    heroImageUrl: null,
-    imageSeed: i,
+    // 104 780 of the 105 220 real articles have one, and search excludes the rest — a fixture
+    // without it would be testing the empty case every time.
+    imagePath: `images/${String(i).padStart(10, '0').slice(0, 3)}/${String(i).padStart(10, '0')}.webp`,
     createdAt: CREATED_AT,
   }
   return { ...row, brandName: brand.name }
@@ -345,7 +420,7 @@ export function makeProduct(
 
 let cachedCatalog: { key: string; rows: ProductRow[] } | null = null
 
-/** `n` synthetic products (ids 1..n); memoised per (n, seed). */
+/** `n` synthetic articles (ids 1..n); memoised per (n, seed). */
 export function makeCatalog(n: number, seed = 42): ProductRow[] {
   const key = `${n}:${seed}`
   if (cachedCatalog && cachedCatalog.key === key) return cachedCatalog.rows
@@ -357,30 +432,25 @@ export function makeCatalog(n: number, seed = 42): ProductRow[] {
 }
 
 /** One product with explicit overrides (for targeted factor tests). */
-export function product(overrides: Partial<ProductRow> & { id: number }): ProductRow {
+export function product(
+  overrides: Partial<Omit<ProductRow, 'id'>> & { id: number; aesthetics?: string[] },
+): ProductRow {
   const base = makeProduct(overrides.id, 42)
-  const merged: ProductRow = { ...base, ...overrides }
+  const merged: ProductRow = { ...base, ...overrides, id: String(overrides.id).padStart(10, '0') }
+  const styleTags = overrides.aesthetics
   if (
     overrides.styleVector === undefined &&
-    (overrides.aesthetics || overrides.colorFamily || overrides.categoryGroup)
+    (styleTags || overrides.colorFamily || overrides.categoryGroup)
   ) {
+    // The vector has to agree with the columns the caller overrode, so it is rebuilt from them:
+    // the style tags at the weights `makeProduct` gives a primary, secondary and third tag, and
+    // the generated axes carried over unchanged.
     const aesthetics: Record<string, number> = {}
-    ;(merged.aesthetics ?? []).forEach((slug, i) => {
+    ;(styleTags ?? merged.aesthetics).forEach((slug, i) => {
       aesthetics[slug] = i === 0 ? 0.85 : i === 1 ? 0.55 : 0.3
     })
     const axes: Partial<Record<Axis, number>> = {}
-    for (const [k, idx] of Object.entries({
-      formality: 44,
-      warmth: 45,
-      boldness: 46,
-      structure: 47,
-      'price-tier': 48,
-      coverage: 49,
-      texture: 50,
-      trendiness: 51,
-    })) {
-      axes[k as Axis] = base.styleVector[idx] ?? 0.5
-    }
+    for (const axis of AXES) axes[axis] = base.styleVector[axisIndex(axis)] ?? 0.5
     merged.styleVector = toStyleVector({
       aesthetics,
       colorFamily: merged.colorFamily as ColorFamily,

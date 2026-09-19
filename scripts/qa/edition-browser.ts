@@ -26,9 +26,11 @@ const page = await browser.newPage({
   viewport: { width: 1440, height: 1000 },
   reducedMotion: 'reduce',
 })
-await page
-  .context()
-  .addCookies([{ name: 'll_session', value: `${sessionId}.${signature}`, url: base }])
+await page.context().addCookies([
+  { name: 'll_session', value: `${sessionId}.${signature}`, url: base },
+  // These checks select by English accessible name; pin the language so they cannot drift.
+  { name: 'll_locale', value: 'en', url: base },
+])
 const errors: string[] = []
 page.on('pageerror', (error) => errors.push(error.message))
 try {
@@ -67,19 +69,19 @@ try {
       body: JSON.stringify(current),
     })
   })
-  await page.getByRole('button', { name: 'Render edition', exact: true }).click()
-  await page.getByRole('button', { name: 'Cancel rendering' }).waitFor()
+  await page.getByRole('button', { name: 'Render', exact: true }).click()
+  await page.getByRole('button', { name: 'Cancel', exact: true }).waitFor()
   assert.equal(
     await page.locator('figure img').getAttribute('src'),
     initialSrc,
     'Existing visual remains during rendering',
   )
-  assert.ok(await page.getByRole('link', { name: 'Ask a friend', exact: true }).isEnabled())
-  assert.ok(await page.getByRole('combobox', { name: 'Edition style' }).isEnabled())
-  await page.getByRole('button', { name: 'Cancel rendering' }).click()
-  await page.getByRole('button', { name: 'Retry rendering' }).waitFor()
-  await page.getByRole('button', { name: 'Retry rendering' }).click()
-  await page.getByRole('button', { name: 'Cancel rendering' }).waitFor()
+  assert.ok(await page.getByRole('button', { name: 'Share', exact: true }).isEnabled())
+  assert.ok(await page.getByRole('combobox', { name: 'Image style' }).isEnabled())
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.getByRole('button', { name: 'Retry', exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Retry', exact: true }).click()
+  await page.getByRole('button', { name: 'Cancel', exact: true }).waitFor()
   // A deterministic test image stands in for a provider completion; no paid generation is called.
   current = {
     ...current,
@@ -91,7 +93,7 @@ try {
   await page.waitForFunction(
     () => document.querySelector('figure img')?.getAttribute('src') === '/api/products/1/image',
   )
-  await page.getByText('Your edition is ready.', { exact: true }).waitFor()
+  await page.getByText('Image ready', { exact: true }).waitFor()
   await page.screenshot({ path: 'output/playwright/latency-edition.png', fullPage: false })
   await writeFile(
     'output/playwright/edition-checks.json',

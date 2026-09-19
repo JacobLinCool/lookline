@@ -1,21 +1,9 @@
 'use client'
 
+import { DiscoveryHome } from '@/components/discovery/home'
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
-import {
-  Button,
-  Container,
-  LookCard,
-  Notice,
-  ProductCard,
-  Rail,
-  RailItem,
-  Section,
-  SkeletonCard,
-  Tag,
-  type LookCardLook,
-  type LookCardOwner,
-  type ProductCardData,
-} from '@/components/ui'
+import { Button, Container, Notice, Section, SkeletonCard, Tag } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
 import { afterPaint, LATENCY, startInteraction, type InteractionTrace } from '@/lib/latency'
 import { readIntentStream } from '@/lib/intent-stream'
 import type { Recommendation, Understanding } from '@/server/intent'
@@ -27,26 +15,16 @@ import { intentHref, type IntentQuery } from './urls'
 
 type Result = { understanding: Understanding; recommendation: Recommendation }
 
-export interface HomeLook {
-  look: LookCardLook
-  owner: LookCardOwner
-}
-
-export type HomeProduct = ProductCardData
-
 export function IntentWorkspace({
   initialQuery,
   signedIn,
   engineView = false,
-  networkLooks = [],
-  trending = [],
 }: {
   initialQuery: IntentQuery
   signedIn: boolean
   engineView?: boolean
-  networkLooks?: HomeLook[]
-  trending?: HomeProduct[]
 }) {
+  const { t } = useI18n()
   const initialKey = JSON.stringify(initialQuery)
   const activeQuery = useRef('')
   const [query, setQuery] = useState(initialQuery)
@@ -59,74 +37,77 @@ export function IntentWorkspace({
   const request = useRef<AbortController | null>(null)
   const trace = useRef<InteractionTrace | null>(null)
 
-  const run = useCallback(async (next: IntentQuery, push = true) => {
-    request.current?.abort()
-    trace.current?.mark('cancelled')
-    const controller = new AbortController()
-    request.current = controller
-    const timing = startInteraction('generative', 'intent')
-    trace.current = timing
-    activeQuery.current = JSON.stringify(next)
-    setQuery(next)
-    setUnderstanding(null)
-    setResult(null)
-    setRefinement(null)
-    setError(null)
-    setLate(false)
-    setBusy(true)
-    if (push) window.history.pushState(null, '', intentHref(next))
-    afterPaint(() => {
-      if (!controller.signal.aborted) timing.mark('acknowledged')
-    })
-    let usable = false
-    const deadline = setTimeout(() => {
-      if (!usable) setLate(true)
-    }, LATENCY.usable)
-    // No request may leave the editor permanently busy if a transport stops producing bytes.
-    const stop = setTimeout(() => controller.abort(new Error('Timed out.')), 10_000)
-    try {
-      const response = await fetch('/api/intent/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(next),
-        signal: controller.signal,
-      })
-      await readIntentStream(response, (event) => {
-        if (controller.signal.aborted) return
-        if (event.type === 'understood') {
-          setUnderstanding(event.understanding)
-          afterPaint(() => {
-            if (!controller.signal.aborted) timing.mark('progress')
-          })
-        } else if (event.type === 'result') {
-          setResult(event)
-          usable = event.recommendation.result.ok
-          setLate(!usable)
-          afterPaint(() => {
-            if (!controller.signal.aborted && usable) timing.mark('usable')
-          })
-        } else if (event.type === 'refinement') {
-          setRefinement(event)
-          afterPaint(() => {
-            if (!controller.signal.aborted) timing.mark('progress')
-          })
-        } else if (event.type === 'error') {
-          setError(event.message)
-        }
-      })
+  const run = useCallback(
+    async (next: IntentQuery, push = true) => {
+      request.current?.abort()
+      trace.current?.mark('cancelled')
+      const controller = new AbortController()
+      request.current = controller
+      const timing = startInteraction('generative', 'intent')
+      trace.current = timing
+      activeQuery.current = JSON.stringify(next)
+      setQuery(next)
+      setUnderstanding(null)
+      setResult(null)
+      setRefinement(null)
+      setError(null)
+      setLate(false)
+      setBusy(true)
+      if (push) window.history.pushState(null, '', intentHref(next))
       afterPaint(() => {
-        if (!controller.signal.aborted) timing.mark(usable ? 'final' : 'failed')
+        if (!controller.signal.aborted) timing.mark('acknowledged')
       })
-    } catch {
-      if (request.current !== controller) return
-      setError('Pieces could not be loaded.')
-      timing.mark('failed')
-    } finally {
-      clearTimeout(deadline)
-      clearTimeout(stop)
-      if (request.current === controller) setBusy(false)
-    }
-  }, [])
+      let usable = false
+      const deadline = setTimeout(() => {
+        if (!usable) setLate(true)
+      }, LATENCY.usable)
+      // No request may leave the editor permanently busy if a transport stops producing bytes.
+      const stop = setTimeout(() => controller.abort(new Error('Timed out.')), 10_000)
+      try {
+        const response = await fetch('/api/intent/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(next),
+          signal: controller.signal,
+        })
+        await readIntentStream(response, (event) => {
+          if (controller.signal.aborted) return
+          if (event.type === 'understood') {
+            setUnderstanding(event.understanding)
+            afterPaint(() => {
+              if (!controller.signal.aborted) timing.mark('progress')
+            })
+          } else if (event.type === 'result') {
+            setResult(event)
+            usable = event.recommendation.result.ok
+            setLate(!usable)
+            afterPaint(() => {
+              if (!controller.signal.aborted && usable) timing.mark('usable')
+            })
+          } else if (event.type === 'refinement') {
+            setRefinement(event)
+            afterPaint(() => {
+              if (!controller.signal.aborted) timing.mark('progress')
+            })
+          } else if (event.type === 'error') {
+            setError(t.home.status.loadFailed)
+          }
+        })
+        afterPaint(() => {
+          if (!controller.signal.aborted) timing.mark(usable ? 'final' : 'failed')
+        })
+      } catch {
+        if (request.current !== controller) return
+        setError(t.home.items.failed)
+        timing.mark('failed')
+      } finally {
+        clearTimeout(deadline)
+        clearTimeout(stop)
+        if (request.current === controller) setBusy(false)
+      }
+    },
+    [t],
+  )
 
   useEffect(() => {
     const initial = JSON.parse(initialKey) as IntentQuery
@@ -197,34 +178,12 @@ export function IntentWorkspace({
   if (!query.q) {
     return (
       <Container className="pb-24">
-        <section className="flex flex-col gap-5 pt-10 md:pt-16">
-          <h1 className="display text-[28px] md:text-[40px]">What are you dressing for?</h1>
+        <section className="flex flex-col gap-5 pt-6 md:pt-16">
+          <h1 className="display text-[28px] md:text-[40px]">{t.home.hero.title}</h1>
           <SayItForm key="hero" q="" onQuery={(q) => void run({ q })} />
         </section>
 
-        {networkLooks.length > 0 ? (
-          <Rail
-            title={signedIn ? 'From your circle' : 'Looks from the network'}
-            className="mt-12 md:mt-16"
-            itemWidth="md"
-          >
-            {networkLooks.map(({ look, owner }, i) => (
-              <RailItem key={look.id} width="md">
-                <LookCard look={look} owner={owner} priority={i < 4} />
-              </RailItem>
-            ))}
-          </Rail>
-        ) : null}
-
-        {trending.length > 0 ? (
-          <Rail title="Trending now" className="mt-12" itemWidth="md">
-            {trending.map((product, i) => (
-              <RailItem key={product.id} width="md">
-                <ProductCard product={product} priority={i < 4} />
-              </RailItem>
-            ))}
-          </Rail>
-        ) : null}
+        <DiscoveryHome signedIn={signedIn} />
       </Container>
     )
   }
@@ -236,7 +195,7 @@ export function IntentWorkspace({
         {busy ? <div className="progress-line" aria-hidden /> : null}
 
         <p role="status" aria-live="polite" className={busy ? 'text-[13px] text-muted' : 'sr-only'}>
-          {busy ? 'Finding pieces…' : ready ? `${ready.items.length} pieces ready` : ''}
+          {busy ? t.home.status.finding : ready ? t.home.status.ready(ready.items.length) : ''}
         </p>
 
         {active?.parse.ok ? <IntentTagsRow understanding={active} query={query} /> : null}
@@ -246,11 +205,11 @@ export function IntentWorkspace({
             tone="warning"
             action={
               <Button onClick={() => void run(query, false)} size="sm" variant="secondary">
-                Retry
+                {t.common.retry}
               </Button>
             }
           >
-            Still looking. Change the sentence or retry.
+            {t.home.status.stillLooking}
           </Notice>
         ) : null}
         {error ? (
@@ -258,7 +217,7 @@ export function IntentWorkspace({
             tone="warning"
             action={
               <Button onClick={() => void run(query, false)} size="sm" variant="secondary">
-                Retry
+                {t.common.retry}
               </Button>
             }
           >
@@ -269,7 +228,7 @@ export function IntentWorkspace({
         {refinement ? (
           <div className="flex items-center gap-3">
             <Tag tone="ink" size="md">
-              Updated suggestions
+              {t.home.refinement.label}
             </Tag>
             <Button
               variant="ghost"
@@ -280,7 +239,7 @@ export function IntentWorkspace({
                 setRefinement(null)
               }}
             >
-              Show
+              {t.home.refinement.show}
             </Button>
           </div>
         ) : null}
@@ -292,7 +251,7 @@ export function IntentWorkspace({
             ) : null}
             <ItemsSection {...result} signedIn={signedIn} engineView={engineView} />
             {engineView ? (
-              <Section title="Engine · how this was understood">
+              <Section title={t.home.engine.sectionTitle}>
                 <IntentCard understanding={result.understanding} />
               </Section>
             ) : null}

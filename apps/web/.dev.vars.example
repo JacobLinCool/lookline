@@ -1,0 +1,9 @@
+# Secrets for `vinext dev` (the Worker reads them as process.env / env.*). Copy to `.dev.vars`.
+# Production: `wrangler secret put SESSION_SECRET` etc. Non-secret defaults are in wrangler.jsonc.
+SESSION_SECRET=change-me-to-a-long-random-string
+GEMINI_API_KEY=
+OPENAI_API_KEY=
+TYPESAFE_API_KEY=
+# Provider selection: openai | gemini | offline (default: first configured key, openai first)
+LLM_TEXT_PROVIDER=
+LLM_IMAGE_PROVIDER=

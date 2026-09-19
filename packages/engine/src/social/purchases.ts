@@ -3,7 +3,7 @@
  * the source Look's owner when the purchase was attributed to a Look, and a `purchase` feedback
  * event (docs/CONTRACTS.md "Guarantees").
  */
-import { eq, looks, products, purchases, type Database, type Purchase } from '@lookline/db'
+import { eq, looks, articles, purchases, type Database, type Purchase } from '@lookline/db'
 import type { PurchaseInput } from '../types'
 import { emitFeedback } from './feedback'
 import { newId } from './ids'
@@ -12,11 +12,11 @@ import { resolveCreatedAt } from './time'
 
 export async function recordPurchase(db: Database, input: PurchaseInput): Promise<Purchase> {
   const [product] = await db
-    .select({ id: products.id, price: products.price })
-    .from(products)
-    .where(eq(products.id, input.productId))
+    .select({ id: articles.id, price: articles.price })
+    .from(articles)
+    .where(eq(articles.id, input.articleId))
     .limit(1)
-  if (!product) throw new Error(`@lookline/engine: product ${input.productId} not found`)
+  if (!product) throw new Error(`@lookline/engine: product ${input.articleId} not found`)
 
   const createdAt = await resolveCreatedAt(db, input.createdAt)
   const forKind = input.forKind ?? 'undisclosed'
@@ -29,7 +29,7 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
     .values({
       id,
       userId: input.userId,
-      productId: input.productId,
+      articleId: input.articleId,
       quantity,
       price: product.price,
       size: input.size ?? null,
@@ -37,7 +37,6 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
       forUserId,
       forLabel: forKind === 'other' ? (input.forLabel ?? null) : null,
       sourceLookId: input.sourceLookId ?? null,
-      sourceAskId: input.sourceAskId ?? null,
       intentSessionId: input.intentSessionId ?? null,
       createdAt,
     })
@@ -50,14 +49,12 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
     quantity,
     price: product.price,
     sourceLookId: input.sourceLookId ?? null,
-    sourceAskId: input.sourceAskId ?? null,
   }
   await insertInteraction(db, {
     actorUserId: input.userId,
     type: 'PURCHASE',
-    productId: input.productId,
+    articleId: input.articleId,
     lookId: input.sourceLookId ?? null,
-    askId: input.sourceAskId ?? null,
     payload,
     createdAt,
   })
@@ -67,7 +64,7 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
       actorUserId: input.userId,
       type: 'BUY_FOR',
       targetUserId: forUserId,
-      productId: input.productId,
+      articleId: input.articleId,
       lookId: input.sourceLookId ?? null,
       payload: { ...payload, forLabel: input.forLabel ?? null },
       createdAt,
@@ -86,7 +83,7 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
         type: 'INSPIRE',
         targetUserId: source.ownerId,
         lookId: source.id,
-        productId: input.productId,
+        articleId: input.articleId,
         payload: { purchaseId: id, via: 'purchase' },
         createdAt,
       })
@@ -96,14 +93,13 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
   await emitFeedback(db, {
     userId: input.userId,
     kind: 'purchase',
-    productId: input.productId,
+    articleId: input.articleId,
     lookId: input.sourceLookId ?? null,
     intentSessionId: input.intentSessionId ?? null,
     forOthers: forKind === 'other',
     context: {
       forKind,
       sourceLookId: input.sourceLookId ?? null,
-      sourceAskId: input.sourceAskId ?? null,
       purchaseId: id,
       quantity,
     },

@@ -3,8 +3,16 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Languages, Mic, Square, X } from 'lucide-react'
-import type { FilterDecision, ProductSearch, ProductSearchResult } from '@lookline/engine'
+import type {
+  FilterDecision,
+  KeywordExtraction,
+  ProductSearch,
+  ProductSearchResult,
+} from '@lookline/engine'
+import { isFilterHintId, openingHints, type FilterHintId } from '@lookline/engine/hints'
+import { formatKeyword } from '@lookline/engine/keywords'
 import { Button, EmptyState, Input, Notice, Tag } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
 import { cn } from '@/lib/cn'
 import { afterPaint } from '@/lib/latency'
 import { applyLiveFilters, LatestDecisionQueue, liveBase } from '@/lib/live-filters'
@@ -20,12 +28,16 @@ import { ActiveFilters, DepartmentPills } from './active-filters'
 import { FilterDisclosure } from './disclosure'
 import styles from './filters.module.css'
 import { FilterRail } from './filter-rail'
+import { HintRow } from './hint-row'
+import { nextHint, withChoice, type HintChoice } from './hints'
 import { Pagination } from './pagination'
 import { ProductGrid } from './product-grid'
-import { searchFromParams, searchToParams, shopHref, SORT_OPTIONS } from './query'
+import { searchFromParams, searchToParams, shopHref, SHOP_SORTS } from './query'
 
 type Job = { text: string; final: boolean; base: ProductSearch; started: number }
 const keyOf = (search: ProductSearch) => searchToParams(search).toString()
+/** A sentence still being typed waits this long before its motifs are looked up in captions. */
+const KEYWORDS_DEBOUNCE_MS = 500
 
 const iconButton =
   'inline-flex size-8 shrink-0 items-center justify-center rounded-sm text-muted transition-colors hover:bg-mist hover:text-ink disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4'
@@ -45,13 +57,17 @@ export function ShopWorkspace({
   semanticAvailable: boolean
   voiceAvailable: boolean
 }) {
+  const { t, locale } = useI18n()
   const [search, setSearch] = useState(initialSearch)
   const [result, setResult] = useState(initialResult)
   const [resultKey, setResultKey] = useState(keyOf(initialSearch))
   const [draft, setDraft] = useState('')
   const [preview, setPreview] = useState(false)
-  const [unresolved, setUnresolved] = useState<string[]>([])
+  const [hints, setHints] = useState<FilterHintId[]>(() => openingHints(initialSearch))
+  const [skipped, setSkipped] = useState<ReadonlySet<FilterHintId>>(() => new Set())
+  const [focused, setFocused] = useState(false)
   const [deciding, setDeciding] = useState(false)
+  const [refining, setRefining] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(initialError)
   const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle')
@@ -81,6 +97,13 @@ export function ShopWorkspace({
   const committed = useRef(initialSearch)
   const base = useRef(initialSearch)
   const productsRequest = useRef<AbortController | null>(null)
+  /** The last keywords extracted, and for which sentence, so a growing sentence keeps them. */
+  const keywords = useRef<{ text: string; keywords: string[] } | null>(null)
+  const keywordsRequest = useRef<{
+    controller: AbortController
+    timer?: ReturnType<typeof setTimeout>
+  } | null>(null)
+  const field = useRef<HTMLInputElement>(null)
   const voice = useRef<VoiceCapture | null>(null)
   const mounted = useRef(true)
   const handler = useRef<(job: Job, revision: number, signal: AbortSignal) => Promise<void>>(
@@ -101,6 +124,22 @@ export function ShopWorkspace({
     setVoicePhase('idle')
   }
 
+  function resetHints(next: ProductSearch) {
+    setHints(openingHints(next))
+    setSkipped(new Set())
+  }
+
+  /** An answer becomes the sentence's next clause; Jev reads the whole sentence again. */
+  function choose(choice: HintChoice) {
+    if (voicePhase !== 'idle') stopVoice()
+    const next = withChoice(draftValue.current, choice)
+    input(next)
+    const element = field.current
+    if (!element) return
+    element.focus()
+    afterPaint(() => element.setSelectionRange(next.length, next.length))
+  }
+
   async function loadProducts(
     next: ProductSearch,
     measured?: { job: Job; revision: number; decision: FilterDecision },
@@ -110,12 +149,11 @@ export function ShopWorkspace({
     productsRequest.current = controller
     setLoading(true)
     try {
-      const response = await fetch(`/api/products/search?${searchToParams(next)}`, {
+      const response = await fetch(`/api/articles/search?${searchToParams(next)}`, {
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
       })
       const data = await response.json()
-      if (!response.ok)
-        throw new Error('Pieces could not refresh. Your previous results are still here.')
+      if (!response.ok) throw new Error(t.shop.sentence.refreshFailed)
       if (controller.signal.aborted || !mounted.current) return
       setResult(data)
       setResultKey(keyOf(next))
@@ -135,17 +173,91 @@ export function ShopWorkspace({
       })
     } catch (cause) {
       if (!controller.signal.aborted && mounted.current)
-        setError(cause instanceof Error ? cause.message : 'Pieces could not refresh.')
+        setError(cause instanceof Error ? cause.message : t.shop.sentence.refreshFailedShort)
     } finally {
       if (productsRequest.current === controller && mounted.current) setLoading(false)
     }
   }
 
-  function commit(next: ProductSearch, push = true) {
+  function commit(next: ProductSearch, push: boolean | 'replace' = true) {
     committed.current = next
     setPreview(false)
-    if (push && keyOf(next) !== new URLSearchParams(window.location.search).toString())
-      window.history.pushState(null, '', shopHref(next, { page: next.page ?? 1 }))
+    if (push && keyOf(next) !== new URLSearchParams(window.location.search).toString()) {
+      const href = shopHref(next, { page: next.page ?? 1 })
+      if (push === 'replace') window.history.replaceState(null, '', href)
+      else window.history.pushState(null, '', href)
+    }
+  }
+
+  function cancelKeywords() {
+    const pending = keywordsRequest.current
+    keywordsRequest.current = null
+    if (pending) {
+      clearTimeout(pending.timer)
+      pending.controller.abort()
+    }
+    setRefining(false)
+  }
+
+  /**
+   * The second, slower half of a free-text sentence: the attribute filters have painted, and the
+   * motifs the attributes could not carry are now looked up in the photograph captions. The
+   * lookup never blocks the preview, and an answer for a sentence the shopper has since changed
+   * — or a selection they made by hand — is dropped by the revision check.
+   */
+  function scheduleKeywords(
+    job: Job,
+    revision: number,
+    applied: ProductSearch,
+    wasCommitted: boolean,
+  ) {
+    cancelKeywords()
+    const controller = new AbortController()
+    const run = async () => {
+      if (!queue.isCurrent(revision) || !mounted.current) return
+      setRefining(true)
+      try {
+        const response = await fetch('/api/filters/keywords', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ utterance: job.text, revision }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
+        })
+        const data = (await response.json()) as KeywordExtraction & {
+          revision: number
+          error?: string
+        }
+        if (!queue.isCurrent(revision) || controller.signal.aborted || !mounted.current) return
+        // No provider is a quiet outcome: the attribute results are already up.
+        if (!response.ok || data.revision !== revision || !Array.isArray(data.keywords)) return
+        const concepts = data.keywords
+          .filter(
+            (c): c is string[] => Array.isArray(c) && c.every((term) => typeof term === 'string'),
+          )
+          .map(formatKeyword)
+          .filter(Boolean)
+        keywords.current = { text: job.text, keywords: concepts }
+        const refined: ProductSearch = { ...applied }
+        if (concepts.length) refined.keywords = concepts
+        else delete refined.keywords
+        if (keyOf(refined) === keyOf(applied)) return
+        setSearch(refined)
+        if (wasCommitted) commit(refined, 'replace')
+        void loadProducts(refined)
+      } catch {
+        /* The attribute results stand; nothing to report. */
+      } finally {
+        if (keywordsRequest.current?.controller === controller && mounted.current) {
+          keywordsRequest.current = null
+          setRefining(false)
+        }
+      }
+    }
+    keywordsRequest.current = {
+      controller,
+      timer: job.final ? undefined : setTimeout(() => void run(), KEYWORDS_DEBOUNCE_MS),
+    }
+    if (job.final) void run()
   }
 
   handler.current = async (job, revision, signal) => {
@@ -158,15 +270,25 @@ export function ShopWorkspace({
       })
       const data = (await response.json()) as FilterDecision & { revision: number; error?: string }
       if (!queue.isCurrent(revision) || signal.aborted || !mounted.current) return
-      if (!response.ok) throw new Error(data.error ?? 'Filtering by sentence is unavailable.')
+      if (!response.ok) throw new Error(data.error ?? t.shop.sentence.resolveFailed)
       if (data.revision !== revision || !data.filters || !Array.isArray(data.unresolved))
-        throw new Error('The filter response could not be verified.')
-      const next = applyLiveFilters(job.base, data.filters)
+        throw new Error(t.shop.sentence.unverified)
+      // A sentence that still names a motif keeps the keywords its earlier revision found until
+      // the fresh lookup replaces them; one that no longer does loses them at once.
+      const carried =
+        data.freeText && keywords.current && job.text.includes(keywords.current.text.trim())
+          ? keywords.current.keywords
+          : undefined
+      if (!data.freeText) keywords.current = null
+      const next = applyLiveFilters(job.base, data.filters, carried)
       setSearch(next)
-      setUnresolved(data.unresolved)
+      setHints(Array.isArray(data.hints) ? data.hints.filter(isFilterHintId) : [])
       setPreview(true)
       setError(null)
-      if (job.final && data.unresolved.length === 0) commit(next)
+      const committing = job.final && data.unresolved.length === 0
+      if (committing) commit(next)
+      if (data.freeText) scheduleKeywords(job, revision, next, committing)
+      else cancelKeywords()
       afterPaint(() => {
         if (queue.isCurrent(revision))
           window.dispatchEvent(
@@ -184,7 +306,7 @@ export function ShopWorkspace({
       void loadProducts(next, { job, revision, decision: data })
     } catch (cause) {
       if (queue.isCurrent(revision) && !signal.aborted && mounted.current)
-        setError(cause instanceof Error ? cause.message : 'Filtering by sentence is unavailable.')
+        setError(cause instanceof Error ? cause.message : t.shop.sentence.resolveFailed)
     } finally {
       if (queue.isCurrent(revision) && mounted.current) setDeciding(false)
     }
@@ -195,7 +317,7 @@ export function ShopWorkspace({
       queue.cancel()
       stopVoice()
       setDeciding(false)
-      setError('That sentence is too long. Keep the preview or start a shorter one.')
+      setError(t.shop.sentence.tooLong)
       return
     }
     const value = text
@@ -203,6 +325,7 @@ export function ShopWorkspace({
     setDraft(value)
     // A newer utterance invalidates any query started for an older preview.
     productsRequest.current?.abort()
+    cancelKeywords()
     setLoading(false)
     if (!value.trim()) {
       discard()
@@ -214,11 +337,13 @@ export function ShopWorkspace({
 
   function discard() {
     queue.cancel()
+    cancelKeywords()
+    keywords.current = null
     stopVoice()
     draftValue.current = ''
     setDraft('')
     setDeciding(false)
-    setUnresolved([])
+    resetHints(committed.current)
     setPreview(false)
     setError(null)
     base.current = committed.current
@@ -228,11 +353,13 @@ export function ShopWorkspace({
 
   function manual(next: ProductSearch, push = true) {
     queue.cancel()
+    cancelKeywords()
+    keywords.current = null
     stopVoice()
     base.current = next
     draftValue.current = ''
     setDraft('')
-    setUnresolved([])
+    resetHints(next)
     setDeciding(false)
     setSearch(next)
     setError(null)
@@ -261,8 +388,10 @@ export function ShopWorkspace({
 
   function startVoice() {
     queue.cancel()
+    cancelKeywords()
+    keywords.current = null
     setDeciding(false)
-    setUnresolved([])
+    resetHints(committed.current)
     void loadProducts(committed.current)
     base.current = committed.current
     setSearch(committed.current)
@@ -283,6 +412,7 @@ export function ShopWorkspace({
         },
       },
       voiceLanguages,
+      locale,
     )
     voice.current = session
     void session.start()
@@ -301,6 +431,7 @@ export function ShopWorkspace({
     return () => {
       mounted.current = false
       queue.cancel()
+      cancelKeywords()
       voice.current?.cancel()
       productsRequest.current?.abort()
       window.removeEventListener('popstate', pop)
@@ -311,24 +442,27 @@ export function ShopWorkspace({
 
   const stale = resultKey !== keyOf(search)
   const editing = draft.length > 0 || voicePhase !== 'idle'
+  const hint = available && (editing || focused) ? nextHint(hints, skipped) : undefined
   const languageLabel = VOICE_LANGUAGES.filter((language) => voiceLanguages.includes(language.code))
     .map((language) => language.label)
     .join(' + ')
   const phaseText =
     voicePhase === 'listening'
-      ? 'Listening'
+      ? t.shop.sentence.listening
       : voicePhase === 'connecting'
-        ? 'Connecting…'
+        ? t.shop.sentence.connecting
         : voicePhase === 'finishing'
-          ? 'Finishing…'
+          ? t.shop.sentence.finishing
           : deciding
-            ? 'Reading…'
-            : ''
+            ? t.shop.sentence.reading
+            : refining
+              ? t.shop.sentence.searchingCaptions
+              : ''
 
   return (
     <div onClickCapture={captureLink} className="flex flex-col gap-4 pt-5 md:pt-7">
       <form
-        aria-label="Filter by sentence"
+        aria-label={t.shop.sentence.label}
         className="flex items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault()
@@ -339,12 +473,15 @@ export function ShopWorkspace({
           {available ? (
             <Input
               id="live-filter-input"
-              aria-label="Describe what you are looking for"
+              aria-label={t.shop.sentence.field}
               value={draft}
               maxLength={500}
               autoComplete="off"
-              placeholder="黑色或海軍藍外套，三千以內，不要紅色…"
+              placeholder={t.shop.sentence.placeholder}
               className={cn(styles.liveInput, 'pr-24')}
+              ref={field}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               onChange={(event) => {
                 if (voicePhase !== 'idle') stopVoice()
                 if (composing.current) {
@@ -367,9 +504,9 @@ export function ShopWorkspace({
           ) : signedIn ? (
             <Input
               id="live-filter-input"
-              aria-label="Describe what you are looking for"
+              aria-label={t.shop.sentence.field}
               disabled
-              placeholder="Filtering by sentence is unavailable right now"
+              placeholder={t.shop.sentence.unavailable}
               className={cn(styles.liveInput, 'pr-24')}
             />
           ) : (
@@ -377,7 +514,7 @@ export function ShopWorkspace({
               href="/login?next=%2Fshop"
               className="flex h-10 w-full items-center rounded-sm border border-line bg-card px-3 text-[14px] text-muted transition-colors hover:border-ink hover:text-ink"
             >
-              Sign in to filter by sentence
+              {t.shop.sentence.signIn}
             </Link>
           )}
           <div className="absolute inset-y-0 right-1 flex items-center gap-0.5">
@@ -396,8 +533,8 @@ export function ShopWorkspace({
                 className={iconButton}
                 disabled={!available || !voiceAvailable}
                 onClick={startVoice}
-                aria-label="Speak"
-                title="Speak"
+                aria-label={t.shop.sentence.speak}
+                title={t.shop.sentence.speak}
               >
                 <Mic />
               </button>
@@ -406,8 +543,8 @@ export function ShopWorkspace({
                 type="button"
                 className={cn(iconButton, 'text-accent')}
                 onClick={() => void voice.current?.stop()}
-                aria-label="Stop"
-                title="Stop"
+                aria-label={t.shop.sentence.stop}
+                title={t.shop.sentence.stop}
               >
                 <Square />
               </button>
@@ -419,8 +556,8 @@ export function ShopWorkspace({
                     iconButton,
                     'cursor-pointer list-none [&::-webkit-details-marker]:hidden',
                   )}
-                  aria-label={`Voice languages: ${languageLabel}`}
-                  title={`Voice languages: ${languageLabel}`}
+                  aria-label={t.shop.sentence.languagesOf(languageLabel)}
+                  title={t.shop.sentence.languagesOf(languageLabel)}
                 >
                   <Languages />
                 </summary>
@@ -428,7 +565,7 @@ export function ShopWorkspace({
                   className="absolute top-full right-0 z-20 mt-1 flex w-52 flex-col gap-2 rounded-md border border-line bg-card p-3 text-[13px] shadow-lift"
                   disabled={voicePhase !== 'idle'}
                 >
-                  <legend className="sr-only">Voice languages</legend>
+                  <legend className="sr-only">{t.shop.sentence.languages}</legend>
                   {VOICE_LANGUAGES.map((language) => (
                     <label key={language.code} className="flex items-center gap-2">
                       <input
@@ -451,12 +588,12 @@ export function ShopWorkspace({
         {editing ? (
           <>
             <Button type="submit" disabled={!available || !draft.trim() || voicePhase !== 'idle'}>
-              Apply
+              {t.common.apply}
             </Button>
             <Button
               type="button"
               variant="ghost"
-              aria-label="Clear"
+              aria-label={t.common.clear}
               onClick={discard}
               icon={<X />}
             />
@@ -464,19 +601,23 @@ export function ShopWorkspace({
         ) : null}
       </form>
 
-      {unresolved.length > 0 ? (
-        <p className="text-[13px] text-muted">Not understood: {unresolved.join(', ')}.</p>
+      {hint ? (
+        <HintRow
+          id={hint}
+          onChoose={choose}
+          onSkip={() => setSkipped((previous) => new Set(previous).add(hint))}
+        />
       ) : null}
       {preview && !deciding ? (
         <div className="flex items-center gap-2">
           <Tag tone="ink" size="md">
-            Preview
+            {t.common.preview}
           </Tag>
           <Button size="sm" onClick={() => manual(search)}>
-            Apply
+            {t.common.apply}
           </Button>
           <Button size="sm" variant="ghost" onClick={discard}>
-            Discard
+            {t.common.discard}
           </Button>
         </div>
       ) : null}
@@ -491,7 +632,7 @@ export function ShopWorkspace({
                 draft.trim() && available ? input(draft, false) : void loadProducts(search)
               }
             >
-              Retry
+              {t.common.retry}
             </Button>
           }
         >
@@ -503,17 +644,17 @@ export function ShopWorkspace({
         <DepartmentPills search={search} />
         <ActiveFilters search={search} />
         <label className={cn(styles.sort, 'ml-auto')}>
-          Sort
+          {t.shop.filters.sort}
           <select
-            aria-label="Sort products"
+            aria-label={t.shop.filters.sortField}
             value={search.sort ?? 'relevance'}
             onChange={(event) =>
               manual({ ...search, sort: event.target.value as ProductSearch['sort'], page: 1 })
             }
           >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
+            {SHOP_SORTS.map((option) => (
+              <option key={option} value={option}>
+                {t.shop.sort[option]}
               </option>
             ))}
           </select>
@@ -522,22 +663,24 @@ export function ShopWorkspace({
 
       <div className="grid gap-6 md:grid-cols-[13rem_1fr] md:gap-8">
         <aside className="md:sticky md:top-20 md:self-start">
-          <FilterDisclosure className="md:hidden" label="Filters">
-            <FilterRail search={search} facets={stale ? undefined : result?.facets} />
+          <FilterDisclosure className="md:hidden" label={t.shop.filters.label}>
+            <FilterRail search={search} facets={result?.facets} stale={stale} />
           </FilterDisclosure>
           <div className="hidden md:block">
-            <FilterRail search={search} facets={stale ? undefined : result?.facets} />
+            <FilterRail search={search} facets={result?.facets} stale={stale} />
           </div>
         </aside>
         <div className={styles.results} aria-busy={loading} data-shop-results>
           <p role="status" className={styles.resultsStatus}>
             {stale
               ? loading
-                ? 'Updating…'
-                : 'Previous results'
+                ? t.common.updating
+                : t.shop.results.previous
               : result
-                ? `${result.total.toLocaleString()} pieces${preview ? ' · preview' : ''}`
-                : 'Pieces unavailable'}
+                ? preview
+                  ? t.shop.results.withPreview(t.common.count.pieces(result.total))
+                  : t.common.count.pieces(result.total)
+                : t.shop.results.unavailable}
           </p>
           {result?.items.length ? (
             <>
@@ -555,8 +698,8 @@ export function ShopWorkspace({
             </>
           ) : (
             <EmptyState
-              title="No pieces match."
-              description="Try another colour, a wider category or a higher price."
+              title={t.shop.results.emptyTitle}
+              description={t.shop.results.emptyDescription}
             />
           )}
         </div>

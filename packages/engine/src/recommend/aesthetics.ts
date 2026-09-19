@@ -11,6 +11,7 @@ import {
   COLOR_FAMILY_DEFS,
   LEXICON,
   findFit,
+  SLEEVES,
   findMaterial,
   findPattern,
   findSubcategory,
@@ -112,6 +113,12 @@ export function fitLabel(slug: string, locale: 'zh' | 'en'): string {
   const f = findFit(slug)
   if (!f) return slug
   return locale === 'zh' ? f.labelZh : f.name.toLowerCase()
+}
+
+export function sleeveLabel(slug: string, locale: 'zh' | 'en'): string {
+  const s = SLEEVES.find((x) => x.slug === slug)
+  if (!s) return slug
+  return locale === 'zh' ? s.labelZh : `${s.name.toLowerCase()} sleeve`
 }
 
 const AXIS_LABEL: Readonly<Record<Axis, { en: string; zh: string }>> = {

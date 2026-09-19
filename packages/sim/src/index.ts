@@ -26,13 +26,11 @@ export {
   buildTasteVector,
   tasteKey,
   tasteSimilarity,
-  topAesthetics,
 } from './taste'
 export {
   ProductPool,
   SHORTLIST_PER_GROUP,
   budgetFit,
-  chooseOptions,
   chooseOutfit,
   chooseProduct,
   compatibleDepartments,

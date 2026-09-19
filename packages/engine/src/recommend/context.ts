@@ -11,7 +11,7 @@ import {
   gte,
   inArray,
   or,
-  products,
+  articles,
   relationships,
   sql,
   sqlDaysAgoMs,
@@ -45,15 +45,22 @@ export function emptyContext(now: Date): ContextInput {
 }
 
 const TRUST_WEIGHTS: Readonly<Partial<Record<RelationshipKind, number>>> = {
-  trusts: 1,
   inspired_by: 0.7,
   styles: 0.6,
-  asks: 0.5,
   shops_with: 0.5,
   buys_for: 0.3,
 }
 
-export const TRUST_MIN = 0.3
+/**
+ * Trust floor for the social channel. Calibrated against the seeded graph: at 0.3 only 36 % of
+ * users had any trusted person at all (mean 1.2, max 3), while `TRUSTED_MAX`, the 50-row social
+ * channel cap and the bandit's `trustedCount / 10` context dimension all assume 10–20 of them.
+ * At 0.1 the coverage is 76 % (mean 1.9, max 8) — still far inside every cap downstream.
+ *
+ * The floor is not a quality filter: `social_signal` weights each piece of evidence by `strength`
+ * (§2.3), so a weak edge already contributes proportionally little without being cut off here.
+ */
+export const TRUST_MIN = 0.1
 export const TRUSTED_MAX = 20
 
 /** §5.1 `trust(A, B)` from the relationship rows A → B. */
@@ -78,8 +85,8 @@ async function popularityMax(db: Database): Promise<number> {
   const nowMs = performance.now()
   if (cached && nowMs - cached.at < POPULARITY_TTL_MS) return cached.value
   const rows = await db
-    .select({ max: sql<number | null>`max(${products.popularity})` })
-    .from(products)
+    .select({ max: sql<number | null>`max(${articles.popularity})` })
+    .from(articles)
   const value = Number(rows[0]?.max ?? 0) || 1
   popularityCache.set(db, { value, at: nowMs })
   return value
@@ -143,6 +150,7 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
         budgetHint: users.budgetHint,
         preference: users.preferenceVector,
         giftPreference: users.giftPreferenceVector,
+        createdAt: users.createdAt,
       })
       .from(users)
       .where(eq(users.id, userId)),
@@ -154,9 +162,9 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
       .from(feedbackEvents)
       .where(eq(feedbackEvents.userId, userId)),
     db
-      .select({ brandId: products.brandId, kind: feedbackEvents.kind, n: sql<number>`count(*)` })
+      .select({ brandId: articles.brandId, kind: feedbackEvents.kind, n: sql<number>`count(*)` })
       .from(feedbackEvents)
-      .innerJoin(products, eq(products.id, feedbackEvents.productId))
+      .innerJoin(articles, eq(articles.id, feedbackEvents.articleId))
       .where(
         and(
           eq(feedbackEvents.userId, userId),
@@ -164,7 +172,7 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
           gte(feedbackEvents.createdAt, sqlDaysAgoMs(90)),
         ),
       )
-      .groupBy(products.brandId, feedbackEvents.kind),
+      .groupBy(articles.brandId, feedbackEvents.kind),
     db
       .select({
         bUserId: relationships.bUserId,
@@ -215,6 +223,7 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
     budgetHint: u.budgetHint ?? null,
     brandCounts,
     trusted: ranked.slice(0, TRUSTED_MAX),
+    createdAt: u.createdAt ?? null,
   }
 }
 

@@ -5,8 +5,6 @@
  */
 import {
   and,
-  asks,
-  askResponses,
   brands,
   desc,
   eq,
@@ -20,12 +18,12 @@ import {
   isNotNull,
   lineageStats,
   lookParticipants,
-  lookProducts,
+  lookArticles,
   looks,
   lte,
   manufacturingRecommendations,
   or,
-  products,
+  articles,
   purchases,
   relationships,
   rowsOf,
@@ -37,7 +35,7 @@ import {
   type LineageStat,
   type Look,
   type ManufacturingRecommendation,
-  type Product,
+  type Article,
   type Relationship,
   type TrendSignal,
 } from '@lookline/db'
@@ -45,8 +43,6 @@ import type { UserSummary } from '../types'
 import type { RelationshipRow } from './graph/relationships'
 import { DAY_MS } from './shared'
 import type {
-  AskLite,
-  AskResponseLite,
   IntentSessionLite,
   InteractionLite,
   LookLite,
@@ -118,13 +114,11 @@ export interface AnalyticsRaw {
   users: UserLite[]
   interactions: InteractionLite[]
   purchases: PurchaseLite[]
-  asks: AskLite[]
-  askResponses: AskResponseLite[]
   looks: LookLite[]
-  lookProducts: LookProductLite[]
+  lookArticles: LookProductLite[]
   participants: ParticipantLite[]
   intents: IntentSessionLite[]
-  products: Map<number, ProductLite>
+  articles: Map<string, ProductLite>
   supply: Map<string, SupplyCell>
 }
 
@@ -165,8 +159,7 @@ export async function loadInteractionsLite(
       actorUserId: interactions.actorUserId,
       targetUserId: interactions.targetUserId,
       lookId: interactions.lookId,
-      productId: interactions.productId,
-      askId: interactions.askId,
+      articleId: interactions.articleId,
       type: interactions.type,
       sourceInteractionId: interactions.sourceInteractionId,
       createdAt: interactions.createdAt,
@@ -181,13 +174,12 @@ export async function loadPurchasesLite(db: Database, until: Date): Promise<Purc
     .select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId,
+      articleId: purchases.articleId,
       quantity: purchases.quantity,
       price: purchases.price,
       forKind: purchases.forKind,
       forUserId: purchases.forUserId,
       sourceLookId: purchases.sourceLookId,
-      sourceAskId: purchases.sourceAskId,
       sourceInteractionId: purchases.sourceInteractionId,
       intentSessionId: purchases.intentSessionId,
       createdAt: purchases.createdAt,
@@ -224,8 +216,8 @@ export async function loadParticipants(db: Database): Promise<ParticipantLite[]>
 
 export async function loadLookProductsLite(db: Database): Promise<LookProductLite[]> {
   return db
-    .select({ lookId: lookProducts.lookId, productId: lookProducts.productId })
-    .from(lookProducts)
+    .select({ lookId: lookArticles.lookId, articleId: lookArticles.articleId })
+    .from(lookArticles)
 }
 
 export async function loadIntentsLite(
@@ -260,37 +252,39 @@ export async function loadIntentsLite(
 
 export async function loadProductsLite(
   db: Database,
-  ids: Iterable<number>,
-): Promise<Map<number, ProductLite>> {
+  ids: Iterable<string>,
+): Promise<Map<string, ProductLite>> {
   const unique = [...new Set(ids)].filter((id) => Number.isFinite(id))
-  const out = new Map<number, ProductLite>()
+  const out = new Map<string, ProductLite>()
   for (const part of chunks(unique, ID_CHUNK)) {
     const rows = await db
       .select({
-        id: products.id,
-        aesthetics: products.aesthetics,
-        categoryGroup: products.categoryGroup,
-        subcategory: products.subcategory,
-        colorFamily: products.colorFamily,
-        silhouette: products.silhouette,
-        silhouetteId: products.silhouetteId,
-        stock: products.stock,
-        price: products.price,
+        id: articles.id,
+        categoryGroup: articles.categoryGroup,
+        subcategory: articles.subcategory,
+        colorFamily: articles.colorFamily,
+        price: articles.price,
+        aesthetics: articles.aesthetics,
+        attributes: articles.attributes,
+        printMotif: articles.printMotif,
       })
-      .from(products)
-      .where(inArray(products.id, part))
-    for (const r of rows) out.set(r.id, { ...r, aesthetics: asStringArray(r.aesthetics) })
+      .from(articles)
+      .where(inArray(articles.id, part))
+    for (const r of rows) out.set(r.id, r)
   }
   return out
 }
 
-/** In-stock counts per (aesthetic, group, colour) and per (aesthetic, group). */
+/**
+ * Article counts per (aesthetic, group, colour) — how much of a thing the catalogue already has,
+ * which is what tells a momentum signal apart from an unmet one. The aesthetic came back with the
+ * vision pass; an untagged article counts under `''`, as it did when no article had a tag.
+ */
 export async function loadSupply(db: Database): Promise<Map<string, SupplyCell>> {
   const result = await db.all(sql`
-    select a.value as aesthetic, category_group as "group", color_family as color,
-           count(*) as supply, count(*) filter (where stock < 5) as low
-    from products, json_each(products.aesthetics) as a
-    where stock > 0
+    select coalesce(j.value, '') as aesthetic, category_group as "group", colour_family as color,
+           count(*) as supply, 0 as low
+    from articles left join json_each(articles.aesthetics) j
     group by 1, 2, 3
   `)
   const out = new Map<string, SupplyCell>()
@@ -320,51 +314,30 @@ export async function loadAnalyticsRaw(
 ): Promise<AnalyticsRaw> {
   const interactionSince = new Date(now.getTime() - (opts.interactionDays ?? 180) * DAY_MS)
   const intentSince = new Date(now.getTime() - (opts.intentDays ?? 14) * DAY_MS)
-  const [usersLite, ixs, pus, askRows, responses, lookRows, lps, participants, intents, supply] =
-    await Promise.all([
-      loadUsersLite(db),
-      loadInteractionsLite(db, interactionSince, now),
-      loadPurchasesLite(db, now),
-      db
-        .select({
-          id: asks.id,
-          askerId: asks.askerId,
-          targetUserId: asks.targetUserId,
-          lookId: asks.lookId,
-          createdAt: asks.createdAt,
-        })
-        .from(asks),
-      db
-        .select({
-          askId: askResponses.askId,
-          responderUserId: askResponses.responderUserId,
-          choiceProductId: askResponses.choiceProductId,
-          styledLookId: askResponses.styledLookId,
-          createdAt: askResponses.createdAt,
-        })
-        .from(askResponses),
-      loadLooksLite(db, now),
-      loadLookProductsLite(db),
-      loadParticipants(db),
-      loadIntentsLite(db, intentSince, now),
-      loadSupply(db),
-    ])
-  const productIds = new Set<number>()
-  for (const ix of ixs) if (ix.productId != null) productIds.add(ix.productId)
-  for (const p of pus) productIds.add(p.productId)
-  for (const lp of lps) productIds.add(lp.productId)
-  const productMap = await loadProductsLite(db, productIds)
+  const [usersLite, ixs, pus, lookRows, lps, participants, intents, supply] = await Promise.all([
+    loadUsersLite(db),
+    loadInteractionsLite(db, interactionSince, now),
+    loadPurchasesLite(db, now),
+    loadLooksLite(db, now),
+    loadLookProductsLite(db),
+    loadParticipants(db),
+    loadIntentsLite(db, intentSince, now),
+    loadSupply(db),
+  ])
+  const articleIds = new Set<string>()
+  for (const ix of ixs) if (ix.articleId != null) articleIds.add(ix.articleId)
+  for (const p of pus) articleIds.add(p.articleId)
+  for (const lp of lps) articleIds.add(lp.articleId)
+  const productMap = await loadProductsLite(db, articleIds)
   return {
     users: usersLite,
     interactions: ixs,
     purchases: pus,
-    asks: askRows,
-    askResponses: responses,
     looks: lookRows,
-    lookProducts: lps,
+    lookArticles: lps,
     participants,
     intents,
-    products: productMap,
+    articles: productMap,
     supply,
   }
 }
@@ -516,20 +489,20 @@ export async function rebuildManufacturing(
 
 export async function updateTrendScores(
   db: Database,
-  scores: ReadonlyMap<number, number>,
+  scores: ReadonlyMap<string, number>,
 ): Promise<void> {
   await db
-    .update(products)
+    .update(articles)
     .set({ trendScore: 0 })
-    .where(sql`${products.trendScore} <> 0`)
+    .where(sql`${articles.trendScore} <> 0`)
   const entries = [...scores.entries()]
   for (const part of chunks(entries, CHUNK)) {
     const json = JSON.stringify(
       Object.fromEntries(part.map(([id, s]) => [String(id), Number.isFinite(s) ? s : 0])),
     )
     await db.run(
-      sql`update products set trend_score = (select j.value from json_each(${json}) as j where j.key = cast(products.id as text))
-          where products.id in (select cast(key as integer) from json_each(${json}))`,
+      sql`update articles set trend_score = (select j.value from json_each(${json}) as j where j.key = cast(articles.id as text))
+          where articles.id in (select cast(key as integer) from json_each(${json}))`,
     )
   }
 }
@@ -559,7 +532,6 @@ export interface HeadlineRaw {
   looks: number
   remixes: number
   togethers: number
-  asks: number
   shares: number
   purchases: number
   purchasesFromLooks: number
@@ -576,39 +548,34 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
   const toMs = to.getTime()
   const inWindow = <T extends { createdAt: typeof looks.createdAt }>(t: T) =>
     and(gte(t.createdAt, from), lte(t.createdAt, to))
-  const [lookCounts, askCount, shareCount, purchaseCounts, active, cross, depth] =
-    await Promise.all([
-      db
-        .select({
-          looks: sql<number>`count(*)`,
-          remixes: sql<number>`count(*) filter (where ${looks.kind} = 'remix')`,
-          togethers: sql<number>`count(*) filter (where ${looks.kind} = 'together')`,
-        })
-        .from(looks)
-        .where(inWindow(looks)),
-      db
-        .select({ n: sql<number>`count(*)` })
-        .from(asks)
-        .where(and(gte(asks.createdAt, from), lte(asks.createdAt, to))),
-      db
-        .select({ n: sql<number>`count(*)` })
-        .from(interactions)
-        .where(
-          and(
-            eq(interactions.type, 'SHARE'),
-            gte(interactions.createdAt, from),
-            lte(interactions.createdAt, to),
-          ),
+  const [lookCounts, shareCount, purchaseCounts, active, cross, depth] = await Promise.all([
+    db
+      .select({
+        looks: sql<number>`count(*)`,
+        remixes: sql<number>`count(*) filter (where ${looks.kind} = 'remix')`,
+        togethers: sql<number>`count(*) filter (where ${looks.kind} = 'together')`,
+      })
+      .from(looks)
+      .where(inWindow(looks)),
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(interactions)
+      .where(
+        and(
+          eq(interactions.type, 'SHARE'),
+          gte(interactions.createdAt, from),
+          lte(interactions.createdAt, to),
         ),
-      db
-        .select({
-          purchases: sql<number>`count(*)`,
-          fromLooks: sql<number>`count(*) filter (where ${purchases.sourceLookId} is not null)`,
-          gmvFromLooks: sql<number>`coalesce(sum(${purchases.price} * ${purchases.quantity}) filter (where ${purchases.sourceLookId} is not null), 0)`,
-        })
-        .from(purchases)
-        .where(and(gte(purchases.createdAt, from), lte(purchases.createdAt, to))),
-      db.all(sql`
+      ),
+    db
+      .select({
+        purchases: sql<number>`count(*)`,
+        fromLooks: sql<number>`count(*) filter (where ${purchases.sourceLookId} is not null)`,
+        gmvFromLooks: sql<number>`coalesce(sum(${purchases.price} * ${purchases.quantity}) filter (where ${purchases.sourceLookId} is not null), 0)`,
+      })
+      .from(purchases)
+      .where(and(gte(purchases.createdAt, from), lte(purchases.createdAt, to))),
+    db.all(sql`
       select count(distinct id) as n from (
         select actor_user_id as id from interactions
           where created_at >= ${fromMs} and created_at <= ${toMs}
@@ -617,7 +584,7 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
           where created_at >= ${fromMs} and created_at <= ${toMs}
       ) t
     `),
-      db.all(sql`
+    db.all(sql`
       select count(*) filter (where uo.taste_cluster <> up.taste_cluster) as crossed, count(*) as total
       from looks l
       join looks p on p.id = l.parent_look_id
@@ -627,12 +594,12 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
         and l.created_at >= ${fromMs} and l.created_at <= ${toMs}
         and uo.taste_cluster is not null and up.taste_cluster is not null
     `),
-      db
-        .select({ avg: sql<number | null>`avg(${lineageStats.depth})` })
-        .from(lineageStats)
-        .innerJoin(looks, eq(looks.id, lineageStats.rootLookId))
-        .where(inWindow(looks)),
-    ])
+    db
+      .select({ avg: sql<number | null>`avg(${lineageStats.depth})` })
+      .from(lineageStats)
+      .innerJoin(looks, eq(looks.id, lineageStats.rootLookId))
+      .where(inWindow(looks)),
+  ])
   const lc = lookCounts[0]
   const pc = purchaseCounts[0]
   const activeRow = rowsOf<{ n: number }>(active)[0]
@@ -641,7 +608,6 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
     looks: Number(lc?.looks ?? 0),
     remixes: Number(lc?.remixes ?? 0),
     togethers: Number(lc?.togethers ?? 0),
-    asks: Number(askCount[0]?.n ?? 0),
     shares: Number(shareCount[0]?.n ?? 0),
     purchases: Number(pc?.purchases ?? 0),
     purchasesFromLooks: Number(pc?.fromLooks ?? 0),
@@ -657,7 +623,7 @@ export interface TopLineageRaw {
   stats: LineageStat
   look: Look
   owner: UserSummary
-  products: Product[]
+  articles: Article[]
 }
 
 export async function loadTopLineages(db: Database, limit: number): Promise<TopLineageRaw[]> {
@@ -682,28 +648,28 @@ export async function loadTopLineages(db: Database, limit: number): Promise<TopL
     stats: r.stats,
     look: r.look,
     owner: toUserSummary(r.owner),
-    products: (productsByLook.get(r.look.id) ?? []).map(({ brandName: _brand, ...p }) => p),
+    articles: (productsByLook.get(r.look.id) ?? []).map(({ brandName: _brand, ...p }) => p),
   }))
 }
 
 export async function loadLookProductRows(
   db: Database,
   lookIds: readonly string[],
-): Promise<Map<string, Array<Product & { brandName: string }>>> {
-  const out = new Map<string, Array<Product & { brandName: string }>>()
+): Promise<Map<string, Array<Article & { brandName: string }>>> {
+  const out = new Map<string, Array<Article & { brandName: string }>>()
   if (lookIds.length === 0) return out
   const rows = await db
     .select({
-      lookId: lookProducts.lookId,
-      position: lookProducts.position,
-      product: products,
+      lookId: lookArticles.lookId,
+      position: lookArticles.position,
+      product: articles,
       brandName: brands.name,
     })
-    .from(lookProducts)
-    .innerJoin(products, eq(products.id, lookProducts.productId))
-    .innerJoin(brands, eq(brands.id, products.brandId))
-    .where(inArray(lookProducts.lookId, [...lookIds]))
-    .orderBy(lookProducts.lookId, lookProducts.position, lookProducts.productId)
+    .from(lookArticles)
+    .innerJoin(articles, eq(articles.id, lookArticles.articleId))
+    .innerJoin(brands, eq(brands.id, articles.brandId))
+    .where(inArray(lookArticles.lookId, [...lookIds]))
+    .orderBy(lookArticles.lookId, lookArticles.position, lookArticles.articleId)
   for (const r of rows) {
     const list = out.get(r.lookId)
     const item = { ...r.product, brandName: r.brandName }
@@ -783,13 +749,12 @@ export async function loadPurchasesFromLooks(db: Database): Promise<PurchaseLite
     .select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId,
+      articleId: purchases.articleId,
       quantity: purchases.quantity,
       price: purchases.price,
       forKind: purchases.forKind,
       forUserId: purchases.forUserId,
       sourceLookId: purchases.sourceLookId,
-      sourceAskId: purchases.sourceAskId,
       sourceInteractionId: purchases.sourceInteractionId,
       intentSessionId: purchases.intentSessionId,
       createdAt: purchases.createdAt,
@@ -872,8 +837,7 @@ export async function loadInteractionsForLooks(
       actorUserId: interactions.actorUserId,
       targetUserId: interactions.targetUserId,
       lookId: interactions.lookId,
-      productId: interactions.productId,
-      askId: interactions.askId,
+      articleId: interactions.articleId,
       type: interactions.type,
       sourceInteractionId: interactions.sourceInteractionId,
       createdAt: interactions.createdAt,
@@ -891,13 +855,12 @@ export async function loadPurchasesForLooks(
     .select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId,
+      articleId: purchases.articleId,
       quantity: purchases.quantity,
       price: purchases.price,
       forKind: purchases.forKind,
       forUserId: purchases.forUserId,
       sourceLookId: purchases.sourceLookId,
-      sourceAskId: purchases.sourceAskId,
       sourceInteractionId: purchases.sourceInteractionId,
       intentSessionId: purchases.intentSessionId,
       createdAt: purchases.createdAt,

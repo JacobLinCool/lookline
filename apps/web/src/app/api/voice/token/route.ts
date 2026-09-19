@@ -5,11 +5,13 @@ import {
   TRANSCRIBE_MODEL,
   VOICE_SESSION_MS,
 } from '@/lib/voice-config'
+import { getMessages } from '@/i18n/server'
 import { liveAccess } from '@/server/live-access'
 
 export async function POST(request: Request) {
   const access = await liveAccess(request, 'voice')
   if (access.response) return access.response
+  const { errors } = (await getMessages()).ui
   try {
     const body: unknown = await request.json().catch(() => null)
     if (
@@ -19,15 +21,9 @@ export async function POST(request: Request) {
       Object.keys(body).length !== 1 ||
       !isVoiceLanguageSelection(body.languageCodes)
     )
-      return Response.json(
-        { error: 'Select at least one supported voice language.' },
-        { status: 400 },
-      )
+      return Response.json({ error: errors.voiceLanguages }, { status: 400 })
     if (!process.env.GEMINI_API_KEY)
-      return Response.json(
-        { error: 'Voice is temporarily unavailable. You can keep typing.' },
-        { status: 503 },
-      )
+      return Response.json({ error: errors.voiceUnavailable }, { status: 503 })
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINI_API_KEY,
       httpOptions: { apiVersion: 'v1alpha' },
@@ -49,7 +45,7 @@ export async function POST(request: Request) {
     return Response.json({ token: token.name }, { headers: { 'Cache-Control': 'no-store' } })
   } catch {
     return Response.json(
-      { error: 'Voice could not connect. You can keep typing or try again.' },
+      { error: errors.voiceConnect },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     )
   } finally {

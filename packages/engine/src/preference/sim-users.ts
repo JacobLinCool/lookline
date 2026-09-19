@@ -3,7 +3,6 @@
  * (ENGINE_SPEC §4.5). Archetypes are keyed by the catalog's aesthetic slugs.
  */
 import {
-  AESTHETICS,
   CATEGORY_GROUPS,
   COLOR_FAMILIES,
   STYLE_DIMENSIONS,
@@ -90,13 +89,14 @@ export function makeSyntheticUsers(
     )
     const department = rng.weighted(deptWeights)
     const h = new Float64Array(STYLE_DIMENSIONS)
-    h[aestheticIndex(a1)] = 1
-    h[aestheticIndex(a2)] = 0.7
-    const extras = AESTHETICS.filter(
-      (a) => a.slug !== a1 && a.slug !== a2 && aestheticDeptMult(a.slug, department) > 0,
-    )
-    const extra = rng.pick(extras.length > 0 ? extras : AESTHETICS)
-    h[extra.index] = Math.max(h[extra.index] ?? 0, 0.3)
+    // The archetype IS its two aesthetics, so they are the strongest thing in the hidden taste:
+    // the primary outright, the secondary at the weight `buildEvalCatalog` gives a product's
+    // second tag. Leaving the block at zero while articles carry one would have the ranker score
+    // a dimension the ground truth ignores — noise, measured as if it were taste.
+    const ai1 = aestheticIndex(a1)
+    const ai2 = aestheticIndex(a2)
+    if (ai1 >= 0) h[ai1] = 1
+    if (ai2 >= 0) h[ai2] = Math.max(h[ai2] ?? 0, 0.7)
     for (const slug of [a1, a2]) {
       const row = AESTHETIC_COLOR_PRIOR[slug] ?? {}
       for (const [family, w] of Object.entries(row)) {

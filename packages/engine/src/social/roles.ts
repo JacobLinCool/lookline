@@ -48,10 +48,10 @@ export function inferRole(product: { categoryGroup: string; subcategory: string 
 
 /** Roles in input order; the first item of each role keeps the plain role, later ones get `-2`, `-3`, … */
 export function inferRoles(
-  products: ReadonlyArray<{ categoryGroup: string; subcategory: string }>,
+  articles: ReadonlyArray<{ categoryGroup: string; subcategory: string }>,
 ): string[] {
   const counts = new Map<LookRole, number>()
-  return products.map((p) => {
+  return articles.map((p) => {
     const role = inferRole(p)
     const n = (counts.get(role) ?? 0) + 1
     counts.set(role, n)

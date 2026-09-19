@@ -7,15 +7,11 @@
  * (52–63) is an exponential moving average that only positive events update.
  */
 import {
-  AESTHETICS,
-  AESTHETIC_PRIOR,
   CATEGORY_GROUPS,
   COLOR_FAMILIES,
   STYLE_DIMENSIONS,
-  aestheticDeptMult,
   colorFamilyIndex,
   colorFamilyWeight,
-  type AestheticSlug,
 } from '@lookline/catalog'
 import type { Department } from '@lookline/db'
 import { BLOCK, clamp01, zero64 } from './vector'
@@ -41,8 +37,6 @@ export const GROUP_EMA = 0.5
 
 const DAY_MS = 86_400_000
 
-/** Total aesthetic mass of a typical product vector (primary ≥ .85 + secondary ≥ .55 + tail). */
-const PRIOR_AESTHETIC_MASS = 1.6
 /** Total colour mass of a typical product vector (primary 1.0 + 40% chance of a .4 secondary). */
 const PRIOR_COLOR_MASS = 1.16
 
@@ -71,7 +65,7 @@ const priorCache = new Map<Department, number[]>()
 /**
  * Department centroid used as the prior `p0`.
  *
- * ENGINE_SPEC §4.2 samples 2,000 generated products per department; the catalog generator was a
+ * ENGINE_SPEC §4.2 samples 2,000 generated articles per department; the catalog generator was a
  * stub when this module was written, so the centroid is derived from the taxonomy instead: the
  * aesthetic block from `AESTHETIC_PRIOR × deptMult`, the colour block from the per-group colour
  * priors with the department multipliers, axes at 0.5, groups uniform 1/12. Both constructions
@@ -81,21 +75,8 @@ export function departmentPrior(department: Department): number[] {
   const cached = priorCache.get(department)
   if (cached) return cached.slice()
   const p = zero64()
-  // A block
-  let total = 0
-  const weights = AESTHETICS.map((a) => {
-    const w =
-      (AESTHETIC_PRIOR[a.slug as AestheticSlug] ?? 1 / 32) * aestheticDeptMult(a.slug, department)
-    total += w
-    return w
-  })
-  if (total <= 0) {
-    total = AESTHETICS.length
-    weights.fill(1)
-  }
-  AESTHETICS.forEach((a, i) => {
-    p[a.index] = (PRIOR_AESTHETIC_MASS * (weights[i] ?? 0)) / total
-  })
+  // A block: left at zero on purpose — a new person is assumed to have no aesthetic, and every
+  // step away from that is learned, which is what makes the movement toward the truth visible.
   // C block: mean over groups of the normalised per-group family prior
   const colour = Array.from({ length: COLOR_FAMILIES.length }, () => 0)
   for (const group of CATEGORY_GROUPS) {
@@ -148,6 +129,9 @@ export function applyEvent(
   const eta = learningRate(state.n, scale)
   const g = r > 0 ? r : NEGATIVE_STEP * r
   const p = state.p
+  // Aesthetics, colours and axes are one contiguous run of "taste pulled toward what was liked";
+  // only the group block below learns differently. The bound is the end of X rather than
+  // STYLE_DIMENSIONS so that G keeps its own rule.
   for (let i = BLOCK.A[0]; i < BLOCK.X[1]; i++) {
     const cur = p[i] ?? 0
     p[i] = clamp01(cur + eta * g * ((v[i] ?? 0) - cur))

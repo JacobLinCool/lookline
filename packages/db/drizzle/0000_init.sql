@@ -1,15 +1,69 @@
+CREATE TABLE `articles` (
+	`article_id` text PRIMARY KEY NOT NULL,
+	`brand_id` integer NOT NULL,
+	`product_code` text NOT NULL,
+	`prod_name` text NOT NULL,
+	`detail_desc` text DEFAULT '' NOT NULL,
+	`product_type_name` text NOT NULL,
+	`product_group_name` text NOT NULL,
+	`garment_group_name` text DEFAULT '' NOT NULL,
+	`section_name` text DEFAULT '' NOT NULL,
+	`index_name` text NOT NULL,
+	`index_group_name` text NOT NULL,
+	`graphical_appearance_name` text DEFAULT '' NOT NULL,
+	`colour_group_name` text DEFAULT '' NOT NULL,
+	`perceived_colour_master_name` text DEFAULT '' NOT NULL,
+	`perceived_colour_value_name` text DEFAULT '' NOT NULL,
+	`category_group` text NOT NULL,
+	`outfit_role` text NOT NULL,
+	`department` text NOT NULL,
+	`slug` text NOT NULL,
+	`colour_hex` text DEFAULT '#9E9E9E' NOT NULL,
+	`image_path` text,
+	`price` integer DEFAULT 0 NOT NULL,
+	`tier` text DEFAULT 'mid' NOT NULL,
+	`sales_count` integer DEFAULT 0 NOT NULL,
+	`first_sold_at` integer,
+	`last_sold_at` integer,
+	`online_ratio` real DEFAULT 0 NOT NULL,
+	`popularity` real DEFAULT 0 NOT NULL,
+	`trend_score` real DEFAULT 0 NOT NULL,
+	`material` text DEFAULT '' NOT NULL,
+	`fit` text DEFAULT '' NOT NULL,
+	`length` text DEFAULT '' NOT NULL,
+	`neckline` text DEFAULT '' NOT NULL,
+	`sleeve` text DEFAULT '' NOT NULL,
+	`closure` text DEFAULT '' NOT NULL,
+	`seasons` text DEFAULT '[]' NOT NULL,
+	`occasions` text DEFAULT '[]' NOT NULL,
+	`attributes` text DEFAULT '{}' NOT NULL,
+	`style_vector` text NOT NULL,
+	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5) * 86400000 as integer)) NOT NULL,
+	FOREIGN KEY (`brand_id`) REFERENCES `brands`(`id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `articles_slug_idx` ON `articles` (`slug`);--> statement-breakpoint
+CREATE INDEX `articles_brand_idx` ON `articles` (`brand_id`);--> statement-breakpoint
+CREATE INDEX `articles_product_code_idx` ON `articles` (`product_code`);--> statement-breakpoint
+CREATE INDEX `articles_department_idx` ON `articles` (`department`);--> statement-breakpoint
+CREATE INDEX `articles_category_group_idx` ON `articles` (`category_group`);--> statement-breakpoint
+CREATE INDEX `articles_outfit_role_idx` ON `articles` (`outfit_role`);--> statement-breakpoint
+CREATE INDEX `articles_product_type_idx` ON `articles` (`product_type_name`);--> statement-breakpoint
+CREATE INDEX `articles_price_idx` ON `articles` (`price`);--> statement-breakpoint
+CREATE INDEX `articles_dept_group_price_idx` ON `articles` (`department`,`category_group`,`price`);--> statement-breakpoint
+CREATE INDEX `articles_popularity_idx` ON `articles` (`popularity`);--> statement-breakpoint
 CREATE TABLE `ask_responses` (
 	`id` text PRIMARY KEY NOT NULL,
 	`ask_id` text NOT NULL,
 	`responder_user_id` text,
 	`responder_name` text,
-	`choice_product_id` integer,
+	`choice_article_id` text,
 	`styled_look_id` text,
 	`comment` text,
 	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5) * 86400000 as integer)) NOT NULL,
 	FOREIGN KEY (`ask_id`) REFERENCES `asks`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`responder_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`choice_product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`choice_article_id`) REFERENCES `articles`(`article_id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`styled_look_id`) REFERENCES `looks`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -21,7 +75,7 @@ CREATE TABLE `asks` (
 	`target_user_id` text,
 	`kind` text NOT NULL,
 	`question` text NOT NULL,
-	`option_product_ids` text DEFAULT '[]' NOT NULL,
+	`option_article_ids` text DEFAULT '[]' NOT NULL,
 	`look_id` text,
 	`budget` integer,
 	`occasion` text,
@@ -69,7 +123,7 @@ CREATE INDEX `evaluation_runs_created_idx` ON `evaluation_runs` (`created_at`);-
 CREATE TABLE `feedback_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
-	`product_id` integer,
+	`article_id` text,
 	`look_id` text,
 	`intent_session_id` text,
 	`kind` text NOT NULL,
@@ -79,14 +133,33 @@ CREATE TABLE `feedback_events` (
 	`context` text DEFAULT '{}' NOT NULL,
 	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5) * 86400000 as integer)) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`article_id`) REFERENCES `articles`(`article_id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`look_id`) REFERENCES `looks`(`id`) ON UPDATE no action ON DELETE set null
 );
 --> statement-breakpoint
 CREATE INDEX `feedback_events_user_idx` ON `feedback_events` (`user_id`);--> statement-breakpoint
-CREATE INDEX `feedback_events_product_idx` ON `feedback_events` (`product_id`);--> statement-breakpoint
+CREATE INDEX `feedback_events_article_idx` ON `feedback_events` (`article_id`);--> statement-breakpoint
 CREATE INDEX `feedback_events_created_idx` ON `feedback_events` (`created_at`);--> statement-breakpoint
 CREATE INDEX `feedback_events_session_idx` ON `feedback_events` (`intent_session_id`);--> statement-breakpoint
+CREATE TABLE `hm_customers` (
+	`customer_id` text PRIMARY KEY NOT NULL,
+	`age` integer,
+	`club_member_status` text,
+	`fashion_news_frequency` text,
+	`postal_code` text,
+	`subscribes_news` integer DEFAULT false NOT NULL,
+	`active` integer DEFAULT false NOT NULL,
+	`purchases` integer DEFAULT 0 NOT NULL,
+	`spend` integer DEFAULT 0 NOT NULL,
+	`first_buy_at` integer,
+	`last_buy_at` integer,
+	`online_ratio` real DEFAULT 0 NOT NULL,
+	`top_index_group` text,
+	`top_product_group` text
+);
+--> statement-breakpoint
+CREATE INDEX `hm_customers_purchases_idx` ON `hm_customers` (`purchases`);--> statement-breakpoint
+CREATE INDEX `hm_customers_age_idx` ON `hm_customers` (`age`);--> statement-breakpoint
 CREATE TABLE `intent_sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text,
@@ -108,7 +181,7 @@ CREATE TABLE `interactions` (
 	`actor_user_id` text NOT NULL,
 	`target_user_id` text,
 	`look_id` text,
-	`product_id` integer,
+	`article_id` text,
 	`ask_id` text,
 	`type` text NOT NULL,
 	`payload` text DEFAULT '{}' NOT NULL,
@@ -117,14 +190,14 @@ CREATE TABLE `interactions` (
 	FOREIGN KEY (`actor_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`target_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`look_id`) REFERENCES `looks`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`article_id`) REFERENCES `articles`(`article_id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`ask_id`) REFERENCES `asks`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE INDEX `interactions_actor_idx` ON `interactions` (`actor_user_id`);--> statement-breakpoint
 CREATE INDEX `interactions_target_idx` ON `interactions` (`target_user_id`);--> statement-breakpoint
 CREATE INDEX `interactions_look_idx` ON `interactions` (`look_id`);--> statement-breakpoint
-CREATE INDEX `interactions_product_idx` ON `interactions` (`product_id`);--> statement-breakpoint
+CREATE INDEX `interactions_article_idx` ON `interactions` (`article_id`);--> statement-breakpoint
 CREATE INDEX `interactions_type_idx` ON `interactions` (`type`);--> statement-breakpoint
 CREATE INDEX `interactions_created_idx` ON `interactions` (`created_at`);--> statement-breakpoint
 CREATE TABLE `lineage_stats` (
@@ -147,6 +220,17 @@ CREATE TABLE `lineage_stats` (
 	FOREIGN KEY (`root_look_id`) REFERENCES `looks`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `look_articles` (
+	`look_id` text NOT NULL,
+	`article_id` text NOT NULL,
+	`role` text,
+	`position` integer DEFAULT 0 NOT NULL,
+	PRIMARY KEY(`look_id`, `article_id`),
+	FOREIGN KEY (`look_id`) REFERENCES `looks`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`article_id`) REFERENCES `articles`(`article_id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE INDEX `look_articles_article_idx` ON `look_articles` (`article_id`);--> statement-breakpoint
 CREATE TABLE `look_participants` (
 	`look_id` text NOT NULL,
 	`user_id` text NOT NULL,
@@ -157,17 +241,6 @@ CREATE TABLE `look_participants` (
 );
 --> statement-breakpoint
 CREATE INDEX `look_participants_user_idx` ON `look_participants` (`user_id`);--> statement-breakpoint
-CREATE TABLE `look_products` (
-	`look_id` text NOT NULL,
-	`product_id` integer NOT NULL,
-	`role` text,
-	`position` integer DEFAULT 0 NOT NULL,
-	PRIMARY KEY(`look_id`, `product_id`),
-	FOREIGN KEY (`look_id`) REFERENCES `looks`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE INDEX `look_products_product_idx` ON `look_products` (`product_id`);--> statement-breakpoint
 CREATE TABLE `looks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -183,7 +256,7 @@ CREATE TABLE `looks` (
 	`image_error` text,
 	`aesthetics` text DEFAULT '[]' NOT NULL,
 	`palette` text DEFAULT '[]' NOT NULL,
-	`style_vector` text,
+	`style_vector` text NOT NULL,
 	`occasion` text,
 	`parent_look_id` text,
 	`root_look_id` text,
@@ -228,61 +301,10 @@ CREATE TABLE `preference_snapshots` (
 );
 --> statement-breakpoint
 CREATE INDEX `preference_snapshots_user_idx` ON `preference_snapshots` (`user_id`,`version`);--> statement-breakpoint
-CREATE TABLE `products` (
-	`id` integer PRIMARY KEY NOT NULL,
-	`slug` text NOT NULL,
-	`brand_id` integer NOT NULL,
-	`name` text NOT NULL,
-	`description` text NOT NULL,
-	`department` text NOT NULL,
-	`category_group` text NOT NULL,
-	`category` text NOT NULL,
-	`subcategory` text NOT NULL,
-	`silhouette_id` text NOT NULL,
-	`color_name` text NOT NULL,
-	`color_hex` text NOT NULL,
-	`color_family` text NOT NULL,
-	`secondary_color_hex` text,
-	`pattern` text NOT NULL,
-	`material` text NOT NULL,
-	`fit` text,
-	`silhouette` text,
-	`length` text,
-	`neckline` text,
-	`sleeve` text,
-	`closure` text,
-	`occasions` text DEFAULT '[]' NOT NULL,
-	`seasons` text DEFAULT '[]' NOT NULL,
-	`aesthetics` text DEFAULT '[]' NOT NULL,
-	`attributes` text DEFAULT '{}' NOT NULL,
-	`style_vector` text NOT NULL,
-	`price` integer NOT NULL,
-	`tier` text NOT NULL,
-	`size_system` text NOT NULL,
-	`sizes` text DEFAULT '[]' NOT NULL,
-	`stock` integer DEFAULT 0 NOT NULL,
-	`rating` real DEFAULT 0 NOT NULL,
-	`review_count` integer DEFAULT 0 NOT NULL,
-	`popularity` real DEFAULT 0 NOT NULL,
-	`trend_score` real DEFAULT 0 NOT NULL,
-	`hero_image_url` text,
-	`image_seed` integer DEFAULT 0 NOT NULL,
-	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5) * 86400000 as integer)) NOT NULL,
-	FOREIGN KEY (`brand_id`) REFERENCES `brands`(`id`) ON UPDATE no action ON DELETE no action
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `products_slug_idx` ON `products` (`slug`);--> statement-breakpoint
-CREATE INDEX `products_brand_idx` ON `products` (`brand_id`);--> statement-breakpoint
-CREATE INDEX `products_department_idx` ON `products` (`department`);--> statement-breakpoint
-CREATE INDEX `products_category_group_idx` ON `products` (`category_group`);--> statement-breakpoint
-CREATE INDEX `products_subcategory_idx` ON `products` (`subcategory`);--> statement-breakpoint
-CREATE INDEX `products_price_idx` ON `products` (`price`);--> statement-breakpoint
-CREATE INDEX `products_dept_group_price_idx` ON `products` (`department`,`category_group`,`price`);--> statement-breakpoint
-CREATE INDEX `products_popularity_idx` ON `products` (`popularity`);--> statement-breakpoint
 CREATE TABLE `purchases` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
-	`product_id` integer NOT NULL,
+	`article_id` text NOT NULL,
 	`quantity` integer DEFAULT 1 NOT NULL,
 	`price` integer NOT NULL,
 	`size` text,
@@ -295,12 +317,12 @@ CREATE TABLE `purchases` (
 	`intent_session_id` text,
 	`created_at` integer DEFAULT (cast((julianday('now') - 2440587.5) * 86400000 as integer)) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action,
-	FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`article_id`) REFERENCES `articles`(`article_id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`for_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
 CREATE INDEX `purchases_user_idx` ON `purchases` (`user_id`);--> statement-breakpoint
-CREATE INDEX `purchases_product_idx` ON `purchases` (`product_id`);--> statement-breakpoint
+CREATE INDEX `purchases_article_idx` ON `purchases` (`article_id`);--> statement-breakpoint
 CREATE INDEX `purchases_source_look_idx` ON `purchases` (`source_look_id`);--> statement-breakpoint
 CREATE INDEX `purchases_created_idx` ON `purchases` (`created_at`);--> statement-breakpoint
 CREATE TABLE `relationships` (
@@ -355,6 +377,15 @@ CREATE TABLE `trend_signals` (
 CREATE UNIQUE INDEX `trend_signals_day_dim_key_idx` ON `trend_signals` (`day`,`dimension`,`key`);--> statement-breakpoint
 CREATE INDEX `trend_signals_dim_key_idx` ON `trend_signals` (`dimension`,`key`);--> statement-breakpoint
 CREATE INDEX `trend_signals_momentum_idx` ON `trend_signals` (`momentum`);--> statement-breakpoint
+CREATE TABLE `type_affinity` (
+	`type_a` text NOT NULL,
+	`type_b` text NOT NULL,
+	`together` integer NOT NULL,
+	`lift` real NOT NULL,
+	PRIMARY KEY(`type_a`, `type_b`)
+);
+--> statement-breakpoint
+CREATE INDEX `type_affinity_lift_idx` ON `type_affinity` (`lift`);--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`handle` text NOT NULL,

@@ -1,0 +1,34 @@
+{
+  "name": "@lookline/hm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "articles": "tsx scripts/clean.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "seed": "tsx scripts/import.ts",
+    "aggregate": "bash scripts/aggregate.sh",
+    "images": "tsx scripts/images.ts",
+    "customers": "tsx scripts/customers.ts",
+    "upload": "tsx scripts/upload.ts",
+    "vision": "tsx scripts/vision.ts",
+    "materialize": "tsx scripts/materialize.ts"
+  },
+  "dependencies": {
+    "@lookline/catalog": "workspace:*",
+    "@lookline/db": "workspace:*",
+    "openai": "7.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "aws4fetch": "1.0.20",
+    "sharp": "0.35.4",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1"
+  }
+}

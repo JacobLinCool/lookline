@@ -3,7 +3,7 @@
  * aesthetics with confidence and evidence strings built from the actual feedback events, colour
  * families, axes, the gift profile, snapshots, and the bandit summary.
  */
-import { AESTHETICS, AXES, COLOR_FAMILIES, axisIndex, colorFamilyIndex } from '@lookline/catalog'
+import { AXES, COLOR_FAMILIES, axisIndex, colorFamilyIndex } from '@lookline/catalog'
 import type { Axis, ColorFamily } from '@lookline/catalog'
 import type { Department, FeedbackKind } from '@lookline/db'
 import type { PreferenceAesthetic, PreferenceProfile } from '../types'
@@ -28,10 +28,10 @@ export interface ProfileEvent {
   forOthers: boolean
   context: Record<string, unknown>
   createdAt: Date
-  productId: number | null
+  articleId: string | null
   lookId: string | null
   intentSessionId: string | null
-  /** Product (or Look) style vector; `null` when the object is gone. */
+  /** Article (or Look) style vector; `null` when the object is gone. */
   vector: number[] | null
   productName?: string | null
   brandName?: string | null
@@ -139,9 +139,6 @@ function verbFor(e: ProfileEvent, target: RewardTarget): string {
       return 'added to bag'
     case 'purchase':
       return 'bought'
-    case 'ask_choice':
-      if (e.context['role'] === 'adviser') return 'picked for a friend'
-      return e.context['chosen'] === false ? 'passed on' : 'chose'
     case 'remix':
       return e.context['kept'] === false ? 'swapped out' : 'kept in a remix'
     case 'look_create':
@@ -178,53 +175,20 @@ export function describeEvent(e: ProfileEvent, target: RewardTarget = 'self'): s
 }
 
 /** Top aesthetics of an effective vector with confidence and evidence (§4.3). */
+/**
+ * Was: the style tags a person's learned vector leans into, with the events that taught them.
+ * The style space has no aesthetic dimensions any more — the H&M catalogue names no aesthetic —
+ * so there is nothing to rank and this reports none. The colour families and axes below carry
+ * what the profile can still say. Restore this with the aesthetic block.
+ */
 export function topAestheticsOf(
-  vector: readonly number[],
-  events: readonly TargetEvent[],
-  target: RewardTarget,
-  now: Date,
-  n: number,
+  _vector: readonly number[],
+  _events: readonly TargetEvent[],
+  _target: RewardTarget,
+  _now: Date,
+  _n: number,
 ): PreferenceAesthetic[] {
-  if (n < MIN_PROFILE_EVENTS) return []
-  const ranked = AESTHETICS.map((a) => ({ def: a, weight: vector[a.index] ?? 0 })).toSorted(
-    (x, y) => y.weight - x.weight || x.def.index - y.def.index,
-  )
-  let chosen = ranked.filter((r) => r.weight >= TOP_AESTHETIC_WEIGHT).slice(0, TOP_AESTHETICS)
-  if (chosen.length < 3) {
-    chosen = ranked
-      .filter((r) => r.weight >= TOP_AESTHETIC_FLOOR)
-      .slice(0, Math.max(chosen.length, 3))
-  }
-  const recent = events.slice(-EVIDENCE_WINDOW)
-  return chosen.map(({ def, weight }) => {
-    const idx = def.index
-    const tagged = recent.filter((t) => (t.event.vector?.[idx] ?? 0) >= TAG_MEMBERSHIP)
-    const positive = tagged.filter((t) => t.reward > 0)
-    const confidence = weight * (1 - Math.exp(-positive.length / 5))
-    const scored = tagged
-      .map((t) => ({
-        t,
-        score:
-          Math.abs(t.reward) * decayFactor(t.event.createdAt, now) * (t.event.vector?.[idx] ?? 0),
-      }))
-      .toSorted((a, b) => b.score - a.score || (a.t.event.id < b.t.event.id ? -1 : 1))
-    const evidence: string[] = []
-    // Aggregate line: the most frequent positive verb, e.g. "saved 3 pieces tagged quiet-luxury".
-    const counts = new Map<string, number>()
-    for (const t of positive) {
-      const verb = verbFor(t.event, target)
-      counts.set(verb, (counts.get(verb) ?? 0) + 1)
-    }
-    const top = Array.from(counts.entries()).toSorted(
-      (a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1),
-    )[0]
-    if (top && top[1] >= 2) evidence.push(`${top[0]} ${top[1]} pieces tagged ${def.slug}`)
-    for (const { t } of scored) {
-      if (evidence.length >= EVIDENCE_LINES) break
-      evidence.push(describeEvent(t.event, target))
-    }
-    return { slug: def.slug, name: def.name, weight, confidence, evidence }
-  })
+  return []
 }
 
 function topColours(vector: readonly number[]): Array<{ family: ColorFamily; weight: number }> {
@@ -310,6 +274,7 @@ export function buildProfile(input: ProfileInput): PreferenceProfile {
     giftTopAesthetics: hasGift
       ? topAestheticsOf(gift.vector, byTarget.gift, 'gift', input.now, giftState.n)
       : [],
+    giftTopColorFamilies: hasGift ? topColours(gift.vector) : [],
     snapshots: input.snapshots
       .slice()
       .toSorted((a, b) => b.version - a.version)
@@ -339,7 +304,7 @@ export function snapshotMetrics(
     let dot = 0
     let na = 0
     let nb = 0
-    for (let i = BLOCK.A[0]; i < BLOCK.G[1]; i++) {
+    for (let i = BLOCK.C[0]; i < BLOCK.G[1]; i++) {
       const a = self.vector[i] ?? 0
       const b = previous[i] ?? 0
       dot += a * b
