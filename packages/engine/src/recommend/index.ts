@@ -32,12 +32,12 @@ import { plansForTemplate, roleForGroup } from './outfit/templates'
 import { SqlRetriever, emptyParams, retrieveWithRelaxation } from './retrieve'
 import type { ChannelParams, Retriever, RetrieveParams } from './retrieve'
 import { rank } from './score'
-import { searchProducts } from './search'
+import { countFacet, searchProducts } from './search'
 import { RETRIEVAL_BLOCK_WEIGHTS, blockScale } from './vector'
 import { DEFAULT_WEIGHTS, resolveWeights } from './weights'
 import type { ArmName } from './weights'
 
-export { searchProducts }
+export { searchProducts, countFacet }
 export { SqlRetriever, PgRetriever, MemoryRetriever, retrieveWithRelaxation } from './retrieve'
 export type {
   Candidate,

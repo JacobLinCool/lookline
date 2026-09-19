@@ -69,7 +69,7 @@ type SilTuple = readonly [
 
 // prettier-ignore
 const SILHOUETTE_ROWS: readonly SilTuple[] = [
-  ['a-line', 'A-Line', '傘狀', 'a line, 傘裙', 0.45],
+  ['a-line', 'A-Line', '傘狀', 'a line, a-line skirt, a-line dress, a字, a字裙, a字型, a 字裙, 傘裙, 傘狀裙', 0.45],
   ['bodycon', 'Bodycon', '緊身', 'body con, 包身', 0.55],
   ['shift', 'Shift', '直身', 'shift dress', 0.45],
   ['fit-and-flare', 'Fit-and-Flare', '收腰傘襬', 'fit and flare, skater, 收腰', 0.50],

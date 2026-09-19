@@ -1,6 +1,7 @@
+import { DETAIL_VALUES } from '@lookline/catalog'
 import type { Article } from '@lookline/db'
 import { getI18n } from '@/i18n/server'
-import { facetLabel, occasionLabel, seasonLabel } from '@/i18n/taxonomy'
+import { facetValueLabel, occasionLabel, seasonLabel } from '@/i18n/taxonomy'
 import type { Locale } from '@/i18n/config'
 
 interface Row {
@@ -8,26 +9,39 @@ interface Row {
   value: string | null
 }
 
-const MAX_ROWS = 8
+const MAX_ROWS = 10
 
-/** The few facts a shopper checks before buying; raw catalog fields never appear here. */
+/**
+ * The few facts a shopper checks before buying; raw catalog fields never appear here. Every
+ * value is one of the search facets' own slugs, read through that facet's vocabulary, so a
+ * `short` sleeve and a `short` length each read as themselves. A column the vision pass has
+ * not filled is simply absent — an unknown is not "none".
+ */
 export async function AttributeList({ product }: { product: Article }) {
   const { t, locale } = await getI18n()
-  const facet = (value: string | null) => (value ? facetLabel(locale, value) : null)
+  const facet = (id: Parameters<typeof facetValueLabel>[1], value: string | null) =>
+    value ? facetValueLabel(locale, id, value) : null
   const list = (values: readonly string[], label: (locale: Locale, slug: string) => string) =>
     values.length > 0 ? t.shop.list(values.map((value) => label(locale, value))) : null
+  const details = DETAIL_VALUES.filter((d) => product.attributes[d.slug] === true).map(
+    (d) => d.slug,
+  )
   const rows: Row[] = [
-    { label: t.shop.attributes.material, value: facet(product.material) },
-    // The product type is H&M's own and always present, unlike the fields below it.
-    { label: t.shop.attributes.silhouette, value: product.subcategory },
-    { label: t.shop.attributes.fit, value: facet(product.fit) },
-    { label: t.shop.attributes.length, value: facet(product.length) },
-    { label: t.shop.attributes.neckline, value: facet(product.neckline) },
-    { label: t.shop.attributes.sleeve, value: facet(product.sleeve) },
-    { label: t.shop.attributes.closure, value: facet(product.closure) },
+    { label: t.shop.attributes.material, value: facet('material', product.material) },
+    { label: t.shop.attributes.silhouette, value: facet('silhouette', product.silhouette) },
+    { label: t.shop.attributes.fit, value: facet('fit', product.fit) },
+    { label: t.shop.attributes.length, value: facet('length', product.length) },
+    { label: t.shop.attributes.neckline, value: facet('neckline', product.neckline) },
+    { label: t.shop.attributes.sleeve, value: facet('sleeve', product.sleeve) },
+    { label: t.shop.attributes.closure, value: facet('closure', product.closure) },
     {
       label: t.shop.attributes.pattern,
-      value: product.pattern !== 'solid' ? facet(product.pattern) : null,
+      value: product.pattern !== 'solid' ? facet('pattern', product.pattern) : null,
+    },
+    { label: t.shop.attributes.printSubject, value: facet('printSubject', product.printSubject) },
+    {
+      label: t.shop.attributes.details,
+      value: list(details, (l, slug) => facetValueLabel(l, 'detail', slug)),
     },
     { label: t.shop.attributes.occasions, value: list(product.occasions, occasionLabel) },
     { label: t.shop.attributes.seasons, value: list(product.seasons, seasonLabel) },

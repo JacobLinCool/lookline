@@ -22,7 +22,14 @@ import type {
   User,
   Visibility,
 } from '@lookline/db'
-import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
+import type {
+  Axis,
+  CategoryGroup,
+  ColorFamily,
+  SearchFacetField,
+  SearchFacetKey,
+  Season,
+} from '@lookline/catalog'
 
 // ---------------------------------------------------------------------------
 // LLM provider abstraction
@@ -223,8 +230,17 @@ export interface RecommendResponse {
   arm?: { name: string; contextVector: number[] }
 }
 
+/**
+ * A catalog search. The facet pairs (`categoryGroups` / `excludedCategoryGroups`, …) are the
+ * `SEARCH_FACETS` registry of `@lookline/catalog`: values within one facet are OR, facets are
+ * AND, and an exclusion is enforced by SQL. `q` is free text the lexicon scans for taxonomy terms
+ * before the residual goes to full-text search; `keywords` are concepts already known to be free
+ * text (`whale|orca`, alternatives joined by `|`), AND-ed together and matched against the
+ * full-text index without a lexicon pass.
+ */
 export interface ProductSearch {
   q?: string
+  keywords?: string[]
   department?: Department
   categoryGroups?: CategoryGroup[]
   excludedCategoryGroups?: CategoryGroup[]
@@ -234,6 +250,26 @@ export interface ProductSearch {
   excludedAesthetics?: string[]
   colorFamilies?: ColorFamily[]
   excludedColorFamilies?: ColorFamily[]
+  materials?: string[]
+  excludedMaterials?: string[]
+  patterns?: string[]
+  excludedPatterns?: string[]
+  printSubjects?: string[]
+  excludedPrintSubjects?: string[]
+  silhouettes?: string[]
+  excludedSilhouettes?: string[]
+  fits?: string[]
+  excludedFits?: string[]
+  lengths?: string[]
+  excludedLengths?: string[]
+  necklines?: string[]
+  excludedNecklines?: string[]
+  sleeves?: string[]
+  excludedSleeves?: string[]
+  closures?: string[]
+  excludedClosures?: string[]
+  details?: string[]
+  excludedDetails?: string[]
   brandId?: number
   priceMin?: number
   priceMax?: number
@@ -241,22 +277,31 @@ export interface ProductSearch {
   page?: number
   pageSize?: number
 }
+/** Compile-time check that every registry facet has its pair of fields on `ProductSearch`. */
+export type ProductSearchFacetFields = Pick<ProductSearch, SearchFacetField>
+
+export interface FacetCount {
+  key: string
+  count: number
+}
+/**
+ * Counts per facet value over the whole filtered set, keyed by the facet's selection field. The
+ * semantic facets (category groups, colour families, aesthetics) are always present; a
+ * construction facet is absent until `countFacet` has been asked for it.
+ */
+export type ProductSearchFacets = {
+  categoryGroups: FacetCount[]
+  colorFamilies: FacetCount[]
+  aesthetics: FacetCount[]
+} & { [K in SearchFacetKey]?: FacetCount[] }
 
 export interface ProductSearchResult {
   items: Array<Article & { brandName: string }>
   total: number
   page: number
   pageSize: number
-  facets?: {
-    categoryGroups: Array<{ key: string; count: number }>
-    colorFamilies: Array<{ key: string; count: number }>
-    aesthetics: Array<{ key: string; count: number }>
-  }
+  facets?: ProductSearchFacets
 }
-
-// ---------------------------------------------------------------------------
-// Engine 03 — preference feedback loop
-// ---------------------------------------------------------------------------
 
 export interface FeedbackInput {
   userId: string

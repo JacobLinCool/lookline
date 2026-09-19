@@ -6,8 +6,9 @@ import { getDb } from '@/server/db'
 export const dynamic = 'force-dynamic'
 
 /**
- * `GET /api/articles/search?q=&department=&categoryGroups=&excludedCategoryGroups=&category=&subcategory=&aesthetics=&aesthetics=&colorFamilies=&excludedColorFamilies=&excludedAesthetics=&brandId=&priceMin=&priceMax=&sort=&page=&pageSize=`
- * → `{ items, total, page, pageSize, facets }` (the engine's `ProductSearchResult`).
+ * `GET /api/articles/search?q=&keywords=&department=&category=&subcategory=&brandId=&priceMin=&priceMax=&sort=&page=&pageSize=`
+ * plus every `SEARCH_FACETS` pair (`categoryGroups=&excludedCategoryGroups=&sleeves=&excludedSleeves=&details=…`,
+ * repeatable) → `{ items, total, page, pageSize, facets }` (the engine's `ProductSearchResult`).
  * Same URL contract as `/shop`, for curl demos and client components.
  */
 export async function GET(req: Request): Promise<Response> {
