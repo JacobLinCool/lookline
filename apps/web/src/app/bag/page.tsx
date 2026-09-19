@@ -11,6 +11,7 @@ import { requireUser } from '@/server/auth'
 import { BAG_MAX_QTY, getBag } from '@/server/bag'
 import { getDb } from '@/server/db'
 import { SOURCE_LOOK_COOKIE } from '@/server/looks'
+import { previewHref } from '@/components/looks/preview-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -176,6 +177,9 @@ export default async function BagPage({ searchParams }: { searchParams: SearchPa
             ) : null}
             <Button href="/checkout" full size="lg">
               {t.bag.checkout.title}
+            </Button>
+            <Button href={previewHref({ productIds: ids })} full variant="secondary">
+              {t.previews.actions.previewBag}
             </Button>
           </aside>
         </div>

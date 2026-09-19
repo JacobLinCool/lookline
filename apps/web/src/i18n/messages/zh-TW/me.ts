@@ -7,10 +7,40 @@ export const me: MeMessages = {
   allCount: (n: number) => `全部 ${n}`,
   sectionUnavailable: '這個區塊沒有載入。',
 
+  photo: {
+    nextRender: '下次生成圖片時會使用你目前儲存的照片。',
+    title: '參考照片',
+    currentAlt: '你已儲存的參考照片',
+    empty: '尚未儲存照片',
+    hint: '這是私人照片，只會在你選擇用自己的樣子生成 Look 或穿搭預覽時使用。',
+    add: '加入照片',
+    replace: '更換照片',
+    saving: '正在儲存照片…',
+    updated: '已更新你的參考照片。',
+    errors: {
+      required: '請先選擇照片。',
+      type: '請使用 PNG、JPEG 或 WebP 圖片。',
+      size: '照片請小於 15 MB。',
+      save: '無法儲存照片，請再試一次。',
+    },
+  },
+
   looks: {
     title: 'Look',
     empty: '還沒有 Look',
     madeTogether: '一起做的',
+  },
+
+  previews: {
+    title: '限時預覽',
+    empty: '目前沒有可用的預覽',
+    emptyDescription: '結帳前預覽一套穿搭後，會在這裡保留 24 小時。',
+    expires: (value: string) => `${value} 到期`,
+    status: {
+      preparing: '準備中',
+      ready: '已完成',
+      failed: '需要重試',
+    },
   },
 
   wardrobe: {

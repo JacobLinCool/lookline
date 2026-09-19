@@ -32,7 +32,7 @@ export const home = {
   },
 
   rails: {
-    circle: 'From your circle',
+    circle: 'Your circle, then the network',
     network: 'Looks from the network',
     trending: 'Trending now',
   },

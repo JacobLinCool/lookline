@@ -118,6 +118,7 @@ Guarantees:
   (`SESSION_SECRET`).
 - Image routes: `GET /api/products/[id]/image` (SVG via `renderProductSvg`, immutable cache),
   `GET /api/looks/[id]/image` (R2 object `looks.image_path`, or poster SVG fallback),
+  owner-only `GET /api/previews/[id]/image` (temporary preview image or poster),
   `GET /api/avatars/[seed]` (SVG).
 - Routes and their purpose are listed in ARCHITECTURE.md.
 - `POST /api/admin/image` (engine lab) renders either a typed prompt (`application/json` with

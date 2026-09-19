@@ -25,6 +25,7 @@ import { reactToLookAction } from '@/server/actions/remix'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { formatRelative } from '@/server/format'
+import { previewHref } from '@/components/looks/preview-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -32,6 +33,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
+
+async function guestTo(next: string, formData: FormData): Promise<void> {
+  'use server'
+  formData.set('next', next)
+  return guestLoginAction(formData)
+}
 
 /**
  * `/l/[token]` — a Look shared by link, the page a friend opens from a chat. Works without an
@@ -100,18 +107,15 @@ export default async function SharedLookPage({
   const reacted = first(query.reacted) === '1' || alreadyReacted
   const error = first(query.error)
   const remixPath = `/looks/${look.id}/remix`
+  const previewPath = previewHref({ sourceLookId: look.id })
   const stylePath = `/looks/${look.id}/remix?for=${encodeURIComponent(owner.id)}`
   const askPath = `/asks/new?look=${encodeURIComponent(look.id)}`
   const firstName = owner.displayName.split(/\s+/)[0] ?? owner.displayName
 
-  // Guests: one name field, three destinations. Each button carries its `next` in a closure so
+  // Guests: one name field, four destinations. Each button carries its `next` in a closure so
   // the submit buttons need no name/value (React reserves those for the action id).
-  async function guestTo(next: string, formData: FormData): Promise<void> {
-    'use server'
-    formData.set('next', next)
-    return guestLoginAction(formData)
-  }
   const guestRemix = guestTo.bind(null, remixPath)
+  const guestPreview = guestTo.bind(null, previewPath)
   const guestAsk = guestTo.bind(null, askPath)
   const guestStyle = guestTo.bind(null, stylePath)
 
@@ -173,9 +177,14 @@ export default async function SharedLookPage({
             </div>
           ) : viewer ? (
             <div className="flex flex-col gap-2">
-              <Button href={remixPath} size="lg" full icon={<Sparkles />}>
-                {copy.makeItMine}
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button href={previewPath} size="lg" full>
+                  {t.previews.actions.previewOnMe}
+                </Button>
+                <Button href={remixPath} size="lg" full variant="secondary" icon={<Sparkles />}>
+                  {copy.makeItMine}
+                </Button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button href={askPath} variant="secondary">
                   {copy.askAboutPiece}
@@ -202,9 +211,21 @@ export default async function SharedLookPage({
                   required
                 />
               </Field>
-              <Button type="submit" formAction={guestRemix} size="lg" full icon={<Sparkles />}>
-                {copy.makeItMine}
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button type="submit" formAction={guestPreview} size="lg" full>
+                  {t.previews.actions.previewOnMe}
+                </Button>
+                <Button
+                  type="submit"
+                  formAction={guestRemix}
+                  size="lg"
+                  full
+                  variant="secondary"
+                  icon={<Sparkles />}
+                >
+                  {copy.makeItMine}
+                </Button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <Button type="submit" formAction={guestAsk} variant="secondary">
                   {copy.askAboutPiece}
