@@ -1,8 +1,7 @@
 /**
  * Catalog search (ENGINE_SPEC §2.4 `searchProducts`): FTS5 full-text over name + description
  * (prefix terms, AND-ed, ranked with `bm25`), a lexicon parse of the query mapped to filters and a
- * style vector (cosine over `product_vectors`), filters, sorts, pagination and facets over a
- * capped sample of the filtered set.
+ * style vector (cosine over `article_vectors`), filters, sorts, pagination and facets.
  */
 import { LEXICON, aestheticIndex, colorFamilyIndex, findColor, zeroVector } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily } from '@lookline/catalog'
@@ -38,7 +37,6 @@ import { RETRIEVAL_BLOCK_WEIGHTS, blockScale } from './vector'
 
 export const SEARCH_PAGE_SIZE = 24
 export const SEARCH_PAGE_MAX = 100
-export const FACET_SAMPLE = 5000
 export const FACET_TOP = 12
 /** Weight of the style cosine next to the (negated) bm25 rank in relevance order. */
 export const RELEVANCE_COSINE_WEIGHT = 2
@@ -331,10 +329,15 @@ export function buildSearchQuery(
     .limit(plan.pageSize)
     .offset((plan.page - 1) * plan.pageSize)
   const total = db.select({ n: count() }).from(articles).where(where)
+  // Counted over the whole filtered set, not a capped head of it: `article_id` carries H&M's own
+  // ordering, so the first N rows of a filter are not a sample of it — they were missing entire
+  // category groups. 105k rows group in ~50 ms on the indexed columns.
+  // ponytail: `aesthetics` is empty for every article today, so its json_each costs nothing.
+  // Re-measure this query when a semantic pass fills that column.
   const facets = sql`
     with sample as (
       select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family, ${articles.aesthetics} as aesthetics
-      from ${articles} where ${where} limit ${FACET_SAMPLE}
+      from ${articles} where ${where}
     )
     select 'group' as dim, category_group as key, count(*) as n from sample group by 2
     union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2

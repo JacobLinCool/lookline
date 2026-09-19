@@ -20,16 +20,15 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await ctx.params
-  const articleId = Number(id)
-  if (!Number.isInteger(articleId) || articleId <= 0) {
-    return new Response('Not found', { status: 404 })
-  }
+  // H&M article ids are ten digits with the leading zeros kept; parsing one as a number drops
+  // them and the lookup silently misses.
+  if (!/^\d{10}$/.test(id)) return new Response('Not found', { status: 404 })
 
   const [row] = await getDb()
     .db.select({ product: articles, brandName: brands.name })
     .from(articles)
     .innerJoin(brands, eq(articles.brandId, brands.id))
-    .where(eq(articles.id, articleId))
+    .where(eq(articles.id, id))
     .limit(1)
   if (!row) return new Response('Not found', { status: 404 })
 

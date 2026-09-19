@@ -20,7 +20,14 @@ import {
   sql,
 } from '@lookline/db'
 import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
-import { categoryGroupFor, loadArticles, sizeSystemFor, slugFor } from '../src/index'
+import {
+  categoryGroupFor,
+  loadArticles,
+  placeholderPrice,
+  sizeSystemFor,
+  slugFor,
+  tierFor,
+} from '../src/index'
 
 loadEnv()
 
@@ -65,6 +72,7 @@ const rows: NewArticle[] = []
 for (const a of source) {
   const categoryGroup = categoryGroupFor(a.outfitRole, a.indexGroupName, a.productType)
   if (categoryGroup === null) continue
+  const price = placeholderPrice(categoryGroup, a.articleId)
   rows.push({
     id: a.articleId,
     brandId: HM_BRAND_ID,
@@ -83,6 +91,8 @@ for (const a of source) {
     colorValue: a.colourValue ?? '',
     categoryGroup,
     outfitRole: a.outfitRole,
+    price,
+    tier: tierFor(price),
     department: a.department,
     slug: slugFor(a.name, a.articleId),
     colorHex: a.colourHex ?? '#9E9E9E',

@@ -71,3 +71,42 @@ export function categoryGroupFor(
   }
   return ROLE_GROUPS[role]
 }
+
+/**
+ * H&M's `price` column is normalised to an undisclosed unit, and the transaction file it comes
+ * from is 31.8M rows processed offline — so until that aggregate exists, a budget like "3,000 元"
+ * has nothing to filter on.
+ *
+ * ponytail: a band per category group, taken from what H&M Taiwan actually charges, with the
+ * article id choosing a step inside it. Stable across imports and right on the relative ordering
+ * (a coat costs more than a tee), which is what a budget constraint needs. Replace with the
+ * per-product-type quantiles of the real transaction prices once those are aggregated.
+ */
+const PRICE_BANDS: Record<CategoryGroup, readonly [number, number]> = {
+  tops: [299, 799],
+  bottoms: [499, 1299],
+  dresses: [599, 1499],
+  outerwear: [999, 2999],
+  footwear: [799, 1999],
+  bags: [399, 1299],
+  accessories: [99, 499],
+  jewelry: [199, 699],
+  activewear: [399, 999],
+  swimwear: [399, 899],
+  loungewear: [199, 699],
+  tailoring: [1299, 2999],
+}
+
+export function placeholderPrice(categoryGroup: CategoryGroup, articleId: string): number {
+  const [min, max] = PRICE_BANDS[categoryGroup]
+  const steps = Math.floor((max - min) / 100)
+  return min + (Number(articleId) % (steps + 1)) * 100
+}
+
+/** Price tier, so the brand-tier factors keep working on a catalogue with one brand. */
+export function tierFor(price: number): 'budget' | 'mid' | 'premium' | 'luxury' {
+  if (price < 500) return 'budget'
+  if (price < 1200) return 'mid'
+  if (price < 2500) return 'premium'
+  return 'luxury'
+}
