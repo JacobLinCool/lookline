@@ -66,6 +66,26 @@ export function ftsQuery(input: string): string | null {
     .join(' ')
 }
 
+/**
+ * Keyword concepts → an FTS5 expression: alternatives within a concept are OR-ed, concepts are
+ * AND-ed, and every word is a quoted prefix term like `ftsQuery`. `[['whale', 'orca'], ['hoodie']]`
+ * becomes `(("whale"*) OR ("orca"*)) AND (("hoodie"*))`; `null` when nothing survives.
+ */
+export function ftsConceptsQuery(concepts: ReadonlyArray<readonly string[]>): string | null {
+  const groups: string[] = []
+  for (const concept of concepts) {
+    const alternatives = concept.map(ftsQuery).filter((q): q is string => q !== null)
+    if (alternatives.length > 0) groups.push(`(${alternatives.map((a) => `(${a})`).join(' OR ')})`)
+  }
+  return groups.length > 0 ? groups.join(' AND ') : null
+}
+
+/** Two optional expressions AND-ed; `null` when both are absent. */
+export function ftsAnd(a: string | null, b: string | null): string | null {
+  if (a && b) return `(${a}) AND (${b})`
+  return a ?? b
+}
+
 /** `articles_fts MATCH <expr>` for use as a WHERE chunk on `articlesFts`. */
 export function ftsMatch(expr: string): SQL {
   return sql`${articlesFts} match ${expr}`

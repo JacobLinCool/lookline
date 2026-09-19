@@ -1,6 +1,16 @@
+import { AESTHETICS, SEARCH_FACETS } from '@lookline/catalog'
 import { createLocalDb } from '@lookline/db/node'
 import { afterAll, describe, expect, it } from 'vitest'
-import { aggregateFacets, buildSearchQuery, planSearch, scanQuery } from './search'
+import { sql as chunk } from '@lookline/db'
+import { aestheticRows, facetCountsSql } from '../decisions/facets'
+import {
+  aggregateFacets,
+  buildSearchQuery,
+  facetRows,
+  pickFacet,
+  planSearch,
+  scanQuery,
+} from './search'
 
 describe('scanQuery', () => {
   it('maps 中文 and English taxonomy terms to filters and keeps the residual text', () => {
@@ -76,29 +86,53 @@ describe('buildSearchQuery', () => {
     const { sql, params } = query.page.toSQL()
     // A JSON array column, so membership is json_each rather than IN.
     expect(sql).toContain('json_each("articles"."aesthetics")')
-    expect(sql).toContain('not exists')
+    expect(sql).toContain('coalesce(exists')
     expect(params).toEqual(expect.arrayContaining(['quiet-luxury', 'minimalist', 'glam']))
   })
 
-  it('emits the aesthetic facet dimension that aggregateFacets reads', () => {
-    const { facets } = buildSearchQuery(handle.db, { categoryGroups: ['tops'] })
-    const rendered = (
-      handle.db as unknown as { dialect: { sqlToQuery: (q: typeof facets) => { sql: string } } }
-    ).dialect.sqlToQuery(facets).sql
-    expect(rendered).toContain("'aesthetic'")
-    expect(rendered).toContain('json_each(sample.aesthetics)')
+  it('counts aesthetics by grouping the stored JSON text, never json_each', () => {
+    const { facets, aestheticFacets } = buildSearchQuery(handle.db, { categoryGroups: ['tops'] })
+    const render = (q: unknown) =>
+      (
+        handle.db as unknown as { dialect: { sqlToQuery: (q: unknown) => { sql: string } } }
+      ).dialect.sqlToQuery(q).sql
+    expect(render(aestheticFacets)).toBe(
+      'select "articles"."aesthetics" as key, count(*) as n from "articles" where ("articles"."image_path" is not null and "articles"."category_group" in (?)) group by 1',
+    )
+    expect(render(facets)).not.toContain('aesthetic')
+    expect(render(facets)).not.toContain('json_each')
+    expect(render(facets)).not.toContain('union')
+    expect(
+      aestheticRows([
+        { key: '["minimalist","normcore"]', n: 5 },
+        { key: '["normcore"]', n: '2' },
+        { key: '[]', n: 9 },
+        { key: 'broken', n: 1 },
+      ]),
+    ).toEqual([
+      { dim: 'aesthetic', key: 'minimalist', n: 5 },
+      { dim: 'aesthetic', key: 'normcore', n: 7 },
+    ])
   })
 
-  it('counts facets over every matching row, never a slice of the planner scan order', () => {
+  it('counts facets over every matching row in one pass, never a slice of the planner scan order', () => {
     // A `limit` here samples whatever index the planner picks. Under `category_group IN (…)` that
     // is the category index, so the slice is all one group and every other group counts zero.
     // Rendered through the dialect because a raw `sql` chunk keeps its text in `value[]`.
     const { facets } = buildSearchQuery(handle.db, { categoryGroups: ['bottoms', 'dresses'] })
-    const rendered = (
-      handle.db as unknown as { dialect: { sqlToQuery: (q: typeof facets) => { sql: string } } }
-    ).dialect.sqlToQuery(facets).sql
-    expect(rendered).toContain('group by')
+    const { sql: rendered, params } = (
+      handle.db as unknown as {
+        dialect: { sqlToQuery: (q: typeof facets) => { sql: string; params: unknown[] } }
+      }
+    ).dialect.sqlToQuery(facets)
+    expect(rendered).toContain(
+      `'tops', count(*) filter (where "articles"."category_group" = 'tops')`,
+    )
+    expect(rendered).toContain('as "categoryGroup:0"')
     expect(rendered.toLowerCase()).not.toContain('limit')
+    expect(rendered.toLowerCase()).not.toContain('group by')
+    // Only the filter binds parameters; the two hundred slugs are literals (D1 binds ≤ 100).
+    expect(params).toEqual(['bottoms', 'dresses'])
   })
 
   it('narrows on an aesthetic named in free text, not only in the style vector', () => {
@@ -182,25 +216,129 @@ describe('buildSearchQuery', () => {
 })
 
 describe('aggregateFacets', () => {
-  it('groups by dimension, sorts by count and caps at 12', () => {
+  it('groups by facet, sorts by count, caps at 12 and drops unknown values', () => {
     const rows = [
-      ...Array.from({ length: 15 }, (_, i) => ({ dim: 'aesthetic', key: `a${i}`, n: i })),
-      { dim: 'group', key: 'tops', n: 5 },
-      { dim: 'group', key: 'bottoms', n: 9 },
-      { dim: 'color', key: 'black', n: 3 },
-      { dim: 'color', key: '', n: 3 },
+      ...AESTHETICS.slice(0, 15).map((a, i) => ({ dim: 'aesthetic', key: a.slug, n: i })),
+      { dim: 'categoryGroup', key: 'tops', n: 5 },
+      { dim: 'categoryGroup', key: 'bottoms', n: 9 },
+      { dim: 'colorFamily', key: 'black', n: 3 },
+      { dim: 'colorFamily', key: '', n: 3 },
+      { dim: 'detail', key: 'laceTrim', n: 2 },
+      { dim: 'detail', key: 'waterproof', n: 7 },
+      { dim: 'silhouette', key: 'a-line', n: 4 },
     ]
     const f = aggregateFacets(rows)
     expect(f.aesthetics.length).toBe(12)
-    expect(f.aesthetics[0]!.key).toBe('a14')
+    expect(f.aesthetics[0]!.key).toBe(AESTHETICS[14]!.slug)
     expect(f.categoryGroups.map((x) => x.key)).toEqual(['bottoms', 'tops'])
     expect(f.colorFamilies).toEqual([{ key: 'black', count: 3 }])
+    // Construction facets are not counted per search; they are absent, not empty.
+    expect(f.details).toBeUndefined()
+    expect(f.silhouettes).toBeUndefined()
+    const detail = SEARCH_FACETS.find((x) => x.id === 'detail')!
+    // `waterproof` is a flag the regexes never write and the vocabulary does not offer.
+    expect(pickFacet(detail, rows)).toEqual([{ key: 'laceTrim', count: 2 }])
+  })
+
+  it('reads the JSON chunk columns of a facet-count row back into counted values', () => {
+    const detail = SEARCH_FACETS.find((f) => f.id === 'detail')!
+    const rows = facetRows({ 'detail:0': '{"laceTrim":2,"pockets":0}' }, [detail])
+    expect(rows.find((r) => r.key === 'laceTrim')).toEqual({ dim: 'detail', key: 'laceTrim', n: 2 })
+    expect(rows.find((r) => r.key === 'ruffle')).toEqual({ dim: 'detail', key: 'ruffle', n: 0 })
+    expect(facetRows({ 'detail:0': 'not json' }, [detail]).every((r) => r.n === 0)).toBe(true)
+    expect(facetRows(undefined)).toEqual([])
   })
 
   // Counts are exact: the facet query groups the whole filtered set rather than a capped head
   // of it, so there is no sample to scale back up.
   it('counts are the exact row counts', () => {
-    const rows = [{ dim: 'group', key: 'tops', n: 1130 }]
+    const rows = [{ dim: 'categoryGroup', key: 'tops', n: 1130 }]
     expect(aggregateFacets(rows).categoryGroups[0]!.count).toBe(1130)
+  })
+})
+
+describe('registry facets and keywords', () => {
+  const handle = createLocalDb(':memory:')
+  afterAll(async () => {
+    await handle.close()
+  })
+
+  it('narrows every construction facet on its own column, OR within and AND across', () => {
+    const { sql, params } = buildSearchQuery(handle.db, {
+      silhouettes: ['a-line', 'wrap'],
+      sleeves: ['long'],
+      necklines: ['v-neck'],
+      printSubjects: ['character'],
+      materials: ['linen'],
+      excludedPatterns: ['leopard'],
+      excludedSleeves: ['sleeveless'],
+    }).page.toSQL()
+    expect(sql).toContain('"articles"."silhouette" in (')
+    expect(sql).toContain('"articles"."sleeve" in (')
+    expect(sql).toContain('"articles"."neckline" in (')
+    expect(sql).toContain('"articles"."print_subject" in (')
+    expect(sql).toContain('"articles"."material" in (')
+    expect(sql).toContain('"articles"."pattern" not in (')
+    expect(sql).toContain('"articles"."sleeve" not in (')
+    expect(params).toEqual(
+      expect.arrayContaining(['a-line', 'wrap', 'long', 'v-neck', 'character', 'linen', 'leopard']),
+    )
+  })
+
+  it('reads design details as flags in the attributes JSON and negates the same test', () => {
+    const { sql, params } = buildSearchQuery(handle.db, {
+      details: ['pockets', 'ruffle'],
+      excludedDetails: ['laceTrim'],
+    }).page.toSQL()
+    expect(sql).toContain(`json_type("articles"."attributes", ?) = 'true' or json_type(`)
+    expect(sql).toContain(`coalesce(json_type("articles"."attributes", ?) = 'true', 0) = 0`)
+    expect(params).toEqual(expect.arrayContaining(['$."pockets"', '$."ruffle"', '$."laceTrim"']))
+  })
+
+  it('counts only the semantic facets per search, within the aggregate cap, and one construction facet on demand', () => {
+    const { facets } = buildSearchQuery(handle.db, { categoryGroups: ['dresses'] })
+    const rendered = (
+      handle.db as unknown as { dialect: { sqlToQuery: (q: typeof facets) => { sql: string } } }
+    ).dialect.sqlToQuery(facets).sql
+    expect(rendered).not.toContain('"sleeve:0"')
+    expect(rendered.match(/count\(\*\) filter/g)?.length).toBe(12 + 12)
+    expect(rendered.match(/from "articles"/g)?.length).toBe(1)
+    const detail = SEARCH_FACETS.find((f) => f.id === 'detail')!
+    const one = (
+      handle.db as unknown as { dialect: { sqlToQuery: (q: unknown) => { sql: string } } }
+    ).dialect.sqlToQuery(facetCountsSql([detail], chunk`1 = 1`)).sql
+    expect(one).toContain(
+      `'laceTrim', count(*) filter (where instr("articles"."attributes", '"laceTrim":true') > 0)`,
+    )
+    expect(one).not.toContain('json_each')
+    expect(() => facetCountsSql(SEARCH_FACETS, chunk`1 = 1`)).toThrow(/aggregates/)
+  })
+
+  it('turns keywords into an FTS predicate without a lexicon pass and keeps them on the retry', () => {
+    const plan = planSearch({ keywords: ['whale|orca|鯨魚', 'Hello Kitty', 'floral'] })
+    // `floral` is a pattern term the facets already express, so it is not a keyword; a Chinese
+    // term is a phrase over its characters, which is how the index writes it.
+    expect(plan.keywords).toEqual([['whale', 'orca', '鯨魚'], ['hello kitty']])
+    expect(plan.ftsExpr).toBe('(("whale"*) OR ("orca"*) OR ("鯨 魚")) AND (("hello"* "kitty"*))')
+    expect(plan.lexiconFilters).toBe(false)
+    const retry = planSearch({ keywords: ['whale'], q: 'zzzz hoodie' }, { withText: false })
+    expect(retry.text).toBeNull()
+    expect(retry.ftsExpr).toBe('(("whale"*))')
+    const both = planSearch({ keywords: ['whale'], q: 'zzzz hoodie' })
+    expect(both.ftsExpr).toBe('("zzzz"*) AND ((("whale"*)))')
+  })
+
+  it('ranks keyword hits by bm25 through the rowid the index is keyed on', () => {
+    const { sql } = buildSearchQuery(handle.db, { keywords: ['whale'] }).page.toSQL()
+    expect(sql).toContain('bm25(articles_fts)')
+    expect(sql).toContain('"articles_fts"."rowid" = articles.rowid')
+    expect(sql).not.toContain('"articles_fts"."rowid" = "articles"."article_id"')
+  })
+
+  it('drops keywords that are not index tokens and caps their number', () => {
+    const plan = planSearch({
+      keywords: ['"; drop table articles; --', 'a'.repeat(40), 'k1', 'k2', 'k3', 'k4', 'k5'],
+    })
+    expect(plan.keywords).toEqual([['drop table articles'], ['k1'], ['k2'], ['k3']])
   })
 })

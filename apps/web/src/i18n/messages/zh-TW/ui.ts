@@ -44,6 +44,7 @@ export const ui: UiMessages = {
     signInRequired: '請先登入才能使用即時篩選與語音。',
     slowDown: '請稍候再試一次。',
     filtersUnavailable: '即時篩選暫時無法使用，請再試一次。',
+    keywordsUnavailable: '關鍵字搜尋暫時無法使用，屬性篩選仍然有效。',
     productsUnavailable: '商品無法載入，請再試一次。',
     sentenceTooLong: '請輸入 500 字以內的句子。',
     recommendationsUnavailable: '推薦無法載入，請再試一次。',

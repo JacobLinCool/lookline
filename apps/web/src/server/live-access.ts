@@ -4,7 +4,9 @@ import { getSessionUser } from './auth'
 const windows = new Map<string, { until: number; count: number; active: boolean }>()
 
 /** Process-local prototype limits, plus authenticated same-origin POSTs. */
-export async function liveAccess(request: Request, capability: 'filters' | 'voice') {
+const LIMITS = { filters: 300, voice: 6, keywords: 60 } as const
+
+export async function liveAccess(request: Request, capability: keyof typeof LIMITS) {
   const { errors } = (await getMessages()).ui
   const origin = request.headers.get('origin')
   if (origin !== new URL(request.url).origin)
@@ -19,7 +21,7 @@ export async function liveAccess(request: Request, capability: 'filters' | 'voic
     current && current.until > now
       ? current
       : { until: now + 60_000, count: 0, active: current?.active ?? false }
-  if (entry.active || entry.count >= (capability === 'voice' ? 6 : 300))
+  if (entry.active || entry.count >= LIMITS[capability])
     return {
       response: Response.json(
         { error: errors.slowDown },
