@@ -83,6 +83,10 @@ Guarantees:
 
 - Every LLM-backed function works with no API keys (`provider: 'offline'`) and never throws
   because of a provider error.
+- `parseIntent` answers from the closed-option decision (`provider: 'jev'`) unless `routeIntent`
+  escalates, and its `route` says why it did; `ctx.deferRefinement` returns that answer with a
+  `refine()` the caller runs out of band. Without `TYPESAFE_API_KEY` it degrades to the previous
+  lexicon-plus-LLM path.
 - `recommend` returns items whose `explanation.factors` sum (Σ contribution) equals `score` within
   floating error, so the UI can render the breakdown honestly.
 - `recordPurchase` writes the `purchases` row, the `PURCHASE` (and `BUY_FOR`) interactions, and a

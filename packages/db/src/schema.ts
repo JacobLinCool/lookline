@@ -85,6 +85,8 @@ export const TREND_DIMENSION_VALUES = [
   'aesthetic_category',
 ] as const
 export const LLM_PROVIDER_VALUES = ['gemini', 'openai', 'offline'] as const
+/** Intent sessions also record `jev`, the closed-option decision service. Plain TEXT, no CHECK. */
+export const INTENT_PROVIDER_VALUES = [...LLM_PROVIDER_VALUES, 'jev'] as const
 
 // ---------------------------------------------------------------------------
 // Column helpers
@@ -476,7 +478,7 @@ export const intentSessions = sqliteTable(
     results: json<Record<string, unknown>>('results')
       .notNull()
       .default(sql`'{}'`),
-    provider: text('provider', { enum: LLM_PROVIDER_VALUES }).notNull().default('offline'),
+    provider: text('provider', { enum: INTENT_PROVIDER_VALUES }).notNull().default('offline'),
     latencyMs: integer('latency_ms').notNull().default(0),
     createdAt: createdAt(),
   },
@@ -700,3 +702,4 @@ export type FeedbackKind = (typeof FEEDBACK_KIND_VALUES)[number]
 export type RelationshipKind = (typeof RELATIONSHIP_KIND_VALUES)[number]
 export type TrendDimension = (typeof TREND_DIMENSION_VALUES)[number]
 export type LlmProvider = (typeof LLM_PROVIDER_VALUES)[number]
+export type IntentProvider = (typeof INTENT_PROVIDER_VALUES)[number]

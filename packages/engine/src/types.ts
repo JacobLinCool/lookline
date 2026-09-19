@@ -8,6 +8,7 @@ import type {
   Department,
   EvaluationRun,
   FeedbackKind,
+  IntentProvider,
   LineageStat,
   LlmProvider,
   Look,
@@ -135,7 +136,8 @@ export interface IntentContext {
 export interface IntentResult {
   intent: Intent
   vector: number[]
-  provider: LlmProvider
+  /** Who produced it: `jev` for the decision stage, a generative provider once it escalated. */
+  provider: IntentProvider
   /** Model id used by the provider (null for offline). */
   model?: string | null
   latencyMs: number
