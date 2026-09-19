@@ -36,6 +36,7 @@ import {
   loadStats,
   materialFrom,
   momentumOf,
+  PRICE_SCALE,
   placeholderPrice,
   popularityOf,
   sectionMeaning,
@@ -123,7 +124,7 @@ for (const a of source) {
   }
   // Real transaction prices where the article ever sold; 995 of them never did.
   const stat = stats.get(a.articleId)
-  const price = stat?.price ?? placeholderPrice(categoryGroup, a.articleId)
+  const price = stat ? stat.price * PRICE_SCALE : placeholderPrice(categoryGroup, a.articleId)
   const section = sectionMeaning(a.section ?? '')
   const detail = garmentDetails(a.description)
   const material = materialFrom(a.description)
@@ -132,8 +133,7 @@ for (const a of source) {
     id: a.articleId,
     brandId: HM_BRAND_ID,
     productCode: a.productCode,
-    name: a.name,
-    displayName: displayNameFor(a.name),
+    name: displayNameFor(a.name),
     description: a.description ?? '',
     subcategory: a.productType,
     productGroup: a.productGroup,

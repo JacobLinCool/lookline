@@ -65,6 +65,15 @@ export function categoryGroupFor(
  * (a coat costs more than a tee), which is what a budget constraint needs. Replace with the
  * per-product-type quantiles of the real transaction prices once those are aggregated.
  */
+/**
+ * H&M's `price` column is normalised to an undisclosed unit, and the figures it produces read an
+ * order of magnitude below what H&M Taiwan actually charges — a tee at NT$99, a coat at NT$574.
+ * Everything downstream is relative, so one factor applied at the source keeps the catalogue's
+ * shape and only moves the numbers: the tier thresholds and the style vector's price axis scale
+ * with it, and a budget an intent names in TWD finally means the same thing to both sides.
+ */
+export const PRICE_SCALE = 5
+
 const PRICE_BANDS: Record<CategoryGroup, readonly [number, number]> = {
   tops: [299, 799],
   bottoms: [499, 1299],
@@ -83,14 +92,14 @@ const PRICE_BANDS: Record<CategoryGroup, readonly [number, number]> = {
 export function placeholderPrice(categoryGroup: CategoryGroup, articleId: string): number {
   const [min, max] = PRICE_BANDS[categoryGroup]
   const steps = Math.floor((max - min) / 100)
-  return min + (Number(articleId) % (steps + 1)) * 100
+  return (min + (Number(articleId) % (steps + 1)) * 100) * PRICE_SCALE
 }
 
 /** Price tier, so the brand-tier factors keep working on a catalogue with one brand. */
 export function tierFor(price: number): 'budget' | 'mid' | 'premium' | 'luxury' {
-  if (price < 500) return 'budget'
-  if (price < 1200) return 'mid'
-  if (price < 2500) return 'premium'
+  if (price < 500 * PRICE_SCALE) return 'budget'
+  if (price < 1200 * PRICE_SCALE) return 'mid'
+  if (price < 2500 * PRICE_SCALE) return 'premium'
   return 'luxury'
 }
 

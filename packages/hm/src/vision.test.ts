@@ -8,6 +8,7 @@ import {
   colorFamilyIndex,
 } from '@lookline/catalog'
 import { materializeVision, type ImportedArticle } from './materialize'
+import { PRICE_SCALE } from './derive'
 import { motifKey } from './print-pass'
 import {
   MAX_AESTHETICS,
@@ -215,8 +216,10 @@ describe('materializeVision', () => {
     expect(out.styleVector[axisIndex('boldness')]).toBe(0.2)
     // winter seasons, so warmth is the fabric-and-season figure, not anything the model said
     expect(out.styleVector[axisIndex('warmth')]).toBeGreaterThanOrEqual(0.65)
+    // Derived from the constant, not a number copied out of it: the ceiling moves with
+    // `PRICE_SCALE`, and a literal here would have to be edited every time it does.
     expect(out.styleVector[axisIndex('price-tier')]).toBeCloseTo(
-      Math.log1p(899) / Math.log1p(9000),
+      Math.log1p(899) / Math.log1p(9000 * PRICE_SCALE),
       9,
     )
     expect(out.styleVector[axisIndex('trendiness')]).toBe(0.4)
