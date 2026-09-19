@@ -20,6 +20,13 @@ export const previews = {
     emptyTitle: 'Choose some pieces first',
     emptyDescription: 'Open an outfit or add pieces to your bag, then preview them together.',
   },
+  borrowed: {
+    description: (title: string) =>
+      `Try the exact pieces and image style from “${title}” on your own reference photo.`,
+    exact: 'Exact borrowed composition',
+    exactNote: 'Pieces and style stay unchanged. Make it mine is the separate remix option.',
+    defaultTitle: (title: string) => `Preview of ${title}`,
+  },
   detail: {
     temporary: 'Private · temporary preview',
     explanation:
@@ -40,6 +47,7 @@ export const previews = {
   actions: {
     previewLook: 'Preview Look',
     previewBag: 'Preview bag on me',
+    previewOnMe: 'Preview on me',
   },
   errors: {
     pickPiece: 'Choose at least one piece.',
@@ -49,6 +57,7 @@ export const previews = {
     photoRequired: 'Choose a reference photo or use your saved photo.',
     notCreated:
       'The preview could not be created. Check image rendering configuration and try again.',
+    sourceUnavailable: 'That Look is private or no longer available.',
     unavailable: 'This preview is no longer available.',
     noneAvailable: 'Every piece in this preview is sold out.',
     bagFull: 'Your bag has no room for these pieces. Remove a piece and retry.',

@@ -21,6 +21,13 @@ export const previews: PreviewMessages = {
     emptyTitle: '請先選擇單品',
     emptyDescription: '開啟一套推薦穿搭，或把單品加入購物袋，再一起預覽。',
   },
+  borrowed: {
+    description: (title: string) =>
+      `用你自己的參考照片，試穿「${title}」完全相同的單品與圖片風格。`,
+    exact: '原樣借用穿搭',
+    exactNote: '單品與風格不會替換；「變成我的」則是另一個可改搭的選項。',
+    defaultTitle: (title: string) => `預覽「${title}」`,
+  },
   detail: {
     temporary: '私人 · 限時預覽',
     explanation: '這張圖片只供你在結帳前參考，不是你擁有的 Look，也不會出現在衣櫥中。',
@@ -38,6 +45,7 @@ export const previews: PreviewMessages = {
   actions: {
     previewLook: '預覽穿搭',
     previewBag: '在我身上預覽購物袋',
+    previewOnMe: '在我身上預覽',
   },
   errors: {
     pickPiece: '請至少選擇一件單品。',
@@ -46,6 +54,7 @@ export const previews: PreviewMessages = {
     photoSize: '參考照片請小於 15 MB。',
     photoRequired: '請選擇參考照片，或使用你已儲存的照片。',
     notCreated: '無法建立預覽。請確認圖片生成功能設定後再試一次。',
+    sourceUnavailable: '這個 Look 是私人的，或已無法使用。',
     unavailable: '這個預覽已無法使用。',
     noneAvailable: '這個預覽中的單品都已售罄。',
     bagFull: '購物袋放不下這些單品，請先移除一件再試。',

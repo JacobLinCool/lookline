@@ -23,6 +23,7 @@ import { Flash } from '@/components/looks/flash'
 import { LookProductStrip, type LookStripProduct } from '@/components/looks/look-product-strip'
 import { ShareButton } from '@/components/looks/share-button'
 import { ReactionButton } from '@/components/looks/reaction-button'
+import { previewHref } from '@/components/looks/preview-url'
 import { Avatar, Button, Container, Field, Section, Select } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
 import type { Messages } from '@/i18n'
@@ -228,9 +229,26 @@ export default async function LookPage({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Button href={`/looks/${look.id}/remix`} size="lg" full icon={<Sparkles />}>
-              {t.looks.detail.makeItMine}
-            </Button>
+            {isOwner ? (
+              <Button href={`/looks/${look.id}/remix`} size="lg" full icon={<Sparkles />}>
+                {t.looks.detail.makeItMine}
+              </Button>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Button href={previewHref({ sourceLookId: look.id })} size="lg" full>
+                  {t.previews.actions.previewOnMe}
+                </Button>
+                <Button
+                  href={`/looks/${look.id}/remix`}
+                  size="lg"
+                  full
+                  variant="secondary"
+                  icon={<Sparkles />}
+                >
+                  {t.looks.detail.makeItMine}
+                </Button>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <Button
                 href={`/asks/new?look=${look.id}`}

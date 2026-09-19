@@ -5,6 +5,7 @@ import {
   eq,
   insertAll,
   interactions,
+  lookProducts,
   looks,
   previewProducts,
   previews,
@@ -20,6 +21,7 @@ vi.mock('next/server', () => ({ after: (work: () => Promise<unknown>) => schedul
 
 import { cancelPreviewImage, createPreviewDraft, getPreviewGeneration } from './preview-generation'
 import { setDb } from './db'
+import { loadPreviewSourceLook } from './preview-source'
 import { memoryStorage, setStorage } from './storage'
 
 describe('temporary preview generation', () => {
@@ -56,6 +58,13 @@ describe('temporary preview generation', () => {
       handle: ownerId,
       displayName: 'Preview Owner',
       avatarSeed: 3,
+      isGuest: false,
+    })
+    await handle.db.insert(users).values({
+      id: 'preview_viewer',
+      handle: 'preview_viewer',
+      displayName: 'Preview Viewer',
+      avatarSeed: 4,
       isGuest: false,
     })
   })
@@ -149,5 +158,55 @@ describe('temporary preview generation', () => {
     expect(cancelled?.imageStatus).toBe('failed')
     expect(cancelled?.imagePath).toBeNull()
     expect(storage.keys()).toEqual([`preview-references/${preview.id}.png`])
+  })
+
+  it('borrows exact products only from a Look the viewer can open', async () => {
+    await handle.db.insert(looks).values([
+      {
+        id: 'lk_preview_public',
+        ownerId,
+        title: 'Public source',
+        stylePreset: 'editorial-warm',
+        visibility: 'public',
+        shareToken: 'preview-public',
+        imageStatus: 'ready',
+      },
+      {
+        id: 'lk_preview_link',
+        ownerId,
+        title: 'Link source',
+        stylePreset: 'studio-minimal',
+        visibility: 'link',
+        shareToken: 'preview-link',
+        imageStatus: 'ready',
+      },
+      {
+        id: 'lk_preview_private',
+        ownerId,
+        title: 'Private source',
+        stylePreset: 'studio-minimal',
+        visibility: 'private',
+        shareToken: 'preview-private',
+        imageStatus: 'ready',
+      },
+    ])
+    await handle.db.insert(lookProducts).values([
+      { lookId: 'lk_preview_public', productId, position: 0 },
+      { lookId: 'lk_preview_link', productId, position: 0 },
+      { lookId: 'lk_preview_private', productId, position: 0 },
+    ])
+
+    const publicSource = await loadPreviewSourceLook('lk_preview_public', 'preview_viewer')
+    const linkSource = await loadPreviewSourceLook('lk_preview_link', 'preview_viewer')
+    const privateSource = await loadPreviewSourceLook('lk_preview_private', 'preview_viewer')
+    const ownerSource = await loadPreviewSourceLook('lk_preview_private', ownerId)
+
+    expect(publicSource?.productIds).toEqual([productId])
+    expect(publicSource?.look.stylePreset).toBe('editorial-warm')
+    expect(linkSource?.productIds).toEqual([productId])
+    expect(privateSource).toBeNull()
+    expect(ownerSource?.productIds).toEqual([productId])
+
+    await handle.db.delete(looks)
   })
 })

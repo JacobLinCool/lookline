@@ -11,9 +11,11 @@ import {
   loadStoredPhoto,
   MAX_PHOTO_BYTES,
   savePhoto,
+  sanitizeId,
   type ReferencePhoto,
 } from '@/server/looks'
 import { createPreviewDraft } from '@/server/preview-generation'
+import { loadPreviewSourceLook } from '@/server/preview-source'
 
 const MAX_PRODUCTS = 8
 
@@ -48,10 +50,9 @@ async function readUploadedPhoto(
 
 /** Creates a private, expiring preview from catalog products without creating an owned Look. */
 export async function createPreviewAction(formData: FormData): Promise<void> {
-  const user = await requireUser('/previews/new')
-  const { t } = await getI18n()
   const back = safeNextPath(formData.get('return'), '/previews/new')
-  const productIds = [
+  const [user, { t }] = await Promise.all([requireUser(back), getI18n()])
+  let productIds = [
     ...new Set(
       formData
         .getAll('productId')
@@ -59,6 +60,10 @@ export async function createPreviewAction(formData: FormData): Promise<void> {
         .filter((id): id is number => id !== null),
     ),
   ].slice(0, MAX_PRODUCTS)
+  const sourceLookId = sanitizeId(formData.get('sourceLookId'))
+  const source = sourceLookId ? await loadPreviewSourceLook(sourceLookId, user.id) : null
+  if (sourceLookId && !source) returnWithError(back, t.previews.errors.sourceUnavailable)
+  if (source) productIds = source.productIds.slice(0, MAX_PRODUCTS)
   if (productIds.length === 0) returnWithError(back, t.previews.errors.pickPiece)
 
   const rows = await getDb()
@@ -89,9 +94,13 @@ export async function createPreviewAction(formData: FormData): Promise<void> {
     const preview = await createPreviewDraft({
       ownerId: user.id,
       productIds,
-      stylePreset: readText(formData.get('stylePreset'), 40) || DEFAULT_STYLE_PRESET,
+      sourceLookId: source?.look.id ?? null,
+      stylePreset:
+        source?.look.stylePreset ||
+        readText(formData.get('stylePreset'), 40) ||
+        DEFAULT_STYLE_PRESET,
       title: readText(formData.get('title'), 80) || t.previews.new.defaultTitle,
-      occasion: readText(formData.get('occasion'), 80) || null,
+      occasion: source?.look.occasion || readText(formData.get('occasion'), 80) || null,
       referencePhoto,
     })
     previewId = preview.id
