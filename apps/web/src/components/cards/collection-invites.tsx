@@ -85,9 +85,7 @@ function InviteRow({ invite }: { invite: PendingInvite }) {
         </span>
       </span>
       {invite.cards.length === 0 ? (
-        <p className="text-[12px] text-muted">
-          這位 persona 還沒有已發行的卡，先做一張才能加入。
-        </p>
+        <p className="text-[12px] text-muted">這位 persona 還沒有已發行的卡，先做一張才能加入。</p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
           <Select

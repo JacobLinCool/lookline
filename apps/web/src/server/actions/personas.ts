@@ -86,9 +86,7 @@ export async function offerPersonaAction(formData: FormData): Promise<ActionResu
   const [live] = await db
     .select({ id: personaTransfers.id })
     .from(personaTransfers)
-    .where(
-      and(eq(personaTransfers.personaId, personaId), eq(personaTransfers.state, 'pending')),
-    )
+    .where(and(eq(personaTransfers.personaId, personaId), eq(personaTransfers.state, 'pending')))
     .limit(1)
   if (live) return { ok: false, message: '這個 persona 已經有一筆邀請在等待中。' }
 

@@ -123,5 +123,4 @@ export async function availableArticles(db: Database, userId: string): Promise<A
   ]
 }
 
-
 export { articles, inArray, or, sql }
