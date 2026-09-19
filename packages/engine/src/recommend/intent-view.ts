@@ -109,6 +109,8 @@ export interface ConstraintTokens {
   patterns: string[]
   /** `attribute:<key>` → jsonb key. */
   attributes: string[]
+  /** `sleeve:<value>` → the `articles.sleeve` vocabulary (`long`, `short`, `sleeveless`, …). */
+  sleeves: string[]
   text: string[]
   aesthetics: string[]
 }
@@ -123,6 +125,7 @@ export function parseTokens(tokens: readonly string[] | undefined): ConstraintTo
     brands: [],
     patterns: [],
     attributes: [],
+    sleeves: [],
     text: [],
     aesthetics: [],
   }
@@ -162,6 +165,9 @@ export function parseTokens(tokens: readonly string[] | undefined): ConstraintTo
         break
       case 'attribute':
         out.attributes.push(value)
+        break
+      case 'sleeve':
+        out.sleeves.push(value)
         break
       case 'aesthetic':
         out.aesthetics.push(value)

@@ -140,6 +140,8 @@ export function baseParamsFor(
     excludeArticleIds: [...(req.exclude ?? [])],
     requireAttributes: Object.fromEntries(have.attributes.map((a) => [a, true as const])),
     excludeAttributes: Object.fromEntries(avoid.attributes.map((a) => [a, true as const])),
+    sleeves: have.sleeves,
+    excludeSleeves: avoid.sleeves,
   })
 }
 

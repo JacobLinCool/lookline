@@ -3,6 +3,12 @@ import { cn } from '@/lib/cn'
 export interface ProductImageProps {
   articleId: string
   alt: string
+  /**
+   * The article's `image_path`. `null` or `''` means H&M photographed no such article, so the
+   * tonal ground is shown on its own rather than requesting an image that would 404. Leave it
+   * undefined where the caller does not know.
+   */
+  imagePath?: string | null
   aspect?: '3/4' | '1/1'
   /** Eager-load above the fold. */
   priority?: boolean
@@ -15,6 +21,7 @@ export interface ProductImageProps {
 export function ProductImage({
   articleId,
   alt,
+  imagePath,
   aspect = '3/4',
   priority,
   lift,
@@ -22,6 +29,8 @@ export function ProductImage({
 }: ProductImageProps) {
   return (
     <div
+      // Where `flyProductToBag` takes off from.
+      data-product-image={productId}
       className={cn(
         'overflow-hidden rounded-md bg-mist',
         aspect === '3/4' ? 'aspect-3/4' : 'aspect-square',
@@ -29,15 +38,17 @@ export function ProductImage({
         className,
       )}
     >
-      <img
-        src={`/api/articles/${articleId}/image`}
-        alt={alt}
-        width={600}
-        height={aspect === '3/4' ? 800 : 600}
-        loading={priority ? 'eager' : 'lazy'}
-        decoding="async"
-        className="size-full object-cover"
-      />
+      {imagePath === null || imagePath === '' ? null : (
+        <img
+          src={`/api/articles/${articleId}/image`}
+          alt={alt}
+          width={600}
+          height={aspect === '3/4' ? 800 : 600}
+          loading={priority ? 'eager' : 'lazy'}
+          decoding="async"
+          className="size-full object-cover"
+        />
+      )}
     </div>
   )
 }

@@ -45,6 +45,8 @@ export const home: HomeMessages = {
     understood: '已理解的條件',
     budgetUnder: (amount: string) => `${amount} 以下`,
     budgetFrom: (amount: string) => `${amount} 起`,
+    /** The budget question's opt-out, whose value on the wire is `none`. */
+    noLimit: '不限',
     forRecipient: (who: string) => `送給${who}`,
     forSomeoneElse: '送給別人',
     avoid: (thing: string) => `不要${thing}`,

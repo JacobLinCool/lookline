@@ -60,6 +60,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <main className="flex-1 pb-20 md:pb-0">{children}</main>
           <SiteFooter />
           <TabBar bagCount={count} />
+          {/*
+            Stage for the add-to-bag flight. It has to live in the layout, not on `document.body`:
+            React owns the body, and a soft navigation — which is exactly what an add triggers —
+            clears nodes appended there mid-flight. This div is rendered once and never re-mounted,
+            and React leaves the children it did not create alone.
+          */}
+          <div id="fly-layer" aria-hidden className="pointer-events-none fixed inset-0 z-50" />
         </LocaleProvider>
       </body>
     </html>

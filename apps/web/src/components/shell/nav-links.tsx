@@ -74,6 +74,7 @@ export function TabBar({ bagCount = 0 }: { bagCount?: number }) {
               <Link
                 href={tab.href}
                 aria-current={active ? 'page' : undefined}
+                data-bag-target={tab.href === '/bag' ? '' : undefined}
                 className={cn(
                   'relative flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors [&_svg]:size-5',
                   active ? 'text-ink' : 'text-muted',

@@ -20,6 +20,7 @@ import {
   looks,
   lte,
   notInArray,
+  or,
   articleVectors,
   articles,
   purchases,
@@ -48,6 +49,16 @@ export interface RetrieveParams {
   excludeArticleIds: string[]
   requireAttributes: Record<string, true>
   excludeAttributes: Record<string, true>
+  /**
+   * Sleeve the shopper asked for. H&M labels it unevenly — 62% of tops and 67% of dresses, but
+   * 13% of outerwear and 1% of bottoms — so the requirement is read two ways (`SLEEVE_STRICT`):
+   * a top or a dress has to carry the asked-for sleeve, because an unlabelled tee or tank top
+   * answering "要長袖" is the bug this exists to prevent, and 14k labelled long-sleeved tops can
+   * answer instead. Anywhere else an unlabelled garment passes and only a contradicting label is
+   * rejected, so trousers and shoes still reach the outfit.
+   */
+  sleeves: string[]
+  excludeSleeves: string[]
   limit: number
 }
 
@@ -120,10 +131,18 @@ export function emptyParams(
     excludeArticleIds: [],
     requireAttributes: {},
     excludeAttributes: {},
+    sleeves: [],
+    excludeSleeves: [],
     limit: 300,
     ...overrides,
   }
 }
+
+/**
+ * Groups where a sleeve is a fact about the garment and the catalogue labels it densely enough to
+ * insist on. Measured on the 105,220-article H&M catalogue: tops 62%, dresses 67%.
+ */
+const SLEEVE_STRICT: readonly CategoryGroup[] = ['tops', 'dresses']
 
 /** The SQL prefilter, evaluated in-process (used by MemoryRetriever and by the channels). */
 export function matchesParams(p: Article, params: RetrieveParams): boolean {
@@ -142,6 +161,10 @@ export function matchesParams(p: Article, params: RetrieveParams): boolean {
   const attrs = p.attributes ?? {}
   for (const key of Object.keys(params.requireAttributes)) if (attrs[key] !== true) return false
   for (const key of Object.keys(params.excludeAttributes)) if (attrs[key] === true) return false
+  if (params.sleeves.length > 0 && !params.sleeves.includes(p.sleeve)) {
+    if (SLEEVE_STRICT.includes(p.categoryGroup as CategoryGroup) || p.sleeve !== '') return false
+  }
+  if (params.excludeSleeves.includes(p.sleeve)) return false
   return true
 }
 
@@ -321,6 +344,16 @@ export function prefilterConditions(p: RetrieveParams): SqlChunk[] {
     conds.push(notInArray(articles.subcategory, p.excludeSubcategories))
   if (p.excludeBrandIds.length > 0) conds.push(notInArray(articles.brandId, p.excludeBrandIds))
   if (p.excludeArticleIds.length > 0) conds.push(notInArray(articles.id, p.excludeArticleIds))
+  // Outside the strict groups an unlabelled garment is not a contradiction (see `sleeves`).
+  const sleeveCond =
+    p.sleeves.length > 0
+      ? or(
+          inArray(articles.sleeve, p.sleeves),
+          and(eq(articles.sleeve, ''), notInArray(articles.categoryGroup, SLEEVE_STRICT)),
+        )
+      : undefined
+  if (sleeveCond) conds.push(sleeveCond)
+  if (p.excludeSleeves.length > 0) conds.push(notInArray(articles.sleeve, p.excludeSleeves))
   for (const key of Object.keys(p.requireAttributes))
     conds.push(jsonKeyIsTrue(articles.attributes, key))
   for (const key of Object.keys(p.excludeAttributes))

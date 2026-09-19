@@ -74,6 +74,7 @@ export function ProductGrid({
           <ProductCard
             product={{
               id: product.id,
+              imagePath: product.imagePath,
               name: product.name,
               price: product.price,
               brandName: product.brandName,

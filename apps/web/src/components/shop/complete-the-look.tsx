@@ -45,6 +45,7 @@ async function OutfitRail({
             <ProductCard
               product={{
                 id: item.product.id,
+                imagePath: item.product.imagePath,
                 name: displayName(item.product.name, item.brandName),
                 price: item.product.price,
                 brandName: item.brandName,

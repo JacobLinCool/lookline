@@ -63,6 +63,7 @@ export function OutfitRail({
             <ProductCard
               product={{
                 id: item.product.id,
+                imagePath: item.product.imagePath,
                 name: item.product.name,
                 price: item.product.price,
                 brandName: item.brandName,
