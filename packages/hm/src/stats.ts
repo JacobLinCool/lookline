@@ -67,3 +67,25 @@ export function momentumOf(sales30d: number, sales90d: number): number {
   if (sales90d <= 0) return 0
   return Math.min(1, (sales30d / sales90d) * 3) / 3
 }
+
+export interface TypePair {
+  typeA: string
+  typeB: string
+  together: number
+  lift: number
+}
+
+/** `data/hm/type_affinity.csv` — 3230 product-type pairs with at least 50 co-purchases. */
+export function loadAffinity(path: string): TypePair[] {
+  const out: TypePair[] = []
+  const lines = readFileSync(path, 'utf8').split('\n')
+  for (let i = 1; i < lines.length; i += 1) {
+    const line = lines[i]
+    if (!line) continue
+    // Product type names contain no commas, so a plain split is enough here.
+    const [typeA, typeB, together, lift] = line.split(',')
+    if (!typeA || !typeB || !together || !lift) continue
+    out.push({ typeA, typeB, together: Number(together), lift: Number(lift) })
+  }
+  return out
+}

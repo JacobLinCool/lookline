@@ -19,10 +19,12 @@ import {
   getTableColumns,
   insertAll,
   sql,
+  typeAffinity as typeAffinityTable,
 } from '@lookline/db'
 import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
 import {
   categoryGroupFor,
+  loadAffinity,
   loadArticles,
   loadStats,
   materialFrom,
@@ -148,6 +150,11 @@ for (let i = 0; i < rows.length; i += VECTOR_BATCH) {
   )
 }
 console.log(`wrote ${rows.length} style vectors in ${secs(started)}s`)
+
+const pairs = loadAffinity(`${dir}/type_affinity.csv`)
+await db.delete(typeAffinityTable)
+await insertAll(db, typeAffinityTable, pairs)
+console.log(`inserted ${pairs.length} co-purchase pairs in ${secs(started)}s`)
 
 await db.run(sql.raw(FTS_REBUILD_SQL))
 await db.run(sql.raw('analyze'))

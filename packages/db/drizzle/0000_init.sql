@@ -151,6 +151,25 @@ CREATE INDEX `feedback_events_user_idx` ON `feedback_events` (`user_id`);--> sta
 CREATE INDEX `feedback_events_article_idx` ON `feedback_events` (`article_id`);--> statement-breakpoint
 CREATE INDEX `feedback_events_created_idx` ON `feedback_events` (`created_at`);--> statement-breakpoint
 CREATE INDEX `feedback_events_session_idx` ON `feedback_events` (`intent_session_id`);--> statement-breakpoint
+CREATE TABLE `hm_customers` (
+	`customer_id` text PRIMARY KEY NOT NULL,
+	`age` integer,
+	`club_member_status` text,
+	`fashion_news_frequency` text,
+	`postal_code` text,
+	`subscribes_news` integer DEFAULT false NOT NULL,
+	`active` integer DEFAULT false NOT NULL,
+	`purchases` integer DEFAULT 0 NOT NULL,
+	`spend` integer DEFAULT 0 NOT NULL,
+	`first_buy_at` integer,
+	`last_buy_at` integer,
+	`online_ratio` real DEFAULT 0 NOT NULL,
+	`top_index_group` text,
+	`top_product_group` text
+);
+--> statement-breakpoint
+CREATE INDEX `hm_customers_purchases_idx` ON `hm_customers` (`purchases`);--> statement-breakpoint
+CREATE INDEX `hm_customers_age_idx` ON `hm_customers` (`age`);--> statement-breakpoint
 CREATE TABLE `intent_sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text,
@@ -368,6 +387,15 @@ CREATE TABLE `trend_signals` (
 CREATE UNIQUE INDEX `trend_signals_day_dim_key_idx` ON `trend_signals` (`day`,`dimension`,`key`);--> statement-breakpoint
 CREATE INDEX `trend_signals_dim_key_idx` ON `trend_signals` (`dimension`,`key`);--> statement-breakpoint
 CREATE INDEX `trend_signals_momentum_idx` ON `trend_signals` (`momentum`);--> statement-breakpoint
+CREATE TABLE `type_affinity` (
+	`type_a` text NOT NULL,
+	`type_b` text NOT NULL,
+	`together` integer NOT NULL,
+	`lift` real NOT NULL,
+	PRIMARY KEY(`type_a`, `type_b`)
+);
+--> statement-breakpoint
+CREATE INDEX `type_affinity_lift_idx` ON `type_affinity` (`lift`);--> statement-breakpoint
 CREATE TABLE `users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`handle` text NOT NULL,

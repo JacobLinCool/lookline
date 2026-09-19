@@ -306,6 +306,61 @@ export const articles = sqliteTable(
   ],
 )
 
+/**
+ * What gets bought together, at product-type level, from 31.8M transactions. A basket is the
+ * distinct product types one customer bought on one day — the dataset's own note says duplicate
+ * rows are several units of one item, not a pairing.
+ *
+ * `lift` above 1 means the pair occurs more often than two unrelated types would: raw counts only
+ * rank by popularity, while lift is what separates a pairing from a coincidence (Braces + Tie
+ * lifts 305×, Tailored Waistcoat + Tie 100×). Article-level pairs would be hundreds of millions
+ * of rows; product types are 3230 after a floor of 50 co-purchases.
+ */
+export const typeAffinity = sqliteTable(
+  'type_affinity',
+  {
+    typeA: text('type_a').notNull(),
+    typeB: text('type_b').notNull(),
+    together: integer('together').notNull(),
+    lift: real('lift').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.typeA, t.typeB] }), index('type_affinity_lift_idx').on(t.lift)],
+)
+
+/**
+ * H&M's own 1 371 980 customers, with the per-customer aggregates of their purchases. The 31.8M
+ * transaction rows stay offline; these are what a preference baseline is measured against.
+ *
+ * Separate from `users`, which is this app's accounts — these people never signed in here.
+ */
+export const hmCustomers = sqliteTable(
+  'hm_customers',
+  {
+    id: text('customer_id').primaryKey(),
+    /** Missing on 15 861 rows. */
+    age: integer('age'),
+    clubMemberStatus: text('club_member_status'),
+    fashionNewsFrequency: text('fashion_news_frequency'),
+    /** Hashed, so it locates nobody — but people sharing one live near each other. */
+    postalCode: text('postal_code'),
+    subscribesNews: integer('subscribes_news', { mode: 'boolean' }).notNull().default(false),
+    active: integer('active', { mode: 'boolean' }).notNull().default(false),
+    purchases: integer('purchases').notNull().default(0),
+    /** TWD, at the same scale as `articles.price`. */
+    spend: integer('spend').notNull().default(0),
+    firstBuyAt: integer('first_buy_at', { mode: 'timestamp_ms' }),
+    lastBuyAt: integer('last_buy_at', { mode: 'timestamp_ms' }),
+    onlineRatio: real('online_ratio').notNull().default(0),
+    /** The dataset ships no gender. This is the index group they bought from most. */
+    topIndexGroup: text('top_index_group'),
+    topProductGroup: text('top_product_group'),
+  },
+  (t) => [
+    index('hm_customers_purchases_idx').on(t.purchases),
+    index('hm_customers_age_idx').on(t.age),
+  ],
+)
+
 // ---------------------------------------------------------------------------
 // People
 // ---------------------------------------------------------------------------
@@ -770,6 +825,10 @@ export const evaluationRuns = sqliteTable(
 export type Brand = typeof brands.$inferSelect
 export type NewBrand = typeof brands.$inferInsert
 export type Article = typeof articles.$inferSelect
+export type TypeAffinity = typeof typeAffinity.$inferSelect
+export type NewTypeAffinity = typeof typeAffinity.$inferInsert
+export type HmCustomer = typeof hmCustomers.$inferSelect
+export type NewHmCustomer = typeof hmCustomers.$inferInsert
 export type NewArticle = typeof articles.$inferInsert
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert

@@ -49,13 +49,24 @@ copy (
     select distinct t.customer_id, t.t_dat, a.pt
     from {tx} t join art a on a.aid = t.article_id
   ),
+  baskets as (select count(*) as n from (select distinct customer_id, t_dat from {tx})),
+  type_totals as (select pt, count(*) as n from basket group by 1),
   pairs as (
     select x.pt as pt_a, y.pt as pt_b
     from basket x join basket y
       on x.customer_id = y.customer_id and x.t_dat = y.t_dat and x.pt < y.pt
-  )
-  select pt_a, pt_b, count(*) as together
-  from pairs group by 1, 2 having count(*) >= 50 order by 3 desc
+  ),
+  counted as (select pt_a, pt_b, count(*) as together from pairs group by 1, 2 having count(*) >= 50)
+  -- lift > 1 means the pair shows up more often than two unrelated types would. Raw counts only
+  -- rank by popularity; lift is what says trousers-with-a-blazer is a pairing and not a coincidence.
+  select
+    c.pt_a, c.pt_b, c.together,
+    (c.together * b.n) / (ta.n * tb.n::double) as lift
+  from counted c
+  join type_totals ta on ta.pt = c.pt_a
+  join type_totals tb on tb.pt = c.pt_b
+  cross join baskets b
+  order by c.together desc
 ) to '{hm}/type_affinity.csv' (header, delimiter ',')
 """)
 print('wrote article_stats.csv and type_affinity.csv')

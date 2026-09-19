@@ -11,13 +11,16 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "seed": "tsx scripts/import.ts",
-    "aggregate": "bash scripts/aggregate.sh"
+    "aggregate": "bash scripts/aggregate.sh",
+    "images": "tsx scripts/images.ts",
+    "customers": "tsx scripts/customers.ts"
   },
   "dependencies": {
     "@lookline/db": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
+    "sharp": "0.35.4",
     "tsx": "4.23.13",
     "typescript": "5.9.3",
     "vitest": "5.0.1"
