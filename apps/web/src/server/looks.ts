@@ -3,6 +3,9 @@ import type { Locale } from '@/i18n/config'
 import { colorLabel } from '@/i18n/taxonomy'
 import { getStorage, isSafeKey } from './storage'
 
+/** The largest reference photo a Look accepts; `vite.config.ts` keeps the transport above it. */
+export const MAX_PHOTO_BYTES = 15 * 1024 * 1024
+
 export interface ReferencePhoto {
   mimeType: string
   data: Buffer

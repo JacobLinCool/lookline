@@ -17,12 +17,12 @@ import {
   DEFAULT_STYLE_PRESET,
   SOURCE_LOOK_COOKIE,
   loadStoredPhoto,
+  MAX_PHOTO_BYTES,
   sanitizeId,
   savePhoto,
   type ReferencePhoto,
 } from '@/server/looks'
 
-const MAX_PHOTO_BYTES = 8 * 1024 * 1024
 const MAX_LOOK_PRODUCTS = 8
 const VISIBILITIES: readonly Visibility[] = ['private', 'link', 'public']
 const SOURCE_COOKIE_TTL = 30 * 24 * 60 * 60
@@ -71,7 +71,7 @@ async function readPhoto(
 /**
  * `<form action={createLookAction} encType="multipart/form-data">` on `/looks/new`.
  * Fields: `productId` (repeated checkbox values), `stylePreset` (slug), `occasion`, `title`,
- * `visibility` (private | link | public), `photo` (file, ≤ 8 MB, image/*), `useSavedPhoto` (on),
+ * `visibility` (private | link | public), `photo` (file, ≤ 15 MB, image/*), `useSavedPhoto` (on),
  * `rememberPhoto` (on), `return` (path to come back to on validation errors).
  */
 export async function createLookAction(formData: FormData): Promise<void> {

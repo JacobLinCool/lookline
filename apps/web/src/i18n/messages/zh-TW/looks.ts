@@ -151,7 +151,7 @@ export const looks: LooksMessages = {
     pickPiece: '請至少選一件單品放進這個 Look。',
     unknownProducts: '這些商品已不在商品庫中。',
     photoType: '照片必須是圖片檔。',
-    photoSize: '照片大小請在 8 MB 以內。',
+    photoSize: '照片大小請在 15 MB 以內。',
     notCreated: '這個 Look 無法建立。',
     unavailable: '這個 Look 目前無法使用。',
     signInToReact: '請先登入才能回應。',

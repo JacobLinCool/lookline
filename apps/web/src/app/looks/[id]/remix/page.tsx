@@ -36,6 +36,8 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
 const errors = (t: Messages): Record<string, string> => ({
   products: t.looks.errors.keepOnePiece,
   recipient: t.looks.errors.noSuchPerson,
+  photoType: t.looks.errors.photoType,
+  photoSize: t.looks.errors.photoSize,
 })
 
 function pagePath(id: string, forUserId: string | undefined, budget: string | undefined): string {

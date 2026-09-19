@@ -161,7 +161,7 @@ export const looks = {
     pickPiece: 'Pick at least one piece to put in the edition.',
     unknownProducts: 'Those products are no longer in the catalog.',
     photoType: 'The photo must be an image file.',
-    photoSize: 'The photo must be 8 MB or smaller.',
+    photoSize: 'The photo must be 15 MB or smaller.',
     notCreated: 'The Look could not be created.',
     unavailable: 'This Look is unavailable.',
     signInToReact: 'Sign in to react.',
