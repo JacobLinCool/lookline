@@ -21,8 +21,6 @@ export const TABLE_ORDER = [
   'previews',
   'preview_articles',
   'purchases',
-  'asks',
-  'ask_responses',
   'interactions',
   'relationships',
   'intent_sessions',

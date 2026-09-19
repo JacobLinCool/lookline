@@ -24,7 +24,7 @@ page already varies by session cookie, so nothing regresses.
 | --------------------------------------------------------------------------------- | -------------------------------------- |
 | Interface copy — labels, buttons, states, questions, empty states, page titles    | `apps/web/src/i18n/messages/<locale>/` |
 | Catalog nouns — departments, groups, categories, colours, aesthetics, occasions … | `@lookline/catalog` `labelZh` / `name` |
-| Product names, brand names, user-authored Look titles and Ask questions           | The database; never translated         |
+| Product names, brand names, user-authored Look titles                             | The database; never translated         |
 | Model ids, contract versions, slot names, JSON keys in Engine lab                 | Identifiers; never translated          |
 
 A catalog noun is never re-typed into a message file. `packages/catalog` already carries a

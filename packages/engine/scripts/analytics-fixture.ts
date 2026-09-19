@@ -8,8 +8,6 @@
  */
 import { zeroVector } from '@lookline/catalog'
 import {
-  asks,
-  askResponses,
   feedbackEvents,
   intentSessions,
   interactions,
@@ -50,8 +48,6 @@ async function cleanup(): Promise<void> {
   await db.delete(intentSessions).where(like(intentSessions.id, 'fx\\_%'))
   await db.delete(purchases).where(like(purchases.id, 'fx\\_%'))
   await db.delete(interactions).where(like(interactions.id, 'fx\\_%'))
-  await db.delete(askResponses).where(like(askResponses.id, 'fx\\_%'))
-  await db.delete(asks).where(like(asks.id, 'fx\\_%'))
   await db.delete(looks).where(like(looks.id, 'fx\\_%')) // cascades look_products, participants, lineage_stats
   await db.delete(users).where(like(users.id, 'fx\\_%'))
 }
@@ -172,30 +168,6 @@ async function insertFixture(articleIds: string[]): Promise<void> {
       { lookId: 'fx_l4', articleId: p2, role: 'bottom', position: 0 },
     ])
   }
-  await db.insert(asks).values([
-    {
-      id: 'fx_a1',
-      askerId: 'fx_u2',
-      targetUserId: 'fx_u1',
-      kind: 'choose',
-      question: 'Which one?',
-      optionArticleIds: p1 !== undefined && p2 !== undefined ? [p1, p2] : [],
-      lookId: 'fx_l1',
-      shareToken: 'fx_ta1',
-      status: 'answered',
-      createdAt: ago(6),
-    },
-  ])
-  await db.insert(askResponses).values([
-    {
-      id: 'fx_r1',
-      askId: 'fx_a1',
-      responderUserId: 'fx_u1',
-      choiceArticleId: p1 ?? null,
-      comment: 'The first.',
-      createdAt: ago(6, -1),
-    },
-  ])
   await db
     .insert(interactions)
     .values([
@@ -209,20 +181,7 @@ async function insertFixture(articleIds: string[]): Promise<void> {
       ix('fx_i08', 'fx_u1', 'SHARE', { lookId: 'fx_l1' }, ago(9)),
       ix('fx_i09', 'fx_u2', 'REACT', { lookId: 'fx_l1' }, ago(8)),
       ix('fx_i10', 'fx_u3', 'REACT', { lookId: 'fx_l2' }, ago(5)),
-      ix(
-        'fx_i11',
-        'fx_u2',
-        'ASK',
-        { askId: 'fx_a1', lookId: 'fx_l1', targetUserId: 'fx_u1' },
-        ago(6),
-      ),
-      ix(
-        'fx_i12',
-        'fx_u1',
-        'ADVISE',
-        { askId: 'fx_a1', targetUserId: 'fx_u2', articleId: p1 ?? null },
-        ago(6, -1),
-      ),
+      ix('fx_i11', 'fx_u1', 'STYLE', { lookId: 'fx_l1', targetUserId: 'fx_u2' }, ago(6)),
       ix(
         'fx_i13',
         'fx_u3',
@@ -249,7 +208,6 @@ async function insertFixture(articleIds: string[]): Promise<void> {
         quantity: 1,
         forKind: 'self',
         sourceLookId: 'fx_l1',
-        sourceAskId: 'fx_a1',
         intentSessionId: 'fx_s1',
         createdAt: ago(5),
       },

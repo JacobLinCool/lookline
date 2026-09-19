@@ -8,7 +8,7 @@ import { facetLabel } from '@/i18n/taxonomy'
 import { GENERIC_FACTORS, reasonLine } from '@/lib/reason'
 import { addOutfitToBagAction } from '@/server/actions/bag'
 import { formatTwd } from '@/server/format'
-import { askHref, intentHref, productHref, type IntentQuery } from './urls'
+import { intentHref, productHref, type IntentQuery } from './urls'
 import { previewHref } from '@/components/looks/preview-url'
 
 export interface OutfitRailProps {
@@ -91,9 +91,6 @@ export function OutfitRail({
             {copy.addAll}
           </Button>
         </InstantForm>
-        <Button href={askHref(articleIds, sessionId)} variant="ghost" size="sm">
-          {copy.askFriend}
-        </Button>
         <Button href={previewHref({ articleIds })} variant="ghost" size="sm">
           {t.previews.actions.previewLook}
         </Button>

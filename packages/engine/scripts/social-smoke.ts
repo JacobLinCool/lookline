@@ -4,12 +4,10 @@
  *   pnpm --filter @lookline/engine exec tsx scripts/social-smoke.ts
  *
  * Creates two throwaway users, records a purchase, creates an edition, a remix by the second
- * user (via suggestRemix), an Ask + answer, prints the interactions written, then deletes every
+ * user (via suggestRemix), a Together, prints the interactions written, then deletes every
  * throwaway row. Skips cleanly when the articles table is empty.
  */
 import {
-  askResponses,
-  asks,
   count,
   desc,
   eq,
@@ -26,7 +24,7 @@ import {
 } from '@lookline/db'
 import { createLocalDb, loadEnv } from '@lookline/db/node'
 import { nanoid } from 'nanoid'
-import { answerAsk, createAsk, createLook, recordPurchase, suggestRemix } from '../src/social'
+import { createLook, recordPurchase, suggestRemix } from '../src/social'
 
 loadEnv()
 
@@ -73,7 +71,6 @@ async function main(): Promise<void> {
     },
   ])
   const lookIds: string[] = []
-  const askIds: string[] = []
   try {
     const purchase = await timed('recordPurchase', () =>
       recordPurchase(db, { userId: alice, articleId: outfit[0]!.id, forKind: 'self', size: 'M' }),
@@ -154,39 +151,12 @@ async function main(): Promise<void> {
       `participants=${(await db.select().from(lookParticipants).where(eq(lookParticipants.lookId, together.id))).length}`,
     )
 
-    const ask = await timed('createAsk', () =>
-      createAsk(db, {
-        askerId: alice,
-        kind: 'choose',
-        question: 'Which one for brunch?',
-        optionArticleIds: outfit.slice(0, 2).map((p) => p.id),
-        lookId: edition.id,
-        targetUserId: bob,
-      }),
-    )
-    askIds.push(ask.id)
-    const answer = await timed('answerAsk', () =>
-      answerAsk(db, {
-        askId: ask.id,
-        responderUserId: bob,
-        responderName: 'Smoke Bob',
-        choiceArticleId: outfit[0]!.id,
-        comment: 'The first one.',
-      }),
-    )
-    const [answered] = await db
-      .select({ status: asks.status })
-      .from(asks)
-      .where(eq(asks.id, ask.id))
-    console.log('ask', ask.id, 'answer', answer.id, 'status', answered?.status)
-
     const written = await db
       .select({
         type: interactions.type,
         actor: interactions.actorUserId,
         target: interactions.targetUserId,
         lookId: interactions.lookId,
-        askId: interactions.askId,
         articleId: interactions.articleId,
       })
       .from(interactions)
@@ -195,7 +165,7 @@ async function main(): Promise<void> {
     console.log(`\n${written.length} interactions written:`)
     for (const row of written) {
       console.log(
-        `  ${row.type.padEnd(11)} ${row.actor} → ${row.target ?? '-'}  look=${row.lookId ?? '-'} ask=${row.askId ?? '-'} product=${row.articleId ?? '-'}`,
+        `  ${row.type.padEnd(11)} ${row.actor} → ${row.target ?? '-'}  look=${row.lookId ?? '-'} product=${row.articleId ?? '-'}`,
       )
     }
     const fb = await db
@@ -216,10 +186,6 @@ async function main(): Promise<void> {
     await db.delete(preferenceSnapshots).where(inArray(preferenceSnapshots.userId, [alice, bob]))
     await db.delete(interactions).where(inArray(interactions.actorUserId, [alice, bob]))
     await db.delete(purchases).where(inArray(purchases.userId, [alice, bob]))
-    if (askIds.length > 0) {
-      await db.delete(askResponses).where(inArray(askResponses.askId, askIds))
-      await db.delete(asks).where(inArray(asks.id, askIds))
-    }
     if (lookIds.length > 0) {
       await db.delete(lookArticles).where(inArray(lookArticles.lookId, lookIds))
       await db.delete(lookParticipants).where(inArray(lookParticipants.lookId, lookIds))

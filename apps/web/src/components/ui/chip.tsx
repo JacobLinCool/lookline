@@ -55,7 +55,7 @@ export interface BadgeProps {
   className?: string
 }
 
-/** Tiny count bubble (bag count, unread asks). */
+/** Tiny count bubble (bag count). */
 export function Badge({ count, showZero = false, max = 99, className }: BadgeProps) {
   if (count <= 0 && !showZero) return null
   return (

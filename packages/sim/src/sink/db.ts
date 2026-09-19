@@ -1,6 +1,6 @@
 /**
  * Database sink: every social write goes through the engine write paths (`recordPurchase`,
- * `createLook`, `suggestRemix`, `createAsk`, `answerAsk`, `recordInteraction`,
+ * `createLook`, `suggestRemix`, `recordInteraction`,
  * `recordFeedback`) and searches become `intent_sessions` rows via the offline intent parser.
  * Look posters are not stored: the web image route renders `renderLookPosterSvg` on demand for
  * every Look without an `imagePath` (only generated images live in R2).
@@ -16,8 +16,6 @@ import {
   type Database,
 } from '@lookline/db'
 import {
-  answerAsk,
-  createAsk,
   createLook,
   intentToVector,
   parseIntentOffline,
@@ -191,14 +189,6 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
       } catch {
         return []
       }
-    },
-
-    async createAsk(input) {
-      await createAsk(db, input)
-    },
-
-    async answerAsk(input) {
-      await answerAsk(db, input)
     },
   }
 }

@@ -31,7 +31,6 @@ const ix = (
   targetUserId: null,
   lookId,
   articleId: null,
-  askId: null,
   type,
   sourceInteractionId: null,
   createdAt: day(d),
@@ -50,7 +49,6 @@ const purchase = (
   forKind: 'self',
   forUserId: null,
   sourceLookId,
-  sourceAskId: null,
   sourceInteractionId: null,
   intentSessionId: null,
   createdAt: day(5),
@@ -80,7 +78,7 @@ const interactions: InteractionLite[] = [
   ix('SHARE', 'u6', 'lk1'),
   ix('SHARE', 'u7', 'lk2'),
   ix('REACT', 'u2', 'lk1'),
-  ix('ASK', 'u8', 'lk3'),
+  ix('SAVE', 'u8', 'lk3'),
   ix('VIEW', 'u10', 'lk1'), // views do not count as people
 ]
 const purchases: PurchaseLite[] = [
@@ -109,10 +107,9 @@ describe('computeLineage', () => {
   it('computes the hand-built 3-level tree statistics', () => {
     expect(root.depth).toBe(3)
     expect(root.nodes).toBe(5)
-    expect(root.uniquePeople).toBe(8) // u1..u5 owners + u6, u7 share, u8 ask
+    expect(root.uniquePeople).toBe(8) // u1..u5 owners + u6, u7 share, u8 save
     expect(root.clustersReached).toBe(2)
     expect(root.shares).toBe(2)
-    expect(root.asks).toBe(1)
     expect(root.remixes).toBe(3)
     expect(root.purchases).toBe(2)
     expect(root.gmv).toBe(2500)

@@ -74,7 +74,6 @@ export const home: HomeMessages = {
     totalOfBudget: (total: string, budget: string) => `${total}（預算 ${budget}）`,
     addAll: '全部加入購物袋',
     added: '已加入購物袋',
-    askFriend: '問朋友',
     roles: {
       outer: '外套',
       tailoring: '西裝',

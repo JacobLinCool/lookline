@@ -1,7 +1,5 @@
 import {
   and,
-  askResponses,
-  asks,
   brands,
   desc,
   eq,
@@ -11,8 +9,6 @@ import {
   looks,
   articles,
   users,
-  type Ask,
-  type AskResponse,
   type Database,
   type Look,
   type Article,
@@ -30,7 +26,7 @@ import { facetLabel } from '@/i18n/taxonomy'
 import { getDb } from '@/server/db'
 
 /**
- * Server-only data loaders shared by the social primitives (shared Look view, Ask, Make It Mine,
+ * Server-only data loaders shared by the social primitives (shared Look view, Make It Mine,
  * Together). Reads go straight to Drizzle; every engine call is wrapped by `attempt` so a stub
  * that throws "not implemented yet" degrades to a Notice instead of a crash.
  */
@@ -41,21 +37,6 @@ export interface LookBundle {
   look: Look
   owner: User
   articles: ShopProduct[]
-}
-
-export interface AskResponseRow {
-  response: AskResponse
-  responder: User | null
-  styledLook: Look | null
-}
-
-export interface AskBundle {
-  ask: Ask
-  asker: User
-  target: User | null
-  options: ShopProduct[]
-  look: Look | null
-  responses: AskResponseRow[]
 }
 
 export type Attempt<T> = { ok: true; value: T } | { ok: false; error: string }
@@ -138,70 +119,6 @@ export async function loadUserLooks(userId: string, limit = 6): Promise<Look[]> 
     .limit(limit)
 }
 
-async function bundleAsk(row: { ask: Ask; asker: User } | undefined): Promise<AskBundle | null> {
-  if (!row) return null
-  const { db } = getDb()
-  const [options, target, look, responseRows] = await Promise.all([
-    loadProductsByIds(row.ask.optionArticleIds),
-    row.ask.targetUserId
-      ? db
-          .select()
-          .from(users)
-          .where(eq(users.id, row.ask.targetUserId))
-          .limit(1)
-          .then((r) => r[0] ?? null)
-      : Promise.resolve(null),
-    row.ask.lookId
-      ? db
-          .select()
-          .from(looks)
-          .where(eq(looks.id, row.ask.lookId))
-          .limit(1)
-          .then((r) => r[0] ?? null)
-      : Promise.resolve(null),
-    db
-      .select({ response: askResponses, responder: users, styledLook: looks })
-      .from(askResponses)
-      .leftJoin(users, eq(askResponses.responderUserId, users.id))
-      .leftJoin(looks, eq(askResponses.styledLookId, looks.id))
-      .where(eq(askResponses.askId, row.ask.id))
-      .orderBy(desc(askResponses.createdAt)),
-  ])
-  return { ask: row.ask, asker: row.asker, target, options, look, responses: responseRows }
-}
-
-/** An Ask by id with asker, options and responses, or null. */
-export async function loadAskById(id: string): Promise<AskBundle | null> {
-  const [row] = await getDb()
-    .db.select({ ask: asks, asker: users })
-    .from(asks)
-    .innerJoin(users, eq(asks.askerId, users.id))
-    .where(eq(asks.id, id))
-    .limit(1)
-  return bundleAsk(row)
-}
-
-/** An Ask by share token, or null. */
-export async function loadAskByToken(token: string): Promise<AskBundle | null> {
-  const [row] = await getDb()
-    .db.select({ ask: asks, asker: users })
-    .from(asks)
-    .innerJoin(users, eq(asks.askerId, users.id))
-    .where(eq(asks.shareToken, token))
-    .limit(1)
-  return bundleAsk(row)
-}
-
-/** Asks created by one user, newest first. */
-export async function loadUserAsks(userId: string, limit = 12): Promise<Ask[]> {
-  return getDb()
-    .db.select()
-    .from(asks)
-    .where(eq(asks.askerId, userId))
-    .orderBy(desc(asks.createdAt))
-    .limit(limit)
-}
-
 /** A user by id, or null. */
 export async function loadUser(id: string): Promise<User | null> {
   const [row] = await getDb().db.select().from(users).where(eq(users.id, id)).limit(1)
@@ -217,8 +134,8 @@ export async function loadUserByHandle(handle: string): Promise<User | null> {
 }
 
 /**
- * Record an interaction unless an identical one (actor, type, look/ask, target) already exists.
- * Used for the edges the web layer writes itself (VIEW, REACT, INSPIRE, ASK, ADVISE, STYLE) so a
+ * Record an interaction unless an identical one (actor, type, look, target) already exists.
+ * Used for the edges the web layer writes itself (VIEW, REACT, INSPIRE, STYLE) so a
  * page refresh or an engine that also writes the edge cannot double-count. Never throws.
  */
 export async function ensureInteraction(
@@ -231,7 +148,6 @@ export async function ensureInteraction(
       eq(interactions.type, input.type),
     ]
     if (input.lookId) conditions.push(eq(interactions.lookId, input.lookId))
-    if (input.askId) conditions.push(eq(interactions.askId, input.askId))
     if (input.targetUserId) conditions.push(eq(interactions.targetUserId, input.targetUserId))
     if (input.articleId) conditions.push(eq(interactions.articleId, input.articleId))
     const existing = await db
@@ -294,7 +210,7 @@ export function presetLabel(slug: string, locale: Locale = 'en'): string {
 }
 
 /**
- * Together / style_me occasions offered in the UI (product language from ref/). `facet` names the
+ * Together occasions offered in the UI (product language from ref/). `facet` names the
  * catalog occasion whose label the option shows; `graduation` and `seasonal` are not catalog
  * occasions, so those two read from the `social` messages instead.
  */

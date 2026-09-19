@@ -45,10 +45,8 @@ export function emptyContext(now: Date): ContextInput {
 }
 
 const TRUST_WEIGHTS: Readonly<Partial<Record<RelationshipKind, number>>> = {
-  trusts: 1,
   inspired_by: 0.7,
   styles: 0.6,
-  asks: 0.5,
   shops_with: 0.5,
   buys_for: 0.3,
 }

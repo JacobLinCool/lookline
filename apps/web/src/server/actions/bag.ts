@@ -17,20 +17,15 @@ import {
   removeFromBag,
   setBagQty,
 } from '@/server/bag'
-import {
-  INTENT_SESSION_COOKIE,
-  SOURCE_ASK_COOKIE,
-  SOURCE_LOOK_COOKIE,
-  sanitizeId,
-} from '@/server/looks'
+import { INTENT_SESSION_COOKIE, SOURCE_LOOK_COOKIE, sanitizeId } from '@/server/looks'
 import { getDb } from '@/server/db'
 
 const ATTRIBUTION_MAX_AGE = 60 * 60 * 24 * 7
 const OUTFIT_MAX_PIECES = 12
 
 /**
- * Remembers where a bag line came from (Look / Ask / intent turn) so `/checkout` can attribute the
- * purchase (`sourceLookId`, `sourceAskId`, `intentSessionId`). Later sources overwrite earlier ones.
+ * Remembers where a bag line came from (Look / intent turn) so `/checkout` can attribute the
+ * purchase (`sourceLookId`, `intentSessionId`). Later sources overwrite earlier ones.
  */
 async function rememberAttribution(
   formData: FormData,
@@ -38,7 +33,6 @@ async function rememberAttribution(
 ): Promise<void> {
   const pairs: Array<[string, string | null]> = [
     [SOURCE_LOOK_COOKIE, sourceLookOverride ?? sanitizeId(formData.get('sourceLook'))],
-    [SOURCE_ASK_COOKIE, sanitizeId(formData.get('sourceAsk'))],
     [INTENT_SESSION_COOKIE, sanitizeId(formData.get('intentSession'))],
   ]
   if (!pairs.some(([, v]) => v)) return
@@ -78,7 +72,7 @@ function finish(formData: FormData): void {
 
 /**
  * Fields: `articleId` (int), `size` (optional), `qty` (optional int), `redirect` (optional path),
- * and optional attribution ids `sourceLook`, `sourceAsk`, `intentSession` (stored in cookies for
+ * and optional attribution ids `sourceLook`, `intentSession` (stored in cookies for
  * `/checkout`).
  */
 export async function addToBagAction(formData: FormData): Promise<ActionResult> {

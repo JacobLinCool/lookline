@@ -109,8 +109,6 @@ export async function loadLookReferences<A extends Pick<Article, 'imagePath'>>(
 
 /** Last Look the visitor added to the bag from; read by `/checkout` for `sourceLookId`. */
 export const SOURCE_LOOK_COOKIE = 'll_source_look'
-/** Ask the visitor last answered / opened; read by `/checkout` for `sourceAskId`. */
-export const SOURCE_ASK_COOKIE = 'll_source_ask'
 /** Latest "say it in one sentence" turn; read by `/checkout` for `intentSessionId`. */
 export const INTENT_SESSION_COOKIE = 'll_intent_session'
 

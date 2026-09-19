@@ -114,7 +114,6 @@ export const shop: ShopMessages = {
     quantity: '數量',
     soldOut: '已售完',
     addToBag: '加入購物袋',
-    askFriend: '問朋友該選哪一件',
   },
 
   attributes: {
@@ -176,7 +175,7 @@ export const shop: ShopMessages = {
       shares: (styles: string) => `與你的主要風格有 ${styles} 相符`,
       sharesNothing: '目前與你的主要風格沒有交集',
       colourOutside: '顏色不在你常穿的色系',
-      trend: (score: string) => `來自 Look、改搭與提問的趨勢分數 ${score}`,
+      trend: (score: string) => `來自 Look 與改搭的趨勢分數 ${score}`,
       noTrend: '這件還沒有趨勢動能紀錄',
       join: (clauses: readonly string[]) => clauses.join('；'),
     },

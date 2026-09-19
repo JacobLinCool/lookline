@@ -76,7 +76,7 @@ try {
     initialSrc,
     'Existing visual remains during rendering',
   )
-  assert.ok(await page.getByRole('link', { name: 'Ask a friend', exact: true }).isEnabled())
+  assert.ok(await page.getByRole('button', { name: 'Share', exact: true }).isEnabled())
   assert.ok(await page.getByRole('combobox', { name: 'Image style' }).isEnabled())
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.getByRole('button', { name: 'Retry', exact: true }).waitFor()
