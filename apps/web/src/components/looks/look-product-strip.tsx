@@ -48,16 +48,14 @@ export async function LookProductStrip({
                 {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
                 <div className="flex items-center gap-1.5">
                   {product.sizeSystem !== 'one-size' && product.sizes.length > 0 ? (
-                    // `cn` appends rather than merges, so a `w-20` on the Select loses to its
-                    // base `w-full`; the wrapper sets the width the Select fills instead.
-                    <div className="w-20 shrink-0">
-                      <Select
-                        name="size"
-                        aria-label={t.looks.strip.sizeFor(product.name)}
-                        defaultValue={product.sizes[0]}
-                        options={product.sizes.map((s) => ({ value: s, label: s }))}
-                      />
-                    </div>
+                    <Select
+                      name="size"
+                      aria-label={t.looks.strip.sizeFor(product.name)}
+                      defaultValue={product.sizes[0]}
+                      options={product.sizes.map((s) => ({ value: s, label: s }))}
+                      size="sm"
+                      className="w-20 shrink-0"
+                    />
                   ) : null}
                   <Button
                     type="submit"
