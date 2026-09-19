@@ -14,6 +14,7 @@ CREATE TABLE `articles` (
 	`colour_group_name` text DEFAULT '' NOT NULL,
 	`perceived_colour_master_name` text DEFAULT '' NOT NULL,
 	`perceived_colour_value_name` text DEFAULT '' NOT NULL,
+	`category_group` text NOT NULL,
 	`outfit_role` text NOT NULL,
 	`department` text NOT NULL,
 	`slug` text NOT NULL,
@@ -55,10 +56,11 @@ CREATE UNIQUE INDEX `articles_slug_idx` ON `articles` (`slug`);--> statement-bre
 CREATE INDEX `articles_brand_idx` ON `articles` (`brand_id`);--> statement-breakpoint
 CREATE INDEX `articles_product_code_idx` ON `articles` (`product_code`);--> statement-breakpoint
 CREATE INDEX `articles_department_idx` ON `articles` (`department`);--> statement-breakpoint
+CREATE INDEX `articles_category_group_idx` ON `articles` (`category_group`);--> statement-breakpoint
 CREATE INDEX `articles_outfit_role_idx` ON `articles` (`outfit_role`);--> statement-breakpoint
 CREATE INDEX `articles_product_type_idx` ON `articles` (`product_type_name`);--> statement-breakpoint
 CREATE INDEX `articles_price_idx` ON `articles` (`price`);--> statement-breakpoint
-CREATE INDEX `articles_dept_role_price_idx` ON `articles` (`department`,`outfit_role`,`price`);--> statement-breakpoint
+CREATE INDEX `articles_dept_group_price_idx` ON `articles` (`department`,`category_group`,`price`);--> statement-breakpoint
 CREATE INDEX `articles_popularity_idx` ON `articles` (`popularity`);--> statement-breakpoint
 CREATE TABLE `ask_responses` (
 	`id` text PRIMARY KEY NOT NULL,

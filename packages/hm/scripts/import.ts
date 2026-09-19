@@ -20,7 +20,7 @@ import {
   sql,
 } from '@lookline/db'
 import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
-import { loadArticles, sizeSystemFor, slugFor } from '../src/index'
+import { categoryGroupFor, loadArticles, sizeSystemFor, slugFor } from '../src/index'
 
 loadEnv()
 
@@ -60,35 +60,42 @@ await insertAll(db, brandsTable, [
 const source = loadArticles(`${dir}/articles.csv`)
 console.log(`read ${source.length} articles in ${secs(started)}s`)
 
-const rows: NewArticle[] = source.map((a) => ({
-  id: a.articleId,
-  brandId: HM_BRAND_ID,
-  productCode: a.productCode,
-  name: a.name,
-  description: a.description ?? '',
-  subcategory: a.productType,
-  productGroup: a.productGroup,
-  category: a.garmentGroup ?? '',
-  section: a.section ?? '',
-  indexName: a.indexName,
-  indexGroupName: a.indexGroupName,
-  pattern: a.pattern ?? '',
-  colorName: a.colourName ?? '',
-  colorFamily: a.colourFamily ?? '',
-  colorValue: a.colourValue ?? '',
-  categoryGroup: a.outfitRole,
-  department: a.department,
-  slug: slugFor(a.name, a.articleId),
-  colorHex: a.colourHex ?? '#9E9E9E',
-  sizeSystem: sizeSystemFor(a.outfitRole),
-  sizes: [],
-  // Filled when the images are uploaded to R2 — not every article ships with a photo, and the
-  // key must not point at an object that is not there.
-  imagePath: null,
-  occasions: [],
-  aesthetics: [],
-  styleVector: ZERO_VECTOR,
-}))
+// The 322 non-apparel rows — furniture, stationery, cosmetics — never enter the catalogue.
+const rows: NewArticle[] = []
+for (const a of source) {
+  const categoryGroup = categoryGroupFor(a.outfitRole, a.indexGroupName, a.productType)
+  if (categoryGroup === null) continue
+  rows.push({
+    id: a.articleId,
+    brandId: HM_BRAND_ID,
+    productCode: a.productCode,
+    name: a.name,
+    description: a.description ?? '',
+    subcategory: a.productType,
+    productGroup: a.productGroup,
+    category: a.garmentGroup ?? '',
+    section: a.section ?? '',
+    indexName: a.indexName,
+    indexGroupName: a.indexGroupName,
+    pattern: a.pattern ?? '',
+    colorName: a.colourName ?? '',
+    colorFamily: a.colourFamily ?? '',
+    colorValue: a.colourValue ?? '',
+    categoryGroup,
+    outfitRole: a.outfitRole,
+    department: a.department,
+    slug: slugFor(a.name, a.articleId),
+    colorHex: a.colourHex ?? '#9E9E9E',
+    sizeSystem: sizeSystemFor(a.outfitRole),
+    sizes: [],
+    // Filled when the images are uploaded to R2 — not every article ships with a photo, and the
+    // key must not point at an object that is not there.
+    imagePath: null,
+    occasions: [],
+    aesthetics: [],
+    styleVector: ZERO_VECTOR,
+  })
+}
 
 // An insert binds every column of the table, not just the keys set above, so the statement is
 // sized against the table and `insertAll` is then told the equivalent budget in row keys.
@@ -96,7 +103,9 @@ const columns = Object.keys(getTableColumns(articlesTable)).length
 const rowKeys = Object.keys(rows[0] ?? {}).length
 const maxParams = Math.floor(SQLITE_MAX_PARAMS / columns) * rowKeys
 const inserted = await insertAll(db, articlesTable, rows, { maxParams })
-console.log(`inserted ${inserted} articles in ${secs(started)}s`)
+console.log(
+  `inserted ${inserted} articles (${source.length - rows.length} non-apparel skipped) in ${secs(started)}s`,
+)
 
 await db.run(sql.raw(FTS_REBUILD_SQL))
 await db.run(sql.raw('analyze'))

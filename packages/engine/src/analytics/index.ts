@@ -239,14 +239,14 @@ export async function runAnalytics(
   const manufacturing = await q.rebuildManufacturing(db, manufacturingRows, now)
 
   // 7. product trend scores from the last 14 days of weighted events
-  const productWeight = new Map<number, number>()
+  const productWeight = new Map<string, number>()
   const cutoff = addDays(endDay, -13)
   for (const e of events) {
     if (e.day < cutoff || e.day > endDay || e.weight <= 0) continue
     for (const pid of e.articleIds) productWeight.set(pid, (productWeight.get(pid) ?? 0) + e.weight)
   }
   const top = percentile([...productWeight.values()], 0.95)
-  const scores = new Map<number, number>()
+  const scores = new Map<string, number>()
   if (top > 0) {
     for (const [pid, w] of productWeight)
       scores.set(pid, round(Math.min(1, Math.log1p(w) / Math.log1p(top))))

@@ -438,7 +438,9 @@ export async function buildOutfits(input: BuildOutfitsInput): Promise<BuildOutfi
   }
   return {
     outfits,
-    slotItems: slotItems.toSorted((a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id)),
+    slotItems: slotItems.toSorted(
+      (a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id),
+    ),
     candidates,
     relaxed,
     timings,

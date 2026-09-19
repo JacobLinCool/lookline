@@ -41,6 +41,27 @@ export const DEPARTMENT_VALUES = ['women', 'men', 'unisex', 'kids'] as const
  * and a blazer still occupies `outer`. Those are read off `index_group_name = 'Sport'` and
  * `product_type_name` instead, so an outfit can be built from them like any other garment.
  */
+/**
+ * The vocabulary the intent parser speaks: every value has a Chinese label in @lookline/catalog's
+ * lexicon, which is how "西裝" or "運動服" reaches the catalogue. Derived from the outfit role
+ * plus `index_group_name` (Sport) and `product_type_name` (Blazer), because H&M files sportswear
+ * and tailoring under groups that name the body part rather than the occasion.
+ */
+export const CATEGORY_GROUP_VALUES = [
+  'tops',
+  'bottoms',
+  'dresses',
+  'outerwear',
+  'footwear',
+  'bags',
+  'accessories',
+  'jewelry',
+  'activewear',
+  'swimwear',
+  'loungewear',
+  'tailoring',
+] as const
+
 export const OUTFIT_ROLE_VALUES = [
   'top',
   'bottom',
@@ -214,7 +235,9 @@ export const articles = sqliteTable(
     colorFamily: text('perceived_colour_master_name').notNull().default(''),
     colorValue: text('perceived_colour_value_name').notNull().default(''),
     // --- derived by @lookline/hm ---
-    categoryGroup: text('outfit_role', { enum: OUTFIT_ROLE_VALUES }).notNull(),
+    categoryGroup: text('category_group', { enum: CATEGORY_GROUP_VALUES }).notNull(),
+    /** The finer split: `outerwear` and `tops` both answer "upper body", this answers which layer. */
+    outfitRole: text('outfit_role', { enum: OUTFIT_ROLE_VALUES }).notNull(),
     department: text('department', { enum: DEPARTMENT_VALUES }).notNull(),
     slug: text('slug').notNull(),
     /** The dataset ships colour names only, and a swatch needs a colour. */
@@ -274,10 +297,11 @@ export const articles = sqliteTable(
     index('articles_brand_idx').on(t.brandId),
     index('articles_product_code_idx').on(t.productCode),
     index('articles_department_idx').on(t.department),
-    index('articles_outfit_role_idx').on(t.categoryGroup),
+    index('articles_category_group_idx').on(t.categoryGroup),
+    index('articles_outfit_role_idx').on(t.outfitRole),
     index('articles_product_type_idx').on(t.subcategory),
     index('articles_price_idx').on(t.price),
-    index('articles_dept_role_price_idx').on(t.department, t.categoryGroup, t.price),
+    index('articles_dept_group_price_idx').on(t.department, t.categoryGroup, t.price),
     index('articles_popularity_idx').on(t.popularity),
   ],
 )
@@ -775,6 +799,7 @@ export type EvaluationRun = typeof evaluationRuns.$inferSelect
 
 export type Department = (typeof DEPARTMENT_VALUES)[number]
 export type OutfitRole = (typeof OUTFIT_ROLE_VALUES)[number]
+export type CategoryGroup = (typeof CATEGORY_GROUP_VALUES)[number]
 export type SizeSystem = (typeof SIZE_SYSTEM_VALUES)[number]
 export type BrandTier = (typeof BRAND_TIER_VALUES)[number]
 export type LookKind = (typeof LOOK_KIND_VALUES)[number]

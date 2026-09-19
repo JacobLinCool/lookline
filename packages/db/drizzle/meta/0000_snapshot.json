@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "29bd47f4-15b8-4d6f-bd38-d10be5178cd1",
+  "id": "be395f41-3120-46db-bf12-0ffaf0eb7dfa",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "articles": {
@@ -118,6 +118,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": "''"
+        },
+        "category_group": {
+          "name": "category_group",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
         },
         "outfit_role": {
           "name": "outfit_role",
@@ -412,6 +419,13 @@
           ],
           "isUnique": false
         },
+        "articles_category_group_idx": {
+          "name": "articles_category_group_idx",
+          "columns": [
+            "category_group"
+          ],
+          "isUnique": false
+        },
         "articles_outfit_role_idx": {
           "name": "articles_outfit_role_idx",
           "columns": [
@@ -433,11 +447,11 @@
           ],
           "isUnique": false
         },
-        "articles_dept_role_price_idx": {
-          "name": "articles_dept_role_price_idx",
+        "articles_dept_group_price_idx": {
+          "name": "articles_dept_group_price_idx",
           "columns": [
             "department",
-            "outfit_role",
+            "category_group",
             "price"
           ],
           "isUnique": false

@@ -141,7 +141,7 @@ export interface ProductLite {
   subcategory: string
   colorFamily: string
   silhouette: string | null
-  silhouetteId: string | null
+  silhouetteId: string
   stock: number
   price: number
 }

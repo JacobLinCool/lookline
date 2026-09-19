@@ -123,7 +123,7 @@ interface Cell {
   days7: Set<string>
   remixes14d: number
   purchases14d: number
-  articles: Map<number, number>
+  articles: Map<string, number>
   roots: Set<string>
   subcategories: Map<string, number>
 }
@@ -325,7 +325,7 @@ export function recommendManufacturing(
         topRootLooks: [...cell.roots].toSorted(compareStrings).slice(0, 3),
         sampleIntents: matching.slice(0, 3).map((s) => s.utterance),
         topProducts: [...cell.articles.entries()]
-          .toSorted((a, b) => b[1] - a[1] || a[0] - b[0])
+          .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
           .slice(0, 5)
           .map(([id]) => id),
         clusterLabels: clusterIds.map((id) => input.clusterLabels?.get(id) ?? `cluster ${id}`),

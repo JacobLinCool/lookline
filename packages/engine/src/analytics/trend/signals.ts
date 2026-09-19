@@ -125,7 +125,7 @@ export interface TrendEventInput {
 const DERIVED_ELSEWHERE = new Set<InteractionType>(['PURCHASE', 'BUY_FOR', 'SEARCH'])
 
 export function buildTrendEvents(input: TrendEventInput): TrendEvent[] {
-  const productsByLook = new Map<string, number[]>()
+  const productsByLook = new Map<string, string[]>()
   for (const lp of input.lookArticles) {
     const list = productsByLook.get(lp.lookId)
     if (list) list.push(lp.articleId)
@@ -243,7 +243,7 @@ export interface TrendEvidence {
   daily: number[]
   /** Day keys matching `daily` (oldest first). */
   days: string[]
-  topProducts: number[]
+  topProducts: string[]
   topRootLooks: string[]
   searches7d: number
   purchases7d: number
@@ -352,7 +352,7 @@ interface KeyState {
   searches: Int32Array
   gmv: Float64Array
   byCluster: Map<number, Float64Array>
-  articles: Map<number, number>
+  articles: Map<string, number>
   roots: Set<string>
 }
 
@@ -515,7 +515,7 @@ export function computeTrendSignals(
       const topProducts =
         i === lastIdx
           ? [...s.articles.entries()]
-              .toSorted((a, b) => b[1] - a[1] || a[0] - b[0])
+              .toSorted((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
               .slice(0, 5)
               .map(([id]) => id)
           : []

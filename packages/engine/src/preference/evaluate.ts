@@ -102,7 +102,7 @@ interface Truth {
   rel: Float64Array
   /** Graded gain per pool item (0–3). */
   grade: Uint8Array
-  relevant: Set<string>
+  relevant: Set<number>
   idcg: number
 }
 
@@ -217,7 +217,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
   const poolSize = Math.max(k, opts.poolSize ?? DEFAULT_POOL)
   const relevantShare = opts.relevantShare ?? DEFAULT_RELEVANT_SHARE
 
-  const catalog = buildEvalCatalog(config.catalogSize, config.seed, opts.catalogSource ?? 'auto')
+  const catalog = buildEvalCatalog(config.catalogSize, config.seed)
   const articles = catalog.articles
   const popularityMax = articles.reduce((m, p) => Math.max(m, p.popularity), 0)
   const users = makeSyntheticUsers(config.users, config.seed, {
@@ -252,7 +252,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
     }
     return pool
   }
-  const truths = new Map<string, Truth>()
+  const truths = new Map<number, Truth>()
   const truthOf = (user: SyntheticUser, t: number, pool: CandidatePool): Truth => {
     const key = user.index * 64 + t
     let truth = truths.get(key)
@@ -550,7 +550,8 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
       eventTotals.purchase / Math.max(1, users.length * series.length),
     ),
     meanDismissesPerRound: roundTo(eventTotals.dismiss / Math.max(1, users.length * series.length)),
-    catalogSource: catalog.source === 'generated' ? 1 : 0,
+    // Kept at 0: the harness has only the synthetic catalogue now.
+    catalogSource: 0,
     catalogSize: articles.length,
     users: users.length,
     rounds: series.length,

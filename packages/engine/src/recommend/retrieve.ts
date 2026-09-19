@@ -269,7 +269,9 @@ export class MemoryRetriever implements Retriever {
             !!x.row && matchesParams(x.row, p),
         )
         .toSorted(
-          (a, b) => socialStrength(b.evidence) - socialStrength(a.evidence) || a.row.id.localeCompare(b.row.id),
+          (a, b) =>
+            socialStrength(b.evidence) - socialStrength(a.evidence) ||
+            a.row.id.localeCompare(b.row.id),
         )
         .slice(0, SOCIAL_CHANNEL_LIMIT)
       social.push(...rows)
@@ -288,7 +290,9 @@ export class MemoryRetriever implements Retriever {
       }
       trend.push(
         ...hits
-          .toSorted((a, b) => b.row.popularity - a.row.popularity || a.row.id.localeCompare(b.row.id))
+          .toSorted(
+            (a, b) => b.row.popularity - a.row.popularity || a.row.id.localeCompare(b.row.id),
+          )
           .slice(0, TREND_CHANNEL_LIMIT),
       )
     }
@@ -442,7 +446,9 @@ export class SqlRetriever implements Retriever {
     }
     return out
       .toSorted(
-        (a, b) => socialStrength(b.evidence) - socialStrength(a.evidence) || a.row.id.localeCompare(b.row.id),
+        (a, b) =>
+          socialStrength(b.evidence) - socialStrength(a.evidence) ||
+          a.row.id.localeCompare(b.row.id),
       )
       .slice(0, SOCIAL_CHANNEL_LIMIT)
   }

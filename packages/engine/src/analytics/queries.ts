@@ -260,7 +260,7 @@ export async function loadIntentsLite(
 
 export async function loadProductsLite(
   db: Database,
-  ids: Iterable<number>,
+  ids: Iterable<string>,
 ): Promise<Map<string, ProductLite>> {
   const unique = [...new Set(ids)].filter((id) => Number.isFinite(id))
   const out = new Map<string, ProductLite>()
@@ -516,7 +516,7 @@ export async function rebuildManufacturing(
 
 export async function updateTrendScores(
   db: Database,
-  scores: ReadonlyMap<number, number>,
+  scores: ReadonlyMap<string, number>,
 ): Promise<void> {
   await db
     .update(articles)
