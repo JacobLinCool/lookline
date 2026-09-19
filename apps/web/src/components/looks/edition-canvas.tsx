@@ -25,12 +25,14 @@ export function EditionCanvas({
   isOwner,
   stylePreset,
   presets,
+  generationEndpoint,
 }: {
   initial: EditionState
   title: string
   isOwner: boolean
   stylePreset: string
   presets: { value: string; label: string }[]
+  generationEndpoint?: string
 }) {
   const { t } = useI18n()
   const [state, setState] = useState(initial)
@@ -43,6 +45,7 @@ export function EditionCanvas({
   const mutation = useRef(false)
   const pollRevision = useRef(0)
   const mounted = useRef(true)
+  const endpoint = generationEndpoint ?? `/api/looks/${state.id}/generate`
 
   useEffect(() => {
     mounted.current = true
@@ -60,7 +63,7 @@ export function EditionCanvas({
     let timer: ReturnType<typeof setTimeout>
     async function poll() {
       try {
-        const response = await fetch(`/api/looks/${state.id}/generate`, {
+        const response = await fetch(endpoint, {
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(4_000)]),
           cache: 'no-store',
         })
@@ -85,7 +88,7 @@ export function EditionCanvas({
       clearTimeout(timer)
       controller.abort()
     }
-  }, [state.status, state.generationId, state.id, t])
+  }, [state.status, state.generationId, endpoint, t])
 
   // Decode off-screen, then replace the existing visual in one paint.
   useEffect(() => {
@@ -124,7 +127,7 @@ export function EditionCanvas({
       trace.current?.mark('usable')
     })
     try {
-      const response = await fetch(`/api/looks/${state.id}/generate`, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stylePreset: preset }),
@@ -147,7 +150,7 @@ export function EditionCanvas({
     if (mutation.current || !state.generationId) return
     mutation.current = true
     try {
-      const response = await fetch(`/api/looks/${state.id}/generate`, {
+      const response = await fetch(endpoint, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ generationId: state.generationId }),

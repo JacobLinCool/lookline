@@ -3,6 +3,7 @@ import { after } from 'next/server'
 import {
   and,
   asc,
+  brands,
   eq,
   inArray,
   isNull,
@@ -296,9 +297,14 @@ export async function createPreviewDraft(input: {
 
 export async function loadPreviewProducts(id: string) {
   return getDb()
-    .db.select({ product: products, position: previewProducts.position })
+    .db.select({
+      product: products,
+      brandName: brands.name,
+      position: previewProducts.position,
+    })
     .from(previewProducts)
     .innerJoin(products, eq(previewProducts.productId, products.id))
+    .innerJoin(brands, eq(products.brandId, brands.id))
     .where(eq(previewProducts.previewId, id))
     .orderBy(asc(previewProducts.position))
 }

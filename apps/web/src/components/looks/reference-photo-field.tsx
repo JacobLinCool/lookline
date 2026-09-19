@@ -18,9 +18,11 @@ interface PhotoLabels {
 export function ReferencePhotoField({
   hasSavedPhoto,
   labels,
+  required = false,
 }: {
   hasSavedPhoto: boolean
   labels: PhotoLabels
+  required?: boolean
 }) {
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null)
   const [selectedName, setSelectedName] = useState<string | null>(null)
@@ -61,6 +63,7 @@ export function ReferencePhotoField({
             type="file"
             name="photo"
             accept="image/*"
+            required={required && !hasSavedPhoto}
             className="block w-full rounded-sm border border-line bg-card px-3 py-2 text-[13px] file:mr-3 file:rounded-xs file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-[12px] file:text-paper"
             onChange={(event) => {
               const file = event.currentTarget.files?.[0] ?? null

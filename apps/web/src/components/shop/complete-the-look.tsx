@@ -10,6 +10,7 @@ import { getDb } from '@/server/db'
 import { displayName } from '@/lib/product-name'
 import { formatTwd } from '@/server/format'
 import { callEngine } from './engine'
+import { previewHref } from '@/components/looks/preview-url'
 
 function roleLabel(item: RankedItem, t: Messages, locale: Locale): string {
   const roles: Record<string, string> = t.shop.outfitRoles
@@ -56,21 +57,30 @@ async function OutfitRail({
           </RailItem>
         ))}
       </Rail>
-      <InstantForm
-        action={addOutfitToBagAction}
-        name="add-outfit"
-        confirmation={t.shop.look.added}
-        className="flex flex-wrap items-center gap-3"
-      >
-        {outfit.items.map((item) => (
-          <input key={item.product.id} type="hidden" name="productId" value={item.product.id} />
-        ))}
-        <input type="hidden" name="redirect" value={`/p/${anchorId}`} />
+      <div className="flex flex-wrap items-center gap-3">
         <Tag size="md">{t.shop.look.total(formatTwd(outfit.total))}</Tag>
-        <Button type="submit" variant="secondary" size="sm">
-          {t.shop.look.addAll(outfit.items.length)}
+        <InstantForm
+          action={addOutfitToBagAction}
+          name="add-outfit"
+          confirmation={t.shop.look.added}
+          className="contents"
+        >
+          {outfit.items.map((item) => (
+            <input key={item.product.id} type="hidden" name="productId" value={item.product.id} />
+          ))}
+          <input type="hidden" name="redirect" value={`/p/${anchorId}`} />
+          <Button type="submit" variant="secondary" size="sm">
+            {t.shop.look.addAll(outfit.items.length)}
+          </Button>
+        </InstantForm>
+        <Button
+          href={previewHref({ productIds: outfit.items.map((item) => item.product.id) })}
+          variant="ghost"
+          size="sm"
+        >
+          {t.previews.actions.previewLook}
         </Button>
-      </InstantForm>
+      </div>
       {engineView ? (
         <div className="rounded-md bg-mist p-4">
           <FactorBreakdown
