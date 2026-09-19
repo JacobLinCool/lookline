@@ -22,6 +22,8 @@ export function ProductImage({
 }: ProductImageProps) {
   return (
     <div
+      // Where `flyProductToBag` takes off from.
+      data-product-image={productId}
       className={cn(
         'overflow-hidden rounded-md bg-mist',
         aspect === '3/4' ? 'aspect-3/4' : 'aspect-square',

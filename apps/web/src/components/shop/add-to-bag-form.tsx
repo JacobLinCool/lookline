@@ -36,6 +36,7 @@ export async function AddToBagForm({
         name="add-to-bag"
         confirmation={t.shop.product.added}
         className="flex flex-col gap-4"
+        flyToBag={[product.id]}
       >
         <input type="hidden" name="productId" value={product.id} />
         <input type="hidden" name="redirect" value={`/p/${product.id}?added=1`} />
