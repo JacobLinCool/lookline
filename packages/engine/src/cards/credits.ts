@@ -77,14 +77,16 @@ export async function grantPurchaseCredits(db: Database, input: GrantInput): Pro
  */
 export async function reserveCredit(db: Database, input: ReserveInput): Promise<boolean> {
   if (await hasOperation(db, input.operationKey)) return true
-  const result = await db.run(sql`
+  await db.run(sql`
     insert into ${creditLedger} (id, owner_user_id, delta, reason, session_id, rule_version, operation_key)
     select ${input.id}, ${input.ownerUserId}, -1, 'reserve', ${input.sessionId}, ${CREDIT_RULE_VERSION}, ${input.operationKey}
     where (
       select coalesce(sum(delta), 0) from ${creditLedger} where owner_user_id = ${input.ownerUserId}
     ) >= 1
   `)
-  return Number(result.rowsAffected ?? 0) > 0
+  // Read back rather than trusting a row count: libsql reports `rowsAffected`, D1 does not, and
+  // believing it there made a successful reservation look like an empty balance.
+  return hasOperation(db, input.operationKey)
 }
 
 /**

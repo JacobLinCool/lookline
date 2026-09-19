@@ -17,9 +17,10 @@ import {
   articles,
   purchases,
   previews,
+  personas as personasTable,
   users,
 } from '@lookline/db'
-import { getPreferenceProfile, getUserNetwork } from '@lookline/engine'
+import { creditBalance, getPreferenceProfile, getUserNetwork } from '@lookline/engine'
 import { Avatar, Button, Container, Notice, Section } from '@/components/ui'
 import { AsksPanel, type ReceivedAsk, type SentAsk } from '@/components/me/asks'
 import { Circle } from '@/components/me/circle'
@@ -197,6 +198,15 @@ export default async function MePage({
       callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
       isEngineView(),
     ])
+  const [cardCredits, personaCount] = await Promise.all([
+    creditBalance(db, user.id).catch(() => 0),
+    db
+      .select({ n: count() })
+      .from(personasTable)
+      .where(eq(personasTable.ownerUserId, user.id))
+      .then((r) => Number(r[0]?.n ?? 0))
+      .catch(() => 0),
+  ])
   const unavailable = <Notice tone="warning">{t.me.sectionUnavailable}</Notice>
   const moreLink =
     'text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-ink'
@@ -231,6 +241,26 @@ export default async function MePage({
           {photoErrorMessage}
         </Notice>
       ) : null}
+
+      {/* Personas and credits: the two things the card studio needs, surfaced where a visitor
+          already looks for their own things. */}
+      <Section title="小卡" rule={false}>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-[13px] text-muted">
+            製卡額度{' '}
+            <span className="tabular text-[15px] font-semibold text-ink">{cardCredits}</span>
+            <span className="ml-2">· {personaCount} 位 persona</span>
+          </p>
+          <div className="ml-auto flex gap-2">
+            <Button href="/me/personas" size="sm" variant="secondary">
+              管理 persona
+            </Button>
+            <Button href="/studio" size="sm">
+              製卡工作室
+            </Button>
+          </div>
+        </div>
+      </Section>
 
       <Section title={t.me.photo.title} rule={false}>
         <SavedPhotoForm

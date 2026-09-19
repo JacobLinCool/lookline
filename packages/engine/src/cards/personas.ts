@@ -114,11 +114,14 @@ export async function acceptTransfer(
   if (offer.toUserId !== input.acceptingUserId) return { ok: false, reason: 'wrong-recipient' }
   if (offer.expiresAt.getTime() <= input.now.getTime()) return { ok: false, reason: 'expired' }
 
-  const moved = await db
+  await db
     .update(personas)
     .set({ ownerUserId: offer.toUserId, version: sql`${personas.version} + 1` })
     .where(and(eq(personas.id, offer.personaId), eq(personas.version, offer.personaVersion)))
-  if (Number(moved.rowsAffected ?? 0) === 0) return { ok: false, reason: 'stale' }
+  // Read the persona back instead of trusting a row count: libsql reports `rowsAffected` and D1
+  // does not, so believing it would call a completed transfer stale on one of the two runtimes.
+  const [after] = await db.select().from(personas).where(eq(personas.id, offer.personaId)).limit(1)
+  if (!after || after.ownerUserId !== offer.toUserId) return { ok: false, reason: 'stale' }
 
   await db
     .update(personaTransfers)

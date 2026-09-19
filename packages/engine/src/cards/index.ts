@@ -25,6 +25,10 @@ export {
   creditThresholdTwd,
   creditsForPurchaseLine,
   entitlementQuantity,
+  CARD_TIERS,
+  ownedRatioOf,
+  tierForRatio,
+  type CardTier,
 } from './rules'
 
 export {
@@ -51,6 +55,8 @@ export {
   type CreatePersonaInput,
   type TransferOffer,
 } from './personas'
+
+export { fulfilPurchaseLines, type FulfilLine, type FulfilResult } from './fulfil'
 
 export {
   availableArticles,
