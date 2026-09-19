@@ -1,3 +1,4 @@
+import { shopTalk } from './shop-talk'
 import { admin } from './admin'
 import { auth } from './auth'
 import { bag } from './bag'
@@ -14,6 +15,7 @@ import { ui } from './ui'
 
 /** English is the source of truth: `Messages` is this object's type. */
 export const en = {
+  shopTalk,
   admin,
   auth,
   bag,

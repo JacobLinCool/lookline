@@ -9,7 +9,8 @@ import type { Locale } from '@/i18n/config'
 import type { Messages } from '@/i18n/messages'
 import { categoryLabel, departmentLabel, facetValueLabel, subcategoryLabel } from '@/i18n/taxonomy'
 import { formatTwd } from '@/server/format'
-import { shopHref } from './query'
+import { shopHref as hrefForShop, type ShopPath } from './query'
+import { useShopHref, useShopPath } from './path'
 import styles from './filters.module.css'
 
 interface ActiveFilter {
@@ -27,7 +28,10 @@ export function activeFilters(
   t: Messages,
   locale: Locale,
   brandName?: string | null,
+  path: ShopPath = '/shop',
 ): ActiveFilter[] {
+  const shopHref = (search: ProductSearch, patch?: Partial<ProductSearch>) =>
+    hrefForShop(search, patch, path)
   const list: ActiveFilter[] = []
   if (search.q)
     list.push({ key: 'q', label: `“${search.q}”`, href: shopHref(search, { q: undefined }) })
@@ -99,7 +103,9 @@ export function ActiveFilters({
   brandName?: string | null
 }) {
   const { t, locale } = useI18n()
-  const filters = activeFilters(search, t, locale, brandName)
+  const path = useShopPath()
+  const shopHref = useShopHref()
+  const filters = activeFilters(search, t, locale, brandName, path)
   if (filters.length === 0) return null
   return (
     <div className={styles.chips} aria-label={t.shop.filters.active}>
@@ -126,6 +132,7 @@ export function ActiveFilters({
 
 /** Women / Men / Unisex / Kids as one row of pills; `All` clears the department. */
 export function DepartmentPills({ search }: { search: ProductSearch }) {
+  const shopHref = useShopHref()
   const { t, locale } = useI18n()
   return (
     <nav aria-label={t.shop.filters.department} className={styles.departments}>

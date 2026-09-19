@@ -32,3 +32,4 @@ export {
   type HintBase,
 } from './decisions/hints'
 export * from './decisions/search-intent'
+export * from './decisions/conversation'

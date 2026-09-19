@@ -12,7 +12,7 @@ export async function SiteNav() {
   const [user, count, { t }] = await Promise.all([getSessionUser(), bagCount(), getI18n()])
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur-sm">
-      <Container className="flex h-14 items-center justify-between gap-4">
+      <Container className="flex h-[var(--shell-bar-height)] items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           <Wordmark />
           <nav aria-label={t.nav.primary} className="hidden md:block">

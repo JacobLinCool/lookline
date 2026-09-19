@@ -8,7 +8,8 @@
     "./testing": "./src/recommend/testing/fixtures.ts",
     "./hints": "./src/decisions/hints.ts",
     "./occasions": "./src/constants/occasions.ts",
-    "./keywords": "./src/decisions/keywords.ts"
+    "./keywords": "./src/decisions/keywords.ts",
+    "./conversation": "./src/decisions/conversation.ts"
   },
   "scripts": {
     "analytics": "tsx scripts/analytics.ts",

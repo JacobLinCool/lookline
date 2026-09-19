@@ -40,6 +40,10 @@
 
 @layer base {
   :root {
+    /* Shared shell geometry: content height plus each navigation bar's border/safe area. */
+    --shell-bar-height: 3.5rem;
+    --shell-header-height: calc(var(--shell-bar-height) + 1px);
+    --shell-tabs-height: calc(var(--shell-bar-height) + 1px + env(safe-area-inset-bottom));
     color-scheme: light;
     caret-color: var(--color-ink);
     scrollbar-color: var(--color-line) transparent;

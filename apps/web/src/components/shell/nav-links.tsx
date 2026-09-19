@@ -63,6 +63,7 @@ export function TabBar({ bagCount = 0 }: { bagCount?: number }) {
   ]
   return (
     <nav
+      data-mobile-tabbar
       aria-label={t.nav.primary}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
     >
@@ -76,7 +77,7 @@ export function TabBar({ bagCount = 0 }: { bagCount?: number }) {
                 aria-current={active ? 'page' : undefined}
                 data-bag-target={tab.href === '/bag' ? '' : undefined}
                 className={cn(
-                  'relative flex h-14 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors [&_svg]:size-5',
+                  'relative flex h-[var(--shell-bar-height)] flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors [&_svg]:size-5',
                   active ? 'text-ink' : 'text-muted',
                 )}
               >

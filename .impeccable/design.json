@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-18T22:05:14.775Z",
+  "generatedAt": "2026-09-19T20:13:41.568356Z",
   "title": "Design System: Lookline",
   "extensions": {
     "colorMeta": {
@@ -156,6 +156,11 @@
         "name": "lift",
         "value": "0 14px 28px -12px rgb(23 23 23 / 0.28), 0 2px 6px rgb(23 23 23 / 0.06)",
         "purpose": "A tile pulled off the rail on hover — the only shadow in the system."
+      },
+      {
+        "name": "shop-talk-sheet",
+        "value": "0 -8px 24px -16px rgb(23 23 23 / 0.25)",
+        "purpose": "Separates the fixed Shop Talk bottom sheet from the catalog below 1280px; desktop chat remains flat."
       }
     ],
     "motion": [
@@ -173,6 +178,11 @@
         "name": "progress-line",
         "value": "1.4s cubic-bezier(0.16,1,0.3,1) infinite",
         "purpose": "Indeterminate 2px line while something renders."
+      },
+      {
+        "name": "shop-talk-message-arrival",
+        "value": "140ms ease-out; opacity 0.6 to 1; translateY(3px) to none",
+        "purpose": "New conversation messages, only when reduced motion is not requested."
       }
     ],
     "breakpoints": [
@@ -307,6 +317,11 @@
       {
         "name": "The Honest State Rule",
         "body": "Loading, unavailable, empty, error, rendering and sample states are visible and distinct, expressed as form rather than prose.",
+        "section": "components"
+      },
+      {
+        "name": "The Shop Talk Direct Update Rule",
+        "body": "On `/shop-talk`, conversation replaces the sentence field, hints and apply controls. Assistant filter updates act directly on the catalog; manual changes remain visible in the transcript. Google Search only helps interpret unfamiliar named references; product discovery stays in the site's Jev/catalog flow, without external search results, suggestion cards or source links. Uncertain preferences remain conversational and do not trigger alerts. Actual service failures retain retry or reconnect actions; an unavailable catalog remains distinct from a successful search with no matches.",
         "section": "components"
       }
     ],

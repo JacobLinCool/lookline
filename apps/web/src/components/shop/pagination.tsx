@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ProductSearch } from '@lookline/engine'
 import { useI18n } from '@/i18n/client'
 import { cn } from '@/lib/cn'
-import { shopHref } from './query'
+import { useShopHref } from './path'
 
 /** Page numbers to show: first, last, and a window of two around the current page. */
 function pageWindow(page: number, pages: number): Array<number | 'gap'> {
@@ -32,6 +32,7 @@ export function Pagination({
   page: number
   pageSize: number
 }) {
+  const shopHref = useShopHref()
   const { t } = useI18n()
   const pages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)))
   if (pages <= 1) return null
