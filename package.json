@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @lookline/web dev",
+    "dev:remote": "pnpm --filter @lookline/web dev:remote",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --concurrency=1",
