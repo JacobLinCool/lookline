@@ -14,9 +14,9 @@ import {
   users,
 } from '@lookline/db'
 import { creditBalance } from '@lookline/engine'
+import { friendList } from '@lookline/engine/discovery'
 import { Avatar, Button, Card, Container, Notice, PageHeader, Tag } from '@/components/ui'
 import { InviteMember, type InvitablePersona } from '@/components/cards/collection-invites'
-import { loadNetworkPeople } from '@/components/social/data'
 import { startEditionAction } from '@/server/actions/collections'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
@@ -91,9 +91,14 @@ export default async function CollectionPage({
     .where(and(eq(collectionInvites.collectionId, id), eq(collectionInvites.state, 'pending')))
 
   let invitable: InvitablePersona[] = []
+  let hasFriends = false
   if (isOwner) {
-    const friends = (await loadNetworkPeople(user.id)).people
-    if (friends.length > 0) {
+    // The friends someone accepted, not the edges the analytics graph inferred from behaviour.
+    // `relationships` is computed, and reading it here left a real friend out of this list while
+    // it would have let a stranger carrying a `follows` edge into it.
+    const friends = (await friendList(db, user.id)).filter((f) => f.state === 'accepted')
+    hasFriends = friends.length > 0
+    if (hasFriends) {
       const taken = new Set([
         ...members.map((m) => m.personaId),
         ...pending.map((p) => p.personaId),
@@ -164,7 +169,9 @@ export default async function CollectionPage({
             <InviteMember collectionId={id} personas={invitable} />
           ) : (
             <p className="text-[12px] text-muted">
-              目前沒有可以邀請的 persona —— 對方要先做出一張個人卡。
+              {hasFriends
+                ? '你的好友還沒有可以帶進來的 persona —— 對方要先做出一張個人卡。'
+                : '還沒有好友可以邀請。先到好友與分享頁送出邀請，對方接受後就會出現在這裡。'}
             </p>
           )}
         </section>
