@@ -31,7 +31,7 @@ import {
 } from '@lookline/catalog'
 
 /** Prompt and vocabulary revision. Bump on any change here; `article_vision.version` records it. */
-export const VISION_VERSION = 'vision-1'
+export const VISION_VERSION = 'vision-2'
 
 /** Most tags a single article may carry; the model is told, and `parseVision` enforces. */
 export const MAX_AESTHETICS = 3
@@ -221,6 +221,12 @@ export function visionJsonSchema(): Json {
 const zhLabels = (rows: readonly { slug: string; labelZh?: string }[]): string =>
   rows.map((r) => (r.labelZh ? `${r.slug} (${r.labelZh})` : r.slug)).join(', ')
 
+/** `slug — Name, 中文, synonym, synonym`, so a slug's breadth is on the page next to it. */
+const withSynonyms = (
+  rows: readonly { slug: string; name: string; labelZh: string; synonyms: readonly string[] }[],
+): string =>
+  rows.map((r) => `- ${r.slug} — ${[r.name, r.labelZh, ...r.synonyms].join(', ')}`).join('\n')
+
 /**
  * The stable half of every request, and so the half prompt caching bills at a tenth. It carries
  * the aesthetic vocabulary with its Chinese labels, because a slug like `clean-girl` or
@@ -233,13 +239,22 @@ Read the image first and the supplied text second. The text is H&M's own merchan
 The aesthetic vocabulary, which is the most important field:
 ${zhLabels(AESTHETICS)}
 
+The pattern vocabulary. These slugs are narrower than the things they have to cover, so each one
+is listed with what belongs under it:
+${withSynonyms(PATTERNS)}
+
 Rules:
 - Answer only from what is visible. Never infer a detail because the category usually has one.
 - Leave a field as "" (or [] ) rather than guess. An empty field costs nothing; a wrong one is worse than missing, because a shopper who filters on it will not see this garment.
 - Aesthetics are what a person wearing it would be read as, not what the item is. A plain black hoodie is streetwear or normcore, not "tops".
 - Occasions are where someone would actually wear this, not everywhere it is permitted.
 - A flat-lay, a mannequin and a model shot are all the same garment; judge the garment.
-- Set confidence low when the photograph is small, cropped, folded, or shows the item on a hanger with its shape lost.`
+- Set confidence low when the photograph is small, cropped, folded, or shows the item on a hanger with its shape lost.
+- Any stripe is a stripe. \`breton-stripe\` is every horizontal or block stripe, not only a navy
+  Breton top; \`pinstripe\` is every fine vertical one. A striped garment is never \`solid\`.
+- \`solid\` means one flat colour across the garment. Judge the woven or printed pattern only:
+  a texture, a fabric and a trim are not patterns, and have their own fields — denim, lace and
+  sequin go to \`material\` or \`designDetails\`, and the garment can still be \`solid\`.`
 
 export interface VisionArticle {
   id: string

@@ -290,6 +290,10 @@ export const articles = sqliteTable(
     printSubject: text('print_subject').notNull().default(''),
     /** One English sentence; indexed by FTS so a vibe query has prose to match. */
     styleCaption: text('style_caption').notNull().default(''),
+    /** What the print depicts, in two to four words — clustered for trends, not filtered on. */
+    printMotif: text('print_motif').notNull().default(''),
+    /** The words printed on the garment, verbatim; `''` when it carries none. */
+    printText: text('print_text').notNull().default(''),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
@@ -311,6 +315,7 @@ export const articles = sqliteTable(
     index('articles_price_idx').on(t.price),
     index('articles_dept_group_price_idx').on(t.department, t.categoryGroup, t.price),
     index('articles_popularity_idx').on(t.popularity),
+    index('articles_print_motif_idx').on(t.printMotif),
   ],
 )
 
@@ -351,8 +356,14 @@ export const articleVision = sqliteTable(
   'article_vision',
   {
     articleId: text('article_id')
-      .primaryKey()
+      .notNull()
       .references(() => articles.id, { onDelete: 'cascade' }),
+    /**
+     * Which reading this is. `core` asks every article the seventeen general questions; a narrow
+     * pass such as `print` asks a few more of the subset they apply to, where a field added to
+     * `core` would have cost output tokens on all 105 220 and asked a handbag about its rise.
+     */
+    pass: text('pass').notNull().default('core'),
     model: text('model').notNull(),
     /** Prompt and vocabulary revision (`VISION_VERSION`), so a re-run is comparable. */
     version: text('version').notNull(),
@@ -371,7 +382,8 @@ export const articleVision = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [
-    index('article_vision_version_idx').on(t.version),
+    primaryKey({ columns: [t.articleId, t.pass] }),
+    index('article_vision_pass_idx').on(t.pass, t.version),
     index('article_vision_confidence_idx').on(t.confidence),
   ],
 )

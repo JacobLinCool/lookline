@@ -36,6 +36,13 @@
       "when": 1789910000000,
       "tag": "0004_colour_family",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789990000000,
+      "tag": "0005_vision_passes",
+      "breakpoints": true
     }
   ]
 }

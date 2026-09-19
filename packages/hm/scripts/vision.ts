@@ -45,11 +45,19 @@ import type { NewArticleVision } from '@lookline/db'
 import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
 import OpenAI from 'openai'
 import {
+  PRINT_SYSTEM,
+  PRINT_VERSION,
+  buildPrintPrompt,
+  parsePrint,
+  printJsonSchema,
+} from '../src/print-pass'
+import {
   VISION_SYSTEM,
   VISION_VERSION,
   buildVisionPrompt,
   parseVision,
   visionJsonSchema,
+  type VisionResult,
 } from '../src/vision'
 
 loadEnv()
@@ -63,6 +71,9 @@ const limit = Number(process.env['VISION_LIMIT'] ?? 0) || null
 const concurrency = Number(process.env['VISION_CONCURRENCY'] ?? 32)
 const shards = Math.max(1, Number(process.env['VISION_SHARDS'] ?? 1))
 const shard = Math.max(0, Math.min(shards - 1, Number(process.env['VISION_SHARD'] ?? 0)))
+/** `core` reads everything; `print` reads only what `core` found a print on. */
+const pass = process.env['VISION_PASS'] === 'print' ? 'print' : 'core'
+const isPrint = pass === 'print'
 
 /** Per million tokens, gpt-5.6-luna, standard (not Batch) rates. */
 const PRICE = { input: 0.2, cached: 0.02, output: 1.2 }
@@ -99,11 +110,20 @@ const pending = await db
     imagePath: articlesTable.imagePath,
   })
   .from(articlesTable)
-  .leftJoin(articleVisionTable, eq(articleVisionTable.articleId, articlesTable.id))
+  .leftJoin(
+    articleVisionTable,
+    and(eq(articleVisionTable.articleId, articlesTable.id), eq(articleVisionTable.pass, pass)),
+  )
   .where(
     and(
       isNull(articleVisionTable.articleId),
       isNotNull(articlesTable.imagePath),
+      // The print pass has nothing to say about a garment the core pass found unprinted, and
+      // nothing to go on before the core pass has seen it at all.
+      isPrint
+        ? sql`exists (select 1 from article_vision c where c.article_id = ${articlesTable.id}
+            and c.pass = 'core' and json_extract(c.payload, '$.printSubject') not in ('', 'none'))`
+        : undefined,
       // H&M's ids are ten digits, so they divide evenly and cheaply. `1` leaves this a no-op.
       shards > 1 ? sql`cast(${articlesTable.id} as integer) % ${shards} = ${shard}` : undefined,
     ),
@@ -112,7 +132,7 @@ const pending = await db
   .limit(limit ?? 1_000_000)
 
 console.log(
-  `${pending.length} articles to read with ${model}, ${concurrency} at a time` +
+  `${pending.length} articles for the ${pass} pass with ${model}, ${concurrency} at a time` +
     (shards > 1 ? ` (shard ${shard + 1}/${shards})` : '') +
     (limit ? ` (limited to ${limit})` : ''),
 )
@@ -127,7 +147,8 @@ if (pending.length === 0) {
 // queued and is why 128 workers measured slower than 48. Let them wait instead; `MAX_ATTEMPTS`
 // still catches a request that is genuinely stuck.
 const client = new OpenAI({ apiKey, maxRetries: 0, timeout: 180_000 })
-const schema = visionJsonSchema()
+const schema = isPrint ? printJsonSchema() : visionJsonSchema()
+const system = isPrint ? PRINT_SYSTEM : VISION_SYSTEM
 const started = performance.now()
 let done = 0
 let failed = 0
@@ -163,7 +184,7 @@ async function read(article: Pending): Promise<NewArticleVision | null> {
     return null
   }
   const content: Array<Record<string, unknown>> = [
-    { type: 'input_text', text: buildVisionPrompt(article) },
+    { type: 'input_text', text: isPrint ? buildPrintPrompt(article) : buildVisionPrompt(article) },
     { type: 'input_image', image_url: dataUrl, detail: 'low' },
   ]
 
@@ -173,28 +194,35 @@ async function read(article: Pending): Promise<NewArticleVision | null> {
       const response = await client.responses.create({
         model,
         input: [
-          { role: 'system', content: VISION_SYSTEM },
+          { role: 'system', content: system },
           { role: 'user', content: content as never },
         ],
         text: {
-          format: { type: 'json_schema', name: 'article_vision', schema, strict: true },
+          format: { type: 'json_schema', name: `article_${pass}`, schema, strict: true },
         },
       })
-      const parsed = parseVision(JSON.parse(response.output_text || '{}'))
+      const raw: unknown = JSON.parse(response.output_text || '{}')
+      const parsed = isPrint ? parsePrint(raw) : parseVision(raw)
       if (!parsed) throw new Error('response did not validate')
       const usage = response.usage
       const cached = usage?.input_tokens_details?.cached_tokens ?? 0
       inTokens += (usage?.input_tokens ?? 0) - cached
       cachedTokens += cached
       outTokens += usage?.output_tokens ?? 0
+      const captions = isPrint
+        ? { captionEn: '', captionZh: '' }
+        : {
+            captionEn: (parsed as VisionResult).captionEn,
+            captionZh: (parsed as VisionResult).captionZh,
+          }
       return {
         articleId: article.id,
+        pass,
         model,
-        version: VISION_VERSION,
+        version: isPrint ? PRINT_VERSION : VISION_VERSION,
         payload: parsed as unknown as Record<string, unknown>,
         confidence: parsed.confidence,
-        captionEn: parsed.captionEn,
-        captionZh: parsed.captionZh,
+        ...captions,
         imageKey: article.imagePath,
         inputTokens: usage?.input_tokens ?? 0,
         outputTokens: usage?.output_tokens ?? 0,
@@ -233,10 +261,13 @@ async function worker(): Promise<void> {
       // an unflushed batch of them. A write that fails anyway costs only its own article — six
       // hours of readings are not worth discarding over one locked row.
       try {
-        await db.insert(articleVisionTable).values(row).onConflictDoUpdate({
-          target: articleVisionTable.articleId,
-          set: row,
-        })
+        await db
+          .insert(articleVisionTable)
+          .values(row)
+          .onConflictDoUpdate({
+            target: [articleVisionTable.articleId, articleVisionTable.pass],
+            set: row,
+          })
         done += 1
       } catch (error) {
         failed += 1
