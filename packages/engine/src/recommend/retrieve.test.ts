@@ -73,7 +73,7 @@ describe('MemoryRetriever', () => {
     const excluded = await retriever.retrieve(
       emptyParams(vector, {
         requireAttributes: { hood: true },
-        excludeProductIds: [firstId],
+        excludeArticleIds: [firstId],
         limit: 500,
       }),
     )
@@ -188,7 +188,7 @@ describe('SqlRetriever.buildQuery', () => {
       priceMax: 3000,
       excludeColorFamilies: ['red'],
       excludeBrandIds: [3],
-      excludeProductIds: [11],
+      excludeArticleIds: [11],
       requireAttributes: { hood: true },
       limit: 300,
     })

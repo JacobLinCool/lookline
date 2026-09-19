@@ -1,7 +1,7 @@
 import { cn } from '@/lib/cn'
 
 export interface ProductImageProps {
-  articleId: number
+  articleId: string
   alt: string
   aspect?: '3/4' | '1/1'
   /** Eager-load above the fold. */

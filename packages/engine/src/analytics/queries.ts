@@ -124,7 +124,7 @@ export interface AnalyticsRaw {
   lookArticles: LookProductLite[]
   participants: ParticipantLite[]
   intents: IntentSessionLite[]
-  articles: Map<number, ProductLite>
+  articles: Map<string, ProductLite>
   supply: Map<string, SupplyCell>
 }
 
@@ -261,9 +261,9 @@ export async function loadIntentsLite(
 export async function loadProductsLite(
   db: Database,
   ids: Iterable<number>,
-): Promise<Map<number, ProductLite>> {
+): Promise<Map<string, ProductLite>> {
   const unique = [...new Set(ids)].filter((id) => Number.isFinite(id))
-  const out = new Map<number, ProductLite>()
+  const out = new Map<string, ProductLite>()
   for (const part of chunks(unique, ID_CHUNK)) {
     const rows = await db
       .select({
@@ -349,7 +349,7 @@ export async function loadAnalyticsRaw(
       loadIntentsLite(db, intentSince, now),
       loadSupply(db),
     ])
-  const articleIds = new Set<number>()
+  const articleIds = new Set<string>()
   for (const ix of ixs) if (ix.articleId != null) articleIds.add(ix.articleId)
   for (const p of pus) articleIds.add(p.articleId)
   for (const lp of lps) articleIds.add(lp.articleId)

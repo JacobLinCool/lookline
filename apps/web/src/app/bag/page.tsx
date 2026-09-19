@@ -21,7 +21,7 @@ function QtyControls({
   size,
   qty,
 }: {
-  articleId: number
+  articleId: string
   size: string | null
   qty: number
 }) {

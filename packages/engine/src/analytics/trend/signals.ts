@@ -102,7 +102,7 @@ export interface TrendEvent {
   keys: readonly string[]
   cluster: number | null
   /** Products the event touches (one for product events, the Look's articles for Look events). */
-  articleIds: readonly number[]
+  articleIds: readonly string[]
   lookId: string | null
   rootLookId: string | null
   /** price × quantity for purchases, else 0. */
@@ -115,7 +115,7 @@ export interface TrendEventInput {
   looks: readonly LookLite[]
   lookArticles: readonly LookProductLite[]
   intents: readonly IntentSessionLite[]
-  articles: ReadonlyMap<number, ProductLite>
+  articles: ReadonlyMap<string, ProductLite>
   clusterOf: ReadonlyMap<string, number | null>
   /** look id → root look id. */
   rootOf: ReadonlyMap<string, string>
@@ -154,7 +154,7 @@ export function buildTrendEvents(input: TrendEventInput): TrendEvent[] {
     const weight = EVENT_WEIGHTS[ix.type]
     if (!weight) continue
     let keys: string[] = []
-    let articleIds: number[] = []
+    let articleIds: string[] = []
     if (ix.articleId != null) {
       const p = input.articles.get(ix.articleId)
       if (p) {

@@ -27,7 +27,7 @@ export function supplyKey(aesthetic: string, group: string, color: string | null
 
 export interface ManufacturingInput {
   events: readonly TrendEvent[]
-  articles: ReadonlyMap<number, ProductLite>
+  articles: ReadonlyMap<string, ProductLite>
   /** Intent sessions of the last 14 days. */
   intents: readonly IntentSessionLite[]
   /** Intent session ids that led to a purchase. */

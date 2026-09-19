@@ -47,7 +47,7 @@ export interface RetrieveParams {
   excludeColorFamilies: ColorFamily[]
   excludeSubcategories: string[]
   excludeBrandIds: number[]
-  excludeProductIds: number[]
+  excludeArticleIds: string[]
   requireAttributes: Record<string, true>
   excludeAttributes: Record<string, true>
   limit: number
@@ -119,7 +119,7 @@ export function emptyParams(
     excludeColorFamilies: [],
     excludeSubcategories: [],
     excludeBrandIds: [],
-    excludeProductIds: [],
+    excludeArticleIds: [],
     requireAttributes: {},
     excludeAttributes: {},
     limit: 300,
@@ -141,7 +141,7 @@ export function matchesParams(p: Article, params: RetrieveParams): boolean {
   if (params.excludeColorFamilies.includes(p.colorFamily as ColorFamily)) return false
   if (params.excludeSubcategories.includes(p.subcategory)) return false
   if (params.excludeBrandIds.includes(p.brandId)) return false
-  if (params.excludeProductIds.includes(p.id)) return false
+  if (params.excludeArticleIds.includes(p.id)) return false
   const attrs = p.attributes ?? {}
   for (const key of Object.keys(params.requireAttributes)) if (attrs[key] !== true) return false
   for (const key of Object.keys(params.excludeAttributes)) if (attrs[key] === true) return false
@@ -167,7 +167,7 @@ export function mergeChannels(
   trend: Array<{ row: ProductRow; evidence: TrendEvidence }>,
   vector: readonly number[],
 ): Candidate[] {
-  const byId = new Map<number, Candidate>()
+  const byId = new Map<string, Candidate>()
   for (const c of primary) byId.set(c.product.id, c)
   for (const { row, evidence } of social) {
     let c = byId.get(row.id)
@@ -220,7 +220,7 @@ export function trendMatches(p: Article, trend: ChannelParams['trend']): TrendEv
 // ---------------------------------------------------------------------------
 
 export interface MemorySocialHit {
-  articleId: number
+  articleId: string
   userId: string
   kind: SocialEvidence['kind']
   lookId?: string | null
@@ -240,14 +240,14 @@ export class MemoryRetriever implements Retriever {
       scored.push({ row, cos: cosineSimilarity(p.vector, row.styleVector) })
     }
     const primary = scored
-      .toSorted((a, b) => b.cos - a.cos || a.row.id - b.row.id)
+      .toSorted((a, b) => b.cos - a.cos || a.row.id.localeCompare(b.row.id))
       .slice(0, p.limit)
       .map(({ row, cos }) => makeCandidate(row, cos, 'vector'))
 
     const social: Array<{ row: ProductRow; evidence: SocialEvidence[] }> = []
     if (channels.social && channels.social.trusted.length > 0) {
       const trusted = new Map(channels.social.trusted.map((t) => [t.userId, t]))
-      const byProduct = new Map<number, SocialEvidence[]>()
+      const byProduct = new Map<string, SocialEvidence[]>()
       for (const hit of this.socialHits) {
         const t = trusted.get(hit.userId)
         if (!t) continue
@@ -269,7 +269,7 @@ export class MemoryRetriever implements Retriever {
             !!x.row && matchesParams(x.row, p),
         )
         .toSorted(
-          (a, b) => socialStrength(b.evidence) - socialStrength(a.evidence) || a.row.id - b.row.id,
+          (a, b) => socialStrength(b.evidence) - socialStrength(a.evidence) || a.row.id.localeCompare(b.row.id),
         )
         .slice(0, SOCIAL_CHANNEL_LIMIT)
       social.push(...rows)
@@ -288,7 +288,7 @@ export class MemoryRetriever implements Retriever {
       }
       trend.push(
         ...hits
-          .toSorted((a, b) => b.row.popularity - a.row.popularity || a.row.id - b.row.id)
+          .toSorted((a, b) => b.row.popularity - a.row.popularity || a.row.id.localeCompare(b.row.id))
           .slice(0, TREND_CHANNEL_LIMIT),
       )
     }
@@ -318,7 +318,7 @@ export function prefilterConditions(p: RetrieveParams): SqlChunk[] {
   if (p.excludeSubcategories.length > 0)
     conds.push(notInArray(articles.subcategory, p.excludeSubcategories))
   if (p.excludeBrandIds.length > 0) conds.push(notInArray(articles.brandId, p.excludeBrandIds))
-  if (p.excludeProductIds.length > 0) conds.push(notInArray(articles.id, p.excludeProductIds))
+  if (p.excludeArticleIds.length > 0) conds.push(notInArray(articles.id, p.excludeArticleIds))
   for (const key of Object.keys(p.requireAttributes))
     conds.push(jsonKeyIsTrue(articles.attributes, key))
   for (const key of Object.keys(p.excludeAttributes))
@@ -402,9 +402,9 @@ export class SqlRetriever implements Retriever {
         .orderBy(desc(interactions.createdAt))
         .limit(200),
     ])
-    const byProduct = new Map<number, SocialEvidence[]>()
+    const byProduct = new Map<string, SocialEvidence[]>()
     const push = (
-      articleId: number | null,
+      articleId: string | null,
       userId: string,
       kind: SocialEvidence['kind'],
       lookId: string | null,
@@ -442,7 +442,7 @@ export class SqlRetriever implements Retriever {
     }
     return out
       .toSorted(
-        (a, b) => socialStrength(b.evidence) - socialStrength(a.evidence) || a.row.id - b.row.id,
+        (a, b) => socialStrength(b.evidence) - socialStrength(a.evidence) || a.row.id.localeCompare(b.row.id),
       )
       .slice(0, SOCIAL_CHANNEL_LIMIT)
   }

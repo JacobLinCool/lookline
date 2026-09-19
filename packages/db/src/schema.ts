@@ -198,27 +198,27 @@ export const articles = sqliteTable(
     productCode: text('product_code').notNull(),
     name: text('prod_name').notNull(),
     /** Free-text product copy; missing on 416 rows. */
-    description: text('detail_desc'),
+    description: text('detail_desc').notNull().default(''),
     subcategory: text('product_type_name').notNull(),
     productGroup: text('product_group_name').notNull(),
     /** Fabric and construction (`Jersey Basic`, `Knitwear`, `Trousers Denim`). */
-    category: text('garment_group_name'),
+    category: text('garment_group_name').notNull().default(''),
     /** Merchandising shelf (`Womens Everyday Basics`), useful for style clustering. */
-    section: text('section_name'),
+    section: text('section_name').notNull().default(''),
     /** The dataset's only size signal: child rows read `Children Sizes 92-140`. */
     indexName: text('index_name').notNull(),
     /** The dataset's only gender signal; `customers.csv` has none. */
     indexGroupName: text('index_group_name').notNull(),
-    pattern: text('graphical_appearance_name'),
-    colorName: text('colour_group_name'),
-    colorFamily: text('perceived_colour_master_name'),
-    colorValue: text('perceived_colour_value_name'),
+    pattern: text('graphical_appearance_name').notNull().default(''),
+    colorName: text('colour_group_name').notNull().default(''),
+    colorFamily: text('perceived_colour_master_name').notNull().default(''),
+    colorValue: text('perceived_colour_value_name').notNull().default(''),
     // --- derived by @lookline/hm ---
     categoryGroup: text('outfit_role', { enum: OUTFIT_ROLE_VALUES }).notNull(),
     department: text('department', { enum: DEPARTMENT_VALUES }).notNull(),
     slug: text('slug').notNull(),
     /** The dataset ships colour names only, and a swatch needs a colour. */
-    colorHex: text('colour_hex'),
+    colorHex: text('colour_hex').notNull().default('#9E9E9E'),
     sizeSystem: text('size_system', { enum: SIZE_SYSTEM_VALUES }).notNull(),
     sizes: stringList('sizes'),
     /** R2 object key. Null for the articles that ship without a photo. */
@@ -238,15 +238,17 @@ export const articles = sqliteTable(
     // H&M ships none of these. The garment ones are recoverable from `detail_desc` ("in soft
     // cotton jersey with a round neckline"), `seasons` from the months an article actually sells
     // in, and `occasions` / `aesthetics` / `style_vector` need a semantic pass. They are declared
-    // so the ranking and the product page keep working while each is still empty.
-    material: text('material'),
-    fit: text('fit'),
-    silhouette: text('silhouette'),
-    silhouetteId: text('silhouette_id'),
-    length: text('length'),
-    neckline: text('neckline'),
-    sleeve: text('sleeve'),
-    closure: text('closure'),
+    // so the ranking and the product page keep working while each is still empty — and they are
+    // not null but empty, because to every ranking factor "no value" and "empty" are the same
+    // thing, and a nullable column would put a null check in each one for nothing.
+    material: text('material').notNull().default(''),
+    fit: text('fit').notNull().default(''),
+    silhouette: text('silhouette').notNull().default(''),
+    silhouetteId: text('silhouette_id').notNull().default(''),
+    length: text('length').notNull().default(''),
+    neckline: text('neckline').notNull().default(''),
+    sleeve: text('sleeve').notNull().default(''),
+    closure: text('closure').notNull().default(''),
     secondaryColorHex: text('secondary_color_hex'),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
@@ -254,7 +256,8 @@ export const articles = sqliteTable(
     attributes: json<Record<string, string | number | boolean>>('attributes')
       .notNull()
       .default(sql`'{}'`),
-    styleVector: vector('style_vector'),
+    /** All zeroes until a semantic pass encodes the 64 dimensions. */
+    styleVector: vector('style_vector').notNull(),
     /**
      * The dataset has no inventory. Everything is in stock so the "can I actually buy this"
      * filter keeps its shape; swap in a real feed if one ever arrives.
@@ -385,7 +388,8 @@ export const looks = sqliteTable(
     imageError: text('image_error'),
     aesthetics: stringList('aesthetics'),
     palette: stringList('palette'),
-    styleVector: vector('style_vector'),
+    /** All zeroes until a semantic pass encodes the 64 dimensions. */
+    styleVector: vector('style_vector').notNull(),
     occasion: text('occasion'),
     parentLookId: text('parent_look_id'),
     rootLookId: text('root_look_id'),

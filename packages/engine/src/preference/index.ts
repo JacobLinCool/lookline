@@ -44,7 +44,7 @@ const PROFILE_EVENT_LIMIT = 2000
 
 async function loadEventVector(
   db: Database,
-  articleId: number | null | undefined,
+  articleId: string | null | undefined,
   lookId: string | null | undefined,
 ): Promise<number[] | null> {
   if (articleId != null) {

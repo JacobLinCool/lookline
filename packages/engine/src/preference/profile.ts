@@ -28,7 +28,7 @@ export interface ProfileEvent {
   forOthers: boolean
   context: Record<string, unknown>
   createdAt: Date
-  articleId: number | null
+  articleId: string | null
   lookId: string | null
   intentSessionId: string | null
   /** Article (or Look) style vector; `null` when the object is gone. */

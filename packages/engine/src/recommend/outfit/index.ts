@@ -427,7 +427,7 @@ export async function buildOutfits(input: BuildOutfitsInput): Promise<BuildOutfi
   const outfits = states.map((s) => toOutfit(s, input.intent, input.budget, partner, caveats))
   timings.outfitSolve = performance.now() - t1
 
-  const seen = new Set<number>()
+  const seen = new Set<string>()
   const slotItems: RankedItem[] = []
   for (const items of ranked.values()) {
     for (const it of items) {
@@ -438,7 +438,7 @@ export async function buildOutfits(input: BuildOutfitsInput): Promise<BuildOutfi
   }
   return {
     outfits,
-    slotItems: slotItems.toSorted((a, b) => b.score - a.score || a.product.id - b.product.id),
+    slotItems: slotItems.toSorted((a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id)),
     candidates,
     relaxed,
     timings,

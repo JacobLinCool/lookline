@@ -6,7 +6,7 @@ import { toStyleVector, type CategoryGroup, type ColorFamily } from '@lookline/c
 import type { Article } from '@lookline/db'
 
 export interface FixtureSpec {
-  id: number
+  id: string
   name: string
   categoryGroup: CategoryGroup
   subcategory: string

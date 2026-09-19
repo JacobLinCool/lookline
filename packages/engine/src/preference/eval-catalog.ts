@@ -33,7 +33,7 @@ import { clamp01 } from './vector'
 export type EvalBrand = ReturnType<typeof generateBrands>[number]
 
 export interface EvalProduct {
-  id: number
+  id: string
   name: string
   brandId: number
   brandName: string

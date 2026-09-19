@@ -14,6 +14,7 @@ import {
   FTS_REBUILD_SQL,
   type NewArticle,
   articles as articlesTable,
+  getTableColumns,
   brands as brandsTable,
   insertAll,
   sql,
@@ -24,12 +25,11 @@ import { loadArticles, sizeSystemFor, slugFor } from '../src/index'
 loadEnv()
 
 const dir = process.env.HM_DIR ?? fileURLToPath(new URL('../../../data/hm', import.meta.url))
-/**
- * SQLite's bound-parameter ceiling is 32 766. An insert binds every column of `articles`, not just
- * the ones set here, so the batch is sized against the wider table rather than the row literal.
- */
-const LOCAL_MAX_PARAMS = 20_000
+/** SQLite's bound-parameter ceiling. */
+const SQLITE_MAX_PARAMS = 32_766
 const HM_BRAND_ID = 1
+/** Nothing encodes the style space yet, so every article starts at the origin. */
+const ZERO_VECTOR: number[] = Array.from({ length: 64 }, () => 0)
 
 const secs = (from: number): string => ((performance.now() - from) / 1000).toFixed(1)
 const started = performance.now()
@@ -65,21 +65,21 @@ const rows: NewArticle[] = source.map((a) => ({
   brandId: HM_BRAND_ID,
   productCode: a.productCode,
   name: a.name,
-  description: a.description,
+  description: a.description ?? '',
   subcategory: a.productType,
   productGroup: a.productGroup,
-  category: a.garmentGroup,
-  section: a.section,
+  category: a.garmentGroup ?? '',
+  section: a.section ?? '',
   indexName: a.indexName,
   indexGroupName: a.indexGroupName,
-  pattern: a.pattern,
-  colorName: a.colourName,
-  colorFamily: a.colourFamily,
-  colorValue: a.colourValue,
+  pattern: a.pattern ?? '',
+  colorName: a.colourName ?? '',
+  colorFamily: a.colourFamily ?? '',
+  colorValue: a.colourValue ?? '',
   categoryGroup: a.outfitRole,
   department: a.department,
   slug: slugFor(a.name, a.articleId),
-  colorHex: a.colourHex,
+  colorHex: a.colourHex ?? '#9E9E9E',
   sizeSystem: sizeSystemFor(a.outfitRole),
   sizes: [],
   // Filled when the images are uploaded to R2 — not every article ships with a photo, and the
@@ -87,10 +87,15 @@ const rows: NewArticle[] = source.map((a) => ({
   imagePath: null,
   occasions: [],
   aesthetics: [],
-  styleVector: null,
+  styleVector: ZERO_VECTOR,
 }))
 
-const inserted = await insertAll(db, articlesTable, rows, { maxParams: LOCAL_MAX_PARAMS })
+// An insert binds every column of the table, not just the keys set above, so the statement is
+// sized against the table and `insertAll` is then told the equivalent budget in row keys.
+const columns = Object.keys(getTableColumns(articlesTable)).length
+const rowKeys = Object.keys(rows[0] ?? {}).length
+const maxParams = Math.floor(SQLITE_MAX_PARAMS / columns) * rowKeys
+const inserted = await insertAll(db, articlesTable, rows, { maxParams })
 console.log(`inserted ${inserted} articles in ${secs(started)}s`)
 
 await db.run(sql.raw(FTS_REBUILD_SQL))

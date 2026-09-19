@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
  */
 async function recordArrival(
   userId: string,
-  articleId: number,
+  articleId: string,
   from: string | undefined,
   pos: number | null,
 ): Promise<void> {
@@ -95,7 +95,7 @@ async function recordArrival(
 
 async function recordView(
   userId: string,
-  articleId: number,
+  articleId: string,
   from: string | undefined,
   pos: number | null,
 ): Promise<void> {

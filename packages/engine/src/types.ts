@@ -245,7 +245,7 @@ export interface ProductSearchResult {
 export interface FeedbackInput {
   userId: string
   kind: FeedbackKind
-  articleId?: number | null
+  articleId?: string | null
   lookId?: string | null
   intentSessionId?: string | null
   position?: number | null
@@ -334,7 +334,7 @@ export interface DeterministicOptions {
 
 export interface PurchaseInput extends DeterministicOptions {
   userId: string
-  articleId: number
+  articleId: string
   quantity?: number
   size?: string | null
   forKind?: PurchaseFor
@@ -347,7 +347,7 @@ export interface PurchaseInput extends DeterministicOptions {
 
 export interface CreateLookInput extends DeterministicOptions {
   ownerId: string
-  articleIds: number[]
+  articleIds: string[]
   stylePreset: string
   title?: string
   prompt?: string | null
@@ -376,7 +376,7 @@ export interface CreateAskInput extends DeterministicOptions {
   askerId: string
   kind: 'choose' | 'style_me'
   question: string
-  optionArticleIds?: number[]
+  optionArticleIds?: string[]
   lookId?: string | null
   targetUserId?: string | null
   budget?: number | null
@@ -387,7 +387,7 @@ export interface AnswerAskInput extends DeterministicOptions {
   askId: string
   responderUserId?: string | null
   responderName?: string | null
-  choiceArticleId?: number | null
+  choiceArticleId?: string | null
   styledLookId?: string | null
   comment?: string | null
 }
@@ -397,7 +397,7 @@ export interface InteractionInput extends DeterministicOptions {
   type: import('@lookline/db').InteractionType
   targetUserId?: string | null
   lookId?: string | null
-  articleId?: number | null
+  articleId?: string | null
   askId?: string | null
   payload?: Record<string, unknown>
   sourceInteractionId?: string | null

@@ -71,7 +71,7 @@ const ix = (
   ...extra,
 })
 
-async function insertFixture(articleIds: number[]): Promise<void> {
+async function insertFixture(articleIds: string[]): Promise<void> {
   const [p1, p2, p3] = articleIds
   await db.insert(users).values([
     {

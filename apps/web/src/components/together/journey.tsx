@@ -28,7 +28,7 @@ import {
 import { cn } from '@/lib/cn'
 
 export interface JourneyProduct {
-  id: number
+  id: string
   name: string
   brandName: string
   price: number

@@ -220,7 +220,7 @@ export function solvePlan(plan: SolverPlan, opts: SolveOptions): OutfitState[] {
       deduped.push(s)
     }
     beam = deduped
-      .toSorted((a, b) => b.f - a.f || a.cost - b.cost || firstId(a) - firstId(b))
+      .toSorted((a, b) => b.f - a.f || a.cost - b.cost || firstId(a).localeCompare(firstId(b)))
       .slice(0, beamWidth)
     if (beam.length === 0) break
   }
@@ -231,8 +231,8 @@ export function solvePlan(plan: SolverPlan, opts: SolveOptions): OutfitState[] {
   return terminal.filter((s) => cap === null || s.cost <= cap)
 }
 
-function firstId(s: OutfitState): number {
-  return s.items[0]?.item.product.id ?? 0
+function firstId(s: OutfitState): string {
+  return s.items[0]?.item.product.id ?? ''
 }
 
 /** Cheapest complete state of a plan (required slots only), flagged over budget. */
@@ -243,7 +243,7 @@ export function cheapestState(plan: SolverPlan, opts: SolveOptions): OutfitState
     const taken = new Set(state.items.map((it) => it.item.product.id))
     const cheapest = [...slot.candidates]
       .filter((c) => !taken.has(c.product.id))
-      .toSorted((a, b) => a.product.price - b.product.price || a.product.id - b.product.id)[0]
+      .toSorted((a, b) => a.product.price - b.product.price || a.product.id.localeCompare(b.product.id))[0]
     if (!cheapest) return null
     const ext = extend(state, cheapest, slot, opts)
     state = { ...ext, f: 0, overBudget: true }
@@ -267,7 +267,7 @@ export function coreItemId(state: OutfitState): number {
   const core = state.items.find(
     (it) => ['dress', 'top', 'tailoring', 'activewear', 'swimwear'].includes(it.role) && !it.pinned,
   )
-  return core?.item.product.id ?? state.items[0]?.item.product.id ?? 0
+  return core?.item.product.id ?? state.items[0]?.item.product.id ?? ''
 }
 
 function jaccard(a: OutfitState, b: OutfitState): number {
@@ -284,7 +284,7 @@ function jaccard(a: OutfitState, b: OutfitState): number {
  * dominant aesthetic or core item; relax to ≤ 0.6 then ≤ 0.8 when fewer than `k` qualify.
  */
 export function diversify(pool: readonly OutfitState[], k: number): OutfitState[] {
-  const sorted = pool.toSorted((a, b) => b.f - a.f || a.cost - b.cost || firstId(a) - firstId(b))
+  const sorted = pool.toSorted((a, b) => b.f - a.f || a.cost - b.cost || firstId(a).localeCompare(firstId(b)))
   const accepted: OutfitState[] = []
   const ids = new Set<string>()
   for (const threshold of [0.4, 0.6, 0.8]) {

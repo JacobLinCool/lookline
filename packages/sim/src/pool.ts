@@ -125,7 +125,7 @@ export class ProductPool {
         id: this.articles[i]!.id,
         score: this.scoreOf(i, key, profile),
       }))
-      scored.sort((a, b) => b.score - a.score || a.id - b.id)
+      scored.sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
       byGroup.set(group, scored.slice(0, SHORTLIST_PER_GROUP))
     }
     const list: Shortlist = { department: profile.department, byGroup }
@@ -225,7 +225,7 @@ export function aestheticLeaders(
     const w = ai >= 0 ? (p.styleVector[ai] ?? 0) : 0
     if (w >= 0.5) out.push({ p, w })
   }
-  out.sort((a, b) => b.w - a.w || a.p.id - b.p.id)
+  out.sort((a, b) => b.w - a.w || a.p.id.localeCompare(b.p.id))
   return out.slice(0, n).map((x) => x.p)
 }
 

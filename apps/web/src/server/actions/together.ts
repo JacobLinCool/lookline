@@ -65,7 +65,7 @@ export async function createTogetherAction(formData: FormData): Promise<void> {
     userId: string
     displayName: string
     lookId: string
-    articleIds: number[]
+    articleIds: string[]
   }> = [
     {
       userId: source.owner.id,

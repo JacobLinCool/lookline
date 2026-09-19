@@ -46,7 +46,7 @@ const slot = (
   subcategories: null,
   required,
   core,
-  candidates: candidates.toSorted((a, b) => b.score - a.score || a.product.id - b.product.id),
+  candidates: candidates.toSorted((a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id)),
 })
 
 function plan(): SolverPlan {

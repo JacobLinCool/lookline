@@ -37,6 +37,7 @@ export {
   insertAll,
 } from './sql'
 export {
+  getTableColumns,
   sql,
   eq,
   ne,

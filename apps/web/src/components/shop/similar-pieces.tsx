@@ -11,7 +11,7 @@ export async function SimilarPieces({
   userId,
   engineView = false,
 }: {
-  articleId: number
+  articleId: string
   userId: string | null
   engineView?: boolean
 }) {

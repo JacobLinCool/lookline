@@ -44,7 +44,7 @@ import { askComment, askQuestion, lookTitle, searchUtterance } from './vocab'
 interface LookState {
   id: string
   ownerId: string
-  articleIds: number[]
+  articleIds: string[]
   vector: number[]
   aesthetics: string[]
   depth: number
@@ -59,7 +59,7 @@ interface AskState {
 }
 
 interface UserState {
-  purchases: Array<{ articleId: number; purchaseId: string; self: boolean }>
+  purchases: Array<{ articleId: string; purchaseId: string; self: boolean }>
   looks: string[]
 }
 
@@ -256,7 +256,7 @@ export async function simulateSocial(
     owner: Persona,
     input: {
       id: string
-      articleIds: number[]
+      articleIds: string[]
       kind: 'edition' | 'remix' | 'together'
       preset: string
       occasion: string | null

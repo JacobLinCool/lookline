@@ -102,7 +102,7 @@ interface Truth {
   rel: Float64Array
   /** Graded gain per pool item (0–3). */
   grade: Uint8Array
-  relevant: Set<number>
+  relevant: Set<string>
   idcg: number
 }
 
@@ -252,7 +252,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
     }
     return pool
   }
-  const truths = new Map<number, Truth>()
+  const truths = new Map<string, Truth>()
   const truthOf = (user: SyntheticUser, t: number, pool: CandidatePool): Truth => {
     const key = user.index * 64 + t
     let truth = truths.get(key)

@@ -73,7 +73,7 @@ function tieBreak(a: ScoredCandidate, b: ScoredCandidate): number {
   return (
     b.score - a.score ||
     b.candidate.product.popularity - a.candidate.product.popularity ||
-    a.candidate.product.id - b.candidate.product.id
+    a.candidate.product.id.localeCompare(b.candidate.product.id)
   )
 }
 

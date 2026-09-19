@@ -163,7 +163,7 @@ export interface PolishOptions {
 const prosePolishCache = new Map<string, string>()
 const PROSE_CACHE_MAX = 500
 
-function cacheKey(articleId: number, summary: string): string {
+function cacheKey(articleId: string, summary: string): string {
   return `${articleId}:${summary}`
 }
 

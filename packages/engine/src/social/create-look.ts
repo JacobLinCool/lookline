@@ -28,7 +28,7 @@ import { resolveCreatedAt } from './time'
 /** Products in the caller's order, deduplicated; throws when any id is unknown. */
 export async function loadProductsInOrder(
   db: Database,
-  articleIds: readonly number[],
+  articleIds: readonly string[],
 ): Promise<Article[]> {
   const ids = [...new Set(articleIds)]
   if (ids.length === 0) throw new Error('@lookline/engine: createLook needs at least one product')

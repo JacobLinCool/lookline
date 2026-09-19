@@ -21,7 +21,7 @@ export interface MemoryLook {
   parentLookId: string | null
   rootLookId: string
   depth: number
-  articleIds: number[]
+  articleIds: string[]
   participants: Array<{ userId: string; sourceLookId: string | null }>
   title: string
   imagePath: string | null

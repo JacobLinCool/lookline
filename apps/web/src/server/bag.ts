@@ -64,12 +64,12 @@ async function writeBag(lines: BagLine[]): Promise<void> {
   })
 }
 
-const sameLine = (a: BagLine, articleId: number, size: string | null): boolean =>
+const sameLine = (a: BagLine, articleId: string, size: string | null): boolean =>
   a.articleId === articleId && a.size === size
 
 /** Add `qty` (default 1) of a product/size; merges into an existing line. */
 export async function addToBag(input: {
-  articleId: number
+  articleId: string
   size?: string | null
   qty?: number
 }): Promise<BagResult> {
@@ -78,7 +78,7 @@ export async function addToBag(input: {
 
 /** Validate every line before committing an outfit; a full bag never accepts half an outfit. */
 export async function addManyToBag(
-  inputs: { articleId: number; size?: string | null; qty?: number }[],
+  inputs: { articleId: string; size?: string | null; qty?: number }[],
 ): Promise<BagResult> {
   const lines = await getBag()
   const proposed = lines.map((line) => ({ ...line }))
@@ -104,7 +104,7 @@ export async function addManyToBag(
 }
 
 /** Remove one line (product + size). Omit `size` to remove every line of that product. */
-export async function removeFromBag(articleId: number, size?: string | null): Promise<BagLine[]> {
+export async function removeFromBag(articleId: string, size?: string | null): Promise<BagLine[]> {
   const lines = (await getBag()).filter((l) =>
     size === undefined ? l.articleId !== articleId : !sameLine(l, articleId, size),
   )
@@ -114,7 +114,7 @@ export async function removeFromBag(articleId: number, size?: string | null): Pr
 
 /** Set an exact quantity; `qty <= 0` removes the line. */
 export async function setBagQty(
-  articleId: number,
+  articleId: string,
   size: string | null,
   qty: number,
 ): Promise<BagLine[]> {

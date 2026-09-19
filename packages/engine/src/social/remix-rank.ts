@@ -201,11 +201,11 @@ export function chooseRemixItems(slots: RemixSlot[], ctx: RemixContext): RankedI
     const maxPop = cands.reduce((m, c) => Math.max(m, c.popularity), 0)
     return cands
       .map((c) => scoreCandidate(c, slot, ctx, maxPop))
-      .toSorted((a, b) => b.score - a.score || a.product.id - b.product.id)
+      .toSorted((a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id))
   })
 
   const chosenIndex = ranked.map(() => 0)
-  const used = new Set<number>()
+  const used = new Set<string>()
   const pick = (): Array<RankedItem | null> =>
     ranked.map((list, i) => list[chosenIndex[i] ?? 0] ?? null)
 

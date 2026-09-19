@@ -64,7 +64,7 @@ function signal(
 }
 
 function events(
-  articleIds: number[],
+  articleIds: string[],
   n: number,
   type: TrendEvent['type'] = 'PURCHASE',
   weight = 10,

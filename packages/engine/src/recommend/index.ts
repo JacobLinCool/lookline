@@ -100,7 +100,7 @@ export function baseParamsFor(
     excludeColorFamilies: avoid.colorFamilies,
     excludeSubcategories: avoid.subcategories,
     excludeBrandIds,
-    excludeProductIds: [...(req.exclude ?? [])],
+    excludeArticleIds: [...(req.exclude ?? [])],
     requireAttributes: Object.fromEntries(have.attributes.map((a) => [a, true as const])),
     excludeAttributes: Object.fromEntries(avoid.attributes.map((a) => [a, true as const])),
   })
@@ -262,7 +262,7 @@ export async function recommend(db: Database, req: RecommendRequest): Promise<Re
 
 async function loadProduct(
   db: Database,
-  articleId: number,
+  articleId: string,
 ): Promise<(Article & { brandName: string }) | null> {
   const rows = await db
     .select({ product: articles, brandName: brands.name })
@@ -349,7 +349,7 @@ export function pseudoVector(p: Article, intent: EngineIntent): number[] {
 
 export async function similarProducts(
   db: Database,
-  articleId: number,
+  articleId: string,
   opts: { limit?: number; userId?: string } = {},
 ): Promise<RankedItem[]> {
   const product = await loadProduct(db, articleId)
@@ -401,7 +401,7 @@ export async function similarProductsWith(
 
 export async function completeTheLook(
   db: Database,
-  articleId: number,
+  articleId: string,
   opts: { userId?: string; budget?: number; count?: number } = {},
 ): Promise<Outfit[]> {
   const product = await loadProduct(db, articleId)

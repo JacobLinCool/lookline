@@ -19,7 +19,7 @@ describe('persisted image operations', () => {
   const ownerId = 'qa_latency_owner'
   let handle: DbHandle
   let storage: ReturnType<typeof memoryStorage>
-  let articleId: number
+  let articleId: string
   beforeAll(async () => {
     handle = await createTestDb()
     setDb(handle.db)
