@@ -131,6 +131,8 @@ export const TREND_DIMENSION_VALUES = [
   'aesthetic_category',
   /** A design detail: a ruffle, a cable knit, a slit. What a factory actually cuts. */
   'detail',
+  /** What a print depicts, clustered by `motifKey`. The fastest-moving dimension there is. */
+  'motif',
 ] as const
 export const LLM_PROVIDER_VALUES = ['gemini', 'openai', 'offline'] as const
 /** Intent sessions also record `jev`, the closed-option decision service. Plain TEXT, no CHECK. */

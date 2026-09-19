@@ -134,3 +134,87 @@ export function parsePrint(raw: unknown): PrintResult | null {
     confidence: clamp(r['confidence'], 0, 1),
   }
 }
+
+// ---------------------------------------------------------------------------
+// Clustering
+// ---------------------------------------------------------------------------
+
+/**
+ * Words that describe how a motif is drawn rather than what it is. Dropping them is what merges
+ * `leopard` with `leopard spots`, `snake` with `snake skin` and `snake scales`, and `paisley`
+ * with `paisley motifs` — the first 4 598 readings produced all of those as separate strings,
+ * which is why the free text needed a key and not just a column.
+ */
+const GENERIC = new Set([
+  'and',
+  'with',
+  'the',
+  'a',
+  'of',
+  'in',
+  'on',
+  'print',
+  'prints',
+  'pattern',
+  'patterns',
+  'design',
+  'designs',
+  'motif',
+  'motifs',
+  'graphic',
+  'graphics',
+  'artwork',
+  'illustration',
+  'logo',
+  'spot',
+  'spots',
+  'stripe',
+  'stripes',
+  'skin',
+  'scale',
+  'scales',
+  'small',
+  'large',
+  'big',
+  'tiny',
+  'mini',
+  'bright',
+  'colourful',
+  'colorful',
+  'mixed',
+  'assorted',
+  'various',
+  'multi',
+  'abstract',
+  'allover',
+])
+
+/** `flowers` → `flower`, `daisies` → `daisy`, `leaves` → `leaf`. Crude on purpose. */
+function singular(word: string): string {
+  if (word.endsWith('ies') && word.length > 4) return `${word.slice(0, -3)}y`
+  if (word.endsWith('ves') && word.length > 4) return `${word.slice(0, -3)}f`
+  if (word.endsWith('sses') || word.endsWith('shes') || word.endsWith('ches')) {
+    return word.slice(0, -2)
+  }
+  if (word.endsWith('s') && !word.endsWith('ss') && word.length > 3) return word.slice(0, -1)
+  return word
+}
+
+/**
+ * The key a motif is counted under for trends. Rough on purpose: the consumer is "which motifs
+ * are rising", where merging the obvious variants is worth far more than telling a rose from a
+ * peony. The raw text stays in the payload, so a key can always be traced back.
+ *
+ * Returns `''` for a motif that is nothing but generic words, which is a print with no subject.
+ */
+export function motifKey(motif: string): string {
+  const words = motif
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\p{L}\p{N}-]/gu, ''))
+    .filter((w) => w.length > 0)
+  const kept = words.map(singular).filter((w) => !GENERIC.has(w))
+  // Everything generic means the model described a treatment, not a subject.
+  if (kept.length === 0) return ''
+  return kept.slice(0, 3).join(' ')
+}

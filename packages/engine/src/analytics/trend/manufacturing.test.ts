@@ -24,6 +24,7 @@ const product = (id: number, partial: Partial<ProductLite> = {}): ProductLite =>
   price: 3000,
   aesthetics: [],
   attributes: {},
+  printMotif: '',
   ...partial,
 })
 

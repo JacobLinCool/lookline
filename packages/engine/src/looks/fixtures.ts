@@ -77,6 +77,8 @@ export function makeProduct(spec: FixtureSpec): Article {
     silhouette: '',
     printSubject: '',
     styleCaption: '',
+    printMotif: '',
+    printText: '',
     occasions: ['everyday'],
     seasons: ['all-season'],
     attributes: {},

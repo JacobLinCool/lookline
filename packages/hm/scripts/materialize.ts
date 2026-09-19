@@ -19,7 +19,7 @@ import {
 } from '@lookline/db'
 import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
 import { materializeVision } from '../src/materialize'
-import { parsePrint } from '../src/print-pass'
+import { motifKey, parsePrint } from '../src/print-pass'
 import { parseVision } from '../src/vision'
 
 loadEnv()
@@ -93,7 +93,9 @@ for (const { article, payload } of rows) {
     .set({
       ...columns,
       styleVector,
-      printMotif: print?.motif ?? '',
+      // The key, not the raw words: this column is what trends group by, and the payload
+      // keeps the original so a key can be traced back to what the model actually said.
+      printMotif: print ? motifKey(print.motif) : '',
       printText: print?.text ?? '',
     })
     .where(eq(articlesTable.id, article.id))

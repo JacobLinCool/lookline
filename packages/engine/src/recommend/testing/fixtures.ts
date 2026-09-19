@@ -384,6 +384,8 @@ export function makeProduct(
     silhouette: '',
     printSubject: '',
     styleCaption: '',
+    printMotif: '',
+    printText: '',
     occasions,
     seasons,
     attributes,

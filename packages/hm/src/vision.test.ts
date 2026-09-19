@@ -8,6 +8,7 @@ import {
   colorFamilyIndex,
 } from '@lookline/catalog'
 import { materializeVision, type ImportedArticle } from './materialize'
+import { motifKey } from './print-pass'
 import {
   MAX_AESTHETICS,
   MAX_DESIGN_DETAILS,
@@ -220,5 +221,38 @@ describe('materializeVision', () => {
     expect(out.printSubject).toBe('')
     const tee = materializeVision(row, { ...(full as VisionResult), printSubject: 'slogan' })
     expect(tee.printSubject).toBe('slogan')
+  })
+})
+
+describe('motifKey', () => {
+  it('merges the variants the first readings actually produced', () => {
+    // Every pair below appeared as two separate strings across 4 598 print readings.
+    for (const [a, b] of [
+      ['leopard', 'leopard spots'],
+      ['zebra', 'zebra stripes'],
+      ['snake', 'snake skin'],
+      ['snake', 'snakeskin'.replace('snakeskin', 'snake scales')],
+      ['paisley', 'paisley motifs'],
+      ['heart', 'hearts'],
+      ['flower', 'flowers'],
+      ['flower', 'small flowers'],
+      ['daisy', 'daisies'],
+    ] as const) {
+      expect(motifKey(b)).toBe(motifKey(a))
+    }
+  })
+
+  it('keeps subjects that are genuinely different apart', () => {
+    const keys = ['roses', 'palm fronds', 'american flag', 'nasa logo', 'tyrannosaurus rex'].map(
+      motifKey,
+    )
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(motifKey('roses')).not.toBe(motifKey('flowers'))
+  })
+
+  it('is empty when the motif names a treatment rather than a subject', () => {
+    expect(motifKey('abstract print')).toBe('')
+    expect(motifKey('assorted patterns')).toBe('')
+    expect(motifKey('')).toBe('')
   })
 })
