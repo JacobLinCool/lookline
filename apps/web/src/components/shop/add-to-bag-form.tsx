@@ -1,12 +1,12 @@
 import { InstantForm } from '@/components/latency/instant-form'
 import { ShoppingBag } from 'lucide-react'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { Button, Field, Segmented, Select } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
 import { addToBagAction } from '@/server/actions/bag'
 
 /**
- * Size + quantity → `addToBagAction` (fields `productId`, `size`, `qty`, `redirect`).
+ * Size + quantity → `addToBagAction` (fields `articleId`, `size`, `qty`, `redirect`).
  * Redirects back to the product page with `?added=1` so a Notice can confirm.
  */
 export interface BagAttribution {
@@ -22,13 +22,14 @@ export async function AddToBagForm({
   product,
   attribution,
 }: {
-  product: Product
+  product: Article
   attribution?: BagAttribution
 }) {
   const { t } = await getI18n()
-  const soldOut = product.stock <= 0
-  const hasSizes = product.sizes.length > 0 && product.sizeSystem !== 'one-size'
-  const maxQty = Math.max(1, Math.min(10, product.stock))
+  // Nothing sells out and nothing has a size: the catalogue records neither.
+  const soldOut = false
+  const hasSizes = false
+  const maxQty = 10
   return (
     <div className="flex flex-col gap-3">
       <InstantForm
@@ -37,7 +38,7 @@ export async function AddToBagForm({
         confirmation={t.shop.product.added}
         className="flex flex-col gap-4"
       >
-        <input type="hidden" name="productId" value={product.id} />
+        <input type="hidden" name="articleId" value={product.id} />
         <input type="hidden" name="redirect" value={`/p/${product.id}?added=1`} />
         {attribution?.sourceLook ? (
           <input type="hidden" name="sourceLook" value={attribution.sourceLook} />
@@ -53,16 +54,11 @@ export async function AddToBagForm({
             <span className="text-[13px] font-medium text-ink" id="size-label">
               {t.shop.product.size}
             </span>
-            <Segmented
-              name="size"
-              options={product.sizes.map((s) => ({ value: s, label: s }))}
-              defaultValue={product.sizes[0]}
-              disabled={soldOut}
-            />
+            <Segmented name="size" options={[]} disabled={soldOut} />
           </div>
         ) : (
           <>
-            <input type="hidden" name="size" value={product.sizes[0] ?? ''} />
+            <input type="hidden" name="size" value="" />
             <p className="text-[13px] text-muted">{t.shop.product.oneSize}</p>
           </>
         )}
@@ -90,7 +86,7 @@ export async function AddToBagForm({
           </Button>
         </div>
       </InstantForm>
-      <Button href={`/asks/new?products=${product.id}`} variant="link" size="sm">
+      <Button href={`/asks/new?articles=${product.id}`} variant="link" size="sm">
         {t.shop.product.askFriend}
       </Button>
     </div>

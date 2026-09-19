@@ -40,10 +40,9 @@ describe('buildSearchQuery', () => {
     })
     for (const statement of [query.page, query.total]) {
       const { sql, params } = statement.toSQL()
-      expect(sql).toContain('"products"."category_group" in (')
-      expect(sql).toContain('"products"."color_family" in (')
-      expect(sql).toContain('"products"."color_family" not in (')
-      expect(sql).toContain('not exists (select 1 from json_each("products"."aesthetics")')
+      expect(sql).toContain('"articles"."category_group" in (')
+      expect(sql).toContain('"articles"."perceived_colour_master_name" in (')
+      expect(sql).toContain('"articles"."perceived_colour_master_name" not in (')
       expect(params).toEqual(
         expect.arrayContaining(['tops', 'outerwear', 'black', 'blue', 'red', 'footwear', 3000]),
       )
@@ -77,18 +76,17 @@ describe('buildSearchQuery', () => {
     expect(plan.text).toBe('nike')
     expect(plan.ftsExpr).toBe('"nike"*')
     expect(sql).toContain(
-      '"products"."id" in (select rowid from products_fts where products_fts match ?)',
+      'articles.rowid in (select rowid from articles_fts where articles_fts match ?)',
     )
-    expect(sql).toContain('"products"."stock" >')
-    expect(sql).toContain('"products"."department" =')
-    expect(sql).toContain('"products"."subcategory" in (')
-    expect(sql).toContain('"products"."price" >=')
-    expect(sql).toContain('"products"."price" <=')
-    expect(sql).toContain('"products"."brand_id" =')
-    expect(sql).toContain('order by "products"."price" asc, "products"."id" asc')
+    expect(sql).toContain('"articles"."department" =')
+    expect(sql).toContain('"articles"."product_type_name" in (')
+    expect(sql).toContain('"articles"."price" >=')
+    expect(sql).toContain('"articles"."price" <=')
+    expect(sql).toContain('"articles"."brand_id" =')
+    expect(sql).toContain('order by "articles"."price" asc, "articles"."article_id" asc')
     expect(sql).toMatch(/limit \? offset \?$/)
     expect(sql).toContain('inner join "brands"')
-    expect(sql).not.toContain('inner join "products_fts"')
+    expect(sql).not.toContain('inner join "articles_fts"')
     expect(params).toContain('"nike"*')
     expect(params).toContain('men')
     expect(params).toContain('hoodie')
@@ -100,23 +98,24 @@ describe('buildSearchQuery', () => {
 
   it('uses bm25 + cosine for relevance when text and a style vector exist, and each other sort', () => {
     const rel = buildSearchQuery(handle.db, { q: 'minimalist tote zephyr' }).page.toSQL().sql
-    expect(rel).toContain('bm25(products_fts)')
-    expect(rel).toContain('inner join "products_fts"')
-    expect(rel).toContain('"product_vectors"."v')
-    expect(rel).toContain('json_each("products"."aesthetics")')
+    expect(rel).toContain('bm25(articles_fts)')
+    expect(rel).toContain('articles_fts match')
+    expect(rel).toContain('"article_vectors"."v')
     const vecOnly = buildSearchQuery(handle.db, { q: '極簡' }).page.toSQL().sql
     expect(vecOnly).not.toContain('bm25(')
-    expect(vecOnly).toMatch(/order by \("product_vectors"\."v\d+"\*.*\) desc, "products"\."id" asc/)
+    expect(vecOnly).toMatch(
+      /order by \("article_vectors"\."v\d+"\*.*\) desc, "articles"\."article_id" asc/,
+    )
     const pop = buildSearchQuery(handle.db, { sort: 'popular' }).page.toSQL().sql
-    expect(pop).toContain('order by "products"."popularity" desc')
+    expect(pop).toContain('order by "articles"."popularity" desc')
     expect(buildSearchQuery(handle.db, { sort: 'trending' }).page.toSQL().sql).toContain(
-      '"products"."trend_score" desc',
+      '"articles"."trend_score" desc',
     )
     expect(buildSearchQuery(handle.db, { sort: 'new' }).page.toSQL().sql).toContain(
-      '"products"."created_at" desc',
+      '"articles"."created_at" desc',
     )
     expect(buildSearchQuery(handle.db, { sort: 'price_desc' }).page.toSQL().sql).toContain(
-      '"products"."price" desc',
+      '"articles"."price" desc',
     )
     const facets = buildSearchQuery(handle.db, { categoryGroups: ['tops'] }).facets
     expect(facets.queryChunks.length).toBeGreaterThan(0)
@@ -149,8 +148,10 @@ describe('aggregateFacets', () => {
     expect(f.colorFamilies).toEqual([{ key: 'black', count: 3 }])
   })
 
-  it('reports the counts as given, since they already cover the whole filtered set', () => {
-    const rows = [{ dim: 'group', key: 'bottoms', n: 12_909 }]
-    expect(aggregateFacets(rows).categoryGroups[0]!.count).toBe(12_909)
+  // Counts are exact: the facet query groups the whole filtered set rather than a capped head
+  // of it, so there is no sample to scale back up.
+  it('counts are the exact row counts', () => {
+    const rows = [{ dim: 'group', key: 'tops', n: 1130 }]
+    expect(aggregateFacets(rows).categoryGroups[0]!.count).toBe(1130)
   })
 })

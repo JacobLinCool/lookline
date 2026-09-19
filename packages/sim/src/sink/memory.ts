@@ -21,7 +21,7 @@ export interface MemoryLook {
   parentLookId: string | null
   rootLookId: string
   depth: number
-  productIds: number[]
+  articleIds: string[]
   participants: Array<{ userId: string; sourceLookId: string | null }>
   title: string
   imagePath: string | null
@@ -95,14 +95,14 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
       rows.feedback.push(input)
     },
     async recordPurchase(input) {
-      const product = byId.get(input.productId)
-      if (!product) throw new Error(`memory sink: unknown product ${input.productId}`)
+      const product = byId.get(input.articleId)
+      if (!product) throw new Error(`memory sink: unknown product ${input.articleId}`)
       rows.purchases.push({ ...input, price: product.price })
       rows.interactions.push({
         id: `${input.id}_ix`,
         actorUserId: input.userId,
         type: 'PURCHASE',
-        productId: input.productId,
+        articleId: input.articleId,
         lookId: input.sourceLookId ?? null,
         createdAt: input.createdAt,
       })
@@ -112,7 +112,7 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
           actorUserId: input.userId,
           targetUserId: input.forUserId ?? null,
           type: 'BUY_FOR',
-          productId: input.productId,
+          articleId: input.articleId,
           createdAt: input.createdAt,
         })
       }
@@ -120,7 +120,7 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
         id: `${input.id}_fb`,
         userId: input.userId,
         kind: 'purchase',
-        productId: input.productId,
+        articleId: input.articleId,
         lookId: input.sourceLookId ?? null,
         forOthers: input.forKind === 'other',
         context: { forKind: input.forKind ?? 'undisclosed' },
@@ -129,7 +129,7 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
       return { price: product.price }
     },
     async createLook(input, poster) {
-      for (const id of input.productIds) {
+      for (const id of input.articleIds) {
         if (!byId.has(id)) throw new Error(`memory sink: unknown product ${id}`)
       }
       const parent = input.parentLookId ? looksById.get(input.parentLookId) : undefined
@@ -149,7 +149,7 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
         parentLookId: parent?.id ?? null,
         rootLookId: parent ? parent.rootLookId : input.id,
         depth: parent ? parent.depth + 1 : 0,
-        productIds: [...new Set(input.productIds)],
+        articleIds: [...new Set(input.articleIds)],
         participants: [...participants.entries()].map(([userId, sourceLookId]) => ({
           userId,
           sourceLookId,
@@ -200,12 +200,12 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
               createdAt: input.createdAt,
             })
       }
-      for (const pid of look.productIds) {
+      for (const pid of look.articleIds) {
         rows.feedback.push({
           id: `${input.id}_fb${pid}`,
           userId: input.ownerId,
           kind: 'look_create',
-          productId: pid,
+          articleId: pid,
           lookId: look.id,
           createdAt: input.createdAt,
         })
@@ -216,15 +216,15 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
       const look = looksById.get(sourceLookId)
       const user = personasById.get(userId)
       if (!look || !user) return []
-      const sources = look.productIds.map((id) => byId.get(id)).filter((p): p is SimProduct => !!p)
+      const sources = look.articleIds.map((id) => byId.get(id)).filter((p): p is SimProduct => !!p)
       const vectors = sources.map((p) => p.styleVector)
       const blend = Array.from({ length: 64 }, (_, i) => {
         const mean = vectors.reduce((s, v) => s + (v[i] ?? 0), 0) / Math.max(1, vectors.length)
         return i < 32 ? 0.7 * mean + 0.3 * (user.hiddenVector[i] ?? 0) : mean
       })
       const departments = new Set(compatibleDepartments(user.department))
-      const exclude = new Set(look.productIds)
-      const out: number[] = []
+      const exclude = new Set(look.articleIds)
+      const out: string[] = []
       for (const src of sources) {
         let best: SimProduct | null = null
         let bestScore = -1
@@ -265,7 +265,7 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
           targetUserId: ask.askerId,
           type: ask.kind === 'choose' ? 'ADVISE' : 'STYLE',
           askId: ask.id,
-          productId: input.choiceProductId ?? null,
+          articleId: input.choiceArticleId ?? null,
           lookId: input.styledLookId ?? ask.lookId ?? null,
           createdAt: input.createdAt,
         })

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { brands, eq, insertAll, looks, products, users } from '@lookline/db'
+import { brands, eq, insertAll, looks, articles, users } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
-import { generateBrands, generateProduct } from '@lookline/catalog'
+import { fixtureBrands, makeProduct } from '@lookline/engine/testing'
 import { setLlm, type LlmImageResult } from '@lookline/engine'
 
 const scheduled = vi.hoisted(() => [] as (() => Promise<void>)[])
@@ -19,13 +19,13 @@ describe('persisted image operations', () => {
   const ownerId = 'qa_latency_owner'
   let handle: DbHandle
   let storage: ReturnType<typeof memoryStorage>
-  let productId: number
+  let articleId: string
   beforeAll(async () => {
     handle = await createTestDb()
     setDb(handle.db)
     storage = memoryStorage()
     setStorage(storage)
-    const brandRecords = generateBrands(1)
+    const brandRecords = fixtureBrands(1)
     await insertAll(
       handle.db,
       brands,
@@ -37,14 +37,14 @@ describe('persisted image operations', () => {
         homeAesthetics: b.homeAesthetics,
         homeDepartments: b.homeDepartments,
         priceMultiplier: b.priceMultiplier,
-        origin: b.origin,
-        description: b.description,
+        origin: null,
+        description: null,
       })),
       { maxParams: 30_000 },
     )
-    const product = generateProduct(1, 1, brandRecords)
-    await handle.db.insert(products).values(product)
-    productId = product.id
+    const { brandName: _brandName, ...product } = makeProduct(1, 1, brandRecords)
+    await handle.db.insert(articles).values(product)
+    articleId = product.id
     await handle.db.insert(users).values({
       id: ownerId,
       handle: ownerId,
@@ -79,7 +79,7 @@ describe('persisted image operations', () => {
     const draft = await createLookDraft({
       id,
       ownerId,
-      productIds: [productId],
+      articleIds: [articleId],
       stylePreset: 'studio-minimal',
       title: 'Latency composition',
     })

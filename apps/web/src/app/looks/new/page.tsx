@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { and, brands, desc, eq, inArray, products, purchases } from '@lookline/db'
+import { and, brands, desc, eq, inArray, articles, purchases } from '@lookline/db'
 import { STYLE_PRESETS } from '@lookline/engine'
 import { Flash } from '@/components/looks/flash'
 import { PieceToggle } from '@/components/looks/piece-toggle'
@@ -52,45 +52,43 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
   const purchaseIds = readIdList(params.purchases)
     .map((id) => sanitizeId(id))
     .filter((id): id is string => id !== null)
-  const productParam = readIdList(params.products)
-    .map(Number)
-    .filter((n) => Number.isInteger(n) && n > 0)
+  const productParam = readIdList(params.articles).filter((id) => /^\d{10}$/.test(id))
 
-  // Which products may go into the Look: from the given purchases, explicit product ids, or the
+  // Which articles may go into the Look: from the given purchases, explicit product ids, or the
   // user's most recent purchases.
-  let source: 'purchases' | 'products' | 'recent' = 'recent'
-  let candidateIds: number[] = []
-  let purchasedAt = new Map<number, Date>()
+  let source: 'purchases' | 'articles' | 'recent' = 'recent'
+  let candidateIds: string[] = []
+  let purchasedAt = new Map<string, Date>()
   if (purchaseIds.length > 0) {
     source = 'purchases'
     const rows = await db
-      .select({ productId: purchases.productId, createdAt: purchases.createdAt })
+      .select({ articleId: purchases.articleId, createdAt: purchases.createdAt })
       .from(purchases)
       .where(and(inArray(purchases.id, purchaseIds), eq(purchases.userId, user.id)))
-    candidateIds = rows.map((r) => r.productId)
-    purchasedAt = new Map(rows.map((r) => [r.productId, r.createdAt]))
+    candidateIds = rows.map((r) => r.articleId)
+    purchasedAt = new Map(rows.map((r) => [r.articleId, r.createdAt]))
   } else if (productParam.length > 0) {
-    source = 'products'
+    source = 'articles'
     candidateIds = productParam
   } else {
     const rows = await db
-      .select({ productId: purchases.productId, createdAt: purchases.createdAt })
+      .select({ articleId: purchases.articleId, createdAt: purchases.createdAt })
       .from(purchases)
       .where(eq(purchases.userId, user.id))
       .orderBy(desc(purchases.createdAt))
       .limit(24)
-    candidateIds = rows.map((r) => r.productId)
-    purchasedAt = new Map(rows.map((r) => [r.productId, r.createdAt]))
+    candidateIds = rows.map((r) => r.articleId)
+    purchasedAt = new Map(rows.map((r) => [r.articleId, r.createdAt]))
   }
   candidateIds = [...new Set(candidateIds)].slice(0, 12)
 
   const candidates =
     candidateIds.length > 0
       ? await db
-          .select({ product: products, brandName: brands.name })
-          .from(products)
-          .innerJoin(brands, eq(products.brandId, brands.id))
-          .where(inArray(products.id, candidateIds))
+          .select({ product: articles, brandName: brands.name })
+          .from(articles)
+          .innerJoin(brands, eq(articles.brandId, brands.id))
+          .where(inArray(articles.id, candidateIds))
       : []
   const ordered = candidateIds.flatMap((id) => {
     const row = candidates.find((c) => c.product.id === id)
@@ -104,7 +102,7 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
   const returnPath = (() => {
     const q = new URLSearchParams()
     if (source === 'purchases') q.set('purchases', purchaseIds.join(','))
-    if (source === 'products') q.set('products', productParam.join(','))
+    if (source === 'articles') q.set('articles', productParam.join(','))
     const s = q.toString()
     return s ? `/looks/new?${s}` : '/looks/new'
   })()
@@ -155,14 +153,14 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
                 <label className="group relative flex cursor-pointer flex-col gap-2">
                   <input
                     type="checkbox"
-                    name="productId"
+                    name="articleId"
                     value={product.id}
                     defaultChecked={index < MAX_PRODUCTS}
                     className="sr-only"
                   />
                   <span className="relative block rounded-md ring-2 ring-transparent ring-offset-2 ring-offset-paper transition-shadow group-has-checked:ring-ink">
                     <ProductImage
-                      productId={product.id}
+                      articleId={product.id}
                       alt={displayName(product.name, brandName)}
                     />
                     <span className="absolute top-2 left-2 hidden group-has-checked:inline-flex">

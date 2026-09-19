@@ -14,7 +14,7 @@ import { resolveCreatedAt } from './time'
 export async function createAsk(db: Database, input: CreateAskInput): Promise<Ask> {
   const createdAt = await resolveCreatedAt(db, input.createdAt)
   const id = newId(input.id)
-  const optionProductIds = [...new Set(input.optionProductIds ?? [])]
+  const optionArticleIds = [...new Set(input.optionArticleIds ?? [])]
   const targetUserId =
     input.targetUserId && input.targetUserId !== input.askerId ? input.targetUserId : null
   const [ask] = await db
@@ -25,7 +25,7 @@ export async function createAsk(db: Database, input: CreateAskInput): Promise<As
       targetUserId,
       kind: input.kind,
       question: input.question,
-      optionProductIds,
+      optionArticleIds,
       lookId: input.lookId ?? null,
       budget: input.budget ?? null,
       occasion: input.occasion ?? null,
@@ -42,7 +42,7 @@ export async function createAsk(db: Database, input: CreateAskInput): Promise<As
     targetUserId,
     askId: id,
     lookId: input.lookId ?? null,
-    payload: { kind: input.kind, optionProductIds, occasion: input.occasion ?? null },
+    payload: { kind: input.kind, optionArticleIds, occasion: input.occasion ?? null },
     createdAt,
   })
   return ask
@@ -58,8 +58,8 @@ export async function answerAsk(
 
   const createdAt = await resolveCreatedAt(db, input.createdAt)
   const id = newId(input.id)
-  const choiceProductId =
-    ask.kind === 'choose' && input.choiceProductId != null ? input.choiceProductId : null
+  const choiceArticleId =
+    ask.kind === 'choose' && input.choiceArticleId != null ? input.choiceArticleId : null
   const styledLookId = input.styledLookId ?? null
   const responderUserId = input.responderUserId ?? null
 
@@ -70,7 +70,7 @@ export async function answerAsk(
       askId: ask.id,
       responderUserId,
       responderName: input.responderName ?? null,
-      choiceProductId,
+      choiceArticleId,
       styledLookId,
       comment: input.comment ?? null,
       createdAt,
@@ -84,12 +84,12 @@ export async function answerAsk(
       type: ask.kind === 'choose' ? 'ADVISE' : 'STYLE',
       targetUserId: ask.askerId,
       askId: ask.id,
-      productId: choiceProductId,
+      articleId: choiceArticleId,
       lookId: ask.kind === 'choose' ? ask.lookId : (styledLookId ?? ask.lookId),
       payload: {
         responseId: id,
         kind: ask.kind,
-        choiceProductId,
+        choiceArticleId,
         styledLookId,
         comment: input.comment ?? null,
       },
@@ -100,16 +100,16 @@ export async function answerAsk(
   await db.update(asks).set({ status: 'answered' }).where(eq(asks.id, ask.id))
 
   const feedback = async () => {
-    if (ask.kind === 'choose' && choiceProductId != null) {
-      const options = ask.optionProductIds.includes(choiceProductId)
-        ? ask.optionProductIds
-        : [...ask.optionProductIds, choiceProductId]
-      for (const productId of options) {
-        const chosen = productId === choiceProductId
+    if (ask.kind === 'choose' && choiceArticleId != null) {
+      const options = ask.optionArticleIds.includes(choiceArticleId)
+        ? ask.optionArticleIds
+        : [...ask.optionArticleIds, choiceArticleId]
+      for (const articleId of options) {
+        const chosen = articleId === choiceArticleId
         await emitFeedback(db, {
           userId: ask.askerId,
           kind: 'ask_choice',
-          productId,
+          articleId,
           lookId: ask.lookId,
           context: { chosen, role: 'asker', askId: ask.id, responseId: id },
           createdAt,
@@ -119,7 +119,7 @@ export async function answerAsk(
         await emitFeedback(db, {
           userId: responderUserId,
           kind: 'ask_choice',
-          productId: choiceProductId,
+          articleId: choiceArticleId,
           forOthers: true,
           context: { chosen: true, role: 'adviser', askId: ask.id, responseId: id },
           createdAt,

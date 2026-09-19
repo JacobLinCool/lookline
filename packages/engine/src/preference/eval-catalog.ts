@@ -1,10 +1,11 @@
 /**
  * In-memory catalog subset for the evaluation harness (ENGINE_SPEC §4.5).
  *
- * `buildEvalCatalog` uses the catalog's `generateProduct(i, seed, brands)` when it is available and
- * falls back to a lightweight taxonomy-driven generator (`syntheticProduct`) otherwise — the
- * catalog generator was still a stub when this module was written. Both paths are pure functions
- * of `(index, seed, brands)`.
+ * `buildEvalCatalog` builds articles with a lightweight taxonomy-driven generator, a pure function
+ * of `(index, seed, brands)`. It is deliberately synthetic: the harness measures whether the
+ * preference loop converges on a known ground truth, which needs a catalogue whose taste axes are
+ * known exactly. The real H&M catalogue carries no aesthetics or style vectors yet, so it cannot
+ * play that role — once it does, this generator is what it replaces.
  */
 import {
   AESTHETICS,
@@ -17,23 +18,61 @@ import {
   SUBCATEGORIES,
   aestheticDeptMult,
   createRng,
-  generateBrands,
-  generateProduct,
   hashSeed,
   toStyleVector,
   type AestheticSlug,
   type Axis,
   type CategoryGroup,
   type ColorFamily,
-  type GeneratedProduct,
 } from '@lookline/catalog'
 import type { BrandTier, Department } from '@lookline/db'
 import { clamp01 } from './vector'
 
-export type EvalBrand = ReturnType<typeof generateBrands>[number]
+export interface EvalBrand {
+  id: number
+  name: string
+  tier: BrandTier
+  /** In [0, 1]. */
+  popularity: number
+  /** In [0, 1]. */
+  trend: number
+  /** Share of the catalogue this label gets; the cheap ones are the big ones. */
+  size: number
+  /** Aesthetics the label is at home in, which bias its articles. */
+  homeAesthetics: string[]
+  priceMultiplier: number
+}
+
+/**
+ * The harness needs several labels to tell whether ranking over-concentrates on one. The real
+ * catalogue is a single retailer, so these exist only inside the evaluation.
+ */
+function evalBrands(seed: number): EvalBrand[] {
+  const rng = createRng(hashSeed('eval-brands', seed))
+  const tiers: readonly BrandTier[] = ['budget', 'mid', 'premium', 'luxury']
+  const byTier: Readonly<Record<BrandTier, { size: number; priceMultiplier: number }>> = {
+    budget: { size: 1, priceMultiplier: 0.7 },
+    mid: { size: 0.7, priceMultiplier: 1 },
+    premium: { size: 0.35, priceMultiplier: 1.7 },
+    luxury: { size: 0.15, priceMultiplier: 3 },
+  }
+  return Array.from({ length: 8 }, (_, i) => {
+    const tier = tiers[i % tiers.length] as BrandTier
+    return {
+      id: i + 1,
+      name: `Label ${String.fromCharCode(65 + i)}`,
+      tier,
+      popularity: rng.float(0.2, 1),
+      trend: rng.float(0, 1),
+      size: byTier[tier].size,
+      homeAesthetics: [rng.pick(AESTHETICS).slug, rng.pick(AESTHETICS).slug],
+      priceMultiplier: byTier[tier].priceMultiplier,
+    }
+  })
+}
 
 export interface EvalProduct {
-  id: number
+  id: string
   name: string
   brandId: number
   brandName: string
@@ -49,10 +88,10 @@ export interface EvalProduct {
   vector: Float64Array
 }
 
-export type EvalCatalogSource = 'generated' | 'synthetic'
+export type EvalCatalogSource = 'synthetic'
 
 export interface EvalCatalog {
-  products: EvalProduct[]
+  articles: EvalProduct[]
   brands: EvalBrand[]
   source: EvalCatalogSource
 }
@@ -176,7 +215,6 @@ export function syntheticProduct(
   }
 
   const vector = toStyleVector({
-    aesthetics,
     colorFamily: colour.family,
     secondaryColorFamily: hasSecondaryColour ? secondaryColour.family : null,
     axes,
@@ -186,7 +224,7 @@ export function syntheticProduct(
     .toSorted((a, b) => b[1] - a[1])
     .map(([slug]) => slug)
   return {
-    id: index,
+    id: String(index),
     name: `${brand.name} ${colour.name} ${sub.name}`,
     brandId: brand.id,
     brandName: brand.name,
@@ -202,57 +240,10 @@ export function syntheticProduct(
   }
 }
 
-function fromGenerated(p: GeneratedProduct, brandName: string): EvalProduct {
-  return {
-    id: p.id,
-    name: p.name,
-    brandId: p.brandId,
-    brandName,
-    department: p.department,
-    categoryGroup: p.categoryGroup as CategoryGroup,
-    subcategory: p.subcategory,
-    price: p.price,
-    popularity: Math.max(0, p.popularity ?? 0),
-    tier: p.tier,
-    colorFamily: p.colorFamily as ColorFamily,
-    aesthetics: p.aesthetics ?? [],
-    vector: Float64Array.from(p.styleVector),
-  }
-}
-
-/** True when the catalog's `generateProduct` is implemented (probe on index 1). */
-function probeGenerator(seed: number, brands: readonly EvalBrand[]): GeneratedProduct | null {
-  try {
-    return generateProduct(1, seed, brands)
-  } catch {
-    return null
-  }
-}
-
-/** Build `size` products for `seed`; `source` says which generator produced them. */
-export function buildEvalCatalog(
-  size: number,
-  seed: number,
-  source: 'auto' | EvalCatalogSource = 'auto',
-): EvalCatalog {
-  const brands = generateBrands(seed)
-  const brandName = new Map(brands.map((b) => [b.id, b.name]))
-  const products: EvalProduct[] = []
-  let first: GeneratedProduct | null = null
-  if (source === 'generated' || source === 'auto') first = probeGenerator(seed, brands)
-  if (source === 'generated' && !first) {
-    throw new Error(
-      '@lookline/engine: generateProduct is not available for catalogSource "generated"',
-    )
-  }
-  if (first) {
-    products.push(fromGenerated(first, brandName.get(first.brandId) ?? `Brand ${first.brandId}`))
-    for (let i = 2; i <= size; i++) {
-      const p = generateProduct(i, seed, brands)
-      products.push(fromGenerated(p, brandName.get(p.brandId) ?? `Brand ${p.brandId}`))
-    }
-    return { products, brands, source: 'generated' }
-  }
-  for (let i = 1; i <= size; i++) products.push(syntheticProduct(i, seed, brands))
-  return { products, brands, source: 'synthetic' }
+/** Build `size` articles for `seed`. */
+export function buildEvalCatalog(size: number, seed: number): EvalCatalog {
+  const brands = evalBrands(seed)
+  const articles: EvalProduct[] = []
+  for (let i = 1; i <= size; i++) articles.push(syntheticProduct(i, seed, brands))
+  return { articles, brands, source: 'synthetic' }
 }

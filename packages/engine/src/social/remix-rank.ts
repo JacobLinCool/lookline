@@ -10,11 +10,11 @@ import {
   findSubcategory,
   type CategoryGroup,
 } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import type { Explanation, ExplanationFactor, FactorName, RankedItem } from '../types'
 import { normalizeHex } from '../looks/color'
 
-export type RemixProduct = Product & { brandName: string }
+export type RemixProduct = Article & { brandName: string }
 
 export interface RemixSlot {
   /** Source piece this slot replaces. */
@@ -87,14 +87,13 @@ export function sizeFor(sizes: Partial<Record<string, string>>, system: string):
   return null
 }
 
-/** Drop candidates that do not carry the remixer's size (kept when that would leave < 3). */
-export function filterBySize(candidates: RemixProduct[], ctx: RemixContext): RemixProduct[] {
-  const kept = candidates.filter((p) => {
-    if (p.sizeSystem === 'one-size' || p.sizes.length === 0) return true
-    const mine = sizeFor(ctx.sizes, p.sizeSystem)
-    return mine === null || p.sizes.includes(mine)
-  })
-  return kept.length >= 3 ? kept : candidates
+/**
+ * Was: drop candidates that do not carry the remixer's size. `articles.csv` ships no size column,
+ * so there is nothing to filter on and every candidate is kept. Restore this the day a size feed
+ * exists — `sizeFor` above still resolves a person's size per system.
+ */
+export function filterBySize(candidates: RemixProduct[], _ctx: RemixContext): RemixProduct[] {
+  return candidates
 }
 
 function factor(
@@ -122,10 +121,8 @@ export function scoreCandidate(
   const factors: ExplanationFactor[] = []
 
   const style = Math.max(0, cosineRange(cand.styleVector, ctx.sourceVector, 0, 52))
-  const topTags = cand.aesthetics
-    .filter((a) => (ctx.sourceVector[aestheticIndex(a)] ?? 0) > 0.05)
-    .slice(0, 2)
-    .map((a) => findAesthetic(a)?.name ?? a)
+  // The catalogue tags no aesthetics, so the explanation names none.
+  const topTags: string[] = []
   factors.push(
     factor(
       'style_similarity',
@@ -145,9 +142,6 @@ export function scoreCandidate(
 
   const sameFamily = cand.colorFamily === slot.source.colorFamily
   const sameSub = cand.subcategory === slot.source.subcategory
-  const sizeName = sizeFor(ctx.sizes, cand.sizeSystem)
-  const sizeOk =
-    cand.sizeSystem === 'one-size' || sizeName === null || cand.sizes.includes(sizeName)
   const attr = (sameFamily ? 0.5 : 0) + (sameSub ? 0.5 : 0)
   const attrBits = [
     sameFamily
@@ -156,7 +150,7 @@ export function scoreCandidate(
     sameSub
       ? `same ${findSubcategory(cand.subcategory)?.name.toLowerCase() ?? cand.subcategory}`
       : `${findSubcategory(cand.subcategory)?.name.toLowerCase() ?? cand.subcategory} instead of ${findSubcategory(slot.source.subcategory)?.name.toLowerCase() ?? slot.source.subcategory}`,
-    sizeName && sizeOk ? `available in your size ${sizeName}` : `${ctx.department} sizing`,
+    `${ctx.department} sizing`,
   ]
   factors.push(factor('attribute_match', attr, attrBits.join('; ')))
 
@@ -177,9 +171,8 @@ export function scoreCandidate(
     factor(
       'popularity_prior',
       pop,
-      cand.reviewCount > 0
-        ? `${cand.rating.toFixed(1)}★ from ${cand.reviewCount} reviews`
-        : 'no reviews yet',
+      // Sales, not reviews: the catalogue records what sold, never what anyone said about it.
+      cand.salesCount > 0 ? `${cand.salesCount} sold` : 'new in',
     ),
   )
 
@@ -201,11 +194,11 @@ export function chooseRemixItems(slots: RemixSlot[], ctx: RemixContext): RankedI
     const maxPop = cands.reduce((m, c) => Math.max(m, c.popularity), 0)
     return cands
       .map((c) => scoreCandidate(c, slot, ctx, maxPop))
-      .toSorted((a, b) => b.score - a.score || a.product.id - b.product.id)
+      .toSorted((a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id))
   })
 
   const chosenIndex = ranked.map(() => 0)
-  const used = new Set<number>()
+  const used = new Set<string>()
   const pick = (): Array<RankedItem | null> =>
     ranked.map((list, i) => list[chosenIndex[i] ?? 0] ?? null)
 
@@ -263,7 +256,8 @@ export function keptAesthetics(
   items: readonly RankedItem[],
 ): string[] {
   if (items.length === 0) return [...sourceAesthetics]
-  const present = new Set(items.flatMap((it) => it.product.aesthetics))
+  // The catalogue tags no aesthetics, so nothing narrows the source list by tag.
+  const present = new Set<string>()
   const byTag = sourceAesthetics.filter((a) => present.has(a))
   if (byTag.length > 0) return byTag
   return sourceAesthetics.filter((a) => {

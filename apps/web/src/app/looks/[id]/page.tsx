@@ -12,9 +12,9 @@ import {
   eq,
   interactions,
   lookParticipants,
-  lookProducts,
+  lookArticles,
   looks,
-  products,
+  articles,
   users,
   type Look,
 } from '@lookline/db'
@@ -91,12 +91,12 @@ export default async function LookPage({
   const [items, parentRows, participantRows, reactionRows, myReaction, childRows] =
     await Promise.all([
       db
-        .select({ product: products, brandName: brands.name, role: lookProducts.role })
-        .from(lookProducts)
-        .innerJoin(products, eq(lookProducts.productId, products.id))
-        .innerJoin(brands, eq(products.brandId, brands.id))
-        .where(eq(lookProducts.lookId, look.id))
-        .orderBy(asc(lookProducts.position)),
+        .select({ product: articles, brandName: brands.name, role: lookArticles.role })
+        .from(lookArticles)
+        .innerJoin(articles, eq(lookArticles.articleId, articles.id))
+        .innerJoin(brands, eq(articles.brandId, brands.id))
+        .where(eq(lookArticles.lookId, look.id))
+        .orderBy(asc(lookArticles.position)),
       look.parentLookId
         ? db
             .select({ id: looks.id, title: looks.title, handle: users.handle })

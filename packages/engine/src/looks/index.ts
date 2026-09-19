@@ -2,7 +2,7 @@
  * Looks module: style presets, `deriveLookStyle`, the editorial poster and the image prompt
  * (contract names in docs/CONTRACTS.md; internals split across sibling files).
  */
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import type { LookPosterInput, LookStyle, StylePreset } from '../types'
 import { buildLookImagePrompt as buildPrompt, type LookPromptInput } from './prompt'
 
@@ -22,8 +22,8 @@ export type { LookPromptInput, LookPosterInput, LookStyle, StylePreset }
 
 export function buildLookImagePrompt(input: {
   preset: StylePreset
-  products: ReadonlyArray<
-    Pick<Product, 'name' | 'colorName' | 'material' | 'subcategory' | 'pattern'>
+  articles: ReadonlyArray<
+    Pick<Article, 'name' | 'colorName' | 'material' | 'subcategory' | 'pattern'>
   >
   ownerName: string
   occasion?: string | null

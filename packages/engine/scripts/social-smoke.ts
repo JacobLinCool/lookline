@@ -5,7 +5,7 @@
  *
  * Creates two throwaway users, records a purchase, creates an edition, a remix by the second
  * user (via suggestRemix), an Ask + answer, prints the interactions written, then deletes every
- * throwaway row. Skips cleanly when the products table is empty.
+ * throwaway row. Skips cleanly when the articles table is empty.
  */
 import {
   askResponses,
@@ -14,14 +14,13 @@ import {
   desc,
   eq,
   feedbackEvents,
-  gt,
   inArray,
   interactions,
   lookParticipants,
-  lookProducts,
+  lookArticles,
   looks,
   preferenceSnapshots,
-  products,
+  articles,
   purchases,
   users,
 } from '@lookline/db'
@@ -44,21 +43,16 @@ const handle = createLocalDb()
 const { db } = handle
 
 async function main(): Promise<void> {
-  const counted = await db.select({ n: count() }).from(products)
+  const counted = await db.select({ n: count() }).from(articles)
   if ((counted[0]?.n ?? 0) === 0) {
-    console.log('products table is empty — skipping social smoke test')
+    console.log('articles table is empty — skipping social smoke test')
     return
   }
-  const picks = await db
-    .select()
-    .from(products)
-    .where(gt(products.stock, 0))
-    .orderBy(desc(products.popularity))
-    .limit(60)
+  const picks = await db.select().from(articles).orderBy(desc(articles.popularity)).limit(60)
   const byGroup = new Map<string, (typeof picks)[number]>()
   for (const p of picks) if (!byGroup.has(p.categoryGroup)) byGroup.set(p.categoryGroup, p)
   const outfit = [...byGroup.values()].slice(0, 4)
-  if (outfit.length === 0) throw new Error('no in-stock products found')
+  if (outfit.length === 0) throw new Error('no in-stock articles found')
 
   const alice = `smoke_${tag}_a`
   const bob = `smoke_${tag}_b`
@@ -82,14 +76,14 @@ async function main(): Promise<void> {
   const askIds: string[] = []
   try {
     const purchase = await timed('recordPurchase', () =>
-      recordPurchase(db, { userId: alice, productId: outfit[0]!.id, forKind: 'self', size: 'M' }),
+      recordPurchase(db, { userId: alice, articleId: outfit[0]!.id, forKind: 'self', size: 'M' }),
     )
     console.log('purchase', purchase.id, 'NT$', purchase.price)
 
     const edition = await timed('createLook(edition)', () =>
       createLook(db, {
         ownerId: alice,
-        productIds: outfit.map((p) => p.id),
+        articleIds: outfit.map((p) => p.id),
         stylePreset: 'paris-editorial',
         visibility: 'link',
       }),
@@ -119,7 +113,7 @@ async function main(): Promise<void> {
     const remix = await timed('createLook(remix)', () =>
       createLook(db, {
         ownerId: bob,
-        productIds: remixProducts,
+        articleIds: remixProducts,
         stylePreset: 'tokyo-midnight',
         kind: 'remix',
         parentLookId: edition.id,
@@ -131,7 +125,7 @@ async function main(): Promise<void> {
     const giftPurchase = await timed('recordPurchase(fromLook)', () =>
       recordPurchase(db, {
         userId: bob,
-        productId: remixProducts[0]!,
+        articleId: remixProducts[0]!,
         forKind: 'other',
         forUserId: alice,
         forLabel: 'Alice',
@@ -143,7 +137,7 @@ async function main(): Promise<void> {
     const together = await timed('createLook(together)', () =>
       createLook(db, {
         ownerId: alice,
-        productIds: [...new Set([...outfit.map((p) => p.id), ...remixProducts])],
+        articleIds: [...new Set([...outfit.map((p) => p.id), ...remixProducts])],
         stylePreset: 'studio-minimal',
         kind: 'together',
         occasion: 'brunch',
@@ -165,7 +159,7 @@ async function main(): Promise<void> {
         askerId: alice,
         kind: 'choose',
         question: 'Which one for brunch?',
-        optionProductIds: outfit.slice(0, 2).map((p) => p.id),
+        optionArticleIds: outfit.slice(0, 2).map((p) => p.id),
         lookId: edition.id,
         targetUserId: bob,
       }),
@@ -176,7 +170,7 @@ async function main(): Promise<void> {
         askId: ask.id,
         responderUserId: bob,
         responderName: 'Smoke Bob',
-        choiceProductId: outfit[0]!.id,
+        choiceArticleId: outfit[0]!.id,
         comment: 'The first one.',
       }),
     )
@@ -193,7 +187,7 @@ async function main(): Promise<void> {
         target: interactions.targetUserId,
         lookId: interactions.lookId,
         askId: interactions.askId,
-        productId: interactions.productId,
+        articleId: interactions.articleId,
       })
       .from(interactions)
       .where(inArray(interactions.actorUserId, [alice, bob]))
@@ -201,7 +195,7 @@ async function main(): Promise<void> {
     console.log(`\n${written.length} interactions written:`)
     for (const row of written) {
       console.log(
-        `  ${row.type.padEnd(11)} ${row.actor} → ${row.target ?? '-'}  look=${row.lookId ?? '-'} ask=${row.askId ?? '-'} product=${row.productId ?? '-'}`,
+        `  ${row.type.padEnd(11)} ${row.actor} → ${row.target ?? '-'}  look=${row.lookId ?? '-'} ask=${row.askId ?? '-'} product=${row.articleId ?? '-'}`,
       )
     }
     const fb = await db
@@ -227,7 +221,7 @@ async function main(): Promise<void> {
       await db.delete(asks).where(inArray(asks.id, askIds))
     }
     if (lookIds.length > 0) {
-      await db.delete(lookProducts).where(inArray(lookProducts.lookId, lookIds))
+      await db.delete(lookArticles).where(inArray(lookArticles.lookId, lookIds))
       await db.delete(lookParticipants).where(inArray(lookParticipants.lookId, lookIds))
       await db.delete(looks).where(inArray(looks.id, lookIds))
     }

@@ -5,15 +5,15 @@ import {
   eq,
   insertAll,
   interactions,
-  lookProducts,
+  lookArticles,
   looks,
-  previewProducts,
+  previewArticles,
   previews,
-  products,
+  articles,
   users,
 } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
-import { generateBrands, generateProduct } from '@lookline/catalog'
+import { fixtureBrands, makeProduct } from '@lookline/engine/testing'
 import { setLlm, type LlmImageResult } from '@lookline/engine'
 
 const scheduled = vi.hoisted(() => [] as (() => Promise<unknown>)[])
@@ -34,12 +34,12 @@ describe('temporary preview generation', () => {
   const ownerId = 'preview_owner'
   let handle: DbHandle
   let storage: ReturnType<typeof memoryStorage>
-  let productId: number
+  let articleId: string
 
   beforeAll(async () => {
     handle = await createTestDb()
     setDb(handle.db)
-    const brandRecords = generateBrands(1)
+    const brandRecords = fixtureBrands(1)
     await insertAll(
       handle.db,
       brands,
@@ -51,14 +51,14 @@ describe('temporary preview generation', () => {
         homeAesthetics: brand.homeAesthetics,
         homeDepartments: brand.homeDepartments,
         priceMultiplier: brand.priceMultiplier,
-        origin: brand.origin,
-        description: brand.description,
+        origin: null,
+        description: null,
       })),
       { maxParams: 30_000 },
     )
-    const product = generateProduct(1, 1, brandRecords)
-    await handle.db.insert(products).values(product)
-    productId = product.id
+    const { brandName: _brandName, ...product } = makeProduct(1, 1, brandRecords)
+    await handle.db.insert(articles).values(product)
+    articleId = product.id
     await handle.db.insert(users).values({
       id: ownerId,
       handle: ownerId,
@@ -106,7 +106,7 @@ describe('temporary preview generation', () => {
   const draft = () =>
     createPreviewDraft({
       ownerId,
-      productIds: [productId],
+      articleIds: [articleId],
       stylePreset: 'studio-minimal',
       title: 'Private preview',
       referencePhoto: { mimeType: 'image/png', data: Buffer.from('owner-photo') },
@@ -221,10 +221,10 @@ describe('temporary preview generation', () => {
     expect(storage.keys()).toEqual(boundary === 'expiry' ? [] : [preview.referencePath])
   })
 
-  it('renders unpurchased products without creating a Look or social event', async () => {
+  it('renders unpurchased articles without creating a Look or social event', async () => {
     const preview = await createPreviewDraft({
       ownerId,
-      productIds: [productId],
+      articleIds: [articleId],
       stylePreset: 'studio-minimal',
       title: 'Before checkout',
       referencePhoto: { mimeType: 'image/jpeg', data: Buffer.from('owner-photo') },
@@ -240,7 +240,7 @@ describe('temporary preview generation', () => {
     expect(ready?.imagePath).toMatch(new RegExp(`^previews/${preview.id}-.*\\.png$`))
     expect((await handle.db.select({ n: count() }).from(looks))[0]?.n).toBe(0)
     expect((await handle.db.select({ n: count() }).from(interactions))[0]?.n).toBe(0)
-    expect((await handle.db.select({ n: count() }).from(previewProducts))[0]?.n).toBe(1)
+    expect((await handle.db.select({ n: count() }).from(previewArticles))[0]?.n).toBe(1)
 
     await handle.db
       .update(previews)
@@ -264,7 +264,7 @@ describe('temporary preview generation', () => {
     })
     const preview = await createPreviewDraft({
       ownerId,
-      productIds: [productId],
+      articleIds: [articleId],
       stylePreset: 'studio-minimal',
       title: 'Cancelable preview',
       referencePhoto: { mimeType: 'image/png', data: Buffer.from('owner-photo') },
@@ -286,7 +286,7 @@ describe('temporary preview generation', () => {
     expect(storage.keys()).toEqual([`preview-references/${preview.id}.png`])
   })
 
-  it('borrows exact products only from a Look the viewer can open', async () => {
+  it('borrows exact articles only from a Look the viewer can open', async () => {
     await handle.db.insert(looks).values([
       {
         id: 'lk_preview_public',
@@ -316,10 +316,10 @@ describe('temporary preview generation', () => {
         imageStatus: 'ready',
       },
     ])
-    await handle.db.insert(lookProducts).values([
-      { lookId: 'lk_preview_public', productId, position: 0 },
-      { lookId: 'lk_preview_link', productId, position: 0 },
-      { lookId: 'lk_preview_private', productId, position: 0 },
+    await handle.db.insert(lookArticles).values([
+      { lookId: 'lk_preview_public', articleId, position: 0 },
+      { lookId: 'lk_preview_link', articleId, position: 0 },
+      { lookId: 'lk_preview_private', articleId, position: 0 },
     ])
 
     const publicSource = await loadPreviewSourceLook('lk_preview_public', 'preview_viewer')
@@ -327,11 +327,11 @@ describe('temporary preview generation', () => {
     const privateSource = await loadPreviewSourceLook('lk_preview_private', 'preview_viewer')
     const ownerSource = await loadPreviewSourceLook('lk_preview_private', ownerId)
 
-    expect(publicSource?.productIds).toEqual([productId])
+    expect(publicSource?.articleIds).toEqual([articleId])
     expect(publicSource?.look.stylePreset).toBe('paris-editorial')
-    expect(linkSource?.productIds).toEqual([productId])
+    expect(linkSource?.articleIds).toEqual([articleId])
     expect(privateSource).toBeNull()
-    expect(ownerSource?.productIds).toEqual([productId])
+    expect(ownerSource?.articleIds).toEqual([articleId])
 
     await handle.db.delete(looks)
   })

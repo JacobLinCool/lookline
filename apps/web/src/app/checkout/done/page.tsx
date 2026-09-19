@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { Sparkles } from 'lucide-react'
-import { and, brands, desc, eq, inArray, products, purchases } from '@lookline/db'
+import { and, brands, desc, eq, inArray, articles, purchases } from '@lookline/db'
 import { Flash } from '@/components/looks/flash'
 import { orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
 import {
@@ -43,10 +43,10 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
   const rows =
     ids.length > 0
       ? await getDb()
-          .db.select({ purchase: purchases, product: products, brandName: brands.name })
+          .db.select({ purchase: purchases, product: articles, brandName: brands.name })
           .from(purchases)
-          .innerJoin(products, eq(purchases.productId, products.id))
-          .innerJoin(brands, eq(products.brandId, brands.id))
+          .innerJoin(articles, eq(purchases.articleId, articles.id))
+          .innerJoin(brands, eq(articles.brandId, brands.id))
           .where(and(inArray(purchases.id, ids), eq(purchases.userId, user.id)))
           .orderBy(desc(purchases.createdAt))
       : []

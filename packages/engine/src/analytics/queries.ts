@@ -20,12 +20,12 @@ import {
   isNotNull,
   lineageStats,
   lookParticipants,
-  lookProducts,
+  lookArticles,
   looks,
   lte,
   manufacturingRecommendations,
   or,
-  products,
+  articles,
   purchases,
   relationships,
   rowsOf,
@@ -37,7 +37,7 @@ import {
   type LineageStat,
   type Look,
   type ManufacturingRecommendation,
-  type Product,
+  type Article,
   type Relationship,
   type TrendSignal,
 } from '@lookline/db'
@@ -121,10 +121,10 @@ export interface AnalyticsRaw {
   asks: AskLite[]
   askResponses: AskResponseLite[]
   looks: LookLite[]
-  lookProducts: LookProductLite[]
+  lookArticles: LookProductLite[]
   participants: ParticipantLite[]
   intents: IntentSessionLite[]
-  products: Map<number, ProductLite>
+  articles: Map<string, ProductLite>
   supply: Map<string, SupplyCell>
 }
 
@@ -165,7 +165,7 @@ export async function loadInteractionsLite(
       actorUserId: interactions.actorUserId,
       targetUserId: interactions.targetUserId,
       lookId: interactions.lookId,
-      productId: interactions.productId,
+      articleId: interactions.articleId,
       askId: interactions.askId,
       type: interactions.type,
       sourceInteractionId: interactions.sourceInteractionId,
@@ -181,7 +181,7 @@ export async function loadPurchasesLite(db: Database, until: Date): Promise<Purc
     .select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId,
+      articleId: purchases.articleId,
       quantity: purchases.quantity,
       price: purchases.price,
       forKind: purchases.forKind,
@@ -224,8 +224,8 @@ export async function loadParticipants(db: Database): Promise<ParticipantLite[]>
 
 export async function loadLookProductsLite(db: Database): Promise<LookProductLite[]> {
   return db
-    .select({ lookId: lookProducts.lookId, productId: lookProducts.productId })
-    .from(lookProducts)
+    .select({ lookId: lookArticles.lookId, articleId: lookArticles.articleId })
+    .from(lookArticles)
 }
 
 export async function loadIntentsLite(
@@ -260,37 +260,32 @@ export async function loadIntentsLite(
 
 export async function loadProductsLite(
   db: Database,
-  ids: Iterable<number>,
-): Promise<Map<number, ProductLite>> {
+  ids: Iterable<string>,
+): Promise<Map<string, ProductLite>> {
   const unique = [...new Set(ids)].filter((id) => Number.isFinite(id))
-  const out = new Map<number, ProductLite>()
+  const out = new Map<string, ProductLite>()
   for (const part of chunks(unique, ID_CHUNK)) {
     const rows = await db
       .select({
-        id: products.id,
-        aesthetics: products.aesthetics,
-        categoryGroup: products.categoryGroup,
-        subcategory: products.subcategory,
-        colorFamily: products.colorFamily,
-        silhouette: products.silhouette,
-        silhouetteId: products.silhouetteId,
-        stock: products.stock,
-        price: products.price,
+        id: articles.id,
+        categoryGroup: articles.categoryGroup,
+        subcategory: articles.subcategory,
+        colorFamily: articles.colorFamily,
+        price: articles.price,
       })
-      .from(products)
-      .where(inArray(products.id, part))
-    for (const r of rows) out.set(r.id, { ...r, aesthetics: asStringArray(r.aesthetics) })
+      .from(articles)
+      .where(inArray(articles.id, part))
+    for (const r of rows) out.set(r.id, r)
   }
   return out
 }
 
-/** In-stock counts per (aesthetic, group, colour) and per (aesthetic, group). */
+/** Article counts per (group, colour). Was per aesthetic too, until that column went away. */
 export async function loadSupply(db: Database): Promise<Map<string, SupplyCell>> {
   const result = await db.all(sql`
-    select a.value as aesthetic, category_group as "group", color_family as color,
-           count(*) as supply, count(*) filter (where stock < 5) as low
-    from products, json_each(products.aesthetics) as a
-    where stock > 0
+    select '' as aesthetic, category_group as "group", color_family as color,
+           count(*) as supply, 0 as low
+    from articles
     group by 1, 2, 3
   `)
   const out = new Map<string, SupplyCell>()
@@ -338,7 +333,7 @@ export async function loadAnalyticsRaw(
         .select({
           askId: askResponses.askId,
           responderUserId: askResponses.responderUserId,
-          choiceProductId: askResponses.choiceProductId,
+          choiceArticleId: askResponses.choiceArticleId,
           styledLookId: askResponses.styledLookId,
           createdAt: askResponses.createdAt,
         })
@@ -349,11 +344,11 @@ export async function loadAnalyticsRaw(
       loadIntentsLite(db, intentSince, now),
       loadSupply(db),
     ])
-  const productIds = new Set<number>()
-  for (const ix of ixs) if (ix.productId != null) productIds.add(ix.productId)
-  for (const p of pus) productIds.add(p.productId)
-  for (const lp of lps) productIds.add(lp.productId)
-  const productMap = await loadProductsLite(db, productIds)
+  const articleIds = new Set<string>()
+  for (const ix of ixs) if (ix.articleId != null) articleIds.add(ix.articleId)
+  for (const p of pus) articleIds.add(p.articleId)
+  for (const lp of lps) articleIds.add(lp.articleId)
+  const productMap = await loadProductsLite(db, articleIds)
   return {
     users: usersLite,
     interactions: ixs,
@@ -361,10 +356,10 @@ export async function loadAnalyticsRaw(
     asks: askRows,
     askResponses: responses,
     looks: lookRows,
-    lookProducts: lps,
+    lookArticles: lps,
     participants,
     intents,
-    products: productMap,
+    articles: productMap,
     supply,
   }
 }
@@ -516,20 +511,20 @@ export async function rebuildManufacturing(
 
 export async function updateTrendScores(
   db: Database,
-  scores: ReadonlyMap<number, number>,
+  scores: ReadonlyMap<string, number>,
 ): Promise<void> {
   await db
-    .update(products)
+    .update(articles)
     .set({ trendScore: 0 })
-    .where(sql`${products.trendScore} <> 0`)
+    .where(sql`${articles.trendScore} <> 0`)
   const entries = [...scores.entries()]
   for (const part of chunks(entries, CHUNK)) {
     const json = JSON.stringify(
       Object.fromEntries(part.map(([id, s]) => [String(id), Number.isFinite(s) ? s : 0])),
     )
     await db.run(
-      sql`update products set trend_score = (select j.value from json_each(${json}) as j where j.key = cast(products.id as text))
-          where products.id in (select cast(key as integer) from json_each(${json}))`,
+      sql`update articles set trend_score = (select j.value from json_each(${json}) as j where j.key = cast(articles.id as text))
+          where articles.id in (select cast(key as integer) from json_each(${json}))`,
     )
   }
 }
@@ -657,7 +652,7 @@ export interface TopLineageRaw {
   stats: LineageStat
   look: Look
   owner: UserSummary
-  products: Product[]
+  articles: Article[]
 }
 
 export async function loadTopLineages(db: Database, limit: number): Promise<TopLineageRaw[]> {
@@ -682,28 +677,28 @@ export async function loadTopLineages(db: Database, limit: number): Promise<TopL
     stats: r.stats,
     look: r.look,
     owner: toUserSummary(r.owner),
-    products: (productsByLook.get(r.look.id) ?? []).map(({ brandName: _brand, ...p }) => p),
+    articles: (productsByLook.get(r.look.id) ?? []).map(({ brandName: _brand, ...p }) => p),
   }))
 }
 
 export async function loadLookProductRows(
   db: Database,
   lookIds: readonly string[],
-): Promise<Map<string, Array<Product & { brandName: string }>>> {
-  const out = new Map<string, Array<Product & { brandName: string }>>()
+): Promise<Map<string, Array<Article & { brandName: string }>>> {
+  const out = new Map<string, Array<Article & { brandName: string }>>()
   if (lookIds.length === 0) return out
   const rows = await db
     .select({
-      lookId: lookProducts.lookId,
-      position: lookProducts.position,
-      product: products,
+      lookId: lookArticles.lookId,
+      position: lookArticles.position,
+      product: articles,
       brandName: brands.name,
     })
-    .from(lookProducts)
-    .innerJoin(products, eq(products.id, lookProducts.productId))
-    .innerJoin(brands, eq(brands.id, products.brandId))
-    .where(inArray(lookProducts.lookId, [...lookIds]))
-    .orderBy(lookProducts.lookId, lookProducts.position, lookProducts.productId)
+    .from(lookArticles)
+    .innerJoin(articles, eq(articles.id, lookArticles.articleId))
+    .innerJoin(brands, eq(brands.id, articles.brandId))
+    .where(inArray(lookArticles.lookId, [...lookIds]))
+    .orderBy(lookArticles.lookId, lookArticles.position, lookArticles.articleId)
   for (const r of rows) {
     const list = out.get(r.lookId)
     const item = { ...r.product, brandName: r.brandName }
@@ -783,7 +778,7 @@ export async function loadPurchasesFromLooks(db: Database): Promise<PurchaseLite
     .select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId,
+      articleId: purchases.articleId,
       quantity: purchases.quantity,
       price: purchases.price,
       forKind: purchases.forKind,
@@ -872,7 +867,7 @@ export async function loadInteractionsForLooks(
       actorUserId: interactions.actorUserId,
       targetUserId: interactions.targetUserId,
       lookId: interactions.lookId,
-      productId: interactions.productId,
+      articleId: interactions.articleId,
       askId: interactions.askId,
       type: interactions.type,
       sourceInteractionId: interactions.sourceInteractionId,
@@ -891,7 +886,7 @@ export async function loadPurchasesForLooks(
     .select({
       id: purchases.id,
       userId: purchases.userId,
-      productId: purchases.productId,
+      articleId: purchases.articleId,
       quantity: purchases.quantity,
       price: purchases.price,
       forKind: purchases.forKind,

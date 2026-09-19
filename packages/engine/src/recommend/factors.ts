@@ -4,13 +4,13 @@
  */
 import {
   AESTHETICS,
+  STYLE_BLOCKS,
   SUBCATEGORIES,
   axisIndex,
   colorFamilyIndex,
-  findColor,
 } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily } from '@lookline/catalog'
-import type { Department, Product } from '@lookline/db'
+import type { Department, Article } from '@lookline/db'
 import type { FactorName } from '../types'
 import {
   aestheticLabel,
@@ -111,45 +111,29 @@ const FIT_ADJACENT: ReadonlyArray<readonly [string, string]> = [
 function fitsAdjacent(a: string, b: string): boolean {
   return FIT_ADJACENT.some(([x, y]) => (x === a && y === b) || (x === b && y === a))
 }
-
-const familyOfHex = (hex: string | null | undefined): ColorFamily | null => {
-  if (!hex) return null
-  const c = findColor(hex)
-  return c ? c.family : null
-}
-
 export function styleSimilarity(c: Candidate, ctx: RankContext): FactorResult {
   const locale = localeOf(ctx.intent)
   const raw = blockCosine(ctx.intentVector, c.product.styleVector, SIMILARITY_BLOCK_WEIGHTS)
   const bonus = c.channels.has('social') || c.channels.has('trend') ? 0.05 : 0
   const value = clamp01(raw + bonus)
-  const pairs: Array<{ slug: string; score: number; w: number }> = []
-  for (const a of AESTHETICS) {
-    const iw = ctx.intentVector[a.index] ?? 0
-    const pw = c.product.styleVector[a.index] ?? 0
-    if (iw > 0 && pw > 0) pairs.push({ slug: a.slug, score: iw * pw, w: pw })
-  }
-  const top = pairs.toSorted((x, y) => y.score - x.score).slice(0, 2)
+  // The aesthetic block is gone, so the evidence names the colour it matched on, or the overall
+  // similarity when nothing lines up. It named the shared style tags until the catalogue had none.
   const family = c.product.colorFamily as ColorFamily
   const intentColour = ctx.intentVector[colorFamilyIndex(family)] ?? 0
   const colourNamed = intentColour >= 0.4
-  let evidence: string
-  if (top.length === 0) {
-    evidence =
-      locale === 'zh' ? `整體風格相似度 ${round(raw)}` : `overall style similarity ${round(raw)}`
-  } else if (locale === 'zh') {
-    evidence = `風格對到${top.map((t) => `${aestheticLabel(t.slug, 'zh')} (${round(t.w)})`).join('、')}`
-    if (colourNamed) evidence += `；${colorFamilyLabel(family, 'zh')}色也符合`
-  } else {
-    evidence = `matches ${top.map((t) => `${t.slug} (${round(t.w)})`).join(', ')}`
-    if (colourNamed) evidence += `; colour ${colorFamilyLabel(family, 'en')}`
-  }
+  const evidence = colourNamed
+    ? locale === 'zh'
+      ? `${colorFamilyLabel(family, 'zh')}色符合，整體風格相似度 ${round(raw)}`
+      : `colour ${colorFamilyLabel(family, 'en')}; overall style similarity ${round(raw)}`
+    : locale === 'zh'
+      ? `整體風格相似度 ${round(raw)}`
+      : `overall style similarity ${round(raw)}`
   return {
     factor: 'style_similarity',
     value,
     applicable: true,
     evidence,
-    details: { raw, bonus, top },
+    details: { raw, bonus },
   }
 }
 
@@ -175,12 +159,8 @@ export function attributeMatch(c: Candidate, ctx: RankContext): FactorResult {
     .filter(([, w]) => (w ?? 0) >= 0.5)
     .map(([f]) => f as ColorFamily)
   if (wanted.length > 0) {
-    let v = 0
-    if (wanted.includes(p.colorFamily as ColorFamily)) v = 1
-    else {
-      const secondary = familyOfHex(p.secondaryColorHex)
-      if (secondary && wanted.includes(secondary)) v = 0.6
-    }
+    // H&M files each colourway as its own article, so there is no second colour to fall back on.
+    const v = wanted.includes(p.colorFamily as ColorFamily) ? 1 : 0
     checks.push({ w: 0.25, v, label: v > 0 ? colorFamilyLabel(p.colorFamily, locale) : null })
   }
 
@@ -201,7 +181,7 @@ export function attributeMatch(c: Candidate, ctx: RankContext): FactorResult {
     checks.push({ w: 0.1, v, label: v === 1 ? label : null })
   }
   if (intent.fits.length > 0) {
-    const fit = p.fit ?? p.silhouette ?? ''
+    const fit = p.fit
     let v = 0
     if (intent.fits.includes(fit)) v = 1
     else if (intent.fits.some((f) => fitsAdjacent(f, fit))) v = 0.5
@@ -290,7 +270,8 @@ const SUB_GROUP: ReadonlyMap<string, string> = new Map(SUBCATEGORIES.map((s) => 
 const subcategoryGroup = (slug: string): string | undefined => SUB_GROUP.get(slug)
 const axisIndexOf = (axis: string): number => {
   const i = axisIndex(axis as Axis)
-  return i >= 44 && i < 52 ? i : -1
+  const [from, to] = STYLE_BLOCKS.axes
+  return i >= from && i < to ? i : -1
 }
 
 export function budgetFit(c: Candidate, ctx: RankContext): FactorResult {
@@ -523,7 +504,9 @@ export function trendMomentum(c: Candidate, ctx: RankContext): FactorResult {
     const stat = ctx.trend.get(key)
     if (stat && (!best || stat.momentum > best.stat.momentum)) best = { key, label, stat }
   }
-  for (const tag of p.aesthetics) {
+  // The trend index keys its finest dimension on the product type, the catalogue having no
+  // aesthetic tags of its own.
+  for (const tag of [p.subcategory]) {
     consider(
       `aesthetic_category:${tag}|${p.categoryGroup}`,
       `${aestheticLabel(tag, locale)}${locale === 'zh' ? '×' : ' '}${p.categoryGroup}`,
@@ -630,7 +613,7 @@ export function popularityPrior(c: Candidate, ctx: RankContext): FactorResult {
 }
 
 /** `sim = 0.5·cos_A + 0.3·[same subcategory] + 0.2·[same brand]`. */
-export function itemSimilarity(a: Product, b: Product): number {
+export function itemSimilarity(a: Article, b: Article): number {
   let dot = 0
   let na = 0
   let nb = 0
@@ -652,7 +635,7 @@ export function itemSimilarity(a: Product, b: Product): number {
 /** Diversity during MMR: `−max_j sim(i, j)` over the already selected items (0 for the first). */
 export function diversity(
   c: Candidate,
-  selected: ReadonlyArray<{ product: Product; position: number }>,
+  selected: ReadonlyArray<{ product: Article; position: number }>,
   locale: Locale,
 ): FactorResult {
   if (selected.length === 0) {

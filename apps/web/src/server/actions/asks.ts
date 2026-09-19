@@ -21,11 +21,11 @@ import { createLookDraft } from '@/server/look-generation'
  * Ask — "Which one fits me better?" / "Style me".
  *
  * createAskAction   `<form>` on /asks/new. Fields: `kind` (choose | style_me), `question`,
- *                   `productId` (repeated, 2–4 for choose), `lookId?`, `toUserId?`, `toHandle?`,
+ *                   `articleId` (repeated, 2–4 for choose), `lookId?`, `toUserId?`, `toHandle?`,
  *                   `budget?`, `occasion?`, `returnTo?`. Redirects to /asks/<id>.
- * answerAskAction   `<form>` on /a/[token] for kind choose. Fields: `token`, `choiceProductId`,
+ * answerAskAction   `<form>` on /a/[token] for kind choose. Fields: `token`, `choiceArticleId`,
  *                   `comment?`, `displayName?` (creates a guest when signed out).
- * answerStyleMeAction `<form>` on /a/[token] for kind style_me. Fields: `token`, `productId`
+ * answerStyleMeAction `<form>` on /a/[token] for kind style_me. Fields: `token`, `articleId`
  *                   (repeated, 1–4), `comment?`, `stylePreset?`, `displayName?`.
  *
  * The engine's createAsk / answerAsk own the rows; the ASK / ADVISE / STYLE interactions are
@@ -39,19 +39,23 @@ function text(value: FormDataEntryValue | null, max = 500): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function ints(values: FormDataEntryValue[]): number[] {
-  return [
-    ...new Set(
-      values.map((v) => Number(v)).filter((n): n is number => Number.isInteger(n) && n > 0),
-    ),
-  ]
+/** Article ids from a form: ten digits, leading zeros kept. */
+function ints(values: FormDataEntryValue[]): string[] {
+  return [...new Set(values.map(String).filter((v) => /^\d{10}$/.test(v)))]
 }
 
+/** A number from a form field (a budget), or null. */
 function optionalInt(value: FormDataEntryValue | null): number | null {
   const s = text(value, 12)
   if (!s) return null
   const n = Number(s.replace(/[^\d]/g, ''))
   return Number.isInteger(n) && n > 0 ? n : null
+}
+
+/** An article id from a form field, or null: ten digits with their leading zeros. */
+function optionalArticleId(value: FormDataEntryValue | null): string | null {
+  const s = text(value, 12)
+  return s && /^\d{10}$/.test(s) ? s : null
 }
 
 function withParams(path: string, params: Record<string, string | null | undefined>): string {
@@ -78,7 +82,7 @@ export async function createAskAction(formData: FormData): Promise<ActionResult>
   const { t } = await getI18n()
   const errors = t.social.askNew.errors
   const kind = text(formData.get('kind'), 16) === 'style_me' ? 'style_me' : 'choose'
-  const productIds = ints(formData.getAll('productId'))
+  const articleIds = ints(formData.getAll('articleId'))
   const lookId = text(formData.get('lookId'), 64) || null
 
   const user = await getSessionUser()
@@ -91,11 +95,11 @@ export async function createAskAction(formData: FormData): Promise<ActionResult>
   const occasion = text(formData.get('occasion'), 80) || null
 
   if (kind === 'choose') {
-    if (productIds.length < 2 || productIds.length > 4) {
+    if (articleIds.length < 2 || articleIds.length > 4) {
       return { ok: false, message: errors.pieceCount }
     }
-    const found = await loadProductsByIds(productIds)
-    if (found.length !== productIds.length) return { ok: false, message: errors.pieceCount }
+    const found = await loadProductsByIds(articleIds)
+    if (found.length !== articleIds.length) return { ok: false, message: errors.pieceCount }
   }
 
   let targetUserId: string | null = text(formData.get('toUserId'), 64) || null
@@ -115,7 +119,7 @@ export async function createAskAction(formData: FormData): Promise<ActionResult>
       askerId: user.id,
       kind,
       question,
-      optionProductIds: kind === 'choose' ? productIds : [],
+      optionArticleIds: kind === 'choose' ? articleIds : [],
       lookId,
       targetUserId,
       budget: kind === 'style_me' ? budget : null,
@@ -141,8 +145,8 @@ export async function answerAskAction(formData: FormData): Promise<ActionResult>
   const { ask, asker, options } = bundle
   if (ask.kind !== 'choose') return { ok: false, message: errors.wrongKind }
 
-  const choiceProductId = optionalInt(formData.get('choiceProductId'))
-  if (!choiceProductId || !options.some((p) => p.id === choiceProductId)) {
+  const choiceArticleId = optionalArticleId(formData.get('choiceArticleId'))
+  if (!choiceArticleId || !options.some((p) => p.id === choiceArticleId)) {
     return { ok: false, message: errors.noChoice }
   }
   const comment = text(formData.get('comment'), 500) || null
@@ -162,7 +166,7 @@ export async function answerAskAction(formData: FormData): Promise<ActionResult>
         askId: ask.id,
         responderUserId: actor.id,
         responderName: actor.displayName,
-        choiceProductId,
+        choiceArticleId,
         comment,
       },
       { deferFeedback: after },
@@ -186,8 +190,8 @@ export async function answerStyleMeAction(formData: FormData): Promise<void> {
   const { ask, asker } = bundle
   if (ask.kind !== 'style_me') redirect(back)
 
-  const productIds = ints(formData.getAll('productId')).slice(0, 4)
-  const picks = await loadProductsByIds(productIds)
+  const articleIds = ints(formData.getAll('articleId')).slice(0, 4)
+  const picks = await loadProductsByIds(articleIds)
   if (picks.length === 0) redirect(withParams(back, { error: 'picks' }))
   const comment = text(formData.get('comment'), 500) || null
   const requestedPreset = text(formData.get('stylePreset'), 64)
@@ -208,7 +212,7 @@ export async function answerStyleMeAction(formData: FormData): Promise<void> {
   const styled = await attempt(() =>
     createLookDraft({
       ownerId: asker.id,
-      productIds: picks.map((p) => p.id),
+      articleIds: picks.map((p) => p.id),
       stylePreset,
       kind: 'edition',
       title: t.social.ask.styledFor(actor.displayName, asker.displayName),
@@ -242,7 +246,7 @@ export async function answerStyleMeAction(formData: FormData): Promise<void> {
     targetUserId: asker.id,
     askId: ask.id,
     lookId: styledLookId,
-    payload: { responseId: answered.value.id, productIds: picks.map((p) => p.id), source: 'web' },
+    payload: { responseId: answered.value.id, articleIds: picks.map((p) => p.id), source: 'web' },
   })
 
   redirect(

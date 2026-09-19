@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { getI18n } from '@/i18n/server'
 import { getSessionUser, safeNextPath } from '@/server/auth'
-import { and, eq, gt, previewProducts, previews, products } from '@lookline/db'
+import { and, eq, gt, previewArticles, previews, articles } from '@lookline/db'
 import { after } from 'next/server'
 import { recordFeedbackFor } from './feedback'
 import type { ActionResult } from '@/components/latency/instant-form'
@@ -59,6 +59,12 @@ function readInt(value: FormDataEntryValue | null): number | null {
   return Number.isInteger(n) ? n : null
 }
 
+/** An article id from a form field: ten digits with their leading zeros. */
+function readArticleId(value: FormDataEntryValue | null): string | null {
+  const s = String(value ?? '')
+  return /^\d{10}$/.test(s) ? s : null
+}
+
 function readSize(value: FormDataEntryValue | null): string | null {
   const s = typeof value === 'string' ? value.trim() : ''
   return s ? s : null
@@ -71,17 +77,16 @@ function finish(formData: FormData): void {
 }
 
 /**
- * Fields: `productId` (int), `size` (optional), `qty` (optional int), `redirect` (optional path),
+ * Fields: `articleId` (int), `size` (optional), `qty` (optional int), `redirect` (optional path),
  * and optional attribution ids `sourceLook`, `sourceAsk`, `intentSession` (stored in cookies for
  * `/checkout`).
  */
 export async function addToBagAction(formData: FormData): Promise<ActionResult> {
   const { t } = await getI18n()
-  const productId = readInt(formData.get('productId'))
-  if (productId === null || productId <= 0)
-    return { ok: false, message: t.bag.errors.chooseProduct }
+  const articleId = readArticleId(formData.get('articleId'))
+  if (articleId === null) return { ok: false, message: t.bag.errors.chooseProduct }
   const result = await addToBag({
-    productId,
+    articleId,
     size: readSize(formData.get('size')),
     qty: readInt(formData.get('qty')) ?? 1,
   })
@@ -97,7 +102,7 @@ export async function addToBagAction(formData: FormData): Promise<ActionResult> 
     after(() =>
       recordFeedbackFor(user.id, {
         kind: 'add_to_bag',
-        productId,
+        articleId,
         lookId: sanitizeId(formData.get('sourceLook')),
         intentSessionId: sanitizeId(formData.get('intentSession')),
       }).then(() => {}),
@@ -106,21 +111,21 @@ export async function addToBagAction(formData: FormData): Promise<ActionResult> 
   return { ok: true }
 }
 
-/** Fields: `productId`, `size` (optional; omit to drop every size of the product), `redirect`. */
+/** Fields: `articleId`, `size` (optional; omit to drop every size of the product), `redirect`. */
 export async function removeFromBagAction(formData: FormData): Promise<void> {
-  const productId = readInt(formData.get('productId'))
-  if (productId === null) return
+  const articleId = readArticleId(formData.get('articleId'))
+  if (articleId === null) return
   const size = formData.has('size') ? readSize(formData.get('size')) : undefined
-  await removeFromBag(productId, size)
+  await removeFromBag(articleId, size)
   finish(formData)
 }
 
-/** Fields: `productId`, `size`, `qty` (0 removes), `redirect`. */
+/** Fields: `articleId`, `size`, `qty` (0 removes), `redirect`. */
 export async function setBagQtyAction(formData: FormData): Promise<void> {
-  const productId = readInt(formData.get('productId'))
+  const articleId = readArticleId(formData.get('articleId'))
   const qty = readInt(formData.get('qty'))
-  if (productId === null || qty === null) return
-  await setBagQty(productId, readSize(formData.get('size')), qty)
+  if (articleId === null || qty === null) return
+  await setBagQty(articleId, readSize(formData.get('size')), qty)
   finish(formData)
 }
 
@@ -133,22 +138,20 @@ export async function clearBagAction(formData: FormData): Promise<void> {
 /** Outfit additions share one cookie commit and the same attribution path as single pieces. */
 export async function addOutfitToBagAction(formData: FormData): Promise<ActionResult> {
   const { t } = await getI18n()
-  const ids = [...new Set(formData.getAll('productId').map(Number))]
-  if (
-    !ids.length ||
-    ids.length > OUTFIT_MAX_PIECES ||
-    ids.some((id) => !Number.isInteger(id) || id <= 0)
+  const ids = [...new Set(formData.getAll('articleId').map(String))].filter((id) =>
+    /^\d{10}$/.test(id),
   )
+  if (!ids.length || ids.length > OUTFIT_MAX_PIECES)
     return { ok: false, message: t.bag.errors.outfitTooMany(OUTFIT_MAX_PIECES) }
-  const result = await addManyToBag(ids.map((productId) => ({ productId })))
+  const result = await addManyToBag(ids.map((articleId) => ({ articleId })))
   if (!result.ok) return { ok: false, message: t.bag.errors.outfitNoRoom }
   await rememberAttribution(formData)
   const user = await getSessionUser()
   const intentSessionId = sanitizeId(formData.get('intentSession'))
   if (user)
     after(async () => {
-      for (const productId of ids)
-        await recordFeedbackFor(user.id, { kind: 'add_to_bag', productId, intentSessionId })
+      for (const articleId of ids)
+        await recordFeedbackFor(user.id, { kind: 'add_to_bag', articleId, intentSessionId })
     })
   revalidatePath('/', 'layout')
   return { ok: true }
@@ -174,21 +177,21 @@ export async function addPreviewToBagAction(formData: FormData): Promise<ActionR
   if (!preview) return { ok: false, message: t.previews.errors.unavailable }
 
   const available = await db
-    .select({ productId: previewProducts.productId })
-    .from(previewProducts)
-    .innerJoin(products, eq(previewProducts.productId, products.id))
-    .where(and(eq(previewProducts.previewId, previewId), gt(products.stock, 0)))
-  const ids = available.map(({ productId }) => productId)
+    .select({ articleId: previewArticles.articleId })
+    .from(previewArticles)
+    .innerJoin(articles, eq(previewArticles.articleId, articles.id))
+    .where(eq(previewArticles.previewId, previewId))
+  const ids = available.map(({ articleId }) => articleId)
   if (ids.length === 0) return { ok: false, message: t.previews.errors.noneAvailable }
-  const result = await addManyToBag(ids.map((productId) => ({ productId })))
+  const result = await addManyToBag(ids.map((articleId) => ({ articleId })))
   if (!result.ok) return { ok: false, message: t.previews.errors.bagFull }
 
   await rememberAttribution(formData, preview.sourceLookId)
   after(async () => {
-    for (const productId of ids)
+    for (const articleId of ids)
       await recordFeedbackFor(user.id, {
         kind: 'add_to_bag',
-        productId,
+        articleId,
         lookId: preview.sourceLookId,
       })
   })

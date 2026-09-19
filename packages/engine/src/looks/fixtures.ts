@@ -3,36 +3,33 @@
  * written). Not exported from the package barrel.
  */
 import { toStyleVector, type CategoryGroup, type ColorFamily } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 
 export interface FixtureSpec {
   id: number
   name: string
   categoryGroup: CategoryGroup
+  outfitRole: Article['outfitRole']
   subcategory: string
-  silhouetteId: string
   colorName: string
   colorHex: string
   colorFamily: ColorFamily
+  /** Drives the style vector only; the catalogue carries no aesthetic column. */
   aesthetics: string[]
   material?: string
   pattern?: string
   price?: number
-  department?: Product['department']
-  sizeSystem?: Product['sizeSystem']
-  sizes?: string[]
+  department?: Article['department']
   popularity?: number
-  secondaryColorHex?: string | null
   formality?: number
 }
 
-export function makeProduct(spec: FixtureSpec): Product {
+export function makeProduct(spec: FixtureSpec): Article {
   const aesthetics: Record<string, number> = {}
   spec.aesthetics.forEach((slug, i) => {
     aesthetics[slug] = i === 0 ? 1 : 0.5
   })
   const styleVector = toStyleVector({
-    aesthetics,
     colorFamily: spec.colorFamily,
     axes: {
       formality: spec.formality ?? 0.5,
@@ -47,57 +44,58 @@ export function makeProduct(spec: FixtureSpec): Product {
     categoryGroup: spec.categoryGroup,
   })
   return {
-    id: spec.id,
+    id: String(spec.id).padStart(10, '0'),
     slug: `p-${spec.id}`,
     brandId: 1,
     name: spec.name,
     description: `${spec.name} description`,
     department: spec.department ?? 'women',
     categoryGroup: spec.categoryGroup,
+    outfitRole: spec.outfitRole,
     category: spec.categoryGroup,
     subcategory: spec.subcategory,
-    silhouetteId: spec.silhouetteId,
+    productGroup: 'Garment Upper body',
+    section: 'Womens Everyday Collection',
+    indexName: 'Ladieswear',
+    indexGroupName: 'Ladieswear',
+    productCode: String(spec.id).padStart(7, '0'),
     colorName: spec.colorName,
     colorHex: spec.colorHex,
     colorFamily: spec.colorFamily,
-    secondaryColorHex: spec.secondaryColorHex ?? null,
-    pattern: spec.pattern ?? 'solid',
+    colorValue: 'Dark',
+    pattern: spec.pattern ?? 'Solid',
     material: spec.material ?? 'cotton',
-    fit: null,
-    silhouette: null,
-    length: null,
-    neckline: null,
-    sleeve: null,
-    closure: null,
+    fit: '',
+    length: '',
+    neckline: '',
+    sleeve: '',
+    closure: '',
     occasions: ['everyday'],
     seasons: ['all-season'],
-    aesthetics: spec.aesthetics,
     attributes: {},
     styleVector,
     price: spec.price ?? 1500,
     tier: 'mid',
-    sizeSystem: spec.sizeSystem ?? 'alpha',
-    sizes: spec.sizes ?? ['S', 'M', 'L'],
-    stock: 10,
-    rating: 4.2,
-    reviewCount: 12,
+    salesCount: 100,
+    firstSoldAt: new Date('2019-01-01T00:00:00Z'),
+    lastSoldAt: new Date('2020-09-01T00:00:00Z'),
+    onlineRatio: 0.5,
     popularity: spec.popularity ?? 0.5,
     trendScore: 0,
-    heroImageUrl: null,
-    imageSeed: spec.id * 7,
+    imagePath: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
   }
 }
 
 /** A four-piece quiet-luxury Look: knit, trousers, loafers, tote. */
-export function fixtureLook(): Product[] {
+export function fixtureLook(): Article[] {
   return [
     makeProduct({
       id: 1,
       name: 'Ridge Cashmere Crewneck',
       categoryGroup: 'tops',
+      outfitRole: 'top',
       subcategory: 'crewneck-sweater',
-      silhouetteId: 'sweater',
       colorName: 'Oatmeal',
       colorHex: '#D9CDB8',
       colorFamily: 'neutral',
@@ -109,8 +107,8 @@ export function fixtureLook(): Product[] {
       id: 2,
       name: 'Harbor Wide-Leg Trousers',
       categoryGroup: 'bottoms',
+      outfitRole: 'bottom',
       subcategory: 'wide-leg-trousers',
-      silhouetteId: 'pants-wide',
       colorName: 'Charcoal',
       colorHex: '#4A4B50',
       colorFamily: 'grey',
@@ -118,39 +116,32 @@ export function fixtureLook(): Product[] {
       material: 'wool',
       pattern: 'pinstripe',
       price: 3200,
-      sizeSystem: 'numeric-waist',
-      sizes: ['26', '28', '30'],
     }),
     makeProduct({
       id: 3,
       name: 'Lane Penny Loafer',
       categoryGroup: 'footwear',
+      outfitRole: 'shoes',
       subcategory: 'loafer',
-      silhouetteId: 'loafer',
       colorName: 'Chocolate',
       colorHex: '#4E342E',
       colorFamily: 'brown',
       aesthetics: ['preppy', 'quiet-luxury'],
       material: 'leather',
       price: 3900,
-      sizeSystem: 'eu-shoe',
-      sizes: ['37', '38', '39'],
-      secondaryColorHex: '#C9A43A',
     }),
     makeProduct({
       id: 4,
       name: 'Atlas Structured Tote',
       categoryGroup: 'bags',
+      outfitRole: 'bag',
       subcategory: 'tote',
-      silhouetteId: 'tote',
       colorName: 'Jet Black',
       colorHex: '#111114',
       colorFamily: 'black',
       aesthetics: ['minimalist', 'corporate-chic'],
       material: 'leather',
       price: 5600,
-      sizeSystem: 'one-size',
-      sizes: [],
     }),
   ]
 }

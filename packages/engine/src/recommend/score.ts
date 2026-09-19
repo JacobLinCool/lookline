@@ -4,7 +4,7 @@
  * caps.
  */
 import type { CategoryGroup } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import type { FactorName, RankedItem } from '../types'
 import { buildExplanation, toExplanationFactor } from './explain'
 import type { DetailedFactor } from './explain'
@@ -35,8 +35,6 @@ export interface ScoredCandidate {
 /** In-process hard filters beyond SQL (§2.3): `text:`/`pattern:` avoids, sizes, kids mismatch. */
 export function hardFilters(cands: readonly Candidate[], ctx: RankContext): Candidate[] {
   const avoid = parseTokens(ctx.intent.mustAvoid)
-  const sizes = ctx.intent.sizes ?? {}
-  const sizeEntries = Object.entries(sizes).filter(([, v]) => typeof v === 'string' && v.length > 0)
   const wantsKids = ctx.intent.department === 'kids' || ctx.intent.recipient?.department === 'kids'
   return cands.filter((c) => {
     const p = c.product
@@ -45,12 +43,7 @@ export function hardFilters(cands: readonly Candidate[], ctx: RankContext): Cand
       if (avoid.text.some((t) => hay.includes(t))) return false
     }
     if (avoid.patterns.length > 0 && avoid.patterns.includes(p.pattern)) return false
-    if (avoid.aesthetics.length > 0 && avoid.aesthetics.some((a) => p.aesthetics[0] === a))
-      return false
-    for (const [system, value] of sizeEntries) {
-      if (p.sizeSystem !== system) continue
-      if (!p.sizes.includes(value)) return false
-    }
+    // No size column in the catalogue, so a stated size cannot rule anything out.
     if (wantsKids !== (p.department === 'kids')) {
       if (wantsKids || p.department === 'kids') return false
     }
@@ -73,7 +66,7 @@ function tieBreak(a: ScoredCandidate, b: ScoredCandidate): number {
   return (
     b.score - a.score ||
     b.candidate.product.popularity - a.candidate.product.popularity ||
-    a.candidate.product.id - b.candidate.product.id
+    a.candidate.product.id.localeCompare(b.candidate.product.id)
   )
 }
 
@@ -103,7 +96,7 @@ export function mmr(
   const pool = sorted.slice(0, opts.pool)
   const rest = sorted.slice(opts.pool)
   const picks: MmrPick[] = []
-  const selected: Array<{ product: Product; position: number }> = []
+  const selected: Array<{ product: Article; position: number }> = []
   const brandCount = new Map<number, number>()
   const subCount = new Map<string, number>()
   const remaining = [...pool]

@@ -3,7 +3,7 @@
  *
  * Each schema lists, for the six denormalised product columns (`fit`, `silhouette`, `length`,
  * `neckline`, `sleeve`, `closure`), the allowed values with relative integer weights, plus
- * `extras` written into `products.attributes`. A column absent from a schema is `null` on the
+ * `extras` written into `articles.attributes`. A column absent from a schema is `null` on the
  * product. Subcategory overrides replace the column's list for that subcategory.
  *
  * Rows are written in the spec's own "value weight value weight …" notation and parsed once at
@@ -31,9 +31,9 @@ export interface AttributeColumn {
 
 export interface AttributeSchema {
   id: string
-  /** Denormalised columns present on products of this schema. */
+  /** Denormalised columns present on articles of this schema. */
   columns: Readonly<Partial<Record<AttributeColumnName, AttributeColumn>>>
-  /** Extra keys written into `products.attributes` JSON. */
+  /** Extra keys written into `articles.attributes` JSON. */
   extras: Readonly<Record<string, AttributeColumn>>
 }
 

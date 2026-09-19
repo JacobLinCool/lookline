@@ -272,7 +272,7 @@ describe('renderProductSvg', () => {
     expect(svg).toContain(`d="${SILHOUETTES['sneaker']!.trim}" fill="#FFFFFF"`)
   })
 
-  it('renders 1,000 products in under 1 ms each on average', () => {
+  it('renders 1,000 articles in under 1 ms each on average', () => {
     const ids = Object.keys(SILHOUETTES)
     const inputs = Array.from({ length: 1000 }, (_, i) =>
       base({
@@ -313,7 +313,7 @@ describe('renderSwatchSvg / renderOutfitSvg', () => {
     expect(renderSwatchSvg('#1F3A5F', 'tie-dye')).toContain('url(#p)')
   })
 
-  it('lays up to 5 products side by side on a 1500×400 canvas', () => {
+  it('lays up to 5 articles side by side on a 1500×400 canvas', () => {
     const items = ['tee', 'pants', 'sneaker', 'tote', 'cap', 'belt'].map((id, i) =>
       base({ silhouetteId: id, imageSeed: i }),
     )

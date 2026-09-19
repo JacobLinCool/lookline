@@ -1,7 +1,7 @@
 import { cn } from '@/lib/cn'
 
 export interface ProductImageProps {
-  productId: number
+  articleId: string
   alt: string
   aspect?: '3/4' | '1/1'
   /** Eager-load above the fold. */
@@ -11,9 +11,9 @@ export interface ProductImageProps {
   className?: string
 }
 
-/** Product artwork from `/api/products/[id]/image`, on its own tonal ground. */
+/** Article artwork from `/api/articles/[id]/image`, on its own tonal ground. */
 export function ProductImage({
-  productId,
+  articleId,
   alt,
   aspect = '3/4',
   priority,
@@ -30,7 +30,7 @@ export function ProductImage({
       )}
     >
       <img
-        src={`/api/products/${productId}/image`}
+        src={`/api/articles/${articleId}/image`}
         alt={alt}
         width={600}
         height={aspect === '3/4' ? 800 : 600}

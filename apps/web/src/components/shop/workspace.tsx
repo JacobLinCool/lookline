@@ -134,7 +134,7 @@ export function ShopWorkspace({
     productsRequest.current = controller
     setLoading(true)
     try {
-      const response = await fetch(`/api/products/search?${searchToParams(next)}`, {
+      const response = await fetch(`/api/articles/search?${searchToParams(next)}`, {
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
       })
       const data = await response.json()

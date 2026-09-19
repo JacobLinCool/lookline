@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { cosineSimilarity } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { getPreferenceProfile, type Explanation, type ExplanationFactor } from '@lookline/engine'
 import { FactorBreakdown, Tag } from '@/components/ui'
 import type { Locale } from '@/i18n/config'
@@ -30,16 +30,15 @@ const factor = (
  * weight × value, so the score shown by FactorBreakdown is exactly their sum.
  */
 function buildExplanation(
-  product: Product,
+  product: Article,
   profile: Awaited<ReturnType<typeof getPreferenceProfile>>,
   similarity: number,
   t: Messages,
   locale: Locale,
 ): Explanation {
-  const topSlugs = profile.topAesthetics.map((a) => a.slug)
-  const shared = product.aesthetics.filter((a) => topSlugs.includes(a))
-  const denominator = Math.max(1, Math.min(product.aesthetics.length, Math.max(1, topSlugs.length)))
-  const aestheticOverlap = clamp01(shared.length / denominator)
+  // The catalogue tags no aesthetics, so preference overlap rests on colour alone until a
+  // semantic pass gives the articles style tags to compare against.
+  const aestheticOverlap = 0
   const colourMatch = profile.topColorFamilies.find((c) => c.family === product.colorFamily)
   const attributeValue = clamp01(0.7 * aestheticOverlap + 0.3 * (colourMatch ? 1 : 0))
   const trendValue = clamp01(product.trendScore)
@@ -57,9 +56,6 @@ function buildExplanation(
       0.25,
       attributeValue,
       evidence.join([
-        shared.length > 0
-          ? evidence.shares(t.shop.list(shared.map((slug) => aestheticLabel(locale, slug))))
-          : evidence.sharesNothing,
         colourMatch
           ? t.shop.fit.colourIsYours(colorFamilyLabel(locale, product.colorFamily))
           : evidence.colourOutside,
@@ -90,7 +86,7 @@ export async function WhyThisSuitsYou({
   userId,
   engineView = false,
 }: {
-  product: Product
+  product: Article
   userId: string | null
   engineView?: boolean
 }) {
@@ -120,9 +116,8 @@ export async function WhyThisSuitsYou({
   if (!similarity.ok) return null
 
   const explanation = buildExplanation(product, profile.value, similarity.value, t, locale)
-  const shared = product.aesthetics.filter((a) =>
-    profile.value.topAesthetics.some((top) => top.slug === a),
-  )
+  // The catalogue tags no aesthetics, so there is nothing to share with the profile's top tags.
+  const shared: string[] = []
   const colourMatch = profile.value.topColorFamilies.some((c) => c.family === product.colorFamily)
   const line = [
     explanation.summary,

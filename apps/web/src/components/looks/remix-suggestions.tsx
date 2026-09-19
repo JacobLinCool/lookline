@@ -16,7 +16,7 @@ export async function RemixSuggestions({
   lookId: string
   userId: string
   budget?: number
-  originalIds: number[]
+  originalIds: string[]
   engineView?: boolean
 }) {
   const [{ t, locale }, result] = await Promise.all([
@@ -35,7 +35,7 @@ export async function RemixSuggestions({
             <li key={item.product.id}>
               <ProductOption
                 product={{ ...item.product, brandName: item.brandName }}
-                name="productId"
+                name="articleId"
                 footer={
                   engineView ? (
                     <div className="flex flex-col gap-2">

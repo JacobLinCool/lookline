@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { Visibility } from '@lookline/db'
-import { and, eq, inArray, interactions, looks, products, users } from '@lookline/db'
+import { and, eq, inArray, interactions, looks, articles, users } from '@lookline/db'
 import { recordInteraction } from '@lookline/engine'
 import { getI18n } from '@/i18n/server'
 import type { Messages } from '@/i18n'
@@ -42,11 +42,6 @@ function readPresetSlug(value: FormDataEntryValue | null): string {
   return /^[a-z0-9][a-z0-9-]*$/.test(slug) ? slug : DEFAULT_STYLE_PRESET
 }
 
-function readInt(value: FormDataEntryValue | null): number | null {
-  const n = Number(value)
-  return Number.isInteger(n) && n > 0 ? n : null
-}
-
 function withParam(path: string, key: string, value: string): string {
   const url = new URL(path, 'http://lookline.local')
   url.searchParams.set(key, value)
@@ -70,7 +65,7 @@ async function readPhoto(
 
 /**
  * `<form action={createLookAction} encType="multipart/form-data">` on `/looks/new`.
- * Fields: `productId` (repeated checkbox values), `stylePreset` (slug), `occasion`, `title`,
+ * Fields: `articleId` (repeated checkbox values), `stylePreset` (slug), `occasion`, `title`,
  * `visibility` (private | link | public), `photo` (file, ≤ 15 MB, image/*), `useSavedPhoto` (on),
  * `rememberPhoto` (on), `return` (path to come back to on validation errors).
  */
@@ -79,24 +74,24 @@ export async function createLookAction(formData: FormData): Promise<void> {
   const { t } = await getI18n()
   const back = safeNextPath(formData.get('return'), '/looks/new')
 
-  const productIds = [
+  const articleIds = [
     ...new Set(
       formData
-        .getAll('productId')
-        .map(readInt)
-        .filter((n): n is number => n !== null),
+        .getAll('articleId')
+        .map(String)
+        .filter((id) => /^\d{10}$/.test(id)),
     ),
   ].slice(0, MAX_LOOK_PRODUCTS)
-  if (productIds.length === 0) {
+  if (articleIds.length === 0) {
     redirect(withParam(back, 'error', t.looks.errors.pickPiece))
   }
 
   const known = await getDb()
-    .db.select({ id: products.id })
-    .from(products)
-    .where(inArray(products.id, productIds))
+    .db.select({ id: articles.id })
+    .from(articles)
+    .where(inArray(articles.id, articleIds))
   const knownIds = new Set(known.map((r) => r.id))
-  const validIds = productIds.filter((id) => knownIds.has(id))
+  const validIds = articleIds.filter((id) => knownIds.has(id))
   if (validIds.length === 0) {
     redirect(withParam(back, 'error', t.looks.errors.unknownProducts))
   }
@@ -127,7 +122,7 @@ export async function createLookAction(formData: FormData): Promise<void> {
   try {
     const look = await createLookDraft({
       ownerId: user.id,
-      productIds: validIds,
+      articleIds: validIds,
       stylePreset,
       title,
       occasion,

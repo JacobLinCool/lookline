@@ -24,7 +24,7 @@ import { createLookDraft } from '@/server/look-generation'
  * reactToLookAction  `<form>` on /l/[token]. Fields: `token`, `displayName?` (guest name when
  *                    signed out). Writes REACT viewer → owner once per viewer.
  * createRemixAction  `<form>` on /looks/[id]/remix. Fields: `sourceLookId`, `forUserId?`,
- *                    `productId` (repeated), `stylePreset`, `title?`, `photo?` (file), `budget?`.
+ *                    `articleId` (repeated), `stylePreset`, `title?`, `photo?` (file), `budget?`.
  *                    Creates a `remix` Look for the viewer (redirect → /looks/<newId>), or, with
  *                    `forUserId`, an `edition` owned by that person + a STYLE interaction
  *                    (redirect → the remix page with `?created=<newId>` and the share link).
@@ -36,12 +36,9 @@ function text(value: FormDataEntryValue | null, max = 500): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function ints(values: FormDataEntryValue[]): number[] {
-  return [
-    ...new Set(
-      values.map((v) => Number(v)).filter((n): n is number => Number.isInteger(n) && n > 0),
-    ),
-  ]
+/** Article ids from a form: ten digits, leading zeros kept. */
+function ints(values: FormDataEntryValue[]): string[] {
+  return [...new Set(values.map(String).filter((v) => /^\d{10}$/.test(v)))]
 }
 
 function withParams(path: string, params: Record<string, string | null | undefined>): string {
@@ -111,10 +108,10 @@ export async function createRemixAction(formData: FormData): Promise<void> {
   const source = await loadLookById(sourceLookId)
   if (!source) redirect('/')
 
-  const productIds = ints(formData.getAll('productId'))
-  if (productIds.length === 0) redirect(withParams(page, { error: 'products' }))
-  const found = await loadProductsByIds(productIds)
-  if (found.length === 0) redirect(withParams(page, { error: 'products' }))
+  const articleIds = ints(formData.getAll('articleId'))
+  if (articleIds.length === 0) redirect(withParams(page, { error: 'articles' }))
+  const found = await loadProductsByIds(articleIds)
+  if (found.length === 0) redirect(withParams(page, { error: 'articles' }))
 
   const requestedPreset = text(formData.get('stylePreset'), 64)
   const stylePreset =
@@ -135,7 +132,7 @@ export async function createRemixAction(formData: FormData): Promise<void> {
   const created = await attempt(() =>
     createLookDraft({
       ownerId: recipient ? recipient.id : user.id,
-      productIds: found.map((p) => p.id),
+      articleIds: found.map((p) => p.id),
       stylePreset,
       kind: recipient ? 'edition' : 'remix',
       parentLookId: source.look.id,
@@ -166,10 +163,10 @@ export async function createRemixAction(formData: FormData): Promise<void> {
   const kept = new Set(found.map((p) => p.id))
   after(async () => {
     await Promise.all(
-      source.products.map((p) =>
+      source.articles.map((p) =>
         recordFeedbackFor(user.id, {
           kind: 'remix',
-          productId: p.id,
+          articleId: p.id,
           lookId: created.value.id,
           context: { kept: kept.has(p.id), sourceLookId: source.look.id },
         }),

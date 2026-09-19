@@ -11,7 +11,7 @@ import {
   gte,
   inArray,
   or,
-  products,
+  articles,
   relationships,
   sql,
   sqlDaysAgoMs,
@@ -87,8 +87,8 @@ async function popularityMax(db: Database): Promise<number> {
   const nowMs = performance.now()
   if (cached && nowMs - cached.at < POPULARITY_TTL_MS) return cached.value
   const rows = await db
-    .select({ max: sql<number | null>`max(${products.popularity})` })
-    .from(products)
+    .select({ max: sql<number | null>`max(${articles.popularity})` })
+    .from(articles)
   const value = Number(rows[0]?.max ?? 0) || 1
   popularityCache.set(db, { value, at: nowMs })
   return value
@@ -164,9 +164,9 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
       .from(feedbackEvents)
       .where(eq(feedbackEvents.userId, userId)),
     db
-      .select({ brandId: products.brandId, kind: feedbackEvents.kind, n: sql<number>`count(*)` })
+      .select({ brandId: articles.brandId, kind: feedbackEvents.kind, n: sql<number>`count(*)` })
       .from(feedbackEvents)
-      .innerJoin(products, eq(products.id, feedbackEvents.productId))
+      .innerJoin(articles, eq(articles.id, feedbackEvents.articleId))
       .where(
         and(
           eq(feedbackEvents.userId, userId),
@@ -174,7 +174,7 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
           gte(feedbackEvents.createdAt, sqlDaysAgoMs(90)),
         ),
       )
-      .groupBy(products.brandId, feedbackEvents.kind),
+      .groupBy(articles.brandId, feedbackEvents.kind),
     db
       .select({
         bUserId: relationships.bUserId,

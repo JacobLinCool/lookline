@@ -146,7 +146,7 @@ export function assertGrounded(text: string, evidence: readonly string[]): boole
 }
 
 const PolishSchema = z.object({
-  sentences: z.array(z.object({ productId: z.number(), text: z.string() })),
+  sentences: z.array(z.object({ articleId: z.string(), text: z.string() })),
 })
 
 export interface PolishOptions {
@@ -163,8 +163,8 @@ export interface PolishOptions {
 const prosePolishCache = new Map<string, string>()
 const PROSE_CACHE_MAX = 500
 
-function cacheKey(productId: number, summary: string): string {
-  return `${productId}:${summary}`
+function cacheKey(articleId: string, summary: string): string {
+  return `${articleId}:${summary}`
 }
 
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
@@ -209,7 +209,7 @@ export async function polishWithLlm(
       `Rewrite each template sentence into one natural ${localeName} sentence ≤ 25 words / 40 CJK chars using only the facts given. No marketing adjectives.`,
       ...pending.map(
         (it) =>
-          `- productId ${it.product.id} (${it.brandName} ${it.product.name}): ${it.explanation.summary}`,
+          `- articleId ${it.product.id} (${it.brandName} ${it.product.name}): ${it.explanation.summary}`,
       ),
     ].join('\n')
     try {
@@ -224,7 +224,7 @@ export async function polishWithLlm(
       )
       if (result) {
         for (const s of result.sentences) {
-          const item = pending.find((it) => it.product.id === s.productId)
+          const item = pending.find((it) => it.product.id === s.articleId)
           if (!item) continue
           const evidence = [
             item.explanation.summary,

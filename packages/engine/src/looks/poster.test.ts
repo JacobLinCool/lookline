@@ -6,13 +6,13 @@ import { shapeFamilyFor } from './shapes'
 import { deriveLookStyle } from './style'
 
 function input(overrides: Partial<LookPosterInput> = {}): LookPosterInput {
-  const products = fixtureLook()
-  const style = deriveLookStyle(products)
+  const articles = fixtureLook()
+  const style = deriveLookStyle(articles)
   return {
     title: 'Quiet Monday <Edition> & "Friends"',
     ownerName: "Mia O'Neil",
     stylePreset: 'paris-editorial',
-    products,
+    articles,
     palette: style.palette,
     aesthetics: style.aesthetics,
     seed: 4242,
@@ -34,10 +34,9 @@ describe('renderLookPosterSvg', () => {
     expect(svg).toContain('Paris Editorial')
     expect(svg).toContain('#f4efe6')
     for (const hex of input().palette) expect(svg).toContain(hex)
-    expect(svg).toContain('Quiet Luxury')
     // three composition paths per product (shadow, body, outline)
     const paths = svg.match(/<path /g) ?? []
-    expect(paths.length).toBeGreaterThanOrEqual(input().products.length * 3)
+    expect(paths.length).toBeGreaterThanOrEqual(input().articles.length * 3)
     // every ampersand is an entity; no raw angle brackets inside text nodes
     expect(svg).not.toMatch(/&(?!(amp|lt|gt|quot|apos);)/)
     expect(svg).not.toMatch(/>[^<]*<(?![a-zA-Z/])/)
@@ -62,7 +61,7 @@ describe('renderLookPosterSvg', () => {
 
   it('falls back to a palette-derived theme for unknown presets and empty inputs', () => {
     const svg = renderLookPosterSvg(
-      input({ stylePreset: 'editorial', products: [], palette: [], aesthetics: [], title: '' }),
+      input({ stylePreset: 'editorial', articles: [], palette: [], aesthetics: [], title: '' }),
     )
     expect(svg).toContain('Editorial')
     expect(svg).toContain('Untitled Look')

@@ -3,7 +3,6 @@
  * (ENGINE_SPEC §4.5). Archetypes are keyed by the catalog's aesthetic slugs.
  */
 import {
-  AESTHETICS,
   CATEGORY_GROUPS,
   COLOR_FAMILIES,
   STYLE_DIMENSIONS,
@@ -89,14 +88,9 @@ export function makeSyntheticUsers(
         [d, w * Math.max(aestheticDeptMult(a1, d) * aestheticDeptMult(a2, d), 1e-3)] as const,
     )
     const department = rng.weighted(deptWeights)
+    // The archetype's aesthetics no longer have dimensions of their own; the taste they imply
+    // shows up in the colour and axis priors below, which is all the style space still carries.
     const h = new Float64Array(STYLE_DIMENSIONS)
-    h[aestheticIndex(a1)] = 1
-    h[aestheticIndex(a2)] = 0.7
-    const extras = AESTHETICS.filter(
-      (a) => a.slug !== a1 && a.slug !== a2 && aestheticDeptMult(a.slug, department) > 0,
-    )
-    const extra = rng.pick(extras.length > 0 ? extras : AESTHETICS)
-    h[extra.index] = Math.max(h[extra.index] ?? 0, 0.3)
     for (const slug of [a1, a2]) {
       const row = AESTHETIC_COLOR_PRIOR[slug] ?? {}
       for (const [family, w] of Object.entries(row)) {

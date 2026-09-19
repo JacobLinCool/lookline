@@ -30,7 +30,7 @@ const ix = (
   actorUserId,
   targetUserId: null,
   lookId,
-  productId: null,
+  articleId: null,
   askId: null,
   type,
   sourceInteractionId: null,
@@ -44,7 +44,7 @@ const purchase = (
 ): PurchaseLite => ({
   id: `pu_${++seq}`,
   userId,
-  productId: 1,
+  articleId: '0000000001',
   quantity,
   price,
   forKind: 'self',

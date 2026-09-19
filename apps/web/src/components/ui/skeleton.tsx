@@ -20,7 +20,7 @@ export function SkeletonText({ lines = 3, className }: { lines?: number; classNa
   )
 }
 
-/** Product/Look card shaped skeleton (3:4 image + two lines). */
+/** Article/Look card shaped skeleton (3:4 image + two lines). */
 export function SkeletonCard({ className }: { className?: string }) {
   return (
     <div className={cn('flex flex-col gap-2.5', className)} aria-hidden>

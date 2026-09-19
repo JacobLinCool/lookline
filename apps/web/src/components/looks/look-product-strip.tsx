@@ -1,12 +1,12 @@
 import { InstantForm } from '@/components/latency/instant-form'
-import type { Product } from '@lookline/db'
-import { Button, ProductCard, Rail, RailItem, Select } from '@/components/ui'
+import type { Article } from '@lookline/db'
+import { Button, ProductCard, Rail, RailItem } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
 import { addToBagAction } from '@/server/actions/bag'
 import { humanize } from '@/server/format'
 
 export interface LookStripProduct {
-  product: Product & { brandName: string }
+  product: Article & { brandName: string }
   role: string | null
 }
 
@@ -43,28 +43,13 @@ export async function LookProductStrip({
                 confirmation={t.looks.strip.added}
                 className="flex flex-col gap-1.5"
               >
-                <input type="hidden" name="productId" value={product.id} />
+                <input type="hidden" name="articleId" value={product.id} />
                 <input type="hidden" name="sourceLook" value={lookId} />
                 {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
                 <div className="flex items-center gap-1.5">
-                  {product.sizeSystem !== 'one-size' && product.sizes.length > 0 ? (
-                    <Select
-                      name="size"
-                      aria-label={t.looks.strip.sizeFor(product.name)}
-                      defaultValue={product.sizes[0]}
-                      options={product.sizes.map((s) => ({ value: s, label: s }))}
-                      size="sm"
-                      className="w-20 shrink-0"
-                    />
-                  ) : null}
-                  <Button
-                    type="submit"
-                    size="sm"
-                    variant="secondary"
-                    className="flex-1"
-                    disabled={product.stock <= 0}
-                  >
-                    {product.stock > 0 ? t.looks.strip.addToBag : t.looks.strip.soldOut}
+                  {/* No size picker: the catalogue records no sizes, and no inventory to sell out of. */}
+                  <Button type="submit" size="sm" variant="secondary" className="flex-1">
+                    {t.looks.strip.addToBag}
                   </Button>
                 </div>
               </InstantForm>

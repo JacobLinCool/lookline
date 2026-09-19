@@ -1,8 +1,7 @@
 /**
  * Catalog search (ENGINE_SPEC §2.4 `searchProducts`): FTS5 full-text over name + description
  * (prefix terms, AND-ed, ranked with `bm25`), a lexicon parse of the query mapped to filters and a
- * style vector (cosine over `product_vectors`), filters, sorts, pagination and facets over a
- * capped sample of the filtered set.
+ * style vector (cosine over `article_vectors`), filters, sorts, pagination and facets.
  */
 import { LEXICON, aestheticIndex, colorFamilyIndex, findColor, zeroVector } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily } from '@lookline/catalog'
@@ -14,23 +13,22 @@ import {
   count,
   desc,
   eq,
+  articleRowid,
   ftsHitsSubquery,
   ftsMatch,
   ftsQuery,
   ftsRank,
-  gt,
   gte,
   inArray,
-  jsonArrayOverlaps,
   lte,
   notInArray,
-  productVectors,
-  products,
-  productsFts,
+  articleVectors,
+  articles,
+  articlesFts,
   rowsOf,
   sql,
 } from '@lookline/db'
-import type { Database, Product } from '@lookline/db'
+import type { Database, Article } from '@lookline/db'
 import type { ProductSearch, ProductSearchResult } from '../types'
 import { AESTHETIC_TABLES } from './aesthetics'
 import { isFamily, isGroup } from './intent-view'
@@ -196,54 +194,49 @@ export interface SearchPlan {
 
 export function planSearch(query: ProductSearch, opts: { withText?: boolean } = {}): SearchPlan {
   const scan = scanQuery(query.q ?? '')
-  const where: SqlChunk[] = [gt(products.stock, 0)]
+  const where: SqlChunk[] = []
   let lexiconFilters = false
-  if (query.department) where.push(eq(products.department, query.department))
+  if (query.department) where.push(eq(articles.department, query.department))
   if (query.categoryGroups?.length)
-    where.push(inArray(products.categoryGroup, query.categoryGroups))
+    where.push(inArray(articles.categoryGroup, query.categoryGroups))
   else if (scan.groups.length > 0 && scan.subcategories.length === 0) {
-    where.push(inArray(products.categoryGroup, scan.groups))
+    where.push(inArray(articles.categoryGroup, scan.groups))
     lexiconFilters = true
   }
-  if (query.category) where.push(eq(products.category, query.category))
-  if (query.subcategory) where.push(eq(products.subcategory, query.subcategory))
+  if (query.category) where.push(eq(articles.category, query.category))
+  if (query.subcategory) where.push(eq(articles.subcategory, query.subcategory))
   else if (scan.subcategories.length > 0) {
-    where.push(inArray(products.subcategory, scan.subcategories))
+    where.push(inArray(articles.subcategory, scan.subcategories))
     lexiconFilters = true
   }
-  if (query.colorFamilies?.length) where.push(inArray(products.colorFamily, query.colorFamilies))
+  if (query.colorFamilies?.length) where.push(inArray(articles.colorFamily, query.colorFamilies))
   else if (scan.colorFamilies.length > 0) {
-    where.push(inArray(products.colorFamily, scan.colorFamilies))
+    where.push(inArray(articles.colorFamily, scan.colorFamilies))
     lexiconFilters = true
   }
-  const aesthetics = [...new Set([...(query.aesthetics ?? []), ...scan.aesthetics])]
-  if (aesthetics.length > 0) {
-    where.push(jsonArrayOverlaps(products.aesthetics, aesthetics))
-    if (scan.aesthetics.length > 0) lexiconFilters = true
-  }
+  // The catalogue carries no aesthetic, so an aesthetic in the query cannot narrow the SQL. It
+  // still steers the style vector, which is where it has an effect until a semantic pass runs.
   if (query.excludedCategoryGroups?.length)
-    where.push(notInArray(products.categoryGroup, query.excludedCategoryGroups))
+    where.push(notInArray(articles.categoryGroup, query.excludedCategoryGroups))
   if (query.excludedColorFamilies?.length)
-    where.push(notInArray(products.colorFamily, query.excludedColorFamilies))
-  if (query.excludedAesthetics?.length)
-    where.push(sql`not ${jsonArrayOverlaps(products.aesthetics, query.excludedAesthetics)}`)
+    where.push(notInArray(articles.colorFamily, query.excludedColorFamilies))
   if (scan.materials.length > 0) {
-    where.push(inArray(products.material, scan.materials))
+    where.push(inArray(articles.material, scan.materials))
     lexiconFilters = true
   }
   if (scan.patterns.length > 0) {
-    where.push(inArray(products.pattern, scan.patterns))
+    where.push(inArray(articles.pattern, scan.patterns))
     lexiconFilters = true
   }
-  if (query.brandId !== undefined) where.push(eq(products.brandId, query.brandId))
+  if (query.brandId !== undefined) where.push(eq(articles.brandId, query.brandId))
   if (query.priceMin !== undefined && query.priceMin !== null)
-    where.push(gte(products.price, Math.round(query.priceMin)))
+    where.push(gte(articles.price, Math.round(query.priceMin)))
   if (query.priceMax !== undefined && query.priceMax !== null)
-    where.push(lte(products.price, Math.round(query.priceMax)))
+    where.push(lte(articles.price, Math.round(query.priceMax)))
   const withText = opts.withText ?? true
   const text = withText && scan.residual ? scan.residual : null
   const ftsExpr = text ? ftsQuery(text) : null
-  if (ftsExpr) where.push(sql`${products.id} in ${ftsHitsSubquery(ftsExpr)}`)
+  if (ftsExpr) where.push(sql`${articleRowid} in ${ftsHitsSubquery(ftsExpr)}`)
   const vector = scanVector(scan, query.aesthetics ?? [])
   const pageSize = Math.max(
     1,
@@ -277,27 +270,27 @@ export function orderFor(plan: SearchPlan): SqlChunk[] {
   const cos = plan.vector ? cosineExpr(blockScale(plan.vector, RETRIEVAL_BLOCK_WEIGHTS)) : null
   switch (plan.sort) {
     case 'price_asc':
-      return [asc(products.price), asc(products.id)]
+      return [asc(articles.price), asc(articles.id)]
     case 'price_desc':
-      return [desc(products.price), asc(products.id)]
+      return [desc(articles.price), asc(articles.id)]
     case 'popular':
-      return [desc(products.popularity), asc(products.id)]
+      return [desc(articles.popularity), asc(articles.id)]
     case 'new':
-      return [desc(products.createdAt), asc(products.id)]
+      return [desc(articles.createdAt), asc(articles.id)]
     case 'trending':
-      return [desc(products.trendScore), desc(products.popularity), asc(products.id)]
+      return [desc(articles.trendScore), desc(articles.popularity), asc(articles.id)]
     default: {
       if (plan.ftsExpr && cos) {
         return [
           desc(sql`(-(${ftsRank})) + ${RELEVANCE_COSINE_WEIGHT} * ${cos}`),
-          desc(products.popularity),
-          asc(products.id),
+          desc(articles.popularity),
+          asc(articles.id),
         ]
       }
       // bm25 is a cost: lower ranks first.
-      if (plan.ftsExpr) return [asc(ftsRank), desc(products.popularity), asc(products.id)]
-      if (cos) return [desc(cos), asc(products.id)]
-      return [desc(products.popularity), asc(products.id)]
+      if (plan.ftsExpr) return [asc(ftsRank), desc(articles.popularity), asc(articles.id)]
+      if (cos) return [desc(cos), asc(articles.id)]
+      return [desc(articles.popularity), asc(articles.id)]
     }
   }
 }
@@ -311,17 +304,17 @@ export function buildSearchQuery(
   const plan = planSearch(query, opts)
   const where = and(...plan.where)
   const base = db
-    .select({ product: products, brandName: brands.name })
-    .from(products)
-    .innerJoin(brands, eq(brands.id, products.brandId))
+    .select({ product: articles, brandName: brands.name })
+    .from(articles)
+    .innerJoin(brands, eq(brands.id, articles.brandId))
     .$dynamic()
   const withVectors = needsVectorJoin(plan)
-    ? base.innerJoin(productVectors, eq(productVectors.productId, products.id))
+    ? base.innerJoin(articleVectors, eq(articleVectors.articleId, articles.id))
     : base
   const joined = needsFtsJoin(plan)
     ? withVectors.innerJoin(
-        productsFts,
-        and(eq(productsFts.rowid, products.id), ftsMatch(plan.ftsExpr!)),
+        articlesFts,
+        and(eq(articlesFts.rowid, articles.id), ftsMatch(plan.ftsExpr!)),
       )
     : withVectors
   const page = joined
@@ -329,18 +322,19 @@ export function buildSearchQuery(
     .orderBy(...orderFor(plan))
     .limit(plan.pageSize)
     .offset((plan.page - 1) * plan.pageSize)
-  const total = db.select({ n: count() }).from(products).where(where)
-  // Counted over the whole filtered set. An earlier `limit` here sampled whatever order the
-  // planner happened to scan in: under `category_group IN (…)` that is the category index, so the
-  // first rows were all one group and the others counted zero.
+  const total = db.select({ n: count() }).from(articles).where(where)
+  // Counted over the whole filtered set, not a capped head of it: `article_id` carries H&M's own
+  // ordering, so the first N rows of a filter are not a sample of it — they were missing entire
+  // category groups. 105k rows group in ~50 ms on the indexed columns.
+  // ponytail: `aesthetics` is empty for every article today, so its json_each costs nothing.
+  // Re-measure this query when a semantic pass fills that column.
   const facets = sql`
-    with matched as (
-      select ${products.categoryGroup} as category_group, ${products.colorFamily} as color_family, ${products.aesthetics} as aesthetics
-      from ${products} where ${where}
+    with sample as (
+      select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family
+      from ${articles} where ${where}
     )
-    select 'group' as dim, category_group as key, count(*) as n from matched group by 2
-    union all select 'color' as dim, color_family as key, count(*) as n from matched group by 2
-    union all select 'aesthetic' as dim, a.value as key, count(*) as n from matched, json_each(matched.aesthetics) as a group by 2
+    select 'group' as dim, category_group as key, count(*) as n from sample group by 2
+    union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2
   `
   return { plan, page, total, facets }
 }
@@ -374,7 +368,8 @@ async function runSearch(
 ): Promise<ProductSearchResult & { plan: SearchPlan }> {
   const { plan, page, total, facets } = buildSearchQuery(db, query, { withText })
   const [rows, totalRows, facetRows] = await Promise.all([page, total, db.all(facets)])
-  const items = rows.map((r) => ({ ...(r.product as Product), brandName: r.brandName }))
+  const items = rows.map((r) => ({ ...(r.product as Article), brandName: r.brandName }))
+  const matched = Number(totalRows[0]?.n ?? 0)
   return {
     items,
     total: Number(totalRows[0]?.n ?? 0),

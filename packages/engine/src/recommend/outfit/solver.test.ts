@@ -1,3 +1,4 @@
+import type { CategoryGroup } from '@lookline/catalog'
 import { describe, expect, it } from 'vitest'
 import type { RankedItem } from '../../types'
 import { product } from '../testing/fixtures'
@@ -17,12 +18,11 @@ const item = (opts: {
   const p = product({
     id,
     price: opts.price,
-    categoryGroup: opts.group,
+    categoryGroup: opts.group as CategoryGroup,
     subcategory: opts.sub,
     colorFamily: opts.colour?.[0] ?? 'black',
     colorHex: opts.colour?.[1] ?? '#111114',
     brandId: opts.brandId ?? id,
-    stock: 10,
     seasons: ['all-season'],
   })
   return {
@@ -46,7 +46,9 @@ const slot = (
   subcategories: null,
   required,
   core,
-  candidates: candidates.toSorted((a, b) => b.score - a.score || a.product.id - b.product.id),
+  candidates: candidates.toSorted(
+    (a, b) => b.score - a.score || a.product.id.localeCompare(b.product.id),
+  ),
 })
 
 function plan(): SolverPlan {

@@ -511,7 +511,7 @@ export async function recommendFor(
               })),
               outfits: result.outfits.map((outfit) => ({
                 id: outfit.id,
-                productIds: outfit.items.map((item) => item.product.id),
+                articleIds: outfit.items.map((item) => item.product.id),
                 total: outfit.total,
                 compatibility: outfit.compatibility,
               })),
@@ -531,7 +531,7 @@ export async function recommendFor(
         result.items.slice(0, IMPRESSION_COUNT).map((item, index) =>
           recordFeedbackFor(userId, {
             kind: 'impression',
-            productId: item.product.id,
+            articleId: item.product.id,
             intentSessionId: sessionId,
             position: index + 1,
             forOthers: parse.intent.recipient.kind === 'other',

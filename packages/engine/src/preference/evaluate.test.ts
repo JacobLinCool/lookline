@@ -82,7 +82,7 @@ describe('evaluatePreferenceLoop', () => {
     expect(JSON.stringify(again)).toBe(JSON.stringify(result))
   }, 30_000)
 
-  it('small config (seed 1, 40 users, 12 rounds, 2,000 products) passes too, and a different seed differs', () => {
+  it('small config (seed 1, 40 users, 12 rounds, 2,000 articles) passes too, and a different seed differs', () => {
     const a = evaluatePreferenceLoop(SMALL)
     assertCriterion(a)
     expect(a.series).toHaveLength(12)

@@ -15,9 +15,7 @@ describe('rank', () => {
       budget: { max: 3000, currency: 'TWD' },
     })
     const ctx = makeRankContext(intent)
-    const cands = rows
-      .filter((r) => r.categoryGroup === 'tops' && r.stock > 0)
-      .map((r) => candidate(r, 0.7))
+    const cands = rows.filter((r) => r.categoryGroup === 'tops').map((r) => candidate(r, 0.7))
     const items = rank(cands, ctx, { limit: 24 })
     expect(items.length).toBe(24)
     for (const x of items) {
@@ -44,39 +42,41 @@ describe('rank', () => {
       ctx,
       { limit: 3, lambda: 0 },
     )
-    expect(items.map((i) => i.product.id)).toEqual([102, 101, 103])
+    expect(items.map((i) => i.product.id)).toEqual(['0000000102', '0000000101', '0000000103'])
   })
 
   it('MMR reduces near-duplicates compared with λ = 0', () => {
-    const base = rows.find((r) => r.categoryGroup === 'tops' && r.stock > 0)!
+    const base = rows.find((r) => r.categoryGroup === 'tops')!
     const clones = Array.from({ length: 6 }, (_, i) =>
       product({ ...base, id: 200 + i, brandId: base.brandId, popularity: 0.9 }),
     )
     const others = rows
-      .filter((r) => r.categoryGroup === 'tops' && r.stock > 0 && r.brandId !== base.brandId)
+      .filter((r) => r.categoryGroup === 'tops' && r.brandId !== base.brandId)
       .slice(0, 20)
     const intent = makeIntent({
-      aesthetics: base.aesthetics.slice(0, 2),
+      aesthetics: [],
       colorFamilies: [base.colorFamily as never],
     })
     const ctx = makeRankContext(intent, { popularityMax: 1 })
     const cands = [...clones, ...others].map((r) => candidate(r))
     const clonesInTop = (lambda: number): number =>
       rank(cands, ctx, { limit: 5, lambda, maxPerBrand: 99, maxPerSubcategory: 99 }).filter(
-        (i) => i.product.id >= 200,
+        (i) => Number(i.product.id) >= 200,
       ).length
     expect(clonesInTop(0)).toBeGreaterThan(clonesInTop(0.5))
     expect(clonesInTop(1)).toBeLessThanOrEqual(2)
   })
 
   it('caps brands at 2 and subcategories at 4 in the top 20', () => {
-    const tops = rows.filter((r) => r.categoryGroup === 'tops' && r.stock > 0)
+    const tops = rows.filter((r) => r.categoryGroup === 'tops')
     const sameBrand = tops
       .slice(0, 12)
       .map((r, i) => product({ ...r, id: 300 + i, brandId: 5, popularity: 1 }))
     const rest = tops
       .slice(12, 60)
-      .map((r) => product({ ...r, brandId: r.brandId === 5 ? 6 : r.brandId, popularity: 0.1 }))
+      .map((r, i) =>
+        product({ ...r, id: 400 + i, brandId: r.brandId === 5 ? 6 : r.brandId, popularity: 0.1 }),
+      )
     const items = rank(
       [...sameBrand, ...rest].map((r) => candidate(r)),
       makeRankContext(makeIntent(), { popularityMax: 1 }),
@@ -92,41 +92,18 @@ describe('rank', () => {
 })
 
 describe('hardFilters', () => {
-  it('drops text avoids, size mismatches (same system only) and kids mismatches', () => {
-    const p = product({
-      id: 1,
-      name: 'Nike Air Runner',
-      sizeSystem: 'eu-shoe',
-      sizes: ['40', '41'],
-      department: 'men',
-    })
-    const q = product({
-      id: 2,
-      name: 'Plain Tee',
-      sizeSystem: 'alpha',
-      sizes: ['S', 'M'],
-      department: 'men',
-    })
-    const k = product({
-      id: 3,
-      name: 'Kid Tee',
-      sizeSystem: 'alpha',
-      sizes: ['M'],
-      department: 'kids',
-    })
+  // Sizes are gone from the filter: the catalogue ships none, so nothing can mismatch.
+  it('drops text avoids and kids mismatches', () => {
+    const p = product({ id: 1, name: 'Nike Air Runner', department: 'men' })
+    const q = product({ id: 2, name: 'Plain Tee', department: 'men' })
+    const k = product({ id: 3, name: 'Kid Tee', department: 'kids' })
     const intent = makeIntent({ mustAvoid: ['text:nike'], sizes: { 'eu-shoe': '42' } })
     const kept = hardFilters(
       [p, q, k].map((r) => candidate(r)),
       makeRankContext(intent),
     )
-    expect(kept.map((c) => c.product.id)).toEqual([2])
-    const shoe = product({
-      id: 4,
-      name: 'Trail Runner',
-      sizeSystem: 'eu-shoe',
-      sizes: ['42'],
-      department: 'men',
-    })
+    expect(kept.map((c) => c.product.id)).toEqual(['0000000002'])
+    const shoe = product({ id: 4, name: 'Trail Runner', department: 'men' })
     expect(
       hardFilters(
         [shoe].map((r) => candidate(r)),
@@ -139,7 +116,7 @@ describe('hardFilters', () => {
         [q, k].map((r) => candidate(r)),
         makeRankContext(kidsIntent),
       ).map((c) => c.product.id),
-    ).toEqual([3])
+    ).toEqual(['0000000003'])
     const patternIntent = makeIntent({ mustAvoid: ['pattern:plaid'] })
     const plaid = product({ id: 5, pattern: 'plaid', department: 'men' })
     expect(
@@ -147,6 +124,6 @@ describe('hardFilters', () => {
         [plaid, q].map((r) => candidate(r)),
         makeRankContext(patternIntent),
       ).map((c) => c.product.id),
-    ).toEqual([2])
+    ).toEqual(['0000000002'])
   })
 })

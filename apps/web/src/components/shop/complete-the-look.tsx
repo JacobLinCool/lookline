@@ -20,7 +20,7 @@ function roleLabel(item: RankedItem, t: Messages, locale: Locale): string {
 }
 
 /** "With sweater and boots" — the other pieces in the outfit, by kind. */
-function withLine(outfit: Outfit, anchorId: number, t: Messages, locale: Locale): string {
+function withLine(outfit: Outfit, anchorId: string, t: Messages, locale: Locale): string {
   const others = outfit.items
     .filter((item) => item.product.id !== anchorId)
     .map((item) => subcategoryLabel(locale, item.product.subcategory))
@@ -33,7 +33,7 @@ async function OutfitRail({
   engineView,
 }: {
   outfit: Outfit
-  anchorId: number
+  anchorId: string
   engineView: boolean
 }) {
   const { t, locale } = await getI18n()
@@ -66,7 +66,7 @@ async function OutfitRail({
           className="contents"
         >
           {outfit.items.map((item) => (
-            <input key={item.product.id} type="hidden" name="productId" value={item.product.id} />
+            <input key={item.product.id} type="hidden" name="articleId" value={item.product.id} />
           ))}
           <input type="hidden" name="redirect" value={`/p/${anchorId}`} />
           <Button type="submit" variant="secondary" size="sm">
@@ -74,7 +74,7 @@ async function OutfitRail({
           </Button>
         </InstantForm>
         <Button
-          href={previewHref({ productIds: outfit.items.map((item) => item.product.id) })}
+          href={previewHref({ articleIds: outfit.items.map((item) => item.product.id) })}
           variant="ghost"
           size="sm"
         >
@@ -96,17 +96,17 @@ async function OutfitRail({
 
 /** Outfits built around this product: real pieces, a total, one button. Factors only in Engine view. */
 export async function CompleteTheLook({
-  productId,
+  articleId,
   userId,
   engineView = false,
 }: {
-  productId: number
+  articleId: string
   userId: string | null
   engineView?: boolean
 }) {
   const { t } = await getI18n()
   const result = await callEngine('completeTheLook', () =>
-    completeTheLook(getDb().db, productId, { userId: userId ?? undefined, count: 2 }),
+    completeTheLook(getDb().db, articleId, { userId: userId ?? undefined, count: 2 }),
   )
   return (
     <section className="hairline flex flex-col gap-8 pt-8">
@@ -120,7 +120,7 @@ export async function CompleteTheLook({
           <OutfitRail
             key={outfit.id}
             outfit={outfit}
-            anchorId={productId}
+            anchorId={articleId}
             engineView={engineView}
           />
         ))

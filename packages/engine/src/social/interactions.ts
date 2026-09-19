@@ -16,7 +16,7 @@ export async function recordInteraction(
       actorUserId: input.actorUserId,
       targetUserId: input.targetUserId ?? null,
       lookId: input.lookId ?? null,
-      productId: input.productId ?? null,
+      articleId: input.articleId ?? null,
       askId: input.askId ?? null,
       type: input.type,
       payload: input.payload ?? {},

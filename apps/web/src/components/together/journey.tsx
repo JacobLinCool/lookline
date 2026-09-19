@@ -31,7 +31,7 @@ import { cn } from '@/lib/cn'
 import { formatTwd } from '@/server/format'
 
 export interface JourneyProduct {
-  id: number
+  id: string
   name: string
   brandName: string
   price: number
@@ -40,8 +40,6 @@ export interface JourneyProduct {
   material: string
   pattern: string
   subcategory: string
-  sizes: string[]
-  stock: number
 }
 
 export interface JourneyLook {
@@ -69,7 +67,6 @@ function ProductFacts({ product }: { product: JourneyProduct }) {
         [facts.color, product.colorName],
         [facts.material, facetLabel(locale, product.material)],
         [facts.pattern, facetLabel(locale, product.pattern)],
-        [facts.available, t.common.count.pieces(product.stock)],
       ].map(([term, value]) => (
         <div key={term} className="border-r border-line px-3 py-3 last:border-r-0">
           <dt className="text-[11px] text-muted">{term}</dt>
@@ -86,8 +83,8 @@ function ProductChooser({
   onSelect,
 }: {
   products: JourneyProduct[]
-  selectedId: number | null
-  onSelect: (id: number) => void
+  selectedId: string | null
+  onSelect: (id: string) => void
 }) {
   const { t } = useI18n()
   return (
@@ -105,7 +102,7 @@ function ProductChooser({
               selected && 'bg-mist ring-2 ring-ink ring-offset-2 ring-offset-paper',
             )}
           >
-            <ProductImage productId={product.id} alt={product.name} priority className="mb-3" />
+            <ProductImage articleId={product.id} alt={product.name} priority className="mb-3" />
             <p className="text-[12px] text-muted">{product.brandName}</p>
             <p className="mt-1 text-[14px] leading-snug font-medium">{product.name}</p>
             <div className="mt-2 flex items-center justify-between gap-2">
@@ -150,7 +147,7 @@ function PreviewFrame({
           />
         ) : (
           <div className="flex items-center justify-center bg-mist p-8">
-            <ProductImage productId={product.id} alt={product.name} className="w-full max-w-72" />
+            <ProductImage articleId={product.id} alt={product.name} className="w-full max-w-72" />
           </div>
         )}
         <figcaption className="flex flex-col justify-between border-l border-line bg-card p-5">
@@ -189,7 +186,7 @@ function LookCardArtifact({
   const copy = t.social.tour.card
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'exported'>('idle')
   const [consent, setConsent] = useState(false)
-  const exportHref = look ? `/api/looks/${look.id}/image` : `/api/products/${product.id}/image`
+  const exportHref = look ? `/api/looks/${look.id}/image` : `/api/articles/${product.id}/image`
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1fr)]">
@@ -204,7 +201,7 @@ function LookCardArtifact({
               className="size-full object-cover"
             />
           ) : (
-            <ProductImage productId={product.id} alt={product.name} className="size-full" />
+            <ProductImage articleId={product.id} alt={product.name} className="size-full" />
           )}
           <span className="absolute top-3 left-3 rounded-xs bg-card px-2 py-1 text-[12px] font-medium text-ink">
             {copy.owned}
@@ -275,7 +272,7 @@ function CustomCardIssuing({ product }: { product: JourneyProduct }) {
   return (
     <div className="grid gap-7 md:grid-cols-[12rem_minmax(0,1fr)]">
       <div className="rounded-md bg-mist p-3">
-        <ProductImage productId={product.id} alt={copy.baseAlt(product.name)} priority />
+        <ProductImage articleId={product.id} alt={copy.baseAlt(product.name)} priority />
         <p className="mt-3 text-[12px] text-muted">{copy.confirmedBase}</p>
       </div>
       <div className="flex flex-col justify-center">
@@ -323,8 +320,8 @@ function ReadyStage({
   products: JourneyProduct[]
   product: JourneyProduct
   look: JourneyLook | null
-  selectedId: number
-  onSelect: (id: number) => void
+  selectedId: string
+  onSelect: (id: string) => void
   query: string
   onQuery: (value: string) => void
   selectedSize: string
@@ -389,10 +386,10 @@ function ReadyStage({
   }
 
   if (step === 3) {
-    const sizes = product.sizes.length > 0 ? product.sizes : [copy.oneSize]
+    const sizes = [copy.oneSize]
     return (
       <div className="grid gap-8 lg:grid-cols-[10rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} priority />
+        <ProductImage articleId={product.id} alt={product.name} priority />
         <div className="flex flex-col gap-5">
           <div>
             <p className="text-[12px] text-muted">{product.brandName}</p>
@@ -498,7 +495,7 @@ function CustomStage({
   if (step === 1) {
     return (
       <div className="grid gap-7 md:grid-cols-[12rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} priority />
+        <ProductImage articleId={product.id} alt={product.name} priority />
         <div className="space-y-5">
           <div>
             <Tag tone="outline">{copy.basePattern}</Tag>
@@ -609,7 +606,7 @@ function BorrowStage({
   if (step === 0) {
     return (
       <div className="grid gap-7 md:grid-cols-[13rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} priority />
+        <ProductImage articleId={product.id} alt={product.name} priority />
         <div className="flex flex-col justify-center gap-5">
           <div className="flex items-center gap-3">
             <Avatar seed={look?.ownerAvatarSeed ?? 4107} name={friendName} size="md" />
@@ -659,10 +656,10 @@ function BorrowStage({
   }
 
   if (step === 3) {
-    const sizes = product.sizes.length > 0 ? product.sizes : [tour.ready.oneSize]
+    const sizes = [tour.ready.oneSize]
     return (
       <div className="grid gap-8 md:grid-cols-[10rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} />
+        <ProductImage articleId={product.id} alt={product.name} />
         <div className="space-y-5">
           <div>
             <p className="text-[12px] text-muted">{copy.yourOrder}</p>
@@ -751,11 +748,9 @@ export function JourneyPrototype({
   const [query, setQuery] = useState<string>(tour.examples[0] ?? '')
   const [brief, setBrief] = useState(tour.custom.briefDefault)
   const [referenceName, setReferenceName] = useState<string | null>(null)
-  const [selectedId, setSelectedId] = useState<number | null>(products[0]?.id ?? null)
-  const [readySize, setReadySize] = useState(products[0]?.sizes[0] ?? tour.ready.oneSize)
-  const [borrowSize, setBorrowSize] = useState(
-    products[1]?.sizes[0] ?? products[0]?.sizes[0] ?? tour.ready.oneSize,
-  )
+  const [selectedId, setSelectedId] = useState<string | null>(products[0]?.id ?? null)
+  const [readySize, setReadySize] = useState(tour.ready.oneSize)
+  const [borrowSize, setBorrowSize] = useState(tour.ready.oneSize)
   const [unlocked, setUnlocked] = useState<Record<ScenarioKey, number>>({
     ready: 0,
     custom: 0,
@@ -790,10 +785,9 @@ export function JourneyPrototype({
     setStep(next)
   }
 
-  function selectReadyProduct(id: number) {
-    const next = products.find((product) => product.id === id)
+  function selectReadyProduct(id: string) {
     setSelectedId(id)
-    setReadySize(next?.sizes[0] ?? tour.ready.oneSize)
+    setReadySize(tour.ready.oneSize)
     setUnlocked((current) => ({ ...current, ready: Math.min(current.ready, 1) }))
     if (scenarioKey === 'ready' && step > 1) setStep(1)
   }

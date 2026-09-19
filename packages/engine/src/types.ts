@@ -13,7 +13,7 @@ import type {
   LlmProvider,
   Look,
   ManufacturingRecommendation,
-  Product,
+  Article,
   Purchase,
   PurchaseFor,
   Relationship,
@@ -178,7 +178,7 @@ export interface Explanation {
 }
 
 export interface RankedItem {
-  product: Product
+  product: Article
   brandName: string
   score: number
   explanation: Explanation
@@ -202,7 +202,7 @@ export interface RecommendRequest {
   limit?: number
   outfits?: boolean
   outfitCount?: number
-  exclude?: number[]
+  exclude?: string[]
   intentSessionId?: string
   /** Override blend weights (used by the bandit and by evaluation). */
   weights?: Partial<Record<FactorName, number>>
@@ -243,7 +243,7 @@ export interface ProductSearch {
 }
 
 export interface ProductSearchResult {
-  items: Array<Product & { brandName: string }>
+  items: Array<Article & { brandName: string }>
   total: number
   page: number
   pageSize: number
@@ -261,7 +261,7 @@ export interface ProductSearchResult {
 export interface FeedbackInput {
   userId: string
   kind: FeedbackKind
-  productId?: number | null
+  articleId?: string | null
   lookId?: string | null
   intentSessionId?: string | null
   position?: number | null
@@ -290,6 +290,8 @@ export interface PreferenceProfile {
   topColorFamilies: Array<{ family: ColorFamily; weight: number }>
   axes: Record<Axis, number>
   giftTopAesthetics: PreferenceAesthetic[]
+  /** Colour families of the taste-for-others vector. */
+  giftTopColorFamilies: Array<{ family: string; weight: number }>
   snapshots: Array<{ version: number; createdAt: Date; metrics: Record<string, number> }>
   /** Current bandit state summary, for the profile card. */
   bandit?: {
@@ -350,7 +352,7 @@ export interface DeterministicOptions {
 
 export interface PurchaseInput extends DeterministicOptions {
   userId: string
-  productId: number
+  articleId: string
   quantity?: number
   size?: string | null
   forKind?: PurchaseFor
@@ -363,7 +365,7 @@ export interface PurchaseInput extends DeterministicOptions {
 
 export interface CreateLookInput extends DeterministicOptions {
   ownerId: string
-  productIds: number[]
+  articleIds: string[]
   stylePreset: string
   title?: string
   prompt?: string | null
@@ -392,7 +394,7 @@ export interface CreateAskInput extends DeterministicOptions {
   askerId: string
   kind: 'choose' | 'style_me'
   question: string
-  optionProductIds?: number[]
+  optionArticleIds?: string[]
   lookId?: string | null
   targetUserId?: string | null
   budget?: number | null
@@ -403,7 +405,7 @@ export interface AnswerAskInput extends DeterministicOptions {
   askId: string
   responderUserId?: string | null
   responderName?: string | null
-  choiceProductId?: number | null
+  choiceArticleId?: string | null
   styledLookId?: string | null
   comment?: string | null
 }
@@ -413,7 +415,7 @@ export interface InteractionInput extends DeterministicOptions {
   type: import('@lookline/db').InteractionType
   targetUserId?: string | null
   lookId?: string | null
-  productId?: number | null
+  articleId?: string | null
   askId?: string | null
   payload?: Record<string, unknown>
   sourceInteractionId?: string | null
@@ -429,19 +431,7 @@ export interface LookPosterInput {
   title: string
   ownerName: string
   stylePreset: string
-  products: Array<
-    Pick<
-      Product,
-      | 'name'
-      | 'colorHex'
-      | 'silhouetteId'
-      | 'pattern'
-      | 'aesthetics'
-      | 'imageSeed'
-      | 'categoryGroup'
-      | 'secondaryColorHex'
-    >
-  >
+  articles: Array<Pick<Article, 'name' | 'colorHex' | 'subcategory' | 'pattern' | 'categoryGroup'>>
   palette: string[]
   aesthetics: string[]
   seed: number
@@ -475,7 +465,7 @@ export interface UserSummary {
 export interface LineageNode {
   look: Look
   owner: UserSummary
-  products: Array<Product & { brandName: string }>
+  articles: Array<Article & { brandName: string }>
   children: LineageNode[]
   purchases: number
   gmv: number
@@ -533,7 +523,7 @@ export interface TrendDashboard {
   silhouettes: TrendSeries[]
   aestheticCategory: TrendSeries[]
   emerging: TrendSeries[]
-  topLineages: Array<{ stats: LineageStat; look: Look; owner: UserSummary; products: Product[] }>
+  topLineages: Array<{ stats: LineageStat; look: Look; owner: UserSummary; articles: Article[] }>
   influencers: Influencer[]
   clusters: Array<{ id: number; size: number; topAesthetics: string[]; label: string }>
   manufacturing: ManufacturingRecommendation[]
@@ -562,7 +552,7 @@ export type {
   AskResponse,
   Look,
   Purchase,
-  Product,
+  Article,
   User,
   LineageStat,
   ManufacturingRecommendation,

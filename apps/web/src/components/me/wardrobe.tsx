@@ -1,4 +1,4 @@
-import type { Brand, Product, Purchase, User } from '@lookline/db'
+import type { Brand, Article, Purchase, User } from '@lookline/db'
 import Link from 'next/link'
 import { Button, EmptyState, ProductCard } from '@/components/ui'
 import type { MeMessages } from '@/i18n/messages/en/me'
@@ -6,7 +6,7 @@ import { getI18n } from '@/i18n/server'
 
 export interface WardrobeRow {
   purchase: Purchase
-  product: Product
+  product: Article
   brand: Brand
   /** The named recipient when the purchase was for a known person. */
   forUser: Pick<User, 'displayName' | 'handle'> | null

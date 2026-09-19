@@ -7,7 +7,7 @@ import { getI18n } from '@/i18n/server'
 import { addPreviewToBagAction } from '@/server/actions/bag'
 import { getSessionUser } from '@/server/auth'
 import { presetOptions, sanitizeId } from '@/server/looks'
-import { loadPreviewProducts, readPreviewGeneration } from '@/server/preview-generation'
+import { loadPreviewArticles, readPreviewGeneration } from '@/server/preview-generation'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -40,9 +40,10 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   }
   const preview = state.preview
   if (!preview || preview.ownerId !== user.id) notFound()
-  const items = await loadPreviewProducts(preview.id)
-  const availableCount = items.filter(({ product }) => product.stock > 0).length
-  const unavailableCount = items.length - availableCount
+  const items = await loadPreviewArticles(preview.id)
+  // The catalogue records no inventory, so every piece in a preview is orderable.
+  const availableCount = items.length
+  const unavailableCount = 0
   const expiresAt = new Intl.DateTimeFormat(locale === 'zh-TW' ? 'zh-Hant-TW' : 'en-US', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -106,10 +107,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
         <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {items.map(({ product, brandName }) => (
             <li key={product.id}>
-              <ProductCard
-                product={{ ...product, brandName }}
-                tag={product.stock <= 0 ? t.previews.detail.soldOut : undefined}
-              />
+              <ProductCard product={{ ...product, brandName }} />
             </li>
           ))}
         </ul>

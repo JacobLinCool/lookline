@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
-import { and, brands, eq, feedbackEvents, products, type Brand, type Product } from '@lookline/db'
+import { and, brands, eq, feedbackEvents, articles, type Brand, type Article } from '@lookline/db'
 import { recordInteraction } from '@lookline/engine'
 import { AddToBagForm } from '@/components/shop/add-to-bag-form'
 import { AttributeList } from '@/components/shop/attribute-list'
@@ -28,20 +28,19 @@ import { displayName } from '@/lib/product-name'
 type Params = Promise<{ id: string }>
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
-function parseId(raw: string): number | null {
-  if (!/^\d{1,9}$/.test(raw)) return null
-  const id = Number(raw)
-  return id > 0 ? id : null
+/** H&M article ids are ten digits with their leading zeros; parsing one as a number loses them. */
+function parseId(raw: string): string | null {
+  return /^\d{10}$/.test(raw) ? raw : null
 }
 
-/** Product + brand, deduplicated between `generateMetadata` and the page for one request. */
+/** Article + brand, deduplicated between `generateMetadata` and the page for one request. */
 const loadProduct = cache(
-  async (id: number): Promise<{ product: Product; brand: Brand } | null> => {
+  async (id: string): Promise<{ product: Article; brand: Brand } | null> => {
     const [row] = await getDb()
-      .db.select({ product: products, brand: brands })
-      .from(products)
-      .innerJoin(brands, eq(products.brandId, brands.id))
-      .where(eq(products.id, id))
+      .db.select({ product: articles, brand: brands })
+      .from(articles)
+      .innerJoin(brands, eq(articles.brandId, brands.id))
+      .where(eq(articles.id, id))
       .limit(1)
     return row ?? null
   },
@@ -69,7 +68,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
  */
 async function recordArrival(
   userId: string,
-  productId: number,
+  articleId: string,
   from: string | undefined,
   pos: number | null,
 ): Promise<void> {
@@ -81,7 +80,7 @@ async function recordArrival(
       .where(
         and(
           eq(feedbackEvents.userId, userId),
-          eq(feedbackEvents.productId, productId),
+          eq(feedbackEvents.articleId, articleId),
           eq(feedbackEvents.intentSessionId, from),
           eq(feedbackEvents.kind, 'click'),
         ),
@@ -94,7 +93,7 @@ async function recordArrival(
   }
   await recordFeedbackFor(userId, {
     kind: 'click',
-    productId,
+    articleId,
     intentSessionId: from,
     position: pos,
     context: { surface: 'product_page' },
@@ -103,7 +102,7 @@ async function recordArrival(
 
 async function recordView(
   userId: string,
-  productId: number,
+  articleId: string,
   from: string | undefined,
   pos: number | null,
 ): Promise<void> {
@@ -111,7 +110,7 @@ async function recordView(
     await recordInteraction(getDb().db, {
       actorUserId: userId,
       type: 'VIEW',
-      productId,
+      articleId,
       payload: from ? { intentSessionId: from, position: pos } : {},
     })
   } catch (error) {
@@ -153,7 +152,8 @@ export default async function ProductPage({
   }
 
   const colourLabel = colorFamilyLabel(locale, product.colorFamily)
-  const lowStock = product.stock > 0 && product.stock <= 5
+  // No inventory and no review data in the catalogue.
+  const lowStock = false
 
   return (
     <Container className="pb-24">
@@ -201,7 +201,7 @@ export default async function ProductPage({
 
       <div className="mt-5 grid gap-8 md:grid-cols-12 md:gap-12">
         <div className="md:col-span-7">
-          <ProductImage productId={product.id} alt={product.name} priority />
+          <ProductImage articleId={product.id} alt={product.name} priority />
         </div>
 
         <div className="flex flex-col gap-6 md:col-span-5">
@@ -233,19 +233,7 @@ export default async function ProductPage({
               >
                 {colourLabel}
               </Link>
-              {product.secondaryColorHex ? (
-                <span
-                  aria-label={t.shop.product.secondColour}
-                  className="size-4 rounded-full border border-line"
-                  style={{ background: product.secondaryColorHex }}
-                />
-              ) : null}
             </div>
-            {product.reviewCount > 0 ? (
-              <p className="tabular text-[13px] text-muted">
-                {t.shop.product.rating(product.rating.toFixed(1), product.reviewCount)}
-              </p>
-            ) : null}
             <WhyThisSuitsYou product={product} userId={user?.id ?? null} engineView={engineView} />
           </header>
 
@@ -266,26 +254,12 @@ export default async function ProductPage({
               <AttributeList product={product} />
             </div>
           </details>
-
-          {engineView && product.aesthetics.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {product.aesthetics.map((slug) => (
-                <Tag
-                  key={slug}
-                  tone="outline"
-                  href={`/shop?aesthetics=${encodeURIComponent(slug)}`}
-                >
-                  {aestheticLabel(locale, slug)}
-                </Tag>
-              ))}
-            </div>
-          ) : null}
         </div>
       </div>
 
       <div className="mt-14 flex flex-col gap-12">
-        <CompleteTheLook productId={product.id} userId={user?.id ?? null} engineView={engineView} />
-        <SimilarPieces productId={product.id} userId={user?.id ?? null} engineView={engineView} />
+        <CompleteTheLook articleId={product.id} userId={user?.id ?? null} engineView={engineView} />
+        <SimilarPieces articleId={product.id} userId={user?.id ?? null} engineView={engineView} />
       </div>
     </Container>
   )

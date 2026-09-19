@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid'
 import { after } from 'next/server'
-import { and, asc, eq, isNull, looks, lookProducts, products, users, type Look } from '@lookline/db'
+import { and, asc, eq, isNull, looks, lookArticles, articles, users, type Look } from '@lookline/db'
 import { buildLookImagePrompt, createLook, getLlm, type CreateLookInput } from '@lookline/engine'
 import { getDb } from './db'
 import { getStorage, isSafeKey } from './storage'
@@ -29,11 +29,11 @@ async function composition(look: Look) {
   const { db } = getDb()
   const [items, owners] = await Promise.all([
     db
-      .select({ product: products })
-      .from(lookProducts)
-      .innerJoin(products, eq(products.id, lookProducts.productId))
-      .where(eq(lookProducts.lookId, look.id))
-      .orderBy(asc(lookProducts.position)),
+      .select({ product: articles })
+      .from(lookArticles)
+      .innerJoin(articles, eq(articles.id, lookArticles.articleId))
+      .where(eq(lookArticles.lookId, look.id))
+      .orderBy(asc(lookArticles.position)),
     db
       .select({ displayName: users.displayName, photoPath: users.photoPath })
       .from(users)
@@ -42,7 +42,7 @@ async function composition(look: Look) {
   ])
   const owner = owners[0]
   if (!owner) throw new Error('The Look owner was not found.')
-  return { products: items.map((i) => i.product), owner }
+  return { articles: items.map((i) => i.product), owner }
 }
 
 /** Expired persisted leases are retryable, including after a process restart. */
@@ -91,7 +91,7 @@ async function finishImage(look: Look, referencePhoto?: ReferencePhoto | null) {
       referencePhoto === undefined ? await loadStoredPhoto(scene.owner.photoPath) : referencePhoto
     const prompt = buildLookImagePrompt({
       preset: resolveStylePreset(look.stylePreset),
-      products: scene.products,
+      articles: scene.articles,
       ownerName: scene.owner.displayName,
       occasion: look.occasion,
       hasReferencePhoto: photo !== null,

@@ -110,10 +110,10 @@ describe('polishWithLlm', () => {
         ({
           sentences: [
             {
-              productId: rows[0]!.id,
+              articleId: rows[0]!.id,
               text: `A minimalist ${rows[0]!.brandName} piece at NT$${rows[0]!.price.toLocaleString('en-US')}.`,
             },
-            { productId: rows[1]!.id, text: 'Only NT$99 and made by Gucci.' },
+            { articleId: rows[1]!.id, text: 'Only NT$99 and made by Gucci.' },
           ],
         }) as never,
     })

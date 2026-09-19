@@ -36,15 +36,15 @@ export function clarifyHref(
   return intentHref({ q: current.q, clarify, previous: sessionId })
 }
 
-/** Product page link that lets `/p/[id]` log the click against the intent session. */
-export function productHref(productId: number, sessionId: string, position: number): string {
+/** Article page link that lets `/p/[id]` log the click against the intent session. */
+export function productHref(articleId: string, sessionId: string, position: number): string {
   const params = new URLSearchParams({ from: sessionId, pos: String(position) })
-  return `/p/${productId}?${params.toString()}`
+  return `/p/${articleId}?${params.toString()}`
 }
 
 /** "Ask a friend which is better" — owned by the Ask agent; we only link. */
-export function askHref(productIds: readonly number[], sessionId: string): string {
-  const params = new URLSearchParams({ products: productIds.join(','), from: sessionId })
+export function askHref(articleIds: readonly string[], sessionId: string): string {
+  const params = new URLSearchParams({ articles: articleIds.join(','), from: sessionId })
   return `/asks/new?${params.toString()}`
 }
 

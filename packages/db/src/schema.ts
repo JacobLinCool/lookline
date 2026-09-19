@@ -3,13 +3,13 @@
  * See docs/ARCHITECTURE.md (contract) and docs/DATA_MODEL.md (semantics).
  *
  * Conventions
- * - Catalog entities (brands, products) use integer primary keys plus a stable slug.
+ * - `articles` is keyed by H&M's own zero-padded `article_id`; `brands` keeps an integer key.
  * - App entities use text primary keys (deterministic ids from the simulation, nanoid at runtime).
  * - Enums are `text` columns constrained by the `*_VALUES` tuples below.
  * - Arrays and objects are JSON text (`mode: 'json'`); every 64-d vector is a JSON array following
- *   the style-space layout in docs/ARCHITECTURE.md (`product_vectors` keeps a normalised copy of
- *   `products.style_vector` spread over 64 REAL columns for cosine ranking in SQL — see
- *   `vectors.ts` and `drizzle/0001_vectors_fts.sql`).
+ *   the style-space layout in docs/ARCHITECTURE.md (`article_vectors` keeps a normalised copy of
+ *   `articles.style_vector` spread over 64 REAL columns for cosine ranking in SQL — see
+ *   `vectors.ts`, `drizzle/0001_vectors_fts.sql` and `drizzle/0003_vision.sql`).
  * - Timestamps are integer milliseconds since the epoch (`mode: 'timestamp_ms'`, JS `Date`).
  * - Prices are integer TWD.
  */
@@ -25,13 +25,59 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
-export const STYLE_DIMENSIONS = 64
+export const STYLE_DIMENSIONS = 32
 
 // ---------------------------------------------------------------------------
 // Enum values
 // ---------------------------------------------------------------------------
 
 export const DEPARTMENT_VALUES = ['women', 'men', 'unisex', 'kids'] as const
+/**
+ * Which slot of an outfit an article occupies — a position, not a use. Resolved by @lookline/hm
+ * from `product_group_name` and `product_type_name`, because H&M files both layers of the upper
+ * body under one group and shelves jewelry and bags under `Accessories`.
+ *
+ * Sportswear and tailoring are deliberately absent: a running top still occupies the `top` slot
+ * and a blazer still occupies `outer`. Those are read off `index_group_name = 'Sport'` and
+ * `product_type_name` instead, so an outfit can be built from them like any other garment.
+ */
+/**
+ * The vocabulary the intent parser speaks: every value has a Chinese label in @lookline/catalog's
+ * lexicon, which is how "西裝" or "運動服" reaches the catalogue. Derived from the outfit role
+ * plus `index_group_name` (Sport) and `product_type_name` (Blazer), because H&M files sportswear
+ * and tailoring under groups that name the body part rather than the occasion.
+ */
+export const CATEGORY_GROUP_VALUES = [
+  'tops',
+  'bottoms',
+  'dresses',
+  'outerwear',
+  'footwear',
+  'bags',
+  'accessories',
+  'jewelry',
+  'activewear',
+  'swimwear',
+  'loungewear',
+  'tailoring',
+] as const
+
+export const OUTFIT_ROLE_VALUES = [
+  'top',
+  'bottom',
+  'outer',
+  'full-body',
+  'shoes',
+  'bag',
+  'accessory',
+  'jewelry',
+  'underwear',
+  'nightwear',
+  'swimwear',
+  'socks',
+  'set',
+  'non-apparel',
+] as const
 export const SIZE_SYSTEM_VALUES = ['alpha', 'numeric-waist', 'eu-shoe', 'one-size'] as const
 export const BRAND_TIER_VALUES = ['budget', 'mid', 'premium', 'luxury'] as const
 export const LOOK_KIND_VALUES = ['edition', 'remix', 'together'] as const
@@ -141,62 +187,168 @@ export const brands = sqliteTable(
   (t) => [uniqueIndex('brands_slug_idx').on(t.slug)],
 )
 
-export const products = sqliteTable(
-  'products',
+/**
+ * One purchasable article, mirroring H&M's `articles.csv` (105 542 rows). Raw columns keep the
+ * dataset's own names so an import is a straight copy. `article_id` is text because every id is
+ * zero-padded to ten characters (`0108775015`) and the R2 image key is derived from it —
+ * `images/<first three characters>/<article_id>.jpg`. `product_code` is its first seven characters
+ * and groups the colourways of one garment, which is what recommendations deduplicate on.
+ *
+ * SQL column names are the dataset's own, so a row maps one-to-one onto `articles.csv`. The TS
+ * property names stay with the vocabulary the rest of the codebase already speaks — `intent` has
+ * its own `colorFamily` and `categoryGroup`, and renaming the article side to match H&M would
+ * collide with them for no gain. `category_group` holds the outfit role, which is the finer
+ * signal: H&M's own `product_group_name` cannot tell a jacket from the t-shirt underneath.
+ *
+ * Derived columns follow the raw ones: `outfit_role` and `department` are table lookups over
+ * columns the dataset ships (see @lookline/hm), never inferred by a model. `occasions`, `seasons`,
+ * `material` and the garment details are recovered from `section_name`, the selling months and
+ * `detail_desc`.
+ *
+ * Columns the dataset cannot fill are not declared: it ships no inventory, no reviews, no sizes
+ * and no aesthetic, and a column holding one constant on every row is noise that ranking and
+ * retrieval would have to step around. They go back in when something can fill them.
+ *
+ * The sales columns are aggregated offline from `transactions_train.csv`; those 31.8M rows stay in
+ * the local database and never reach D1.
+ */
+export const articles = sqliteTable(
+  'articles',
   {
-    id: integer('id').primaryKey(),
-    slug: text('slug').notNull(),
+    // --- articles.csv, verbatim ---
+    /** H&M's own `article_id`, zero-padded to ten characters (`0108775015`). */
+    id: text('article_id').primaryKey(),
+    /** The dataset is one retailer, so every row points at the single H&M brand. */
     brandId: integer('brand_id')
       .notNull()
       .references(() => brands.id),
-    name: text('name').notNull(),
-    description: text('description').notNull(),
+    productCode: text('product_code').notNull(),
+    name: text('prod_name').notNull(),
+    /** Free-text product copy; missing on 416 rows. */
+    description: text('detail_desc').notNull().default(''),
+    subcategory: text('product_type_name').notNull(),
+    productGroup: text('product_group_name').notNull(),
+    /** Fabric and construction (`Jersey Basic`, `Knitwear`, `Trousers Denim`). */
+    category: text('garment_group_name').notNull().default(''),
+    /** Merchandising shelf (`Womens Everyday Basics`), useful for style clustering. */
+    section: text('section_name').notNull().default(''),
+    /** The dataset's only size signal: child rows read `Children Sizes 92-140`. */
+    indexName: text('index_name').notNull(),
+    /** The dataset's only gender signal; `customers.csv` has none. */
+    indexGroupName: text('index_group_name').notNull(),
+    pattern: text('graphical_appearance_name').notNull().default(''),
+    colorName: text('colour_group_name').notNull().default(''),
+    colorFamily: text('perceived_colour_master_name').notNull().default(''),
+    colorValue: text('perceived_colour_value_name').notNull().default(''),
+    // --- derived by @lookline/hm ---
+    categoryGroup: text('category_group', { enum: CATEGORY_GROUP_VALUES }).notNull(),
+    /** The finer split: `outerwear` and `tops` both answer "upper body", this answers which layer. */
+    outfitRole: text('outfit_role', { enum: OUTFIT_ROLE_VALUES }).notNull(),
     department: text('department', { enum: DEPARTMENT_VALUES }).notNull(),
-    categoryGroup: text('category_group').notNull(),
-    category: text('category').notNull(),
-    subcategory: text('subcategory').notNull(),
-    silhouetteId: text('silhouette_id').notNull(),
-    colorName: text('color_name').notNull(),
-    colorHex: text('color_hex').notNull(),
-    colorFamily: text('color_family').notNull(),
-    secondaryColorHex: text('secondary_color_hex'),
-    pattern: text('pattern').notNull(),
-    material: text('material').notNull(),
-    fit: text('fit'),
-    silhouette: text('silhouette'),
-    length: text('length'),
-    neckline: text('neckline'),
-    sleeve: text('sleeve'),
-    closure: text('closure'),
-    occasions: stringList('occasions'),
+    slug: text('slug').notNull(),
+    /** The dataset ships colour names only, and a swatch needs a colour. */
+    colorHex: text('colour_hex').notNull().default('#9E9E9E'),
+    /** R2 object key. Null for the articles that ship without a photo. */
+    imagePath: text('image_path'),
+    // --- aggregated from transactions_train.csv ---
+    /** TWD, calibrated per product type from the dataset's normalised price. */
+    price: integer('price').notNull().default(0),
+    tier: text('tier', { enum: BRAND_TIER_VALUES }).notNull().default('mid'),
+    salesCount: integer('sales_count').notNull().default(0),
+    firstSoldAt: integer('first_sold_at', { mode: 'timestamp_ms' }),
+    lastSoldAt: integer('last_sold_at', { mode: 'timestamp_ms' }),
+    /** Share of sales through `sales_channel_id = 2`. */
+    onlineRatio: real('online_ratio').notNull().default(0),
+    popularity: real('popularity').notNull().default(0),
+    trendScore: real('trend_score').notNull().default(0),
+    // --- no source column in the dataset ---
+    // Recovered from `detail_desc` ("in soft cotton jersey with a round neckline") and, for
+    // `seasons`, from the months an article actually sells in. Empty rather than null: to every
+    // ranking factor "no value" and "empty" are the same thing, and a nullable column would put a
+    // null check in each one for nothing.
+    material: text('material').notNull().default(''),
+    fit: text('fit').notNull().default(''),
+    length: text('length').notNull().default(''),
+    neckline: text('neckline').notNull().default(''),
+    sleeve: text('sleeve').notNull().default(''),
+    closure: text('closure').notNull().default(''),
     seasons: stringList('seasons'),
-    aesthetics: stringList('aesthetics'),
+    occasions: stringList('occasions'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
       .notNull()
       .default(sql`'{}'`),
-    styleVector: vector('style_vector').notNull(),
-    price: integer('price').notNull(),
-    tier: text('tier', { enum: BRAND_TIER_VALUES }).notNull(),
-    sizeSystem: text('size_system', { enum: SIZE_SYSTEM_VALUES }).notNull(),
-    sizes: stringList('sizes'),
-    stock: integer('stock').notNull().default(0),
-    rating: real('rating').notNull().default(0),
-    reviewCount: integer('review_count').notNull().default(0),
-    popularity: real('popularity').notNull().default(0),
-    trendScore: real('trend_score').notNull().default(0),
-    heroImageUrl: text('hero_image_url'),
-    imageSeed: integer('image_seed').notNull().default(0),
+    /** Derived from the Look's own pieces; all zeroes until it has any. */
+    styleVector: vector('style_vector')
+      .notNull()
+      .$defaultFn(() => Array.from({ length: STYLE_DIMENSIONS }, () => 0)),
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex('products_slug_idx').on(t.slug),
-    index('products_brand_idx').on(t.brandId),
-    index('products_department_idx').on(t.department),
-    index('products_category_group_idx').on(t.categoryGroup),
-    index('products_subcategory_idx').on(t.subcategory),
-    index('products_price_idx').on(t.price),
-    index('products_dept_group_price_idx').on(t.department, t.categoryGroup, t.price),
-    index('products_popularity_idx').on(t.popularity),
+    uniqueIndex('articles_slug_idx').on(t.slug),
+    index('articles_brand_idx').on(t.brandId),
+    index('articles_product_code_idx').on(t.productCode),
+    index('articles_department_idx').on(t.department),
+    index('articles_category_group_idx').on(t.categoryGroup),
+    index('articles_outfit_role_idx').on(t.outfitRole),
+    index('articles_product_type_idx').on(t.subcategory),
+    index('articles_price_idx').on(t.price),
+    index('articles_dept_group_price_idx').on(t.department, t.categoryGroup, t.price),
+    index('articles_popularity_idx').on(t.popularity),
+  ],
+)
+
+/**
+ * What gets bought together, at product-type level, from 31.8M transactions. A basket is the
+ * distinct product types one customer bought on one day — the dataset's own note says duplicate
+ * rows are several units of one item, not a pairing.
+ *
+ * `lift` above 1 means the pair occurs more often than two unrelated types would: raw counts only
+ * rank by popularity, while lift is what separates a pairing from a coincidence (Braces + Tie
+ * lifts 305×, Tailored Waistcoat + Tie 100×). Article-level pairs would be hundreds of millions
+ * of rows; product types are 3230 after a floor of 50 co-purchases.
+ */
+export const typeAffinity = sqliteTable(
+  'type_affinity',
+  {
+    typeA: text('type_a').notNull(),
+    typeB: text('type_b').notNull(),
+    together: integer('together').notNull(),
+    lift: real('lift').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.typeA, t.typeB] }), index('type_affinity_lift_idx').on(t.lift)],
+)
+
+/**
+ * H&M's own 1 371 980 customers, with the per-customer aggregates of their purchases. The 31.8M
+ * transaction rows stay offline; these are what a preference baseline is measured against.
+ *
+ * Separate from `users`, which is this app's accounts — these people never signed in here.
+ */
+export const hmCustomers = sqliteTable(
+  'hm_customers',
+  {
+    id: text('customer_id').primaryKey(),
+    /** Missing on 15 861 rows. */
+    age: integer('age'),
+    clubMemberStatus: text('club_member_status'),
+    fashionNewsFrequency: text('fashion_news_frequency'),
+    /** Hashed, so it locates nobody — but people sharing one live near each other. */
+    postalCode: text('postal_code'),
+    subscribesNews: integer('subscribes_news', { mode: 'boolean' }).notNull().default(false),
+    active: integer('active', { mode: 'boolean' }).notNull().default(false),
+    purchases: integer('purchases').notNull().default(0),
+    /** TWD, at the same scale as `articles.price`. */
+    spend: integer('spend').notNull().default(0),
+    firstBuyAt: integer('first_buy_at', { mode: 'timestamp_ms' }),
+    lastBuyAt: integer('last_buy_at', { mode: 'timestamp_ms' }),
+    onlineRatio: real('online_ratio').notNull().default(0),
+    /** The dataset ships no gender. This is the index group they bought from most. */
+    topIndexGroup: text('top_index_group'),
+    topProductGroup: text('top_product_group'),
+  },
+  (t) => [
+    index('hm_customers_purchases_idx').on(t.purchases),
+    index('hm_customers_age_idx').on(t.age),
   ],
 )
 
@@ -259,9 +411,9 @@ export const purchases = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id),
-    productId: integer('product_id')
+    articleId: text('article_id')
       .notNull()
-      .references(() => products.id),
+      .references(() => articles.id),
     quantity: integer('quantity').notNull().default(1),
     price: integer('price').notNull(),
     size: text('size'),
@@ -276,7 +428,7 @@ export const purchases = sqliteTable(
   },
   (t) => [
     index('purchases_user_idx').on(t.userId),
-    index('purchases_product_idx').on(t.productId),
+    index('purchases_article_idx').on(t.articleId),
     index('purchases_source_look_idx').on(t.sourceLookId),
     index('purchases_created_idx').on(t.createdAt),
   ],
@@ -306,7 +458,10 @@ export const looks = sqliteTable(
     imageError: text('image_error'),
     aesthetics: stringList('aesthetics'),
     palette: stringList('palette'),
-    styleVector: vector('style_vector'),
+    /** Derived from the Look's own pieces; all zeroes until it has any. */
+    styleVector: vector('style_vector')
+      .notNull()
+      .$defaultFn(() => Array.from({ length: STYLE_DIMENSIONS }, () => 0)),
     occasion: text('occasion'),
     parentLookId: text('parent_look_id'),
     rootLookId: text('root_look_id'),
@@ -324,21 +479,21 @@ export const looks = sqliteTable(
   ],
 )
 
-export const lookProducts = sqliteTable(
-  'look_products',
+export const lookArticles = sqliteTable(
+  'look_articles',
   {
     lookId: text('look_id')
       .notNull()
       .references(() => looks.id, { onDelete: 'cascade' }),
-    productId: integer('product_id')
+    articleId: text('article_id')
       .notNull()
-      .references(() => products.id),
+      .references(() => articles.id),
     role: text('role'),
     position: integer('position').notNull().default(0),
   },
   (t) => [
-    primaryKey({ columns: [t.lookId, t.productId] }),
-    index('look_products_product_idx').on(t.productId),
+    primaryKey({ columns: [t.lookId, t.articleId] }),
+    index('look_articles_article_idx').on(t.articleId),
   ],
 )
 
@@ -391,20 +546,20 @@ export const previews = sqliteTable(
   ],
 )
 
-export const previewProducts = sqliteTable(
-  'preview_products',
+export const previewArticles = sqliteTable(
+  'preview_articles',
   {
     previewId: text('preview_id')
       .notNull()
       .references(() => previews.id, { onDelete: 'cascade' }),
-    productId: integer('product_id')
+    articleId: text('article_id')
       .notNull()
-      .references(() => products.id),
+      .references(() => articles.id),
     position: integer('position').notNull().default(0),
   },
   (t) => [
-    primaryKey({ columns: [t.previewId, t.productId] }),
-    index('preview_products_product_idx').on(t.productId),
+    primaryKey({ columns: [t.previewId, t.articleId] }),
+    index('preview_articles_article_idx').on(t.articleId),
   ],
 )
 
@@ -422,8 +577,8 @@ export const asks = sqliteTable(
     targetUserId: text('target_user_id').references(() => users.id),
     kind: text('kind', { enum: ASK_KIND_VALUES }).notNull(),
     question: text('question').notNull(),
-    optionProductIds: text('option_product_ids', { mode: 'json' })
-      .$type<number[]>()
+    optionArticleIds: text('option_article_ids', { mode: 'json' })
+      .$type<string[]>()
       .notNull()
       .default(sql`'[]'`),
     lookId: text('look_id').references(() => looks.id),
@@ -449,7 +604,7 @@ export const askResponses = sqliteTable(
       .references(() => asks.id, { onDelete: 'cascade' }),
     responderUserId: text('responder_user_id').references(() => users.id),
     responderName: text('responder_name'),
-    choiceProductId: integer('choice_product_id').references(() => products.id),
+    choiceArticleId: text('choice_article_id').references(() => articles.id),
     styledLookId: text('styled_look_id').references(() => looks.id),
     comment: text('comment'),
     createdAt: createdAt(),
@@ -469,7 +624,7 @@ export const interactions = sqliteTable(
       .references(() => users.id),
     targetUserId: text('target_user_id').references(() => users.id),
     lookId: text('look_id').references(() => looks.id, { onDelete: 'cascade' }),
-    productId: integer('product_id').references(() => products.id),
+    articleId: text('article_id').references(() => articles.id),
     askId: text('ask_id').references(() => asks.id, { onDelete: 'cascade' }),
     type: text('type', { enum: INTERACTION_TYPE_VALUES }).notNull(),
     payload: json<Record<string, unknown>>('payload')
@@ -482,7 +637,7 @@ export const interactions = sqliteTable(
     index('interactions_actor_idx').on(t.actorUserId),
     index('interactions_target_idx').on(t.targetUserId),
     index('interactions_look_idx').on(t.lookId),
-    index('interactions_product_idx').on(t.productId),
+    index('interactions_article_idx').on(t.articleId),
     index('interactions_type_idx').on(t.type),
     index('interactions_created_idx').on(t.createdAt),
   ],
@@ -544,7 +699,7 @@ export const feedbackEvents = sqliteTable(
     userId: text('user_id')
       .notNull()
       .references(() => users.id),
-    productId: integer('product_id').references(() => products.id),
+    articleId: text('article_id').references(() => articles.id),
     lookId: text('look_id').references(() => looks.id, { onDelete: 'set null' }),
     intentSessionId: text('intent_session_id'),
     kind: text('kind', { enum: FEEDBACK_KIND_VALUES }).notNull(),
@@ -558,7 +713,7 @@ export const feedbackEvents = sqliteTable(
   },
   (t) => [
     index('feedback_events_user_idx').on(t.userId),
-    index('feedback_events_product_idx').on(t.productId),
+    index('feedback_events_article_idx').on(t.articleId),
     index('feedback_events_created_idx').on(t.createdAt),
     index('feedback_events_session_idx').on(t.intentSessionId),
   ],
@@ -711,8 +866,12 @@ export const evaluationRuns = sqliteTable(
 
 export type Brand = typeof brands.$inferSelect
 export type NewBrand = typeof brands.$inferInsert
-export type Product = typeof products.$inferSelect
-export type NewProduct = typeof products.$inferInsert
+export type Article = typeof articles.$inferSelect
+export type TypeAffinity = typeof typeAffinity.$inferSelect
+export type NewTypeAffinity = typeof typeAffinity.$inferInsert
+export type HmCustomer = typeof hmCustomers.$inferSelect
+export type NewHmCustomer = typeof hmCustomers.$inferInsert
+export type NewArticle = typeof articles.$inferInsert
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Session = typeof sessions.$inferSelect
@@ -720,11 +879,11 @@ export type Purchase = typeof purchases.$inferSelect
 export type NewPurchase = typeof purchases.$inferInsert
 export type Look = typeof looks.$inferSelect
 export type NewLook = typeof looks.$inferInsert
-export type LookProduct = typeof lookProducts.$inferSelect
+export type LookArticle = typeof lookArticles.$inferSelect
 export type LookParticipant = typeof lookParticipants.$inferSelect
 export type Preview = typeof previews.$inferSelect
 export type NewPreview = typeof previews.$inferInsert
-export type PreviewProduct = typeof previewProducts.$inferSelect
+export type PreviewArticle = typeof previewArticles.$inferSelect
 export type Ask = typeof asks.$inferSelect
 export type NewAsk = typeof asks.$inferInsert
 export type AskResponse = typeof askResponses.$inferSelect
@@ -743,6 +902,8 @@ export type SimPersona = typeof simPersonas.$inferSelect
 export type EvaluationRun = typeof evaluationRuns.$inferSelect
 
 export type Department = (typeof DEPARTMENT_VALUES)[number]
+export type OutfitRole = (typeof OUTFIT_ROLE_VALUES)[number]
+export type CategoryGroup = (typeof CATEGORY_GROUP_VALUES)[number]
 export type SizeSystem = (typeof SIZE_SYSTEM_VALUES)[number]
 export type BrandTier = (typeof BRAND_TIER_VALUES)[number]
 export type LookKind = (typeof LOOK_KIND_VALUES)[number]

@@ -34,7 +34,7 @@ export function OutfitRail({
   const { t, locale } = useI18n()
   const copy = t.home.outfits
   const roleLabel = (role: string) => copy.roles[role] ?? facetLabel(locale, role)
-  const productIds = outfit.items.map((item) => item.product.id)
+  const articleIds = outfit.items.map((item) => item.product.id)
   const budget = outfit.budget ?? budgetMax ?? null
   const over = budget !== null && outfit.total > budget
   const back = intentHref({ ...query, added: outfit.id })
@@ -81,8 +81,8 @@ export function OutfitRail({
           confirmation={copy.added}
           className="contents"
         >
-          {productIds.map((id) => (
-            <input key={id} type="hidden" name="productId" value={id} />
+          {articleIds.map((id) => (
+            <input key={id} type="hidden" name="articleId" value={id} />
           ))}
           <input type="hidden" name="intentSession" value={sessionId} />
           <input type="hidden" name="redirect" value={back} />
@@ -90,10 +90,10 @@ export function OutfitRail({
             {copy.addAll}
           </Button>
         </InstantForm>
-        <Button href={askHref(productIds, sessionId)} variant="ghost" size="sm">
+        <Button href={askHref(articleIds, sessionId)} variant="ghost" size="sm">
           {copy.askFriend}
         </Button>
-        <Button href={previewHref({ productIds })} variant="ghost" size="sm">
+        <Button href={previewHref({ articleIds })} variant="ghost" size="sm">
           {t.previews.actions.previewLook}
         </Button>
       </div>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "lookline",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@lookline/web", "dev"],
+      "port": 3000
+    }
+  ]
+}

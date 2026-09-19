@@ -29,7 +29,7 @@ function event(partial: Partial<TrendEvent> & Pick<TrendEvent, 'day' | 'weight'>
     type: 'VIEW',
     keys: [KEY],
     cluster: null,
-    productIds: [],
+    articleIds: [],
     lookId: null,
     rootLookId: null,
     gmv: 0,
@@ -211,18 +211,15 @@ describe('momentum and emerging rules', () => {
 })
 
 describe('buildTrendEvents', () => {
+  const ID = '0000000001'
   const product: ProductLite = {
-    id: 1,
-    aesthetics: ['minimalist', 'quiet-luxury'],
+    id: ID,
     categoryGroup: 'outerwear',
     subcategory: 'trench-coat',
     colorFamily: 'neutral',
-    silhouette: 'a-line',
-    silhouetteId: 'outerwear-trench',
-    stock: 10,
     price: 3000,
   }
-  const products = new Map([[1, product]])
+  const articles = new Map([[ID, product]])
   const looks: LookLite[] = [
     {
       id: 'l1',
@@ -239,7 +236,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: 'l1',
-      productId: null,
+      articleId: null,
       askId: null,
       type: 'REMIX',
       sourceInteractionId: null,
@@ -250,7 +247,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: null,
-      productId: 1,
+      articleId: '0000000001',
       askId: null,
       type: 'DISMISS',
       sourceInteractionId: null,
@@ -261,7 +258,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: null,
-      productId: 1,
+      articleId: '0000000001',
       askId: null,
       type: 'PURCHASE', // derived from the purchases table instead
       sourceInteractionId: null,
@@ -272,7 +269,7 @@ describe('buildTrendEvents', () => {
     {
       id: 'p1',
       userId: 'u3',
-      productId: 1,
+      articleId: '0000000001',
       quantity: 2,
       price: 3000,
       forKind: 'other',
@@ -300,9 +297,9 @@ describe('buildTrendEvents', () => {
     interactions,
     purchases,
     looks,
-    lookProducts: [{ lookId: 'l1', productId: 1 }],
+    lookArticles: [{ lookId: 'l1', articleId: ID }],
     intents,
-    products,
+    articles,
     clusterOf: new Map([
       ['u1', 0],
       ['u2', 1],
@@ -310,15 +307,15 @@ describe('buildTrendEvents', () => {
     rootOf: new Map([['l1', 'l1']]),
   })
 
-  it('maps products, looks and intents to keys and weights', () => {
+  it('maps articles, looks and intents to keys and weights', () => {
+    // The finest dimension is the product type; the catalogue has no aesthetic tags.
     expect(productKeys(product)).toEqual(
       expect.arrayContaining([
-        trendKey('aesthetic', 'minimalist'),
-        trendKey('aesthetic', 'quiet-luxury'),
+        trendKey('aesthetic', 'trench-coat'),
         trendKey('category', 'outerwear'),
         trendKey('color', 'neutral'),
-        trendKey('silhouette', 'a-line'),
-        trendKey('aesthetic_category', 'minimalist|outerwear'),
+        trendKey('silhouette', 'trench-coat'),
+        trendKey('aesthetic_category', 'trench-coat|outerwear'),
       ]),
     )
     expect(intentKeys(intents[0]!)).toEqual([

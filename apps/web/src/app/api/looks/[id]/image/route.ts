@@ -1,6 +1,6 @@
 import { getSessionUser } from '@/server/auth'
 import { renderLookPosterSvg } from '@lookline/engine'
-import { asc, eq, lookProducts, looks, products, users } from '@lookline/db'
+import { asc, eq, lookArticles, looks, articles, users } from '@lookline/db'
 import { hashString } from '@/lib/hash'
 import { getDb } from '@/server/db'
 import { getStorage, isSafeKey } from '@/server/storage'
@@ -8,7 +8,7 @@ import { svgResponse } from '@/server/svg'
 
 /**
  * `GET /api/looks/[id]/image` — the generated image from R2 when the Look has one, otherwise
- * the deterministic composition poster rendered from its products.
+ * the deterministic composition poster rendered from its articles.
  */
 export async function GET(
   request: Request,
@@ -51,16 +51,16 @@ export async function GET(
 
   try {
     const items = await db
-      .select({ product: products })
-      .from(lookProducts)
-      .innerJoin(products, eq(lookProducts.productId, products.id))
-      .where(eq(lookProducts.lookId, look.id))
-      .orderBy(asc(lookProducts.position))
+      .select({ product: articles })
+      .from(lookArticles)
+      .innerJoin(articles, eq(lookArticles.articleId, articles.id))
+      .where(eq(lookArticles.lookId, look.id))
+      .orderBy(asc(lookArticles.position))
     const svg = renderLookPosterSvg({
       title: look.title,
       ownerName,
       stylePreset: look.stylePreset,
-      products: items.map(({ product }) => product),
+      articles: items.map(({ product }) => product),
       palette: look.palette,
       aesthetics: look.aesthetics,
       seed: hashString(look.id),

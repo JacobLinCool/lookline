@@ -1,5 +1,5 @@
 /**
- * Writes 12 sample product SVGs (one or two per category group) to `data/samples/products/`
+ * Writes 12 sample product SVGs (one or two per category group) to `data/samples/articles/`
  * (git-ignored) so a human can eyeball the silhouettes, and checks each is well-formed.
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -9,7 +9,7 @@ import type { RenderInput } from './index'
 import { renderOutfitSvg, renderProductSvg } from './index'
 
 export const SAMPLE_DIR = fileURLToPath(
-  new URL('../../../../data/samples/products/', import.meta.url),
+  new URL('../../../../data/samples/articles/', import.meta.url),
 )
 
 export const SAMPLES: ReadonlyArray<RenderInput & { file: string }> = [
@@ -161,7 +161,7 @@ export const SAMPLES: ReadonlyArray<RenderInput & { file: string }> = [
 ]
 
 describe('sample svgs', () => {
-  it('writes 12 samples to data/samples/products', () => {
+  it('writes 12 samples to data/samples/articles', () => {
     mkdirSync(SAMPLE_DIR, { recursive: true })
     for (const { file, ...input } of SAMPLES) {
       const svg = renderProductSvg(input)

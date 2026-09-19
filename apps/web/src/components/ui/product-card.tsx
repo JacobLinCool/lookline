@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { cn } from '@/lib/cn'
 import { displayName } from '@/lib/product-name'
 import { ColorName } from './color-name'
@@ -9,7 +9,7 @@ import { ProductImage } from './product-image'
 import { Tag } from './chip'
 
 /** The subset of a product row the card needs; `brandName` comes from the brand join. */
-export type ProductCardData = Pick<Product, 'id' | 'name' | 'price'> & {
+export type ProductCardData = Pick<Article, 'id' | 'name' | 'price'> & {
   aesthetics?: readonly string[]
   brandName: string
   colorName?: string | null
@@ -49,7 +49,7 @@ export function ProductCard({
     <article className={cn('group flex flex-col gap-2.5', className)}>
       <div className="relative">
         <Link href={href} className="block" aria-label={name}>
-          <ProductImage productId={product.id} alt={name} priority={priority} lift />
+          <ProductImage articleId={product.id} alt={name} priority={priority} lift />
         </Link>
         {tag ? (
           <span className="pointer-events-none absolute top-2 left-2">

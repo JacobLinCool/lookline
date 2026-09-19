@@ -14,11 +14,10 @@ import {
   intentSessions,
   interactions,
   like,
-  lookProducts,
+  lookArticles,
   looks,
-  lte,
   or,
-  products,
+  articles,
   purchases,
   relationships,
   sql,
@@ -71,8 +70,8 @@ const ix = (
   ...extra,
 })
 
-async function insertFixture(productIds: number[]): Promise<void> {
-  const [p1, p2, p3] = productIds
+async function insertFixture(articleIds: string[]): Promise<void> {
+  const [p1, p2, p3] = articleIds
   await db.insert(users).values([
     {
       id: 'fx_u1',
@@ -109,6 +108,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['minimalist'],
       palette: ['#000'],
+      styleVector: vec({}),
       shareToken: 'fx_t1',
       visibility: 'public',
       createdAt: ago(10),
@@ -121,6 +121,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['minimalist', 'streetwear'],
       palette: ['#111'],
+      styleVector: vec({}),
       shareToken: 'fx_t2',
       visibility: 'public',
       parentLookId: 'fx_l1',
@@ -136,6 +137,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['minimalist'],
       palette: ['#222'],
+      styleVector: vec({}),
       shareToken: 'fx_t3',
       visibility: 'public',
       parentLookId: 'fx_l2',
@@ -151,6 +153,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['quiet-luxury'],
       palette: ['#333'],
+      styleVector: vec({}),
       shareToken: 'fx_t4',
       visibility: 'public',
       parentLookId: 'fx_l3',
@@ -160,13 +163,13 @@ async function insertFixture(productIds: number[]): Promise<void> {
     },
   ])
   if (p1 !== undefined && p2 !== undefined && p3 !== undefined) {
-    await db.insert(lookProducts).values([
-      { lookId: 'fx_l1', productId: p1, role: 'top', position: 0 },
-      { lookId: 'fx_l1', productId: p2, role: 'bottom', position: 1 },
-      { lookId: 'fx_l2', productId: p1, role: 'top', position: 0 },
-      { lookId: 'fx_l2', productId: p3, role: 'shoes', position: 1 },
-      { lookId: 'fx_l3', productId: p3, role: 'shoes', position: 0 },
-      { lookId: 'fx_l4', productId: p2, role: 'bottom', position: 0 },
+    await db.insert(lookArticles).values([
+      { lookId: 'fx_l1', articleId: p1, role: 'top', position: 0 },
+      { lookId: 'fx_l1', articleId: p2, role: 'bottom', position: 1 },
+      { lookId: 'fx_l2', articleId: p1, role: 'top', position: 0 },
+      { lookId: 'fx_l2', articleId: p3, role: 'shoes', position: 1 },
+      { lookId: 'fx_l3', articleId: p3, role: 'shoes', position: 0 },
+      { lookId: 'fx_l4', articleId: p2, role: 'bottom', position: 0 },
     ])
   }
   await db.insert(asks).values([
@@ -176,7 +179,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       targetUserId: 'fx_u1',
       kind: 'choose',
       question: 'Which one?',
-      optionProductIds: p1 !== undefined && p2 !== undefined ? [p1, p2] : [],
+      optionArticleIds: p1 !== undefined && p2 !== undefined ? [p1, p2] : [],
       lookId: 'fx_l1',
       shareToken: 'fx_ta1',
       status: 'answered',
@@ -188,7 +191,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       id: 'fx_r1',
       askId: 'fx_a1',
       responderUserId: 'fx_u1',
-      choiceProductId: p1 ?? null,
+      choiceArticleId: p1 ?? null,
       comment: 'The first.',
       createdAt: ago(6, -1),
     },
@@ -217,21 +220,21 @@ async function insertFixture(productIds: number[]): Promise<void> {
         'fx_i12',
         'fx_u1',
         'ADVISE',
-        { askId: 'fx_a1', targetUserId: 'fx_u2', productId: p1 ?? null },
+        { askId: 'fx_a1', targetUserId: 'fx_u2', articleId: p1 ?? null },
         ago(6, -1),
       ),
       ix(
         'fx_i13',
         'fx_u3',
         'SAVE',
-        { productId: p3 ?? null, lookId: p3 === undefined ? 'fx_l2' : null },
+        { articleId: p3 ?? null, lookId: p3 === undefined ? 'fx_l2' : null },
         ago(3),
       ),
       ix(
         'fx_i14',
         'fx_u2',
         'VIEW',
-        { productId: p2 ?? null, lookId: p2 === undefined ? 'fx_l1' : null },
+        { articleId: p2 ?? null, lookId: p2 === undefined ? 'fx_l1' : null },
         ago(2),
       ),
       ix('fx_i15', 'fx_u3', 'SHARE', { lookId: 'fx_l3' }, ago(2)),
@@ -241,7 +244,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       {
         id: 'fx_p1',
         userId: 'fx_u2',
-        productId: p1,
+        articleId: p1,
         price: 1800,
         quantity: 1,
         forKind: 'self',
@@ -253,7 +256,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       {
         id: 'fx_p2',
         userId: 'fx_u3',
-        productId: p3,
+        articleId: p3,
         price: 2400,
         quantity: 2,
         forKind: 'other',
@@ -264,12 +267,11 @@ async function insertFixture(productIds: number[]): Promise<void> {
     ])
     const rows = await db
       .select({
-        aesthetics: products.aesthetics,
-        categoryGroup: products.categoryGroup,
-        colorFamily: products.colorFamily,
+        categoryGroup: articles.categoryGroup,
+        colorFamily: articles.colorFamily,
       })
-      .from(products)
-      .where(sql`${products.id} = ${p1}`)
+      .from(articles)
+      .where(sql`${articles.id} = ${p1}`)
     const p = rows[0]
     await db.insert(intentSessions).values([
       {
@@ -279,7 +281,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
         locale: 'en',
         intent: {
           mode: 'single',
-          aesthetics: p?.aesthetics ?? ['minimalist'],
+          aesthetics: ['minimalist'],
           categoryGroups: p ? [p.categoryGroup] : ['tops'],
           colorFamilies: p ? [p.colorFamily] : [],
         },
@@ -292,7 +294,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
         locale: 'zh-TW',
         intent: {
           mode: 'outfit',
-          aesthetics: p?.aesthetics ?? ['minimalist'],
+          aesthetics: ['minimalist'],
           categoryGroups: [],
           colorFamilies: ['black'],
         },
@@ -305,7 +307,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
       [0, 1, 2].map((j) => ({
         id: `fx_f${i}${j}`,
         userId,
-        productId: p1 ?? null,
+        articleId: p1 ?? null,
         kind: 'save' as const,
         reward: 0.3,
         createdAt: ago(3 - j),
@@ -315,7 +317,7 @@ async function insertFixture(productIds: number[]): Promise<void> {
 }
 
 const walk = (n: LineageNode, depth = 0): string[] => [
-  `${'  '.repeat(depth)}${n.look.id} (${n.look.kind}, @${n.owner.handle}, ${n.products.length} products, ${n.reactions} reactions, ${n.purchases} purchases, gmv ${n.gmv})`,
+  `${'  '.repeat(depth)}${n.look.id} (${n.look.kind}, @${n.owner.handle}, ${n.articles.length} articles, ${n.reactions} reactions, ${n.purchases} purchases, gmv ${n.gmv})`,
   ...n.children.flatMap((c) => walk(c, depth + 1)),
 ]
 
@@ -324,16 +326,16 @@ const t = (label: string, ms: number) => console.log(`  ${label.padEnd(20)} ${ms
 try {
   await cleanup()
   const productRows = await db
-    .select({ id: products.id })
-    .from(products)
-    .where(lte(products.id, 10))
-    .orderBy(products.id)
-  const productIds = productRows.map((r) => r.id)
-  if (productIds.length < 3)
+    .select({ id: articles.id })
+    .from(articles)
+    .where(sql`cast(${articles.id} as integer) <= 10`)
+    .orderBy(articles.id)
+  const articleIds = productRows.map((r) => r.id)
+  if (articleIds.length < 3)
     console.log(
-      `products 1..10 missing (${productIds.length} found): skipping look_products, purchases and intent sessions`,
+      `articles 1..10 missing (${articleIds.length} found): skipping look_products, purchases and intent sessions`,
     )
-  await insertFixture(productIds)
+  await insertFixture(articleIds)
   console.log('fixture inserted')
 
   let t0 = performance.now()
@@ -368,7 +370,7 @@ try {
           nodes: l.stats.nodes,
           depth: l.stats.depth,
           gmv: l.stats.gmv,
-          products: l.products.length,
+          articles: l.articles.length,
         })),
         influencers: dash.influencers.map(({ user, ...rest }) => ({ user: user.handle, ...rest })),
         clusters: dash.clusters,

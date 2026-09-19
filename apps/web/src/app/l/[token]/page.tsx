@@ -57,7 +57,7 @@ export default async function SharedLookPage({
   const copy = t.social.sharedLook
   const bundle = await loadLookByToken(token)
   if (!bundle) notFound()
-  const { look, owner, products } = bundle
+  const { look, owner, articles } = bundle
 
   const viewer = await getSessionUser()
   const isOwner = viewer?.id === owner.id
@@ -241,11 +241,11 @@ export default async function SharedLookPage({
       </div>
 
       <Section title={copy.inThisLook}>
-        {products.length === 0 ? (
+        {articles.length === 0 ? (
           <p className="text-[13px] text-muted">{copy.noPieces}</p>
         ) : (
           <Rail itemWidth="md">
-            {products.map((product) => (
+            {articles.map((product) => (
               <RailItem key={product.id} width="md">
                 <ProductCard
                   product={product}
@@ -257,7 +257,7 @@ export default async function SharedLookPage({
                       confirmation={t.social.bag.confirmation}
                       className="flex"
                     >
-                      <input type="hidden" name="productId" value={product.id} />
+                      <input type="hidden" name="articleId" value={product.id} />
                       <input type="hidden" name="redirect" value={`${path}?bag=1`} />
                       <Button type="submit" variant="secondary" size="sm" full>
                         {t.social.bag.add}

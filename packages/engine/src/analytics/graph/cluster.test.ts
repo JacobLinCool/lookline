@@ -10,7 +10,7 @@ function blob(dim: number, n: number, seed: number): number[][] {
     v[dim] = 0.8 + rng.float(0, 0.2)
     v[(dim + 1) % 32] = rng.float(0, 0.15)
     v[32 + (dim % 12)] = 1
-    v[44] = rng.float(0.3, 0.7)
+    v[12] = rng.float(0.3, 0.7)
     return v
   })
 }

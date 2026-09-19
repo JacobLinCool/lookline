@@ -1,3 +1,4 @@
+import { STYLE_DIMENSIONS } from '@lookline/catalog'
 import { describe, expect, it } from 'vitest'
 import { LinUCB } from '../preference/bandit'
 import { sumContributions } from './explain'
@@ -35,7 +36,7 @@ describe('runRecommend (MemoryRetriever)', () => {
     expect(res.items.length).toBeLessThanOrEqual(8)
     expect(res.candidates).toBeGreaterThan(0)
     expect(res.outfits).toEqual([])
-    expect(res.intentVector.length).toBe(64)
+    expect(res.intentVector.length).toBe(STYLE_DIMENSIONS)
     expect(res.timings.retrieve).toBeGreaterThanOrEqual(0)
     for (const x of res.items) {
       expect(x.product.price).toBeLessThanOrEqual(3000)
@@ -50,7 +51,6 @@ describe('runRecommend (MemoryRetriever)', () => {
         r.subcategory === 'hoodie' &&
         r.colorFamily === 'black' &&
         r.price <= 3000 &&
-        r.stock > 0 &&
         r.department !== 'men' &&
         r.department !== 'kids',
     )
@@ -119,7 +119,7 @@ describe('runRecommend (MemoryRetriever)', () => {
       expect(o.budget).toBe(5000)
       expect(o.total).toBe(o.items.reduce((s, x) => s + x.product.price, 0))
       expect(o.compatibility).toBeGreaterThan(0)
-      expect(o.styleVector.length).toBe(64)
+      expect(o.styleVector.length).toBe(STYLE_DIMENSIONS)
       const roles = new Set(o.items.map((x) => x.role))
       expect(roles.has('shoes')).toBe(true)
       expect(roles.has('dress') || (roles.has('top') && roles.has('bottom'))).toBe(true)
@@ -134,7 +134,7 @@ describe('runRecommend (MemoryRetriever)', () => {
       }
       expect(o.items.filter((x) => x.role === 'outer').length).toBeLessThanOrEqual(1)
     }
-    // diversified: no two outfits share > 80% of their products
+    // diversified: no two outfits share > 80% of their articles
     for (let i = 0; i < res.outfits.length; i++) {
       for (let j = i + 1; j < res.outfits.length; j++) {
         const a = new Set(res.outfits[i]!.items.map((x) => x.product.id))
@@ -194,10 +194,8 @@ describe('runRecommend (MemoryRetriever)', () => {
 })
 
 describe('similarProductsWith / completeTheLookWith', () => {
-  it('similar products share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
-    const anchor = rows.find(
-      (r) => r.stock > 0 && r.categoryGroup === 'tops' && r.department === 'women',
-    )!
+  it('similar articles share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
+    const anchor = rows.find((r) => r.categoryGroup === 'tops' && r.department === 'women')!
     const items = await similarProductsWith(anchor, { retriever, context }, { limit: 6 })
     expect(items.length).toBeGreaterThan(0)
     expect(items.length).toBeLessThanOrEqual(6)
@@ -211,8 +209,7 @@ describe('similarProductsWith / completeTheLookWith', () => {
   })
   it('complete the look pins the product and stays under the budget', async () => {
     const anchor = rows.find(
-      (r) =>
-        r.stock > 0 && r.categoryGroup === 'tops' && r.department === 'women' && r.price < 2000,
+      (r) => r.categoryGroup === 'tops' && r.department === 'women' && r.price < 2000,
     )!
     const outfits = await completeTheLookWith(
       anchor,

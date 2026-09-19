@@ -8,7 +8,7 @@ import { createRng, hashSeed, logUniformInt, type Rng } from '@lookline/catalog'
 import type { Department } from '@lookline/db'
 import { CLUSTER_ARCHETYPES, CLUSTER_COUNT, clusterBySlug } from './clusters'
 import { asciiHandle, pickName } from './names'
-import { buildTasteVector, clamp01, topAesthetics } from './taste'
+import { buildTasteVector, clamp01 } from './taste'
 import type { Persona, PersonaParams } from './types'
 
 export const DEFAULT_PERSONA_COUNT = 1200
@@ -49,7 +49,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
     displayName: 'Alice Chen',
     department: 'women',
     cluster: 'taipei-quiet-lux',
-    bio: 'Product lead in Xinyi, quiet-luxury believer: camel coats, one good bag, nothing that shouts. Asks friends before every big purchase and answers theirs at 2 a.m.',
+    bio: 'Article lead in Xinyi, quiet-luxury believer: camel coats, one good bag, nothing that shouts. Asks friends before every big purchase and answers theirs at 2 a.m.',
     gift: { label: 'for Mom', department: 'women', primaries: ['romantic', 'quiet-luxury'] },
     budget: 12000,
     params: { activity: 0.85, remixPropensity: 0.3, askPropensity: 0.7, shareRadius: 5 },
@@ -257,7 +257,9 @@ function demoPersona(spec: DemoSpec, index: number, seed: number): Persona {
     socialCluster: cluster,
     isPersona: true,
     archetype: archetype.slug,
-    primaryAesthetics: topAesthetics(hidden, 3),
+    primaryAesthetics: spec.extra
+      ? [...archetype.aesthetics, spec.extra]
+      : [...archetype.aesthetics],
     hiddenVector: hidden,
     giftHiddenVector: gift,
     giftDepartment: spec.gift?.department ?? null,
@@ -321,7 +323,7 @@ function generatedPersona(index: number, seed: number, taken: Set<string>): Pers
     socialCluster: cluster,
     isPersona: false,
     archetype: archetype.slug,
-    primaryAesthetics: topAesthetics(hidden, 3),
+    primaryAesthetics: [...archetype.aesthetics],
     hiddenVector: hidden,
     giftHiddenVector: gift,
     giftDepartment: hasGift ? giftPick[1] : null,

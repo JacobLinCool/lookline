@@ -1,4 +1,3 @@
-import { generateCatalog } from '@lookline/catalog'
 import { computeLineage } from '@lookline/engine'
 import { describe, expect, it } from 'vitest'
 import { DEMO_PERSONAS, generatePersonas } from './personas'
@@ -8,31 +7,29 @@ import type { SimProduct } from './types'
 
 const now = new Date('2026-09-18T12:00:00Z')
 
+/** A small synthetic pool: the simulation only needs ids, groups, prices and vectors. */
 function syntheticPool(seed: number, size: number): SimProduct[] {
-  const out: SimProduct[] = []
-  for (const p of generateCatalog({ seed, size })) {
-    if ((p.stock ?? 0) <= 0) continue
-    out.push({
-      id: p.id,
-      department: p.department,
-      categoryGroup: p.categoryGroup,
-      subcategory: p.subcategory,
-      price: p.price,
-      colorFamily: p.colorFamily,
-      colorHex: p.colorHex,
-      secondaryColorHex: p.secondaryColorHex ?? null,
-      aesthetics: p.aesthetics ?? [],
-      sizeSystem: p.sizeSystem,
-      sizes: p.sizes ?? [],
-      popularity: p.popularity ?? 0,
-      name: p.name,
-      silhouetteId: p.silhouetteId,
-      pattern: p.pattern,
-      imageSeed: p.imageSeed ?? 0,
-      styleVector: p.styleVector,
-    })
-  }
-  return out
+  const groups = ['tops', 'bottoms', 'outerwear', 'footwear', 'bags'] as const
+  const roles = ['top', 'bottom', 'outer', 'shoes', 'bag'] as const
+  const families = ['black', 'white', 'blue', 'neutral', 'red']
+  return Array.from({ length: size }, (_, i) => {
+    const g = i % groups.length
+    const vector = Array.from({ length: 64 }, (_unused, d) => ((i * 7 + d * 13 + seed) % 100) / 100)
+    return {
+      id: String(i + 1).padStart(10, '0'),
+      department: i % 3 === 0 ? ('men' as const) : ('women' as const),
+      categoryGroup: groups[g]!,
+      outfitRole: roles[g]!,
+      subcategory: `type-${g}`,
+      price: 300 + ((i * 137) % 4000),
+      colorFamily: families[i % families.length]!,
+      colorHex: '#1C1C1C',
+      popularity: ((i * 31) % 100) / 100,
+      name: `Fixture ${i + 1}`,
+      pattern: 'Solid',
+      styleVector: vector,
+    }
+  })
 }
 
 function lineageOf(rows: MemoryRows, clusterOf: Map<string, number | null>) {
@@ -53,7 +50,7 @@ function lineageOf(rows: MemoryRows, clusterOf: Map<string, number | null>) {
       actorUserId: i.actorUserId,
       targetUserId: i.targetUserId ?? null,
       lookId: i.lookId ?? null,
-      productId: i.productId ?? null,
+      articleId: i.articleId ?? null,
       askId: i.askId ?? null,
       type: i.type,
       sourceInteractionId: i.sourceInteractionId ?? null,
@@ -62,7 +59,7 @@ function lineageOf(rows: MemoryRows, clusterOf: Map<string, number | null>) {
     purchases: rows.purchases.map((p) => ({
       id: p.id,
       userId: p.userId,
-      productId: p.productId,
+      articleId: p.articleId,
       quantity: p.quantity ?? 1,
       price: p.price,
       forKind: p.forKind ?? 'self',
@@ -176,11 +173,11 @@ describe('simulateSocial (in-memory sink, dry run)', () => {
     const { durationMs: _a, ...summaryA } = a.summary
     const { durationMs: _b, ...summaryB } = b.summary
     expect(summaryA).toEqual(summaryB)
-    expect(a.sink.rows.purchases.map((p) => `${p.id}:${p.productId}`)).toEqual(
-      b.sink.rows.purchases.map((p) => `${p.id}:${p.productId}`),
+    expect(a.sink.rows.purchases.map((p) => `${p.id}:${p.articleId}`)).toEqual(
+      b.sink.rows.purchases.map((p) => `${p.id}:${p.articleId}`),
     )
-    expect(a.sink.rows.looks.map((l) => `${l.id}:${l.productIds.join(',')}`)).toEqual(
-      b.sink.rows.looks.map((l) => `${l.id}:${l.productIds.join(',')}`),
+    expect(a.sink.rows.looks.map((l) => `${l.id}:${l.articleIds.join(',')}`)).toEqual(
+      b.sink.rows.looks.map((l) => `${l.id}:${l.articleIds.join(',')}`),
     )
   }, 30_000)
 })

@@ -10,6 +10,8 @@ import {
   colorFamilyIndex,
   aestheticIndex,
   zeroVector,
+  STYLE_BLOCKS,
+  STYLE_DIMENSIONS,
 } from '@lookline/catalog'
 import type { ColorFamily } from '@lookline/catalog'
 import { intentToVector } from '../intent'
@@ -80,13 +82,14 @@ export function fallbackIntentVector(
   if (intent.mode !== 'outfit') {
     for (const g of intent.categoryGroups) {
       const idx = categoryGroupIndex(g)
-      if (idx >= 52) v[idx] = 1
+      if (idx >= STYLE_BLOCKS.groups[0]) v[idx] = 1
     }
   }
 
-  if (base && base.length >= 52) {
+  if (base && base.length >= STYLE_DIMENSIONS) {
     const beta = eventCount === undefined ? 0.25 : Math.min(0.4, 0.1 + 0.02 * eventCount)
-    for (let i = 0; i < 52; i++) v[i] = clamp01((1 - beta) * (v[i] ?? 0) + beta * (base[i] ?? 0))
+    for (let i = 0; i < STYLE_BLOCKS.groups[0]; i++)
+      v[i] = clamp01((1 - beta) * (v[i] ?? 0) + beta * (base[i] ?? 0))
   }
   return v
 }

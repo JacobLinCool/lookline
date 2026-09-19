@@ -1,6 +1,6 @@
 /**
  * `suggestRemix` (Make It Mine): keep the source Look's aesthetics, palette and style vector;
- * retrieve, per source slot, products that fit the remixer (department, sizes, learned
+ * retrieve, per source slot, articles that fit the remixer (department, sizes, learned
  * preference, budget) with a cosine query over `product_vectors`; rank and explain them
  * (remix-rank.ts). The query mirrors ENGINE_SPEC §2.1 with the remix limits.
  */
@@ -11,14 +11,13 @@ import {
   cosineExpr,
   desc,
   eq,
-  gt,
   inArray,
-  lookProducts,
+  lookArticles,
   looks,
   lte,
   notInArray,
-  productVectors,
-  products,
+  articleVectors,
+  articles,
   purchases,
   users,
   type Database,
@@ -91,24 +90,23 @@ async function retrieveSlot(
   departments: Department[],
   group: string,
   priceMax: number | null,
-  excludeIds: number[],
+  excludeIds: string[],
 ): Promise<RemixProduct[]> {
   const cos = cosineExpr(vector)
   const run = async (cap: number | null): Promise<RemixProduct[]> => {
     const conditions = [
-      gt(products.stock, 0),
-      inArray(products.department, departments),
-      eq(products.categoryGroup, group),
+      inArray(articles.department, departments),
+      eq(articles.categoryGroup, group as CategoryGroup),
     ]
-    if (cap !== null) conditions.push(lte(products.price, cap))
-    if (excludeIds.length > 0) conditions.push(notInArray(products.id, excludeIds))
+    if (cap !== null) conditions.push(lte(articles.price, cap))
+    if (excludeIds.length > 0) conditions.push(notInArray(articles.id, excludeIds))
     const rows = await db
-      .select({ product: products, brandName: brands.name })
-      .from(products)
-      .innerJoin(brands, eq(brands.id, products.brandId))
-      .innerJoin(productVectors, eq(productVectors.productId, products.id))
+      .select({ product: articles, brandName: brands.name })
+      .from(articles)
+      .innerJoin(brands, eq(brands.id, articles.brandId))
+      .innerJoin(articleVectors, eq(articleVectors.articleId, articles.id))
       .where(and(...conditions))
-      .orderBy(desc(cos), asc(products.id))
+      .orderBy(desc(cos), asc(articles.id))
       .limit(PER_SLOT_LIMIT)
     return rows.map((r) => ({ ...r.product, brandName: r.brandName }))
   }
@@ -131,12 +129,12 @@ export async function suggestRemix(
 
   const [sourceRows, userRows, purchaseRows] = await Promise.all([
     db
-      .select({ product: products, brandName: brands.name, role: lookProducts.role })
-      .from(lookProducts)
-      .innerJoin(products, eq(lookProducts.productId, products.id))
-      .innerJoin(brands, eq(brands.id, products.brandId))
-      .where(eq(lookProducts.lookId, sourceLookId))
-      .orderBy(asc(lookProducts.position)),
+      .select({ product: articles, brandName: brands.name, role: lookArticles.role })
+      .from(lookArticles)
+      .innerJoin(articles, eq(lookArticles.articleId, articles.id))
+      .innerJoin(brands, eq(brands.id, articles.brandId))
+      .where(eq(lookArticles.lookId, sourceLookId))
+      .orderBy(asc(lookArticles.position)),
     db
       .select({
         department: users.department,

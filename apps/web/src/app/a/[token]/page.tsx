@@ -40,11 +40,17 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
 const LETTERS = ['A', 'B', 'C', 'D']
 
-function tally(bundle: AskBundle): Map<number, number> {
-  const counts = new Map<number, number>()
+const ERRORS: Record<string, string> = {
+  choice: 'Pick one option, then send.',
+  picks: 'Pick at least one piece, then send.',
+  name: 'Add your name so they know who answered.',
+}
+
+function tally(bundle: AskBundle): Map<string, number> {
+  const counts = new Map<string, number>()
   for (const { response } of bundle.responses) {
-    if (response.choiceProductId) {
-      counts.set(response.choiceProductId, (counts.get(response.choiceProductId) ?? 0) + 1)
+    if (response.choiceArticleId) {
+      counts.set(response.choiceArticleId, (counts.get(response.choiceArticleId) ?? 0) + 1)
     }
   }
   return counts
@@ -62,7 +68,7 @@ async function ThankYou({
   const { t, locale } = await getI18n()
   const copy = t.social.askCard
   const { ask, asker, options } = bundle
-  const chosen = options.find((p) => p.id === mine.response.choiceProductId)
+  const chosen = options.find((p) => p.id === mine.response.choiceArticleId)
   const counts = tally(bundle)
   const name = mine.responder?.displayName ?? mine.response.responderName ?? copy.you
   return (
@@ -253,7 +259,7 @@ export default async function AskCardPage({
                 <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
                   {search.value.items.map((product) => (
                     <li key={product.id}>
-                      <ProductOption product={product} name="productId" />
+                      <ProductOption product={product} name="articleId" />
                     </li>
                   ))}
                 </ul>
@@ -306,7 +312,7 @@ export default async function AskCardPage({
                 <li key={product.id}>
                   <ProductOption
                     product={product}
-                    name="choiceProductId"
+                    name="choiceArticleId"
                     kind="radio"
                     badge={LETTERS[i]}
                   />

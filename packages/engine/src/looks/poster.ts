@@ -108,14 +108,14 @@ interface Placed {
  * seeded drift and a few degrees of tilt so the pieces read as placed by hand, never scattered.
  */
 function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] {
-  const items = input.products.slice(0, MAX_SHAPES)
+  const items = input.articles.slice(0, MAX_SHAPES)
   const areaTop = 190
   const areaBottom = 780
   const areaLeft = 90
   const areaRight = POSTER_WIDTH - 90
   const placed: Placed[] = []
   const withShape = items
-    .map((p, i) => ({ p, i, shape: SHAPES[shapeFamilyFor(p.silhouetteId, p.categoryGroup)] }))
+    .map((p, i) => ({ p, i, shape: SHAPES[shapeFamilyFor(p.subcategory, p.categoryGroup)] }))
     .toSorted((a, b) => b.shape.weight - a.shape.weight || a.i - b.i)
   const n = withShape.length
   const cols = n <= 1 ? 1 : n <= 4 ? 2 : 3
@@ -132,7 +132,8 @@ function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] 
     const cx = areaLeft + cellW * (col + 0.5) + jitterX
     const cy = areaTop + cellH * (row + 0.5) + jitterY
     const fill = normalizeHex(p.colorHex) ?? ink
-    const secondary = p.secondaryColorHex ? normalizeHex(p.secondaryColorHex) : null
+    // The catalogue has no second colour; H&M files each colourway as its own article.
+    const secondary = null
     placed.push({
       d: shape.d,
       fill,
@@ -293,7 +294,7 @@ export function renderLookPosterSvg(input: LookPosterInput): string {
     `<rect x="${MARGIN}" y="${paletteBarY}" width="${fmt(barW)}" height="12" fill="none" stroke="${mixHex(ink, bg, 0.7)}" stroke-width="1"/>`,
   )
   parts.push(
-    `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.products.length} piece${input.products.length === 1 ? '' : 's'}`)}</text>`,
+    `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.articles.length} piece${input.articles.length === 1 ? '' : 's'}`)}</text>`,
   )
 
   parts.push('</svg>')
