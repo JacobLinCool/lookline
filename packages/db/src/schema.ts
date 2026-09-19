@@ -227,9 +227,12 @@ export const articles = sqliteTable(
       .notNull()
       .references(() => brands.id),
     productCode: text('product_code').notNull(),
+    /** H&M's own string, verbatim: `Tilly (1)`, `RICHIE HOOD`, `Henry polo.`. */
     name: text('prod_name').notNull(),
-    /** Free-text product copy; missing on 416 rows. */
+    /** Free-text product copy. Articles H&M left blank are not imported. */
     description: text('detail_desc').notNull().default(''),
+    /** The same name fit to print: no version marker, no shouting, no stray full stop. */
+    displayName: text('display_name').notNull().default(''),
     subcategory: text('product_type_name').notNull(),
     productGroup: text('product_group_name').notNull(),
     /** Fabric and construction (`Jersey Basic`, `Knitwear`, `Trousers Denim`). */

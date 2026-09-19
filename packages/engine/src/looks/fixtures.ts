@@ -49,6 +49,7 @@ export function makeProduct(spec: FixtureSpec): Article {
     slug: `p-${spec.id}`,
     brandId: 1,
     name: spec.name,
+    displayName: spec.name,
     description: `${spec.name} description`,
     department: spec.department ?? 'women',
     categoryGroup: spec.categoryGroup,

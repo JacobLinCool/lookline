@@ -7,7 +7,7 @@ import { getI18n } from '@/i18n/server'
 import { facetLabel, subcategoryLabel } from '@/i18n/taxonomy'
 import { addOutfitToBagAction } from '@/server/actions/bag'
 import { getDb } from '@/server/db'
-import { displayName } from '@/lib/product-name'
+import { displayName, articleName } from '@/lib/product-name'
 import { formatTwd } from '@/server/format'
 import { callEngine } from './engine'
 import { previewHref } from '@/components/looks/preview-url'
@@ -46,7 +46,7 @@ async function OutfitRail({
               product={{
                 id: item.product.id,
                 imagePath: item.product.imagePath,
-                name: displayName(item.product.name, item.brandName),
+                name: articleName(item.product, item.brandName),
                 price: item.product.price,
                 brandName: item.brandName,
               }}

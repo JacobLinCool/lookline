@@ -355,6 +355,7 @@ export function makeProduct(
     brandId: brand.id,
     productCode: String(i).padStart(7, '0'),
     name,
+    displayName: name,
     description,
     department,
     categoryGroup: group,

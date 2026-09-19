@@ -93,3 +93,30 @@ export function tierFor(price: number): 'budget' | 'mid' | 'premium' | 'luxury' 
   if (price < 2500) return 'premium'
   return 'luxury'
 }
+
+/**
+ * A product name fit to print. H&M's are merchandising strings: `Tilly (1)` is the second cut of
+ * a style, `RICHIE HOOD` is shouted, `Henry polo.` has a stray full stop. 17 417 of the 104 780
+ * carry at least one of those.
+ *
+ * What it does not touch is as important. A bracket holding a word is a print or a colour —
+ * `Fiona Ch Hipster(Poppy)4pk` keeps its Poppy — and a word of two letters or fewer inside an
+ * all-caps name is a code rather than a word, so `SWEATSHIRT OC` becomes `Sweatshirt OC` and not
+ * `Sweatshirt Oc`. Trailing codes like `LATE`, `TVP` and `TRS` are left alone entirely: some are
+ * internal and some are the garment (`TEE`, `HOOD`, `DRESS`), and telling them apart needs a
+ * table someone has to write by hand.
+ *
+ * `prod_name` keeps H&M's string verbatim; this is the derived one, beside it.
+ */
+export function displayNameFor(prodName: string): string {
+  let s = prodName.replace(/\s*\((\d+|[A-Za-z])\)\s*/g, ' ')
+  s = s.replace(/\s+/g, ' ').trim()
+  s = s.replace(/\.$/, '').trim()
+  if (s && s === s.toUpperCase() && /\p{L}/u.test(s)) {
+    s = s
+      .split(' ')
+      .map((w) => (w.length <= 2 || !/^\p{L}+$/u.test(w) ? w : w[0] + w.slice(1).toLowerCase()))
+      .join(' ')
+  }
+  return s || prodName
+}

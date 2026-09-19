@@ -28,6 +28,7 @@ import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
 import {
   categoryGroupFor,
   colorFamilyOf,
+  displayNameFor,
   garmentDetails,
   loadAffinity,
   loadArticles,
@@ -107,11 +108,17 @@ console.log(`read ${source.length} articles in ${secs(started)}s`)
 // says, which is what anyone counting rows expects.
 const rows: NewArticle[] = []
 let noPhoto = 0
+let noCopy = 0
 for (const a of source) {
   const categoryGroup = categoryGroupFor(a.outfitRole, a.indexGroupName, a.productType)
   if (categoryGroup === null) continue
   if (!haveImage.has(a.articleId)) {
     noPhoto += 1
+    continue
+  }
+  // H&M wrote no copy for 404 of them, and it is the only thing that says what the garment is.
+  if (!a.description || a.description.trim() === '') {
+    noCopy += 1
     continue
   }
   // Real transaction prices where the article ever sold; 995 of them never did.
@@ -126,6 +133,7 @@ for (const a of source) {
     brandId: HM_BRAND_ID,
     productCode: a.productCode,
     name: a.name,
+    displayName: displayNameFor(a.name),
     description: a.description ?? '',
     subcategory: a.productType,
     productGroup: a.productGroup,
@@ -186,7 +194,7 @@ const rowKeys = Object.keys(rows[0] ?? {}).length
 const maxParams = Math.floor(SQLITE_MAX_PARAMS / columns) * rowKeys
 const inserted = await insertAll(db, articlesTable, rows, { maxParams })
 console.log(
-  `inserted ${inserted} articles (${source.length - rows.length - noPhoto} non-apparel, ${noPhoto} unphotographed) in ${secs(started)}s`,
+  `inserted ${inserted} articles (${source.length - rows.length - noPhoto - noCopy} non-apparel, ${noPhoto} unphotographed, ${noCopy} with no copy) in ${secs(started)}s`,
 )
 
 // The vector channel inner-joins this table, so an article missing from it is invisible to
