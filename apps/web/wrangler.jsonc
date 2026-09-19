@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lookline",
+  "account_id": "b1c3d1b89f9131a84a0f1f6a973232f1",
   "main": "vinext/server/fetch-handler",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -8,16 +9,14 @@
   "observability": { "enabled": true },
   // Image generation runs after the response via `after()` (waitUntil) and needs CPU headroom.
   "limits": { "cpu_ms": 60000 },
-  // Create with `wrangler d1 create lookline` and paste the returned id below.
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "lookline",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "28602478-a8bc-49fc-a7f2-c295e2c40939",
       "migrations_dir": "../../packages/db/drizzle",
     },
   ],
-  // Create with `wrangler r2 bucket create lookline-media`.
   "r2_buckets": [{ "binding": "STORAGE", "bucket_name": "lookline-media" }],
   // Non-secret defaults. Secrets (SESSION_SECRET, GEMINI_API_KEY, OPENAI_API_KEY, TYPESAFE_API_KEY)
   // live in `.dev.vars` locally and in `wrangler secret put <NAME>` for production.
