@@ -60,7 +60,9 @@ export async function GET(
   const art = await cardArtFromSnapshot(db, edition.snapshot ?? [])
   const svg = renderLookPosterSvg({
     title: edition.title,
-    ownerName: copy ? `${copy.editionNumber}/${edition.editionSize}` : `限量 ${edition.editionSize} 份`,
+    ownerName: copy
+      ? `${copy.editionNumber}/${edition.editionSize}`
+      : `限量 ${edition.editionSize} 份`,
     stylePreset: 'studio',
     articles: art.articles,
     groups: art.groups.length > 0 ? art.groups : undefined,

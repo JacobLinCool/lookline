@@ -88,9 +88,7 @@ export default async function CollectionPage({
     .from(collectionInvites)
     .innerJoin(personas, eq(personas.id, collectionInvites.personaId))
     .innerJoin(users, eq(users.id, personas.ownerUserId))
-    .where(
-      and(eq(collectionInvites.collectionId, id), eq(collectionInvites.state, 'pending')),
-    )
+    .where(and(eq(collectionInvites.collectionId, id), eq(collectionInvites.state, 'pending')))
 
   let invitable: InvitablePersona[] = []
   if (isOwner) {

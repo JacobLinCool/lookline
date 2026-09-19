@@ -37,7 +37,6 @@ const MIN_MEMBERS = 2
 /** What the renderer lays out legibly. */
 const MAX_MEMBERS = 6
 
-
 /**
  * Personas with a transfer offer still open. A copy is bound to a persona the moment an edition is
  * issued, so minting one mid-handover would leave it ambiguous whose it is — the server says so
@@ -52,7 +51,10 @@ async function personasMidTransfer(
     .select({ personaId: personaTransfers.personaId })
     .from(personaTransfers)
     .where(
-      and(inArray(personaTransfers.personaId, [...personaIds]), eq(personaTransfers.state, 'pending')),
+      and(
+        inArray(personaTransfers.personaId, [...personaIds]),
+        eq(personaTransfers.state, 'pending'),
+      ),
     )
   return new Set(rows.map((r) => r.personaId))
 }
@@ -239,7 +241,6 @@ export async function settleEditionAction(formData: FormData): Promise<void> {
   redirect(`/editions/${editionId}`)
 }
 
-
 /**
  * Ask a friend's persona to take part. The invite carries no card: which one that persona brings
  * is its manager's decision, made when they accept. That is what stops a collection from quietly
@@ -342,7 +343,8 @@ export async function respondToInviteAction(formData: FormData): Promise<ActionR
   if (!card) return { ok: false, message: '請選一張這位 persona 的卡。' }
 
   const members = await membersOf(db, collectionId)
-  if (members.length >= MAX_MEMBERS) return { ok: false, message: `這個收藏已經滿 ${MAX_MEMBERS} 位。` }
+  if (members.length >= MAX_MEMBERS)
+    return { ok: false, message: `這個收藏已經滿 ${MAX_MEMBERS} 位。` }
 
   await addCollectionMember(db, { collectionId, personaId, cardId })
   await db

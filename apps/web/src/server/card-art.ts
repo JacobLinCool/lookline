@@ -51,7 +51,9 @@ export async function cardArtFromSnapshot(
   const articles: Worn[] = worn.map((w) => w.row)
   const palette = articles.map((a) => a.colorHex ?? '#171717').filter(Boolean)
 
-  const personaIds = [...new Set(worn.map((w) => w.entry.personaId).filter((p): p is string => !!p))]
+  const personaIds = [
+    ...new Set(worn.map((w) => w.entry.personaId).filter((p): p is string => !!p)),
+  ]
   if (personaIds.length === 0) return { articles, groups: [], palette }
 
   const names = new Map(
