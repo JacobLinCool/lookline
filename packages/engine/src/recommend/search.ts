@@ -38,7 +38,6 @@ import { RETRIEVAL_BLOCK_WEIGHTS, blockScale } from './vector'
 
 export const SEARCH_PAGE_SIZE = 24
 export const SEARCH_PAGE_MAX = 100
-export const FACET_SAMPLE = 5000
 export const FACET_TOP = 12
 /** Weight of the style cosine next to the (negated) bm25 rank in relevance order. */
 export const RELEVANCE_COSINE_WEIGHT = 2
@@ -331,14 +330,17 @@ export function buildSearchQuery(
     .limit(plan.pageSize)
     .offset((plan.page - 1) * plan.pageSize)
   const total = db.select({ n: count() }).from(products).where(where)
+  // Counted over the whole filtered set. An earlier `limit` here sampled whatever order the
+  // planner happened to scan in: under `category_group IN (…)` that is the category index, so the
+  // first rows were all one group and the others counted zero.
   const facets = sql`
-    with sample as (
+    with matched as (
       select ${products.categoryGroup} as category_group, ${products.colorFamily} as color_family, ${products.aesthetics} as aesthetics
-      from ${products} where ${where} limit ${FACET_SAMPLE}
+      from ${products} where ${where}
     )
-    select 'group' as dim, category_group as key, count(*) as n from sample group by 2
-    union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2
-    union all select 'aesthetic' as dim, a.value as key, count(*) as n from sample, json_each(sample.aesthetics) as a group by 2
+    select 'group' as dim, category_group as key, count(*) as n from matched group by 2
+    union all select 'color' as dim, color_family as key, count(*) as n from matched group by 2
+    union all select 'aesthetic' as dim, a.value as key, count(*) as n from matched, json_each(matched.aesthetics) as a group by 2
   `
   return { plan, page, total, facets }
 }
@@ -349,23 +351,13 @@ export interface FacetRow {
   n: number
 }
 
-/**
- * The facet query counts a `FACET_SAMPLE`-row sample of the filtered set, because a full
- * `GROUP BY` over the whole catalog costs ~15× more (0.62 s vs 0.04 s on the 94k-row seed) and
- * `/shop` pays that on every request. `total` scales the sample back up, so the counts stay in
- * the order of magnitude the visitor is shown next to it; at or below the sample size the factor
- * is 1 and the counts are exact. Without this an unfiltered `/shop` reported 1,130 tops out of
- * 94,071 products when it holds 21,279.
- */
 export function aggregateFacets(
   rows: readonly FacetRow[],
-  total: number,
 ): NonNullable<ProductSearchResult['facets']> {
-  const scale = total > FACET_SAMPLE ? total / FACET_SAMPLE : 1
   const pick = (dim: string) =>
     rows
       .filter((r) => r.dim === dim && r.key)
-      .map((r) => ({ key: r.key, count: Math.round(Number(r.n) * scale) }))
+      .map((r) => ({ key: r.key, count: Number(r.n) }))
       .toSorted((a, b) => b.count - a.count || a.key.localeCompare(b.key))
       .slice(0, FACET_TOP)
   return {
@@ -383,13 +375,12 @@ async function runSearch(
   const { plan, page, total, facets } = buildSearchQuery(db, query, { withText })
   const [rows, totalRows, facetRows] = await Promise.all([page, total, db.all(facets)])
   const items = rows.map((r) => ({ ...(r.product as Product), brandName: r.brandName }))
-  const matched = Number(totalRows[0]?.n ?? 0)
   return {
     items,
-    total: matched,
+    total: Number(totalRows[0]?.n ?? 0),
     page: plan.page,
     pageSize: plan.pageSize,
-    facets: aggregateFacets(rowsOf<FacetRow>(facetRows), matched),
+    facets: aggregateFacets(rowsOf<FacetRow>(facetRows)),
     plan,
   }
 }
