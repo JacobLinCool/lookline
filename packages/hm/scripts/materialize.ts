@@ -55,7 +55,7 @@ for (const { article, payload } of rows) {
   }
   const next = materializeVision(
     {
-      perceivedColorMaster: article.colorFamily,
+      perceivedColorMaster: article.colorMaster,
       categoryGroup: article.categoryGroup,
       section: article.section,
       seasons: article.seasons,
