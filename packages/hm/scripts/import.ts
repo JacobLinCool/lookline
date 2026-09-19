@@ -12,6 +12,7 @@
 import { fileURLToPath } from 'node:url'
 import {
   FTS_REBUILD_SQL,
+  articleVectorsInsertSql,
   type NewArticle,
   articles as articlesTable,
   getTableColumns,
@@ -116,6 +117,18 @@ const inserted = await insertAll(db, articlesTable, rows, { maxParams })
 console.log(
   `inserted ${inserted} articles (${source.length - rows.length} non-apparel skipped) in ${secs(started)}s`,
 )
+
+// The vector channel inner-joins this table, so an article missing from it is invisible to
+// every recommendation — even while the vectors themselves are all zero.
+const VECTOR_BATCH = 400
+for (let i = 0; i < rows.length; i += VECTOR_BATCH) {
+  await db.run(
+    articleVectorsInsertSql(
+      rows.slice(i, i + VECTOR_BATCH).map((r) => ({ id: r.id, styleVector: r.styleVector })),
+    ),
+  )
+}
+console.log(`wrote ${rows.length} style vectors in ${secs(started)}s`)
 
 await db.run(sql.raw(FTS_REBUILD_SQL))
 await db.run(sql.raw('analyze'))
