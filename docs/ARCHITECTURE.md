@@ -195,4 +195,6 @@ route handler; Looks without a generated image get their composition poster rend
 clean clone: `pnpm install`, `pnpm db:migrate`, `pnpm seed` (100k products + simulation into
 `data/lookline.sqlite`), `pnpm d1:migrate:local && pnpm d1:local` (copy into the dev D1),
 `pnpm dev`. Production: `wrangler d1 create lookline`, `wrangler r2 bucket create lookline-media`,
-`pnpm d1:migrate:remote && pnpm d1:remote`, `pnpm deploy`.
+`pnpm d1:migrate:remote && pnpm d1:remote`, `pnpm deploy`. On the shared account both
+resources already exist and a collaborator needs a scoped API token instead —
+see [onboarding](ONBOARDING.md).

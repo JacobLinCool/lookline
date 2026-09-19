@@ -20,6 +20,10 @@ function arg(name: string): string | undefined {
 }
 
 const STATEMENT_BYTES = 80_000
+// D1 parses a multi-row INSERT as one expression tree and answers SQLITE_NOMEM when it gets too
+// large, which bytes alone do not predict: 80 KB of `product_vectors` (65 columns) is ~22k values
+// against ~1.5k for a narrow table. Cap the values per statement too.
+const STATEMENT_VALUES = 5_000
 const PAGE = 2_000
 
 function literal(value: unknown): string {
@@ -78,7 +82,8 @@ try {
       for (const row of page.rows) {
         last = Number(row['__rowid'])
         const tuple = `(${columns.map((c) => literal(row[c])).join(',')})`
-        if (bytes + tuple.length > STATEMENT_BYTES) flush()
+        const values = (buffer.length + 1) * columns.length
+        if (bytes + tuple.length > STATEMENT_BYTES || values > STATEMENT_VALUES) flush()
         buffer.push(tuple)
         bytes += tuple.length + 2
         rows++
