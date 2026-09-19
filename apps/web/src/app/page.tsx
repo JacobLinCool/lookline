@@ -98,6 +98,7 @@ async function loadTrending(): Promise<HomeProduct[]> {
     return await getDb()
       .db.select({
         id: articles.id,
+        imagePath: articles.imagePath,
         name: articles.name,
         price: articles.price,
         colorName: articles.colorName,

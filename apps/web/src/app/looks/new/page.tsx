@@ -161,6 +161,7 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
                   <span className="relative block rounded-md ring-2 ring-transparent ring-offset-2 ring-offset-paper transition-shadow group-has-checked:ring-ink">
                     <ProductImage
                       articleId={product.id}
+                      imagePath={product.imagePath}
                       alt={displayName(product.name, brandName)}
                     />
                     <span className="absolute top-2 left-2 hidden group-has-checked:inline-flex">

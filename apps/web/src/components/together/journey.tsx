@@ -32,6 +32,7 @@ import { formatTwd } from '@/server/format'
 
 export interface JourneyProduct {
   id: string
+  imagePath: string | null
   name: string
   brandName: string
   price: number
@@ -102,7 +103,13 @@ function ProductChooser({
               selected && 'bg-mist ring-2 ring-ink ring-offset-2 ring-offset-paper',
             )}
           >
-            <ProductImage articleId={product.id} alt={product.name} priority className="mb-3" />
+            <ProductImage
+              articleId={product.id}
+              imagePath={product.imagePath}
+              alt={product.name}
+              priority
+              className="mb-3"
+            />
             <p className="text-[12px] text-muted">{product.brandName}</p>
             <p className="mt-1 text-[14px] leading-snug font-medium">{product.name}</p>
             <div className="mt-2 flex items-center justify-between gap-2">
@@ -147,7 +154,12 @@ function PreviewFrame({
           />
         ) : (
           <div className="flex items-center justify-center bg-mist p-8">
-            <ProductImage articleId={product.id} alt={product.name} className="w-full max-w-72" />
+            <ProductImage
+              articleId={product.id}
+              imagePath={product.imagePath}
+              alt={product.name}
+              className="w-full max-w-72"
+            />
           </div>
         )}
         <figcaption className="flex flex-col justify-between border-l border-line bg-card p-5">
@@ -201,7 +213,12 @@ function LookCardArtifact({
               className="size-full object-cover"
             />
           ) : (
-            <ProductImage articleId={product.id} alt={product.name} className="size-full" />
+            <ProductImage
+              articleId={product.id}
+              imagePath={product.imagePath}
+              alt={product.name}
+              className="size-full"
+            />
           )}
           <span className="absolute top-3 left-3 rounded-xs bg-card px-2 py-1 text-[12px] font-medium text-ink">
             {copy.owned}
@@ -272,7 +289,12 @@ function CustomCardIssuing({ product }: { product: JourneyProduct }) {
   return (
     <div className="grid gap-7 md:grid-cols-[12rem_minmax(0,1fr)]">
       <div className="rounded-md bg-mist p-3">
-        <ProductImage articleId={product.id} alt={copy.baseAlt(product.name)} priority />
+        <ProductImage
+          articleId={product.id}
+          imagePath={product.imagePath}
+          alt={copy.baseAlt(product.name)}
+          priority
+        />
         <p className="mt-3 text-[12px] text-muted">{copy.confirmedBase}</p>
       </div>
       <div className="flex flex-col justify-center">
@@ -389,7 +411,12 @@ function ReadyStage({
     const sizes = [copy.oneSize]
     return (
       <div className="grid gap-8 lg:grid-cols-[10rem_minmax(0,1fr)]">
-        <ProductImage articleId={product.id} alt={product.name} priority />
+        <ProductImage
+          articleId={product.id}
+          imagePath={product.imagePath}
+          alt={product.name}
+          priority
+        />
         <div className="flex flex-col gap-5">
           <div>
             <p className="text-[12px] text-muted">{product.brandName}</p>
@@ -495,7 +522,12 @@ function CustomStage({
   if (step === 1) {
     return (
       <div className="grid gap-7 md:grid-cols-[12rem_minmax(0,1fr)]">
-        <ProductImage articleId={product.id} alt={product.name} priority />
+        <ProductImage
+          articleId={product.id}
+          imagePath={product.imagePath}
+          alt={product.name}
+          priority
+        />
         <div className="space-y-5">
           <div>
             <Tag tone="outline">{copy.basePattern}</Tag>
@@ -606,7 +638,12 @@ function BorrowStage({
   if (step === 0) {
     return (
       <div className="grid gap-7 md:grid-cols-[13rem_minmax(0,1fr)]">
-        <ProductImage articleId={product.id} alt={product.name} priority />
+        <ProductImage
+          articleId={product.id}
+          imagePath={product.imagePath}
+          alt={product.name}
+          priority
+        />
         <div className="flex flex-col justify-center gap-5">
           <div className="flex items-center gap-3">
             <Avatar seed={look?.ownerAvatarSeed ?? 4107} name={friendName} size="md" />
@@ -659,7 +696,7 @@ function BorrowStage({
     const sizes = [tour.ready.oneSize]
     return (
       <div className="grid gap-8 md:grid-cols-[10rem_minmax(0,1fr)]">
-        <ProductImage articleId={product.id} alt={product.name} />
+        <ProductImage articleId={product.id} imagePath={product.imagePath} alt={product.name} />
         <div className="space-y-5">
           <div>
             <p className="text-[12px] text-muted">{copy.yourOrder}</p>
