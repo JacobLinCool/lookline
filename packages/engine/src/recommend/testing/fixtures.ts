@@ -410,7 +410,9 @@ export function makeProduct(
     onlineRatio: rng.float(0, 1),
     popularity: Math.round(rng.float(0, 1) ** 2 * 1000) / 1000,
     trendScore: Math.round(rng.float(0, 1) * 1000) / 1000,
-    imagePath: null,
+    // 104 780 of the 105 220 real articles have one, and search excludes the rest — a fixture
+    // without it would be testing the empty case every time.
+    imagePath: `images/${String(i).padStart(10, '0').slice(0, 3)}/${String(i).padStart(10, '0')}.webp`,
     createdAt: CREATED_AT,
   }
   return { ...row, brandName: brand.name }
