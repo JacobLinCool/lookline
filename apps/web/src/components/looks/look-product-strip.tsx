@@ -53,7 +53,8 @@ export async function LookProductStrip({
                       aria-label={t.looks.strip.sizeFor(product.name)}
                       defaultValue={product.sizes[0]}
                       options={product.sizes.map((s) => ({ value: s, label: s }))}
-                      className="h-9 w-20 shrink-0 text-[13px]"
+                      size="sm"
+                      className="w-20 shrink-0"
                     />
                   ) : null}
                   <Button

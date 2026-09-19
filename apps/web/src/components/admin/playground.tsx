@@ -196,7 +196,8 @@ function OntologyRail({ ontology }: { ontology: Ontology }) {
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t.admin.ontology.searchPlaceholder}
             aria-label={t.admin.ontology.searchLabel}
-            className="h-9 pl-9 text-[12px]"
+            size="sm"
+            className="pl-9 text-[12px]"
           />
         </div>
       </div>
