@@ -21,6 +21,8 @@ export {
   FTS_REBUILD_SQL,
   FTS_MAX_TOKENS,
   ftsQuery,
+  ftsConceptsQuery,
+  ftsAnd,
   ftsMatch,
   ftsHitsSubquery,
   ftsRank,
@@ -37,6 +39,7 @@ export {
   rowsOf,
   insertAll,
 } from './sql'
+export type { SQL } from 'drizzle-orm'
 export {
   getTableColumns,
   sql,

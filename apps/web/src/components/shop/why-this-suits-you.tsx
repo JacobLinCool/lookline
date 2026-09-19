@@ -25,6 +25,16 @@ const factor = (
   evidence,
 })
 
+/** The article's aesthetics that are also among the profile's top tags, in the profile's order. */
+function sharedAesthetics(
+  product: Article,
+  profile: Awaited<ReturnType<typeof getPreferenceProfile>>,
+): string[] {
+  return profile.topAesthetics
+    .map((a) => a.slug)
+    .filter((slug) => product.aesthetics.includes(slug))
+}
+
 /**
  * Builds a three-factor explanation from the learned profile and the product. Contributions are
  * weight × value, so the score shown by FactorBreakdown is exactly their sum.
@@ -36,9 +46,19 @@ function buildExplanation(
   t: Messages,
   locale: Locale,
 ): Explanation {
-  // The catalogue tags no aesthetics, so preference overlap rests on colour alone until a
-  // semantic pass gives the articles style tags to compare against.
-  const aestheticOverlap = 0
+  // The vision pass tags each article with up to three aesthetics; the overlap is the share of
+  // the profile's top-aesthetic weight the article carries. An untagged article overlaps nothing,
+  // which is the honest reading of an empty column, not a claim that it clashes.
+  const shared = sharedAesthetics(product, profile)
+  const weight = profile.topAesthetics.reduce((sum, a) => sum + Math.max(0, a.weight), 0)
+  const aestheticOverlap =
+    weight > 0
+      ? shared.reduce(
+          (sum, slug) =>
+            sum + Math.max(0, profile.topAesthetics.find((a) => a.slug === slug)?.weight ?? 0),
+          0,
+        ) / weight
+      : 0
   const colourMatch = profile.topColorFamilies.find((c) => c.family === product.colorFamily)
   const attributeValue = clamp01(0.7 * aestheticOverlap + 0.3 * (colourMatch ? 1 : 0))
   const trendValue = clamp01(product.trendScore)
@@ -56,6 +76,9 @@ function buildExplanation(
       0.25,
       attributeValue,
       evidence.join([
+        shared.length
+          ? evidence.shares(t.shop.list(shared.map((slug) => aestheticLabel(locale, slug))))
+          : evidence.sharesNothing,
         colourMatch
           ? t.shop.fit.colourIsYours(colorFamilyLabel(locale, product.colorFamily))
           : evidence.colourOutside,
@@ -116,8 +139,7 @@ export async function WhyThisSuitsYou({
   if (!similarity.ok) return null
 
   const explanation = buildExplanation(product, profile.value, similarity.value, t, locale)
-  // The catalogue tags no aesthetics, so there is nothing to share with the profile's top tags.
-  const shared: string[] = []
+  const shared = sharedAesthetics(product, profile.value)
   const colourMatch = profile.value.topColorFamilies.some((c) => c.family === product.colorFamily)
   const line = [
     explanation.summary,

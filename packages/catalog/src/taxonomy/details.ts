@@ -70,3 +70,16 @@ export const PRINT_SUBJECTS: readonly VocabEntry[] = vocab([
 ])
 
 export const PRINT_SUBJECT_SLUGS: readonly string[] = PRINT_SUBJECTS.map((p) => p.slug)
+
+/**
+ * The construction facts `@lookline/hm` reads off `detail_desc` with a regex and writes into the
+ * same `attributes` JSON, so a shopper can ask for them the way they ask for a design detail.
+ * `hood` and `zip` are deliberately absent: the `neckline` and `closure` columns already answer
+ * for a hood and a zip, and a second key would only narrow the same request twice.
+ */
+// prettier-ignore
+export const GARMENT_DETAILS: readonly VocabEntry[] = vocab([
+  ['pockets', 'Pockets', '口袋', 'pocket, with pockets, 有口袋, 附口袋'],
+  ['lined', 'Lined', '有內裡', 'lining, with lining, fully lined, 內裡, 加內裡'],
+  ['elasticWaist', 'Elastic Waist', '鬆緊腰', 'elasticated waist, elastic waistband, 鬆緊帶, 鬆緊腰頭'],
+])

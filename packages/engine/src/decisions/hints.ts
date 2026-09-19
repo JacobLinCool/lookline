@@ -30,6 +30,12 @@ export interface HintBase {
   colorFamilies?: readonly string[]
   excludedColorFamilies?: readonly string[]
   aesthetics?: readonly string[]
+  materials?: readonly string[]
+  patterns?: readonly string[]
+  fits?: readonly string[]
+  lengths?: readonly string[]
+  necklines?: readonly string[]
+  sleeves?: readonly string[]
   priceMin?: number
   priceMax?: number
   sort?: string
@@ -183,7 +189,7 @@ export const FILTER_HINTS: readonly FilterHint[] = [
       when: 'is for a dress or a skirt (洋裝, 裙子)',
       unless: 'is not for a dress or skirt',
     },
-    applies: always,
+    applies: (base) => !base.lengths?.length,
   },
   {
     id: 'sleeve',
@@ -194,7 +200,7 @@ export const FILTER_HINTS: readonly FilterHint[] = [
       when: 'is for a top, shirt or dress (上衣, 襯衫, 洋裝)',
       unless: 'is not for a top, shirt or dress',
     },
-    applies: always,
+    applies: (base) => !base.sleeves?.length,
   },
   {
     id: 'trouser-cut',
@@ -229,7 +235,7 @@ export const FILTER_HINTS: readonly FilterHint[] = [
     topic: 'the neckline',
     examples: '"crew neck", "V領", "collared", "露肩"',
     context: { when: 'is for a top or a dress (上衣, 洋裝)', unless: 'is not for a top or dress' },
-    applies: always,
+    applies: (base) => !base.necklines?.length,
   },
   {
     id: 'mood',
@@ -243,7 +249,7 @@ export const FILTER_HINTS: readonly FilterHint[] = [
     priority: 85,
     topic: 'the fit or silhouette',
     examples: '"slim", "oversized", "寬鬆", "合身"',
-    applies: always,
+    applies: (base) => !base.fits?.length,
   },
   {
     id: 'season',
@@ -264,14 +270,14 @@ export const FILTER_HINTS: readonly FilterHint[] = [
     priority: 105,
     topic: 'a material or fabric',
     examples: '"linen", "wool", "棉質", "皮革", "denim"',
-    applies: always,
+    applies: (base) => !base.materials?.length,
   },
   {
     id: 'pattern',
     priority: 108,
     topic: 'whether it should be plain or patterned',
     examples: '"solid", "stripes", "格紋", "碎花", "素色"',
-    applies: always,
+    applies: (base) => !base.patterns?.length,
   },
   {
     id: 'order',

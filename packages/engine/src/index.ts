@@ -14,6 +14,9 @@ export * from './social'
 export * from './looks'
 export * from './analytics'
 export * from './decisions/filters'
+export * from './decisions/candidates'
+export * from './decisions/keywords'
+export { facetIncludes, facetExcludes, facetColumn } from './decisions/facets'
 export {
   FILTER_HINTS,
   MIN_HINT_CONFIDENCE,

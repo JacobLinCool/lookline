@@ -1,3 +1,4 @@
+import type { ProductSearch } from '@lookline/engine'
 import { afterEach, expect, it, vi } from 'vitest'
 import { applyLiveFilters, LatestDecisionQueue } from './live-filters'
 import { advanceTranscript, emptyTranscript } from './transcript'
@@ -57,6 +58,20 @@ it('reconciles against a base snapshot and removes category-specific constraints
     colorFamilies: ['blue'],
     priceMax: 3000,
     brandId: 2,
+    q: undefined,
+    page: 1,
+  })
+})
+it('carries the keywords already found for the sentence and drops them otherwise', () => {
+  const base: ProductSearch = { categoryGroups: ['tops'], keywords: ['whale'], sleeves: ['long'] }
+  expect(applyLiveFilters(base, { categoryGroups: ['tops'] })).toEqual({
+    categoryGroups: ['tops'],
+    q: undefined,
+    page: 1,
+  })
+  expect(applyLiveFilters(base, { categoryGroups: ['tops'] }, ['whale|orca'])).toEqual({
+    categoryGroups: ['tops'],
+    keywords: ['whale|orca'],
     q: undefined,
     page: 1,
   })

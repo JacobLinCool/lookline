@@ -77,7 +77,7 @@ Exports (see `src/index.ts`): `getLlm`, `parseIntent`, `parseIntentOffline`, `in
 `getPreferenceProfile`, `evaluatePreferenceLoop`, `recordInteraction`, `recordPurchase`,
 `createLook`, `suggestRemix`, `createAsk`, `answerAsk`, `deriveLookStyle`, `STYLE_PRESETS`,
 `renderLookPosterSvg`, `buildLookImagePrompt`, `runAnalytics`, `getTrendDashboard`, `getLineage`,
-`getUserNetwork`.
+`getUserNetwork`, `countFacet`, `resolveFilters`, `extractSearchKeywords`, `extractFacetCandidates`.
 
 Guarantees:
 
@@ -136,12 +136,18 @@ Guarantees:
   surface, typed against the English catalog. Catalog nouns are not copied there: they come from
   `@lookline/catalog` through `apps/web/src/i18n/taxonomy.ts`. See [two languages](specs/I18N_SPEC.md).
 - `POST /api/filters/resolve` accepts `{ utterance, base, revision }` and returns validated
-  `{ filters, unresolved, hints, revision, model, contractVersion, latencyMs }` from TypeSafe Jev;
-  `hints` lists what the sentence leaves unsaid (`occasion`, `budget`, …) for Shop to ask about.
+  `{ filters, unresolved, hints, freeText, revision, model, contractVersion, latencyMs }` from
+  TypeSafe Jev (`filters-v3`); `hints` lists what the sentence leaves unsaid (`occasion`,
+  `budget`, …) for Shop to ask about, and `freeText` says the sentence names something the
+  attributes cannot carry. `POST /api/filters/keywords` `{ utterance, revision }` then returns
+  `{ keywords, revision, provider, model, contractVersion, latencyMs }` — English full-text
+  concepts from the fast generative model, or 503 when no provider answered.
   `POST /api/voice/token` returns a short-lived, single-use, model-constrained Gemini token.
-  Both require authenticated same-origin requests. See [live filters](specs/REALTIME_FILTER_SPEC.md).
-  Shop uses repeated `categoryGroups`, `colorFamilies`, `aesthetics` and corresponding
-  `excluded…` URL fields; SQL applies OR within a facet, AND across facets and explicit exclusions.
+  All three require authenticated same-origin requests. See [live filters](specs/REALTIME_FILTER_SPEC.md).
+  Shop's URL carries every `SEARCH_FACETS` pair of `@lookline/catalog` as repeated fields
+  (`categoryGroups`/`excludedCategoryGroups` … `details`/`excludedDetails`) plus repeated
+  `keywords`; SQL applies OR within a facet, AND across facets and explicit exclusions.
+  `GET /api/articles/facets?facet=<id>&…` counts one construction facet over the same search.
 - `createLookDraft` persists a product composition before scheduling image rendering with `after`.
   `GET /api/looks/[id]/generate` reports image state; owner-only `POST` with `{ stylePreset }`
   claims a generation and returns 202; owner-only `DELETE` with `{ generationId }` cancels that

@@ -952,12 +952,18 @@ price within [0.5, 2]×), retrieval 60, rank with λ .25, limit 12.
 `searchProducts(db, q)`: full-text (`to_tsvector('simple', name||' '||description) @@ websearch_to_tsquery`)
 OR trigram `name % q`, plus the lexicon parse of `q` mapped to filters (`parseIntentOffline` with
 `mode` forced browse); filters from `ProductSearch`; sorts: relevance = `ts_rank + 0.3·cos(intentVector)`,
-`popular` = popularity desc, `trending` = trend_score desc, `new` = created_at desc; facets by
-`count(*) GROUP BY` on the filtered set — every matching row, never a `LIMIT`ed slice of it: an
-unordered limit follows whichever index the planner picks, and under `category_group IN (…)` that
-is the category index, so the slice is all one group and the rest count zero. 231 ms over the
-94k-row catalog and 63 ms once filtered, against the 400 ms the latency spec gives a filter. Top
-12 each; page size default 24.
+`popular` = popularity desc, `trending` = trend_score desc, `new` = created_at desc; facets over
+the whole filtered set — every matching row, never a `LIMIT`ed slice of it: an unordered limit
+follows whichever index the planner picks, and under `category_group IN (…)` that is the category
+index, so the slice is all one group and the rest count zero. The search counts the category
+groups and colour families with one filtered aggregate per value (one pass) and the aesthetics by
+grouping the stored JSON text; on remote D1 that is 315 660 rows read and under 400 ms for the
+unfiltered 105k catalogue, 39 686 rows and ~60 ms for a category (the earlier `json_each` shape
+read 916 218 rows in ~600 ms). The construction facets of `SEARCH_FACETS` (`countFacet`) are
+counted one facet at a time when asked for, at the cost of the total count. Top 12 each; page
+size default 24. Filters are the `SEARCH_FACETS` registry of `@lookline/catalog`: OR within a
+facet, AND across, exclusions by SQL with unknown values kept; `keywords` (`whale|orca`) are AND-ed
+FTS concepts that skip the lexicon.
 
 ### 2.5 Explanation rendering (`src/recommend/explain.ts`)
 
