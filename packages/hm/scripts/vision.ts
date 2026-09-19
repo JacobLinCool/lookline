@@ -107,7 +107,12 @@ if (pending.length === 0) {
   process.exit(0)
 }
 
-const client = new OpenAI({ apiKey, maxRetries: 0 })
+// The account's own headers allow 30 000 requests a minute and this uses a few hundred, but the
+// service still only turns over about 9-10 of these a second, so anything past that waits. With
+// the default timeout the waiting ones fail and get retried, which throws away work already
+// queued and is why 128 workers measured slower than 48. Let them wait instead; `MAX_ATTEMPTS`
+// still catches a request that is genuinely stuck.
+const client = new OpenAI({ apiKey, maxRetries: 0, timeout: 180_000 })
 const schema = visionJsonSchema()
 const started = performance.now()
 let done = 0
@@ -116,6 +121,8 @@ let noImage = 0
 let inTokens = 0
 /** Retries by HTTP status, so a run that slows down can say whether it is being throttled. */
 const retries = new Map<number, number>()
+/** Distinct reasons behind the status-less retries, which a bare count cannot explain. */
+const netReasons = new Map<string, number>()
 let cachedTokens = 0
 let outTokens = 0
 const queue = [...pending]
@@ -183,6 +190,14 @@ async function read(article: Pending): Promise<NewArticleVision | null> {
       const status = (error as { status?: number }).status
       const retryable = status === undefined || status === 429 || status >= 500
       retries.set(status ?? 0, (retries.get(status ?? 0) ?? 0) + 1)
+      // A count alone cannot tell a rate limit from a socket that never opened, and those want
+      // opposite responses — back off, or stop asking for so many connections at once.
+      if (status === undefined) {
+        const why = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+        const cause = (error as { cause?: { code?: string; message?: string } }).cause
+        const key = cause?.code ? `${why} (cause ${cause.code})` : why
+        netReasons.set(key, (netReasons.get(key) ?? 0) + 1)
+      }
       if (!retryable || attempt === MAX_ATTEMPTS) {
         const message = error instanceof Error ? error.message : String(error)
         console.warn(`[vision] ${article.id} gave up after ${attempt}: ${message}`)
@@ -246,5 +261,8 @@ console.log(
 console.log(
   `tokens: ${inTokens} fresh + ${cachedTokens} cached input, ${outTokens} output — $${cost().toFixed(2)}`,
 )
+for (const [why, n] of [...netReasons].toSorted((a, b) => b[1] - a[1]).slice(0, 5)) {
+  console.log(`  network retry ×${n}: ${why}`)
+}
 console.log(`next: pnpm --filter @lookline/hm materialize`)
 await handle.close()
