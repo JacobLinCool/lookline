@@ -9,6 +9,7 @@ export const me = {
   photo: {
     title: 'Reference photo',
     currentAlt: 'Your saved reference photo',
+    nextRender: 'Your current saved photo will guide the next render.',
     empty: 'No saved photo',
     hint: 'Private. Used only when you choose to generate a Look or outfit preview on yourself.',
     add: 'Add photo',

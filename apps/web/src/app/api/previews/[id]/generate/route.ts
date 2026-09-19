@@ -12,7 +12,8 @@ const privateHeaders = { 'Cache-Control': 'private, no-store' }
 async function access(ctx: { params: Promise<{ id: string }> }) {
   const id = sanitizeId((await ctx.params).id)
   const user = await getSessionUser()
-  const state = id ? await readPreviewGeneration(id) : { preview: null, expired: false }
+  const state =
+    id && user ? await readPreviewGeneration(id, user.id) : { preview: null, expired: false }
   if (state.expired)
     return {
       error: Response.json(
@@ -61,10 +62,13 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       ? body.stylePreset
       : undefined
   try {
-    return Response.json(serialize(await queuePreviewImage(result.preview!.id, stylePreset)), {
-      status: 202,
-      headers: privateHeaders,
-    })
+    return Response.json(
+      serialize(await queuePreviewImage(result.preview!.id, result.preview!.ownerId, stylePreset)),
+      {
+        status: 202,
+        headers: privateHeaders,
+      },
+    )
   } catch (error) {
     return Response.json(
       { error: error instanceof Error ? error.message : 'The preview could not start.' },
@@ -87,6 +91,12 @@ export async function DELETE(request: Request, ctx: { params: Promise<{ id: stri
       { error: 'Generation ID required.' },
       { status: 400, headers: privateHeaders },
     )
-  const preview = await cancelPreviewImage(result.preview!.id, body.generationId)
-  return Response.json(serialize(preview!), { headers: privateHeaders })
+  const preview = await cancelPreviewImage(
+    result.preview!.id,
+    result.preview!.ownerId,
+    body.generationId,
+  )
+  if (!preview)
+    return Response.json({ error: 'Preview not found.' }, { status: 404, headers: privateHeaders })
+  return Response.json(serialize(preview), { headers: privateHeaders })
 }

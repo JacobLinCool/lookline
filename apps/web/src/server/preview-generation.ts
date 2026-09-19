@@ -5,6 +5,7 @@ import {
   asc,
   brands,
   eq,
+  gt,
   inArray,
   isNull,
   lt,
@@ -23,6 +24,10 @@ const IMAGE_EXT: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
+}
+
+export function isPreviewPhotoType(mimeType: string): boolean {
+  return Object.hasOwn(IMAGE_EXT, mimeType)
 }
 
 export const PREVIEW_TTL_MS = 24 * 60 * 60 * 1_000
@@ -77,9 +82,11 @@ export async function purgeExpiredPreviews(now = new Date()): Promise<number> {
 
 export async function readPreviewGeneration(
   id: string,
+  ownerId: string,
 ): Promise<{ preview: Preview | null; expired: boolean }> {
   const { db } = getDb()
-  let [preview] = await db.select().from(previews).where(eq(previews.id, id)).limit(1)
+  const owned = and(eq(previews.id, id), eq(previews.ownerId, ownerId))
+  let [preview] = await db.select().from(previews).where(owned).limit(1)
   if (!preview) return { preview: null, expired: false }
   if (preview.expiresAt.getTime() <= Date.now()) {
     await deletePreview(preview.id)
@@ -107,13 +114,13 @@ export async function readPreviewGeneration(
         ),
       )
       .returning()
-    preview = expired ?? (await db.select().from(previews).where(eq(previews.id, id)).limit(1))[0]!
+    preview = expired ?? (await db.select().from(previews).where(owned).limit(1))[0]!
   }
   return { preview: preview ?? null, expired: false }
 }
 
-export async function getPreviewGeneration(id: string): Promise<Preview | null> {
-  return (await readPreviewGeneration(id)).preview
+export async function getPreviewGeneration(id: string, ownerId: string): Promise<Preview | null> {
+  return (await readPreviewGeneration(id, ownerId)).preview
 }
 
 async function loadComposition(preview: Preview) {
@@ -185,9 +192,20 @@ async function finishPreview(preview: Preview) {
         imageGenerationId: null,
         imageError: null,
       })
-      .where(current)
+      .where(
+        and(
+          current,
+          gt(previews.expiresAt, new Date()),
+          gt(previews.imageStartedAt, new Date(Date.now() - GENERATION_DEADLINE_MS)),
+        ),
+      )
       .returning({ id: previews.id })
-    if (!saved) await removeArtifact(key)
+    if (saved) {
+      await removeArtifact(preview.imagePath)
+    } else {
+      await removeArtifact(key)
+      await readPreviewGeneration(preview.id, preview.ownerId)
+    }
   } catch (error) {
     if (key) await removeArtifact(key)
     await db
@@ -201,12 +219,18 @@ async function finishPreview(preview: Preview) {
   }
 }
 
-export async function queuePreviewImage(id: string, stylePreset?: string): Promise<Preview> {
-  const preview = await getPreviewGeneration(id)
+export async function queuePreviewImage(
+  id: string,
+  ownerId: string,
+  stylePreset?: string,
+): Promise<Preview> {
+  const preview = await getPreviewGeneration(id, ownerId)
   if (!preview) throw new Error('Preview not found.')
   if (preview.imageStatus === 'pending') return preview
   if (!getLlm().imageModel) throw new Error('Image rendering is unavailable.')
-  const preset = resolveStylePreset(stylePreset ?? preview.stylePreset)
+  const preset = resolveStylePreset(
+    preview.sourceLookId ? preview.stylePreset : (stylePreset ?? preview.stylePreset),
+  )
   const [claimed] = await getDb()
     .db.update(previews)
     .set({
@@ -216,15 +240,27 @@ export async function queuePreviewImage(id: string, stylePreset?: string): Promi
       imageStartedAt: new Date(),
       imageError: null,
     })
-    .where(and(eq(previews.id, id), isNull(previews.imageGenerationId)))
+    .where(
+      and(
+        eq(previews.id, id),
+        eq(previews.ownerId, ownerId),
+        gt(previews.expiresAt, new Date()),
+        isNull(previews.imageGenerationId),
+      ),
+    )
     .returning()
-  if (!claimed) return (await getPreviewGeneration(id))!
+  if (!claimed) {
+    const current = await getPreviewGeneration(id, ownerId)
+    if (!current) throw new Error('Preview not found.')
+    return current
+  }
   after(() => finishPreview(claimed))
   return claimed
 }
 
 export async function cancelPreviewImage(
   id: string,
+  ownerId: string,
   generationId: string,
 ): Promise<Preview | null> {
   await getDb()
@@ -234,8 +270,14 @@ export async function cancelPreviewImage(
       imageGenerationId: null,
       imageError: 'Rendering cancelled. Retry while this preview is available.',
     })
-    .where(and(eq(previews.id, id), eq(previews.imageGenerationId, generationId)))
-  return getPreviewGeneration(id)
+    .where(
+      and(
+        eq(previews.id, id),
+        eq(previews.ownerId, ownerId),
+        eq(previews.imageGenerationId, generationId),
+      ),
+    )
+  return getPreviewGeneration(id, ownerId)
 }
 
 export async function createPreviewDraft(input: {
@@ -289,7 +331,7 @@ export async function createPreviewDraft(input: {
     await removeArtifact(referencePath)
     throw error
   }
-  const preview = (await getPreviewGeneration(id))!
+  const preview = (await getPreviewGeneration(id, input.ownerId))!
   after(() => finishPreview(preview))
   after(() => purgeExpiredPreviews())
   return preview

@@ -28,6 +28,7 @@ export const previews = {
     defaultTitle: (title: string) => `Preview of ${title}`,
   },
   detail: {
+    imageUnavailable: 'The image is unavailable. Retry while this preview is available.',
     temporary: 'Private · temporary preview',
     explanation:
       'This image is for deciding before checkout. It is not an owned Look and will not appear in your wardrobe.',
@@ -52,7 +53,7 @@ export const previews = {
   errors: {
     pickPiece: 'Choose at least one piece.',
     unknownProducts: 'One or more pieces are no longer available.',
-    photoType: 'Use an image file for your reference photo.',
+    photoType: 'Use a PNG, JPEG, or WebP reference photo.',
     photoSize: 'Keep the reference photo under 15 MB.',
     photoRequired: 'Choose a reference photo or use your saved photo.',
     notCreated:

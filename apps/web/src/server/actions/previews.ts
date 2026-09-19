@@ -14,7 +14,7 @@ import {
   sanitizeId,
   type ReferencePhoto,
 } from '@/server/looks'
-import { createPreviewDraft } from '@/server/preview-generation'
+import { createPreviewDraft, isPreviewPhotoType } from '@/server/preview-generation'
 import { loadPreviewSourceLook } from '@/server/preview-source'
 
 const MAX_PRODUCTS = 8
@@ -40,7 +40,7 @@ async function readUploadedPhoto(
   { photo: ReferencePhoto; error: null } | { photo: null; error: 'type' | 'size' | null }
 > {
   if (!(value instanceof File) || value.size === 0) return { photo: null, error: null }
-  if (!value.type.startsWith('image/')) return { photo: null, error: 'type' }
+  if (!isPreviewPhotoType(value.type)) return { photo: null, error: 'type' }
   if (value.size > MAX_PHOTO_BYTES) return { photo: null, error: 'size' }
   return {
     photo: { mimeType: value.type, data: Buffer.from(await value.arrayBuffer()) },
@@ -88,6 +88,8 @@ export async function createPreviewAction(formData: FormData): Promise<void> {
     referencePhoto = await loadStoredPhoto(user.photoPath)
   }
   if (!referencePhoto) returnWithError(back, t.previews.errors.photoRequired)
+  if (!isPreviewPhotoType(referencePhoto.mimeType))
+    returnWithError(back, t.previews.errors.photoType)
 
   let previewId: string | null = null
   try {

@@ -215,14 +215,12 @@ export default async function LookPage({
               <div className="mt-1 flex items-center gap-3 rounded-sm border border-line bg-card p-2.5">
                 <img
                   src="/api/me/photo"
-                  alt="Saved reference photo"
+                  alt={t.me.photo.currentAlt}
                   className="h-14 w-11 shrink-0 rounded-xs object-cover"
                 />
                 <div className="min-w-0">
-                  <p className="text-[12px] font-medium">Reference photo</p>
-                  <p className="text-[12px] leading-snug text-muted">
-                    Your current saved photo will guide the next render.
-                  </p>
+                  <p className="text-[12px] font-medium">{t.me.photo.title}</p>
+                  <p className="text-[12px] leading-snug text-muted">{t.me.photo.nextRender}</p>
                 </div>
               </div>
             ) : null}

@@ -12,9 +12,8 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const [{ id }, user] = await Promise.all([ctx.params, getSessionUser()])
-  const preview = await getPreviewGeneration(id)
-  if (!user || !preview || preview.ownerId !== user.id)
-    return new Response('Not found', { status: 404 })
+  const preview = user ? await getPreviewGeneration(id, user.id) : null
+  if (!preview) return new Response('Not found', { status: 404 })
 
   if (preview.imagePath && isSafeKey(preview.imagePath)) {
     const object = await getStorage()

@@ -26,6 +26,7 @@ export function EditionCanvas({
   stylePreset,
   presets,
   generationEndpoint,
+  unavailableMessage,
 }: {
   initial: EditionState
   title: string
@@ -33,12 +34,14 @@ export function EditionCanvas({
   stylePreset: string
   presets: { value: string; label: string }[]
   generationEndpoint?: string
+  unavailableMessage?: string
 }) {
   const { t } = useI18n()
   const [state, setState] = useState(initial)
   const [preset, setPreset] = useState(stylePreset)
   const [requesting, setRequesting] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
+  const [unavailable, setUnavailable] = useState(false)
   const [displayedUrl, setDisplayedUrl] = useState(initial.imageUrl)
   const trace = useRef<InteractionTrace | null>(null)
   const displayed = useRef(initial.imageUrl)
@@ -67,6 +70,16 @@ export function EditionCanvas({
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(4_000)]),
           cache: 'no-store',
         })
+        if (controller.signal.aborted || revision !== pollRevision.current) return
+        if (response.status === 404 || response.status === 410) {
+          setUnavailable(true)
+          setProblem(
+            response.status === 410 ? t.previews.expired.title : t.looks.canvas.checkFailed,
+          )
+          setState((current) => ({ ...current, status: 'failed', generationId: null }))
+          trace.current?.mark('failed')
+          return
+        }
         if (!response.ok) throw new Error(t.looks.canvas.checkFailed)
         const next = (await response.json()) as EditionState
         if (controller.signal.aborted || revision !== pollRevision.current) return
@@ -193,7 +206,9 @@ export function EditionCanvas({
             : ''}
       </p>
       {problem || state.error ? (
-        <Notice tone="warning">{problem ?? t.looks.canvas.imageUnavailable}</Notice>
+        <Notice tone="warning">
+          {problem ?? unavailableMessage ?? t.looks.canvas.imageUnavailable}
+        </Notice>
       ) : null}
       {isOwner ? (
         <div className="flex items-center gap-2">
@@ -203,13 +218,13 @@ export function EditionCanvas({
             onChange={(event) => setPreset(event.target.value)}
             options={presets}
             className="h-9 flex-1 text-[13px]"
-            disabled={rendering}
+            disabled={rendering || unavailable || presets.length === 1}
           />
           <Button
             variant="secondary"
             size="sm"
             onClick={() => void render()}
-            disabled={rendering}
+            disabled={rendering || unavailable}
             aria-busy={rendering}
           >
             {rendering

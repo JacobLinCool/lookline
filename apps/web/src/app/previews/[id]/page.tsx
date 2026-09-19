@@ -22,7 +22,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
   ])
   const id = sanitizeId(rawId)
   if (!id || !user) notFound()
-  const state = await readPreviewGeneration(id)
+  const state = await readPreviewGeneration(id, user.id)
   if (state.expired) {
     return (
       <Container className="pb-20 pt-10">
@@ -56,8 +56,11 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
             title={preview.title}
             isOwner
             stylePreset={preview.stylePreset}
-            presets={presetOptions(locale)}
+            presets={presetOptions(locale).filter(
+              (preset) => !preview.sourceLookId || preset.value === preview.stylePreset,
+            )}
             generationEndpoint={`/api/previews/${preview.id}/generate`}
+            unavailableMessage={t.previews.detail.imageUnavailable}
             initial={{
               id: preview.id,
               status: preview.imageStatus,

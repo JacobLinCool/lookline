@@ -29,6 +29,7 @@ export const previews: PreviewMessages = {
     defaultTitle: (title: string) => `預覽「${title}」`,
   },
   detail: {
+    imageUnavailable: '圖片暫時無法顯示，請在預覽到期前重試。',
     temporary: '私人 · 限時預覽',
     explanation: '這張圖片只供你在結帳前參考，不是你擁有的 Look，也不會出現在衣櫥中。',
     expires: (value: string) => `可查看至 ${value}`,
@@ -50,7 +51,7 @@ export const previews: PreviewMessages = {
   errors: {
     pickPiece: '請至少選擇一件單品。',
     unknownProducts: '一件或多件單品已無法使用。',
-    photoType: '參考照片請使用圖片檔案。',
+    photoType: '參考照片請使用 PNG、JPEG 或 WebP 圖片。',
     photoSize: '參考照片請小於 15 MB。',
     photoRequired: '請選擇參考照片，或使用你已儲存的照片。',
     notCreated: '無法建立預覽。請確認圖片生成功能設定後再試一次。',

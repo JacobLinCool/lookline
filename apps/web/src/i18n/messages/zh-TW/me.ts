@@ -8,6 +8,7 @@ export const me: MeMessages = {
   sectionUnavailable: '這個區塊沒有載入。',
 
   photo: {
+    nextRender: '下次生成圖片時會使用你目前儲存的照片。',
     title: '參考照片',
     currentAlt: '你已儲存的參考照片',
     empty: '尚未儲存照片',

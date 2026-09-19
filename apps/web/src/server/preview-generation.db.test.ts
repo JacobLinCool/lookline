@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   brands,
   count,
@@ -19,7 +19,13 @@ import { setLlm, type LlmImageResult } from '@lookline/engine'
 const scheduled = vi.hoisted(() => [] as (() => Promise<unknown>)[])
 vi.mock('next/server', () => ({ after: (work: () => Promise<unknown>) => scheduled.push(work) }))
 
-import { cancelPreviewImage, createPreviewDraft, getPreviewGeneration } from './preview-generation'
+import {
+  cancelPreviewImage,
+  createPreviewDraft,
+  getPreviewGeneration,
+  queuePreviewImage,
+  readPreviewGeneration,
+} from './preview-generation'
 import { setDb } from './db'
 import { loadPreviewSourceLook } from './preview-source'
 import { memoryStorage, setStorage } from './storage'
@@ -88,11 +94,131 @@ describe('temporary preview generation', () => {
     })
   })
 
+  afterEach(() => vi.restoreAllMocks())
+
   afterAll(async () => {
     setLlm(null)
     setDb(null)
     setStorage(null)
     await handle.close()
+  })
+
+  const draft = () =>
+    createPreviewDraft({
+      ownerId,
+      productIds: [productId],
+      stylePreset: 'studio-minimal',
+      title: 'Private preview',
+      referencePhoto: { mimeType: 'image/png', data: Buffer.from('owner-photo') },
+    })
+
+  it.each(['timed out', 'expired'])('does not mutate another owner’s %s preview', async (state) => {
+    const preview = await draft()
+    await handle.db
+      .update(previews)
+      .set(
+        state === 'expired'
+          ? { expiresAt: new Date(Date.now() - 1_000) }
+          : { imageStartedAt: new Date(Date.now() - 31_000) },
+      )
+      .where(eq(previews.id, preview.id))
+
+    expect(await readPreviewGeneration(preview.id, 'preview_viewer')).toEqual({
+      preview: null,
+      expired: false,
+    })
+    await expect(queuePreviewImage(preview.id, 'preview_viewer')).rejects.toThrow(
+      'Preview not found.',
+    )
+    expect(
+      await cancelPreviewImage(preview.id, 'preview_viewer', preview.imageGenerationId!),
+    ).toBeNull()
+    const [untouched] = await handle.db.select().from(previews).where(eq(previews.id, preview.id))
+    expect(untouched?.imageStatus).toBe('pending')
+    expect(untouched?.imageGenerationId).toBe(preview.imageGenerationId)
+    expect(storage.keys()).toEqual([preview.referencePath])
+
+    const owned = await readPreviewGeneration(preview.id, ownerId)
+    if (state === 'expired') {
+      expect(owned).toEqual({ preview: null, expired: true })
+      expect(storage.keys()).toEqual([])
+    } else {
+      expect(owned.preview?.imageStatus).toBe('failed')
+    }
+  })
+
+  it('removes the previous image only after its replacement is ready', async () => {
+    const preview = await draft()
+    await scheduled.shift()!()
+    const ready = await getPreviewGeneration(preview.id, ownerId)
+    expect(ready?.imagePath).toBeTruthy()
+    scheduled.length = 0
+    await queuePreviewImage(preview.id, ownerId, 'paris-editorial')
+    expect(storage.keys()).toContain(ready!.imagePath)
+    await scheduled.shift()!()
+    const replaced = await getPreviewGeneration(preview.id, ownerId)
+    expect(replaced?.imageStatus).toBe('ready')
+    expect(replaced?.imagePath).not.toBe(ready!.imagePath)
+    expect(storage.keys().toSorted()).toEqual(
+      [preview.referencePath, replaced!.imagePath].toSorted(),
+    )
+  })
+
+  it('keeps the stored style when retrying a borrowed composition', async () => {
+    const sourceId = 'lk_preview_style'
+    await handle.db.insert(looks).values({
+      id: sourceId,
+      ownerId,
+      title: 'Source',
+      stylePreset: 'studio-minimal',
+      visibility: 'public',
+      shareToken: 'preview-style',
+      imageStatus: 'ready',
+    })
+    const preview = await draft()
+    await handle.db
+      .update(previews)
+      .set({ sourceLookId: sourceId })
+      .where(eq(previews.id, preview.id))
+    await scheduled.shift()!()
+    const retried = await queuePreviewImage(preview.id, ownerId, 'paris-editorial')
+    expect(retried.stylePreset).toBe('studio-minimal')
+    await handle.db.delete(looks).where(eq(looks.id, sourceId))
+  })
+
+  it.each(['deadline', 'expiry'])('discards a result arriving after its %s', async (boundary) => {
+    let resolveImage!: (value: LlmImageResult | null) => void
+    setLlm({
+      provider: 'offline',
+      textModel: null,
+      imageModel: 'test-image',
+      generateJson: async () => null,
+      generateImage: () =>
+        new Promise((resolve) => {
+          resolveImage = resolve
+        }),
+    })
+    const preview = await draft()
+    const work = scheduled.shift()!()
+    await vi.waitFor(() => expect(resolveImage).toBeTypeOf('function'))
+    await handle.db
+      .update(previews)
+      .set(
+        boundary === 'expiry'
+          ? { expiresAt: new Date(Date.now() - 1_000) }
+          : { imageStartedAt: new Date(Date.now() - 31_000) },
+      )
+      .where(eq(previews.id, preview.id))
+    resolveImage({
+      data: Buffer.from('late-image'),
+      mimeType: 'image/png',
+      provider: 'openai',
+      model: 'test-image',
+    })
+    await work
+    const result = await getPreviewGeneration(preview.id, ownerId)
+    expect(result?.imageStatus ?? null).toBe(boundary === 'expiry' ? null : 'failed')
+    expect(storage.keys()).toEqual(boundary === 'expiry' ? [] : [preview.referencePath])
   })
 
   it('renders unpurchased products without creating a Look or social event', async () => {
@@ -109,7 +235,7 @@ describe('temporary preview generation', () => {
     expect(scheduled).toHaveLength(2)
     await scheduled.shift()!()
 
-    const ready = await getPreviewGeneration(preview.id)
+    const ready = await getPreviewGeneration(preview.id, ownerId)
     expect(ready?.imageStatus).toBe('ready')
     expect(ready?.imagePath).toMatch(new RegExp(`^previews/${preview.id}-.*\\.png$`))
     expect((await handle.db.select({ n: count() }).from(looks))[0]?.n).toBe(0)
@@ -120,7 +246,7 @@ describe('temporary preview generation', () => {
       .update(previews)
       .set({ expiresAt: new Date(Date.now() - 1) })
       .where(eq(previews.id, preview.id))
-    expect(await getPreviewGeneration(preview.id)).toBeNull()
+    expect(await getPreviewGeneration(preview.id, ownerId)).toBeNull()
     expect(storage.keys()).toEqual([])
   })
 
@@ -145,7 +271,7 @@ describe('temporary preview generation', () => {
     })
     const work = scheduled.shift()!()
     await vi.waitFor(() => expect(resolveImage).toBeTypeOf('function'))
-    await cancelPreviewImage(preview.id, preview.imageGenerationId!)
+    await cancelPreviewImage(preview.id, ownerId, preview.imageGenerationId!)
     resolveImage({
       data: Buffer.from('stale'),
       mimeType: 'image/png',
@@ -154,7 +280,7 @@ describe('temporary preview generation', () => {
     })
     await work
 
-    const cancelled = await getPreviewGeneration(preview.id)
+    const cancelled = await getPreviewGeneration(preview.id, ownerId)
     expect(cancelled?.imageStatus).toBe('failed')
     expect(cancelled?.imagePath).toBeNull()
     expect(storage.keys()).toEqual([`preview-references/${preview.id}.png`])
@@ -166,7 +292,7 @@ describe('temporary preview generation', () => {
         id: 'lk_preview_public',
         ownerId,
         title: 'Public source',
-        stylePreset: 'editorial-warm',
+        stylePreset: 'paris-editorial',
         visibility: 'public',
         shareToken: 'preview-public',
         imageStatus: 'ready',
@@ -202,7 +328,7 @@ describe('temporary preview generation', () => {
     const ownerSource = await loadPreviewSourceLook('lk_preview_private', ownerId)
 
     expect(publicSource?.productIds).toEqual([productId])
-    expect(publicSource?.look.stylePreset).toBe('editorial-warm')
+    expect(publicSource?.look.stylePreset).toBe('paris-editorial')
     expect(linkSource?.productIds).toEqual([productId])
     expect(privateSource).toBeNull()
     expect(ownerSource?.productIds).toEqual([productId])
