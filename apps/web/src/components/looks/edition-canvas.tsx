@@ -217,7 +217,8 @@ export function EditionCanvas({
             value={preset}
             onChange={(event) => setPreset(event.target.value)}
             options={presets}
-            className="h-9 flex-1 text-[13px]"
+            size="sm"
+            className="flex-1"
             disabled={rendering || unavailable || presets.length === 1}
           />
           <Button
