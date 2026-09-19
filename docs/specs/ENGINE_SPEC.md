@@ -354,16 +354,53 @@ layer for reference resolution), `brands?: Array<{ id: number; name: string; slu
 parseIntent(utterance, ctx):
   t0 = performance.now()
   lex = parseIntentOffline(utterance, ctx)                         // always, sync, pure
-  if ctx.offline || getLlm().provider === 'offline' → return { intent: lex, vector: intentToVector(lex, ctx.user?.preferenceVector), provider:'offline', latencyMs }
+  if ctx.offline → return lexicon result (provider 'offline')
+  search = await compileSearchIntent(utterance, 1.8 s)             // §1.3.1, skipped without TYPESAFE_API_KEY
+        catch → warn and leave null; a failed decision never becomes a silent LLM call
+  route = routeIntent(lex, search)                                 // §1.3.1
+  decided = finalize(mergeJev(lex, search, ctx), ctx)              // when the decision answered
+  if !route.escalate → return { intent: decided, provider: 'jev', model: search.model, route, latencyMs }
+  if ctx.deferRefinement → return decided result plus `refine()`   // the caller runs it out of band
   llm = await parseIntentLlm(utterance, ctx, getLlm())             // shared 3.5 s deadline, medium reasoning / thinking
-  if !llm → return lexicon result (provider 'offline')
-  merged = mergeLlm(lex, llm, ctx)                                 // §1.6
-  merged = finalize(merged, ctx)                                   // priors, clarifications, confidence
-  return { intent: merged, vector: intentToVector(merged, ctx.user?.preferenceVector), provider, latencyMs }
+  if !llm → return the decided result
+  merged = finalize(mergeJev(mergeLlm(lex, llm, ctx), search, ctx), ctx)   // §1.6 then §1.3.1, one finalize
+  return { intent: merged, vector: …, provider, model, route, latencyMs }
 ```
+
+The decision stage runs in front of the generative parser because nearly every description is a
+set of catalog attributes, and Jev decides those from the catalog's own vocabulary in a fraction of
+the text budget: measured over the §1.10 scenarios, in-band `parseIntent` is 283–954 ms (median 349) against a generative parse that does not fit in 3.5 s at all.
 
 Follow-ups: if `ctx.previousIntent` exists and `isFollowUp(utterance, previousIntent)` (§1.8), the
 new utterance is parsed alone and merged with `mergeIntent(previous, next)` before `finalize`.
+
+### 1.3.1 Escalation routing (`src/intent/jev-parser.ts`)
+
+`routeIntent(lex, search)` decides whether the closed-option decision is enough. It escalates when:
+
+| Reason            | Source                                             | Scenario             |
+| ----------------- | -------------------------------------------------- | -------------------- |
+| `decision-failed` | no decision (unconfigured or the service errored)  | —                    |
+| `reference`       | `lex.referenceHandle` / `referenceLookId` (§1.4.8) | F2, F14              |
+| `recipient`       | `lex.recipient.kind === 'other'` (§1.4.4)          | F3, F8, F12          |
+| `type-unclear`    | `search.typeRelevance < 0.5`                       | F1, F6, F9, F10, F16 |
+| `no-catalog-term` | `search.candidateCount === 0`                      | F2, F3, F14, F16     |
+
+The first two are deterministic because neither a reference nor a recipient is a product attribute;
+no amount of catalog vocabulary produces them. The last two come from the decision itself.
+
+Two signals were measured and rejected. Uncovered spans do not discriminate (every sentence leaves
+some): the service answers questions without reporting which words produced each answer, so
+everything it resolves semantically looks uncovered. `search.unresolved` fires more often on the
+sentences the decision handles completely.
+
+`mergeJev` folds a decision into the lexical intent: positive predicates above
+`MIN_PREDICATE_PROBABILITY` fill categories, colours, materials, patterns, fits, occasion, season
+and department; negatives become `mustAvoid` tokens for the slots §2 understands and are dropped
+otherwise rather than degrading to a text match; `typePrior` fills the garment type only when the
+sentence named none; ordinal constraints enter as `signals.axisHints` so `finalize` keeps deriving
+`axisTargets`; and the budget stays with the deterministic parser, which is the only stage allowed
+to produce numbers.
 
 ### 1.4 Offline lexicon parser (`src/intent/lexicon-parser.ts`)
 
@@ -830,7 +867,7 @@ Secondary channels (unioned, deduplicated by id, same prefilters applied in-proc
 
 | channel | source                                                                                                                                                                     | limit | evidence                                 |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------- |
-| social  | `look_products` of Looks created in the last 30 d by users `n` with `trust(user,n) ≥ 0.3` (§5.1), plus `purchases` and `SAVE` interactions by those users in the last 30 d | 50    | `{ userId, displayName, kind: 'look'     | 'purchase' | 'save' | 'advise', lookId?, strength, at }` |
+| social  | `look_products` of Looks created in the last 30 d by users `n` with `trust(user,n) ≥ 0.1` (§5.1), plus `purchases` and `SAVE` interactions by those users in the last 30 d | 50    | `{ userId, displayName, kind: 'look'     | 'purchase' | 'save' | 'advise', lookId?, strength, at }` |
 | trend   | products whose `aesthetics && top-5 aesthetic keys` and `category_group` with today's `trend_signals` momentum ≥ 60, `ORDER BY popularity DESC`                            | 30    | `{ dimension, key, momentum, emerging }` |
 
 Guests (no `userId`) skip the social channel. `trend` channel skipped when `trend_signals` has no
@@ -916,7 +953,10 @@ price within [0.5, 2]×), retrieval 60, rank with λ .25, limit 12.
 OR trigram `name % q`, plus the lexicon parse of `q` mapped to filters (`parseIntentOffline` with
 `mode` forced browse); filters from `ProductSearch`; sorts: relevance = `ts_rank + 0.3·cos(intentVector)`,
 `popular` = popularity desc, `trending` = trend_score desc, `new` = created_at desc; facets by
-`count(*) GROUP BY` on the filtered set (top 12 each); page size default 24.
+`count(*) GROUP BY` on a `FACET_SAMPLE`-row sample of the filtered set, scaled by `total / sample`
+so the counts match the `total` shown beside them (exact at or below the sample size; a full
+GROUP BY over the catalog costs ~15× more and `/shop` pays it per request), top 12 each; page size
+default 24.
 
 ### 2.5 Explanation rendering (`src/recommend/explain.ts`)
 

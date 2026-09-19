@@ -12,45 +12,53 @@ import { MomentumTable } from '@/components/trends/momentum-table'
 import { Propagation } from '@/components/trends/propagation'
 import { Seeds } from '@/components/trends/seeds'
 import { StatGrid, StatTile } from '@/components/trends/stat-tile'
+import type { Messages } from '@/i18n/messages'
+import { getI18n } from '@/i18n/server'
+import { aestheticLabel } from '@/i18n/taxonomy'
 import { getDb } from '@/server/db'
 import { formatCompact, formatTwd } from '@/server/format'
 
-export const metadata: Metadata = { title: 'Trends' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.trends.title }
+}
 
 const WINDOW_DAYS = 60
 
 /** The headline figures a merchandiser reads first; only defining hints survive. */
-function Headline({ headline }: { headline: TrendDashboard['headline'] }) {
+function Headline({ headline, t }: { headline: TrendDashboard['headline']; t: Messages }) {
+  const h = t.trends.headline
   return (
     <StatGrid>
-      <StatTile label="Looks created" value={formatCompact(headline.looks)} />
-      <StatTile label="Remixes" value={formatCompact(headline.remixes)} />
-      <StatTile label="Asks" value={formatCompact(headline.asks)} />
-      <StatTile label="Together editions" value={formatCompact(headline.togethers)} />
-      <StatTile label="Shares" value={formatCompact(headline.shares)} />
+      <StatTile label={h.looks} value={formatCompact(headline.looks)} />
+      <StatTile label={h.remixes} value={formatCompact(headline.remixes)} />
+      <StatTile label={h.asks} value={formatCompact(headline.asks)} />
+      <StatTile label={h.togethers} value={formatCompact(headline.togethers)} />
+      <StatTile label={h.shares} value={formatCompact(headline.shares)} />
       <StatTile
-        label="Purchases from Looks"
+        label={h.purchasesFromLooks}
         value={formatCompact(headline.purchasesFromLooks)}
-        hint={`of ${formatCompact(headline.purchases)} purchases (${pct(
-          headline.purchases > 0 ? headline.purchasesFromLooks / headline.purchases : 0,
-        )})`}
+        hint={h.purchasesFromLooksHint(
+          formatCompact(headline.purchases),
+          pct(headline.purchases > 0 ? headline.purchasesFromLooks / headline.purchases : 0),
+        )}
         accent
       />
       <StatTile
-        label="GMV from Looks"
+        label={h.gmvFromLooks}
         value={formatTwd(headline.gmvFromLooks)}
-        hint="attributed to a Look"
+        hint={h.gmvFromLooksHint}
       />
-      <StatTile label="Active people" value={formatCompact(headline.activePeople)} />
+      <StatTile label={h.activePeople} value={formatCompact(headline.activePeople)} />
       <StatTile
-        label="Cross-cluster remixes"
+        label={h.crossClusterRemixes}
         value={pct(headline.crossClusterShare)}
-        hint="of remixes crossed a taste cluster"
+        hint={h.crossClusterRemixesHint}
       />
       <StatTile
-        label="Average lineage depth"
+        label={h.lineageDepth}
         value={num(headline.avgLineageDepth, 1)}
-        hint="root to deepest Look"
+        hint={h.lineageDepthHint}
       />
     </StatGrid>
   )
@@ -58,9 +66,10 @@ function Headline({ headline }: { headline: TrendDashboard['headline'] }) {
 
 export default async function TrendsPage() {
   const { db } = getDb()
-  const dashboard = await callEngine('getTrendDashboard', () =>
-    getTrendDashboard(db, { days: WINDOW_DAYS }),
-  )
+  const [{ t, locale }, dashboard] = await Promise.all([
+    getI18n(),
+    callEngine('getTrendDashboard', () => getTrendDashboard(db, { days: WINDOW_DAYS })),
+  ])
   const d = dashboard.ok ? dashboard.value : null
   const topAesthetics = d
     ? d.aesthetics.toSorted((a, b) => b.momentum - a.momentum).slice(0, 6)
@@ -69,42 +78,46 @@ export default async function TrendsPage() {
   return (
     <Container size="wide" className="pb-24">
       <PageHeader
-        title="Trends"
+        title={t.trends.title}
         description={
           d
-            ? `${longDate(d.window.from)} – ${longDate(d.window.to)} · updated ${longDate(d.generatedAt)}`
-            : `Last ${WINDOW_DAYS} days`
+            ? t.trends.window.range(
+                longDate(d.window.from, locale),
+                longDate(d.window.to, locale),
+                longDate(d.generatedAt, locale),
+              )
+            : t.trends.window.lastDays(WINDOW_DAYS)
         }
         actions={
           <>
             <Tag tone="outline" size="md">
-              For Makalot
+              {t.trends.forMakalot}
             </Tag>
             <Button href="/trends/manufacturing.csv" variant="secondary" size="sm">
-              Export CSV
+              {t.trends.exportCsv}
             </Button>
           </>
         }
       />
 
       {!dashboard.ok ? (
-        <Notice tone="warning" title="Trend data is unavailable right now." className="mb-8">
-          Start the database and reload.
+        <Notice tone="warning" title={t.trends.unavailable.title} className="mb-8">
+          {t.trends.unavailable.body}
         </Notice>
       ) : null}
 
       {d && (
         <>
           <div className="pb-4">
-            <Headline headline={d.headline} />
+            <Headline headline={d.headline} t={t} />
           </div>
 
-          <Section title="Aesthetic momentum">
+          <Section title={t.trends.sections.momentum}>
             <div className="flex flex-col gap-8">
               <MomentumChart
                 series={topAesthetics.map((s) => ({
                   key: s.key,
-                  label: s.label,
+                  label: aestheticLabel(locale, s.key),
                   momentum: s.momentum,
                   emerging: s.emerging,
                   points: s.series,
@@ -114,44 +127,47 @@ export default async function TrendsPage() {
             </div>
           </Section>
 
-          <Section title="Emerging now">
+          <Section title={t.trends.sections.emerging}>
             <EmergingCards rows={d.emerging} />
           </Section>
 
-          <Section title="Momentum by dimension">
+          <Section title={t.trends.sections.byDimension}>
             <div className="grid gap-x-8 gap-y-8 lg:grid-cols-3">
               <div className="flex min-w-0 flex-col gap-2">
-                <h3 className="text-[14px]">Categories</h3>
+                <h3 className="text-[14px]">{t.trends.sections.categories}</h3>
                 <MomentumTable rows={d.categories} compact limit={12} />
               </div>
               <div className="flex min-w-0 flex-col gap-2">
-                <h3 className="text-[14px]">Colours</h3>
+                <h3 className="text-[14px]">{t.trends.sections.colours}</h3>
                 <MomentumTable rows={d.colors} compact limit={12} />
               </div>
               <div className="flex min-w-0 flex-col gap-2">
-                <h3 className="text-[14px]">Silhouettes</h3>
+                <h3 className="text-[14px]">{t.trends.sections.silhouettes}</h3>
                 <MomentumTable rows={d.silhouettes} compact limit={12} />
               </div>
             </div>
           </Section>
 
-          <Section title="Aesthetic × category">
+          <Section title={t.trends.sections.heat}>
             <HeatTable rows={d.aestheticCategory} />
           </Section>
 
-          <Section title="Propagation" description="The Looks that travelled furthest.">
+          <Section
+            title={t.trends.sections.propagation}
+            description={t.trends.sections.propagationNote}
+          >
             <Propagation lineages={d.topLineages} />
           </Section>
 
-          <Section title="People whose Looks travel">
+          <Section title={t.trends.sections.seeds}>
             <Seeds influencers={d.influencers} />
           </Section>
 
-          <Section title="Taste clusters">
+          <Section title={t.trends.sections.clusters}>
             <Clusters clusters={d.clusters} />
           </Section>
 
-          <Section title="What to develop next · 開款 / 備料">
+          <Section title={t.trends.sections.manufacturing}>
             <ManufacturingTable rows={d.manufacturing} />
           </Section>
         </>

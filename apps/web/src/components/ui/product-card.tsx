@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Article } from '@lookline/db'
 import { cn } from '@/lib/cn'
 import { displayName } from '@/lib/product-name'
+import { ColorName } from './color-name'
 import { Price } from './price'
 import { ProductImage } from './product-image'
 import { Tag } from './chip'
@@ -67,7 +68,9 @@ export function ProductCard({
         <div className="flex items-baseline justify-between gap-3">
           <Price amount={product.price} size="sm" />
           {product.colorName ? (
-            <span className="truncate text-[12px] text-muted">{product.colorName}</span>
+            <span className="truncate text-[12px] text-muted">
+              <ColorName value={product.colorName} />
+            </span>
           ) : null}
         </div>
         {reason ? <p className="mt-0.5 text-[12px] leading-snug text-muted">{reason}</p> : null}

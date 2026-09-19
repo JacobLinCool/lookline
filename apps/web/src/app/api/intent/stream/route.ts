@@ -1,5 +1,6 @@
 import { getLlm } from '@lookline/engine'
 import { z } from 'zod'
+import { getMessages } from '@/i18n/server'
 import { getSessionUser } from '@/server/auth'
 import { MAX_UTTERANCE, recommendFor, understand } from '@/server/intent'
 import type { IntentStreamEvent } from '@/lib/intent-stream'
@@ -11,9 +12,9 @@ const schema = z.object({
 })
 
 export async function POST(request: Request) {
+  const { errors } = (await getMessages()).ui
   const parsed = schema.safeParse(await request.json().catch(() => null))
-  if (!parsed.success)
-    return Response.json({ error: 'Enter a sentence of up to 500 characters.' }, { status: 400 })
+  if (!parsed.success) return Response.json({ error: errors.sentenceTooLong }, { status: 400 })
   const controller = new AbortController()
   const signal = AbortSignal.any([request.signal, controller.signal])
   const encoder = new TextEncoder()
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
         if (!signal.aborted)
           emit({
             type: 'error',
-            message: 'Recommendations could not be loaded. Please try again.',
+            message: errors.recommendationsUnavailable,
           })
       } finally {
         if (!signal.aborted) {

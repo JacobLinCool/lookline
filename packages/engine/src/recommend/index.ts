@@ -6,8 +6,11 @@
 import { STYLE_BLOCKS, axisIndex, toStyleVector } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
 import { brands, eq, lookArticles, looks, articles, users } from '@lookline/db'
-import type { Database, Department, Article } from '@lookline/db'
-import type { Outfit, RankedItem, RecommendRequest, RecommendResponse } from '../types'
+import type { Article, Database, Department } from '@lookline/db'
+import type { FactorName, Outfit, RankedItem, RecommendRequest, RecommendResponse } from '../types'
+import { contextVector } from '../preference/bandit'
+import type { LinUCB } from '../preference/bandit'
+import { loadBanditState } from '../preference/state'
 import { templateForOccasion } from './aesthetics'
 import { loadContext } from './context'
 import type { ContextInput } from './context'
@@ -15,6 +18,7 @@ import type { RankContext } from './factors'
 import { computeIntentVector } from './intent-vector'
 import {
   budgetOf,
+  isGift,
   parseTokens,
   resolveDepartments,
   resolvedDepartment,
@@ -30,7 +34,8 @@ import type { ChannelParams, Retriever, RetrieveParams } from './retrieve'
 import { rank } from './score'
 import { searchProducts } from './search'
 import { RETRIEVAL_BLOCK_WEIGHTS, blockScale } from './vector'
-import { resolveWeights } from './weights'
+import { DEFAULT_WEIGHTS, resolveWeights } from './weights'
+import type { ArmName } from './weights'
 
 export { searchProducts }
 export { SqlRetriever, PgRetriever, MemoryRetriever, retrieveWithRelaxation } from './retrieve'
@@ -72,6 +77,38 @@ export interface RecommendDeps {
   intentVector?: number[]
   seed?: number
   partner?: PartnerLook | null
+  /** The global bandit (§4.4). Absent → the default `balanced` blend, as before it was wired in. */
+  bandit?: LinUCB | null
+}
+
+/**
+ * Pick the blend arm for this request (§4.4). Returns `null` when there is no bandit or no signed-in
+ * user, which leaves `DEFAULT_WEIGHTS` in charge. The context vector is returned with the choice
+ * because the caller has to log both on the impression for the reward to be attributable.
+ */
+export function chooseArm(
+  bandit: LinUCB | null | undefined,
+  intent: EngineIntent,
+  context: ContextInput,
+  opts: { userId?: string; outfit: boolean },
+): { name: ArmName; weights: Record<FactorName, number>; contextVector: number[] } | null {
+  if (!bandit || !opts.userId) return null
+  const user = context.user
+  const eventCount = user?.eventCount ?? 0
+  const createdAt = user?.createdAt ?? null
+  const x = contextVector({
+    eventCount,
+    recipientOther: isGift(intent),
+    trustedCount: user?.trusted.length ?? 0,
+    confidence: intent.confidence,
+    outfit: opts.outfit,
+    hasBudgetMax: budgetOf(intent).max !== null,
+    daysSinceSignup: createdAt
+      ? Math.max(0, (context.now.getTime() - createdAt.getTime()) / 86_400_000)
+      : 0,
+  })
+  const choice = bandit.choose(x, { eventCount })
+  return { name: choice.name as ArmName, weights: choice.weights, contextVector: x }
 }
 
 /** Shared prefilters from the intent tokens (§1.2) and the request. */
@@ -126,7 +163,15 @@ export async function runRecommend(
   const intent = req.intent as EngineIntent
   const context = deps.context
   const user = context.user
-  const weights = resolveWeights(req.weights)
+  const wantOutfitsForArm = req.outfits ?? intent.mode === 'outfit'
+  // An explicit `req.weights` (evaluation, the engine lab) still wins; otherwise the arm decides.
+  const arm = req.weights
+    ? null
+    : chooseArm(deps.bandit, intent, context, {
+        userId: req.userId,
+        outfit: wantOutfitsForArm,
+      })
+  const weights = resolveWeights(req.weights, arm?.weights ?? DEFAULT_WEIGHTS)
   const base = user?.preference ?? null
   const intentVector = deps.intentVector ?? computeIntentVector(intent, base, user?.eventCount)
   const department = resolvedDepartment(intent, user?.department ?? null)
@@ -142,7 +187,7 @@ export async function runRecommend(
     popularityMax: context.popularityMax,
     weights,
   }
-  const wantOutfits = req.outfits ?? intent.mode === 'outfit'
+  const wantOutfits = wantOutfitsForArm
   let items: RankedItem[] = []
   let outfits: Outfit[] = []
   let candidates = 0
@@ -189,7 +234,9 @@ export async function runRecommend(
     if (items.length === 0) items = built.slotItems.slice(0, req.limit ?? 10)
   }
   timings.total = performance.now() - t0
-  return { items, outfits, candidates, weights, intentVector, timings }
+  const res: RecommendResponse = { items, outfits, candidates, weights, intentVector, timings }
+  if (arm) res.arm = { name: arm.name, contextVector: arm.contextVector }
+  return res
 }
 
 async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLook | null> {
@@ -243,14 +290,25 @@ export async function recommend(db: Database, req: RecommendRequest): Promise<Re
   const t0 = performance.now()
   const intent = req.intent as EngineIntent
   const avoid = parseTokens(intent.mustAvoid)
-  const [context, partner] = await Promise.all([
+  const [context, partner, bandit] = await Promise.all([
     loadContext(db, { userId: req.userId ?? null, brandTokens: avoid.brands }),
     intent.referenceRole === 'coordinate-with' && intent.referenceLookId
       ? loadPartnerLook(db, intent.referenceLookId).catch(() => null)
       : Promise.resolve(null),
+    // A failure here must not cost a recommendation: without it the blend is simply `balanced`.
+    // `rebuild: false` keeps the replay off the request path: a missing row is the analytics job's
+    // to rebuild, not a visitor's scan of up to `REBUILD_ROW_LIMIT` feedback rows.
+    req.userId && !req.weights
+      ? loadBanditState(db, { now: new Date(), rebuild: false }).catch(() => null)
+      : Promise.resolve(null),
   ])
   const contextMs = performance.now() - t0
-  const res = await runRecommend(req, { retriever: new SqlRetriever(db), context, partner })
+  const res = await runRecommend(req, {
+    retriever: new SqlRetriever(db),
+    context,
+    partner,
+    bandit,
+  })
   res.timings.context = contextMs
   res.timings.total = performance.now() - t0
   return res

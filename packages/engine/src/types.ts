@@ -8,6 +8,7 @@ import type {
   Department,
   EvaluationRun,
   FeedbackKind,
+  IntentProvider,
   LineageStat,
   LlmProvider,
   Look,
@@ -38,11 +39,19 @@ export interface LlmJsonRequest<T> {
   purpose?: string
 }
 
+/** An image handed to the model, optionally named so the prompt can refer to it by role. */
+export interface ReferenceImage {
+  mimeType: string
+  data: Buffer
+  /** e.g. `Garment 1` or `Person reference 2`; providers receive it alongside the bytes. */
+  label?: string
+}
+
 export interface LlmImageRequest {
   signal?: AbortSignal
   timeoutMs?: number
   prompt: string
-  referenceImages?: Array<{ mimeType: string; data: Buffer }>
+  referenceImages?: ReferenceImage[]
   aspectRatio?: '3:4' | '1:1' | '4:5' | '9:16'
   purpose?: string
 }
@@ -127,7 +136,8 @@ export interface IntentContext {
 export interface IntentResult {
   intent: Intent
   vector: number[]
-  provider: LlmProvider
+  /** Who produced it: `jev` for the decision stage, a generative provider once it escalated. */
+  provider: IntentProvider
   /** Model id used by the provider (null for offline). */
   model?: string | null
   latencyMs: number
@@ -205,6 +215,12 @@ export interface RecommendResponse {
   weights: Record<FactorName, number>
   intentVector: number[]
   timings: Record<string, number>
+  /**
+   * The blend arm the bandit picked and the context it was picked for (§4.4). Absent for guests
+   * and when `weights` were overridden. Both fields must reach the impression's `context` or the
+   * slate's reward cannot be attributed back to the arm.
+   */
+  arm?: { name: string; contextVector: number[] }
 }
 
 export interface ProductSearch {
@@ -526,6 +542,8 @@ export interface AnalyticsSummary {
   lineages: number
   trendSignals: number
   manufacturing: number
+  /** Closed slates replayed into `bandit_state` (§4.4). */
+  banditSlates: number
   durationMs: number
 }
 

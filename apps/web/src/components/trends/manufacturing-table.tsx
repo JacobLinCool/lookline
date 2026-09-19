@@ -1,30 +1,42 @@
 import type { ManufacturingRecommendation } from '@lookline/engine'
 import { Tag } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
+import {
+  aestheticLabel,
+  categoryGroupLabel,
+  colorFamilyLabel,
+  subcategoryLabel,
+} from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
 import { formatCompact, humanize } from '@/server/format'
 import { pct } from './format'
 import { BODY_ROW, STICKY_COL, TABLE, THEAD_ROW } from './momentum-table'
 
-const SIGNAL_LABEL: Record<string, { en: string; zh: string }> = {
-  develop: { en: 'Develop', zh: '開款' },
-  stock: { en: 'Stock', zh: '備料' },
-  watch: { en: 'Watch', zh: '觀察' },
-}
+/** Engine bookkeeping and the other language's rationale: never a row of the evidence list. */
+const HIDDEN_EVIDENCE = new Set(['signal', 'rationaleZh'])
 
 function signalOf(rec: ManufacturingRecommendation): string | null {
   const s = rec.evidence['signal']
   return typeof s === 'string' ? s : null
 }
 
-function EvidenceList({ evidence }: { evidence: Record<string, unknown> }) {
-  const entries = Object.entries(evidence).filter(([k]) => k !== 'signal')
-  if (entries.length === 0) return <p className="text-[12px] text-muted">No evidence recorded.</p>
+function EvidenceList({
+  evidence,
+  fields,
+  empty,
+}: {
+  evidence: Record<string, unknown>
+  fields: Record<string, string>
+  empty: string
+}) {
+  const entries = Object.entries(evidence).filter(([k]) => !HIDDEN_EVIDENCE.has(k))
+  if (entries.length === 0) return <p className="text-[12px] text-muted">{empty}</p>
   return (
     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[12px]">
       {entries.map(([key, value]) => (
         <div key={key} className="contents">
           <dt className="text-muted">
-            {humanize(key.replace(/([A-Z0-9]+)/g, ' $1').toLowerCase())}
+            {fields[key] ?? humanize(key.replace(/([A-Z0-9]+)/g, ' $1').toLowerCase())}
           </dt>
           <dd className="tabular break-words">
             {typeof value === 'number'
@@ -44,26 +56,24 @@ function EvidenceList({ evidence }: { evidence: Record<string, unknown> }) {
 }
 
 /** Ranked 開款 / 備料 signals: aesthetic × category group × colour family. */
-export function ManufacturingTable({ rows }: { rows: ManufacturingRecommendation[] }) {
+export async function ManufacturingTable({ rows }: { rows: ManufacturingRecommendation[] }) {
+  const { t, locale } = await getI18n()
+  const m = t.trends.manufacturing
   if (rows.length === 0) {
-    return (
-      <p className="text-[13px] text-muted">
-        No development or stocking recommendations right now.
-      </p>
-    )
+    return <p className="text-[13px] text-muted">{m.empty}</p>
   }
   return (
     <div className="overflow-x-auto">
       <table className={cn(TABLE, 'min-w-[48rem]')}>
         <thead>
           <tr className={THEAD_ROW}>
-            <th className={cn(STICKY_COL, 'w-8')}>#</th>
-            <th>Group</th>
-            <th>Signal</th>
-            <th className="text-right">Momentum</th>
-            <th>Confidence</th>
-            <th className="text-right">Projected demand</th>
-            <th>Rationale</th>
+            <th className={cn(STICKY_COL, 'w-8')}>{m.rank}</th>
+            <th>{m.group}</th>
+            <th>{m.signal}</th>
+            <th className="text-right">{t.trends.metric.momentum}</th>
+            <th>{m.confidence}</th>
+            <th className="text-right">{m.projectedDemand}</th>
+            <th>{m.rationale}</th>
           </tr>
         </thead>
         <tbody>
@@ -71,7 +81,12 @@ export function ManufacturingTable({ rows }: { rows: ManufacturingRecommendation
             .toSorted((a, b) => a.rank - b.rank)
             .map((rec) => {
               const signal = signalOf(rec)
-              const label = signal ? SIGNAL_LABEL[signal] : undefined
+              const label = signal ? m.signals[signal] : undefined
+              const rationaleZh = rec.evidence['rationaleZh']
+              const rationale =
+                locale === 'zh-TW' && typeof rationaleZh === 'string' && rationaleZh
+                  ? rationaleZh
+                  : rec.rationale
               return (
                 <tr key={rec.id} className={cn(BODY_ROW, 'align-top [&>td]:py-3 [&>th]:py-3')}>
                   <th
@@ -83,19 +98,20 @@ export function ManufacturingTable({ rows }: { rows: ManufacturingRecommendation
                   <td>
                     <span className="flex flex-col gap-0.5">
                       <span className="font-medium">
-                        {humanize(rec.aesthetic)} × {humanize(rec.categoryGroup)}
-                        {rec.colorFamily ? ` × ${humanize(rec.colorFamily)}` : ''}
+                        {aestheticLabel(locale, rec.aesthetic)} ×{' '}
+                        {categoryGroupLabel(locale, rec.categoryGroup)}
+                        {rec.colorFamily ? ` × ${colorFamilyLabel(locale, rec.colorFamily)}` : ''}
                       </span>
                       {rec.subcategory ? (
-                        <span className="text-[12px] text-muted">{humanize(rec.subcategory)}</span>
+                        <span className="text-[12px] text-muted">
+                          {subcategoryLabel(locale, rec.subcategory)}
+                        </span>
                       ) : null}
                     </span>
                   </td>
                   <td>
                     {label ? (
-                      <Tag tone={signal === 'develop' ? 'accent' : 'outline'}>
-                        {label.en} · {label.zh}
-                      </Tag>
+                      <Tag tone={signal === 'develop' ? 'accent' : 'outline'}>{label}</Tag>
                     ) : (
                       <span className="text-[12px] text-muted">–</span>
                     )}
@@ -114,16 +130,20 @@ export function ManufacturingTable({ rows }: { rows: ManufacturingRecommendation
                   </td>
                   <td className="tabular text-right">
                     {formatCompact(rec.projectedDemand)}
-                    <span className="block text-[11px] text-muted">sessions / 28 d</span>
+                    <span className="block text-[11px] text-muted">{m.demandUnit}</span>
                   </td>
                   <td className="max-w-md">
-                    <p className="leading-snug">{rec.rationale}</p>
+                    <p className="leading-snug">{rationale}</p>
                     <details className="mt-1.5">
                       <summary className="cursor-pointer text-[12px] text-muted underline decoration-line underline-offset-4 hover:decoration-ink">
-                        Evidence
+                        {m.evidence}
                       </summary>
                       <div className="mt-2 rounded-sm bg-mist p-3">
-                        <EvidenceList evidence={rec.evidence} />
+                        <EvidenceList
+                          evidence={rec.evidence}
+                          fields={m.evidenceFields}
+                          empty={m.noEvidence}
+                        />
                       </div>
                     </details>
                   </td>

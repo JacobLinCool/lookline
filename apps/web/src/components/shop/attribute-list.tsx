@@ -1,5 +1,7 @@
 import type { Article } from '@lookline/db'
-import { humanize } from '@/server/format'
+import { getI18n } from '@/i18n/server'
+import { facetLabel, occasionLabel, seasonLabel } from '@/i18n/taxonomy'
+import type { Locale } from '@/i18n/config'
 
 interface Row {
   label: string
@@ -8,23 +10,27 @@ interface Row {
 
 const MAX_ROWS = 8
 
-function list(values: readonly string[]): string | null {
-  return values.length > 0 ? values.map(humanize).join(', ') : null
-}
-
 /** The few facts a shopper checks before buying; raw catalog fields never appear here. */
-export function AttributeList({ product }: { product: Article }) {
+export async function AttributeList({ product }: { product: Article }) {
+  const { t, locale } = await getI18n()
+  const facet = (value: string | null) => (value ? facetLabel(locale, value) : null)
+  const list = (values: readonly string[], label: (locale: Locale, slug: string) => string) =>
+    values.length > 0 ? t.shop.list(values.map((value) => label(locale, value))) : null
   const rows: Row[] = [
-    { label: 'Material', value: product.material ? humanize(product.material) : null },
-    { label: 'Type', value: product.subcategory },
-    { label: 'Fit', value: product.fit ? humanize(product.fit) : null },
-    { label: 'Length', value: product.length ? humanize(product.length) : null },
-    { label: 'Neckline', value: product.neckline ? humanize(product.neckline) : null },
-    { label: 'Sleeve', value: product.sleeve ? humanize(product.sleeve) : null },
-    { label: 'Closure', value: product.closure ? humanize(product.closure) : null },
-    { label: 'Pattern', value: product.pattern !== 'solid' ? humanize(product.pattern) : null },
-    { label: 'Occasions', value: list(product.occasions) },
-    { label: 'Seasons', value: list(product.seasons) },
+    { label: t.shop.attributes.material, value: facet(product.material) },
+    // The product type is H&M's own and always present, unlike the fields below it.
+    { label: t.shop.attributes.silhouette, value: product.subcategory },
+    { label: t.shop.attributes.fit, value: facet(product.fit) },
+    { label: t.shop.attributes.length, value: facet(product.length) },
+    { label: t.shop.attributes.neckline, value: facet(product.neckline) },
+    { label: t.shop.attributes.sleeve, value: facet(product.sleeve) },
+    { label: t.shop.attributes.closure, value: facet(product.closure) },
+    {
+      label: t.shop.attributes.pattern,
+      value: product.pattern !== 'solid' ? facet(product.pattern) : null,
+    },
+    { label: t.shop.attributes.occasions, value: list(product.occasions, occasionLabel) },
+    { label: t.shop.attributes.seasons, value: list(product.seasons, seasonLabel) },
   ]
   const shown = rows
     .filter((r): r is Row & { value: string } => r.value !== null)

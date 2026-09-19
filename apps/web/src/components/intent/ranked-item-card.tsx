@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from 'react'
 import { Heart, X } from 'lucide-react'
 import type { Explanation } from '@lookline/engine'
 import { FactorBreakdown, ProductCard, Tag, type ProductCardData } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
 import { afterPaint, startInteraction } from '@/lib/latency'
 import { cn } from '@/lib/cn'
 import { GENERIC_FACTORS, reasonLine } from '@/lib/reason'
@@ -41,6 +42,8 @@ export function RankedItemCard({
   engineView = false,
   priority,
 }: RankedItemCardProps) {
+  const { t, locale } = useI18n()
+  const copy = t.home.items
   const saving = useRef(false)
   const [verdict, setVerdict] = useState<Verdict>('none')
   const [hint, setHint] = useState<string | null>(null)
@@ -49,7 +52,7 @@ export function RankedItemCard({
   function send(next: Exclude<Verdict, 'none'>) {
     if (saving.current) return
     if (!signedIn) {
-      setHint('Sign in to keep your picks.')
+      setHint(copy.signInToSave)
       return
     }
     saving.current = true
@@ -74,13 +77,11 @@ export function RankedItemCard({
           return
         }
         setVerdict(previous)
-        setHint(
-          result.reason === 'anonymous' ? 'Sign in to keep your picks.' : 'Not saved. Try again.',
-        )
+        setHint(result.reason === 'anonymous' ? copy.signInToSave : copy.notSaved)
         trace.mark('failed')
       } catch {
         setVerdict(previous)
-        setHint('Not saved. Try again.')
+        setHint(copy.notSaved)
         trace.mark('failed')
       } finally {
         saving.current = false
@@ -95,7 +96,7 @@ export function RankedItemCard({
         onClick={() => send('saved')}
         disabled={pending}
         aria-pressed={verdict === 'saved'}
-        aria-label={verdict === 'saved' ? 'Saved' : 'Save'}
+        aria-label={verdict === 'saved' ? copy.saved : copy.save}
         className={cn(iconButton, verdict === 'saved' && 'border-ink bg-ink text-paper')}
       >
         <Heart fill={verdict === 'saved' ? 'currentColor' : 'none'} />
@@ -105,7 +106,7 @@ export function RankedItemCard({
         onClick={() => send('dismissed')}
         disabled={pending}
         aria-pressed={verdict === 'dismissed'}
-        aria-label={verdict === 'dismissed' ? 'Hidden' : 'Not for me'}
+        aria-label={verdict === 'dismissed' ? copy.hidden : copy.notForMe}
         className={cn(iconButton, verdict === 'dismissed' && 'border-ink bg-ink text-paper')}
       >
         <X />
@@ -124,11 +125,11 @@ export function RankedItemCard({
         {engineView ? (
           <details className="rounded-md bg-mist p-3 text-[12px]">
             <summary className="flex cursor-pointer items-center justify-between gap-2">
-              <span className="text-muted">Engine</span>
+              <span className="text-muted">{t.home.engine.label}</span>
               <Tag tone="outline">{score.toFixed(2)}</Tag>
             </summary>
             <div className="mt-3">
-              <FactorBreakdown explanation={explanation} showEvidence />
+              <FactorBreakdown explanation={explanation} showEvidence locale={locale} />
             </div>
           </details>
         ) : null}
@@ -142,7 +143,7 @@ export function RankedItemCard({
         href={href}
         priority={priority}
         overlay={overlay}
-        reason={reasonLine(explanation, 1, GENERIC_FACTORS) || undefined}
+        reason={reasonLine(explanation, locale, 1, GENERIC_FACTORS) || undefined}
         footer={footer}
       />
     </div>

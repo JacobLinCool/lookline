@@ -17,6 +17,7 @@ try {
       `lineages       ${summary.lineages}`,
       `trend signals  ${summary.trendSignals}`,
       `manufacturing  ${summary.manufacturing}`,
+      `bandit slates  ${summary.banditSlates}`,
       `duration       ${summary.durationMs} ms`,
     ].join('\n'),
   )

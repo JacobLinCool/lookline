@@ -1,5 +1,6 @@
 import type { Influencer } from '@lookline/engine'
 import { Avatar } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
 import { cn } from '@/lib/cn'
 import { formatTwd } from '@/server/format'
 import { BODY_ROW, STICKY_COL, TABLE, THEAD_ROW } from './momentum-table'
@@ -8,22 +9,29 @@ import { BODY_ROW, STICKY_COL, TABLE, THEAD_ROW } from './momentum-table'
  * People whose Looks travel. Internal merchandising signal only — the product never ranks people
  * publicly, so the influence score itself is not printed.
  */
-export function Seeds({ influencers, limit = 10 }: { influencers: Influencer[]; limit?: number }) {
+export async function Seeds({
+  influencers,
+  limit = 10,
+}: {
+  influencers: Influencer[]
+  limit?: number
+}) {
+  const { t } = await getI18n()
   const shown = influencers.slice(0, limit)
   if (shown.length === 0) {
-    return <p className="text-[13px] text-muted">No Look has been remixed or bought from yet.</p>
+    return <p className="text-[13px] text-muted">{t.trends.seeds.empty}</p>
   }
   return (
     <div className="overflow-x-auto">
       <table className={cn(TABLE, 'min-w-[36rem]')}>
         <thead>
           <tr className={THEAD_ROW}>
-            <th className={STICKY_COL}>Person</th>
-            <th className="text-right">Cluster</th>
-            <th className="text-right">Remixes caused</th>
-            <th className="text-right">Downstream purchases</th>
-            <th className="text-right">Downstream GMV</th>
-            <th className="text-right">Clusters reached</th>
+            <th className={STICKY_COL}>{t.trends.seeds.person}</th>
+            <th className="text-right">{t.trends.seeds.cluster}</th>
+            <th className="text-right">{t.trends.seeds.remixesCaused}</th>
+            <th className="text-right">{t.trends.seeds.downstreamPurchases}</th>
+            <th className="text-right">{t.trends.seeds.downstreamGmv}</th>
+            <th className="text-right">{t.trends.seeds.clustersReached}</th>
           </tr>
         </thead>
         <tbody>

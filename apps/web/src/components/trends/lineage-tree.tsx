@@ -1,17 +1,24 @@
 import type { LineageNode, LineageTree } from '@lookline/engine'
 import Link from 'next/link'
 import { Avatar, Tag } from '@/components/ui'
+import type { Locale } from '@/i18n/config'
+import type { Messages } from '@/i18n/messages'
+import { getI18n } from '@/i18n/server'
 import { cn } from '@/lib/cn'
-import { formatRelative, formatTwd, pluralize } from '@/server/format'
+import { formatRelative, formatTwd } from '@/server/format'
 import { longDate, num, pct } from './format'
 
-const KIND_LABEL: Record<string, string> = {
-  edition: 'Look',
-  remix: 'Made it theirs',
-  together: 'Together',
+interface Reader {
+  t: Messages
+  locale: Locale
 }
 
-function NodeRow({ node, currentId }: { node: LineageNode; currentId: string }) {
+function NodeRow({
+  node,
+  currentId,
+  t,
+  locale,
+}: { node: LineageNode; currentId: string } & Reader) {
   const { look, owner } = node
   const isCurrent = look.id === currentId
   return (
@@ -43,20 +50,24 @@ function NodeRow({ node, currentId }: { node: LineageNode; currentId: string }) 
           >
             {look.title}
           </Link>
-          {look.kind !== 'edition' ? <Tag tone="outline">{KIND_LABEL[look.kind]}</Tag> : null}
-          {isCurrent ? <Tag tone="ink">This Look</Tag> : null}
+          {look.kind !== 'edition' ? (
+            <Tag tone="outline">{t.trends.lineage.kind[look.kind]}</Tag>
+          ) : null}
+          {isCurrent ? <Tag tone="ink">{t.trends.lineage.thisLook}</Tag> : null}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted">
           <span className="flex items-center gap-1.5">
             <Avatar seed={owner.avatarSeed} name={owner.displayName} size={18} />
             {owner.displayName}
           </span>
-          <span title={longDate(look.createdAt)}>{formatRelative(look.createdAt)}</span>
+          <span title={longDate(look.createdAt, locale)}>
+            {formatRelative(look.createdAt, locale)}
+          </span>
           {node.reactions > 0 ? (
-            <span className="tabular">{pluralize(node.reactions, 'like')}</span>
+            <span className="tabular">{t.common.count.likes(node.reactions)}</span>
           ) : null}
           {node.purchases > 0 ? (
-            <span className="tabular">{pluralize(node.purchases, 'purchase')}</span>
+            <span className="tabular">{t.common.count.purchases(node.purchases)}</span>
           ) : null}
         </div>
       </div>
@@ -68,14 +79,12 @@ function Branch({
   node,
   currentId,
   depth,
-}: {
-  node: LineageNode
-  currentId: string
-  depth: number
-}) {
+  t,
+  locale,
+}: { node: LineageNode; currentId: string; depth: number } & Reader) {
   return (
     <li className="flex flex-col gap-2">
-      <NodeRow node={node} currentId={currentId} />
+      <NodeRow node={node} currentId={currentId} t={t} locale={locale} />
       {node.children.length > 0 ? (
         <ul
           className={cn(
@@ -86,7 +95,14 @@ function Branch({
           {node.children
             .toSorted((a, b) => a.look.createdAt.getTime() - b.look.createdAt.getTime())
             .map((child) => (
-              <Branch key={child.look.id} node={child} currentId={currentId} depth={depth + 1} />
+              <Branch
+                key={child.look.id}
+                node={child}
+                currentId={currentId}
+                depth={depth + 1}
+                t={t}
+                locale={locale}
+              />
             ))}
         </ul>
       ) : null}
@@ -95,31 +111,40 @@ function Branch({
 }
 
 /** Indented tree of a lineage: root first, children in creation order, the current Look marked. */
-export function LineageTreeView({ tree, currentId }: { tree: LineageTree; currentId: string }) {
+export async function LineageTreeView({
+  tree,
+  currentId,
+}: {
+  tree: LineageTree
+  currentId: string
+}) {
+  const { t, locale } = await getI18n()
   return (
     <ul className="flex flex-col gap-2">
-      <Branch node={tree.root} currentId={currentId} depth={0} />
+      <Branch node={tree.root} currentId={currentId} depth={0} t={t} locale={locale} />
     </ul>
   )
 }
 
 /** Per-root statistics from `lineage_stats` (Engine view). */
-export function LineageStatsPanel({ stats }: { stats: LineageTree['stats'] }) {
+export async function LineageStatsPanel({ stats }: { stats: LineageTree['stats'] }) {
+  const { t, locale } = await getI18n()
+  const s = t.trends.lineage.stats
   const rows: Array<[string, string]> = [
-    ['Depth', String(stats.depth)],
-    ['Looks in tree', String(stats.nodes)],
-    ['People touched', String(stats.uniquePeople)],
-    ['Taste clusters reached', String(stats.clustersReached)],
-    ['Shares', String(stats.shares)],
-    ['Asks', String(stats.asks)],
-    ['Remixes', String(stats.remixes)],
-    ['Purchases', String(stats.purchases)],
-    ['Downstream GMV', formatTwd(stats.gmv)],
-    ['Velocity', `${num(stats.velocity, 2)} Looks/day`],
-    ['Share → remix', pct(stats.shareToRemixRate)],
-    ['Remix → purchase', pct(stats.remixToPurchaseRate)],
-    ['First Look', longDate(stats.firstAt)],
-    ['Latest Look', longDate(stats.lastAt)],
+    [s.depth, String(stats.depth)],
+    [s.nodes, String(stats.nodes)],
+    [s.people, String(stats.uniquePeople)],
+    [s.clusters, String(stats.clustersReached)],
+    [s.shares, String(stats.shares)],
+    [s.asks, String(stats.asks)],
+    [s.remixes, String(stats.remixes)],
+    [s.purchases, String(stats.purchases)],
+    [s.gmv, formatTwd(stats.gmv)],
+    [s.velocity, t.trends.lineage.velocityValue(num(stats.velocity, 2))],
+    [s.shareToRemix, pct(stats.shareToRemixRate)],
+    [s.remixToPurchase, pct(stats.remixToPurchaseRate)],
+    [s.firstLook, longDate(stats.firstAt, locale)],
+    [s.latestLook, longDate(stats.lastAt, locale)],
   ]
   return (
     <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-3 lg:grid-cols-1">

@@ -155,7 +155,7 @@ async function main(): Promise<void> {
   console.log(`running analytics (${elapsed()})`)
   const analytics = await runAnalytics(db, { now })
   console.log(
-    `analytics: ${analytics.relationships} relationships, ${analytics.clusters} taste clusters, ${analytics.lineages} lineages, ${analytics.trendSignals} trend signals, ${analytics.manufacturing} manufacturing rows (${analytics.durationMs} ms)`,
+    `analytics: ${analytics.relationships} relationships, ${analytics.clusters} taste clusters, ${analytics.lineages} lineages, ${analytics.trendSignals} trend signals, ${analytics.manufacturing} manufacturing rows, ${analytics.banditSlates} bandit slates (${analytics.durationMs} ms)`,
   )
   await summary()
 }

@@ -3,11 +3,15 @@ import { and, brands, desc, eq, inArray, looks, articles, users } from '@looklin
 import { getUserNetwork } from '@lookline/engine'
 import { IntentWorkspace, type HomeLook, type HomeProduct } from '@/components/intent/workspace'
 import { paramList, paramString } from '@/components/intent/urls'
+import { getI18n } from '@/i18n/server'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { isEngineView } from '@/server/engine-view'
 
-export const metadata: Metadata = { title: 'Find' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.home.metaTitle }
+}
 
 const RAIL_LIMIT = 12
 

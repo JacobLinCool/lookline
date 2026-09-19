@@ -9,20 +9,21 @@ import {
   type JourneyLook,
   type JourneyProduct,
 } from '@/components/together/journey'
+import { getI18n } from '@/i18n/server'
 import { getDb } from '@/server/db'
 
-export const metadata: Metadata = {
-  title: 'Prototype tour',
-  description: 'Ready Now, Made for You and Borrow a Look, on live catalog data.',
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.social.tour.title, description: t.social.tour.metaDescription }
 }
 
 interface JourneyData {
-  articles: JourneyProduct[]
+  products: JourneyProduct[]
   sampleLook: JourneyLook | null
   error: string | null
 }
 
-async function loadJourneyData(): Promise<JourneyData> {
+async function loadJourneyData(unavailable: string): Promise<JourneyData> {
   const { db } = getDb()
   try {
     const [lookRow] = await db
@@ -72,7 +73,7 @@ async function loadJourneyData(): Promise<JourneyData> {
     }
 
     return {
-      articles: [...deduped.values()].slice(0, 6),
+      products: [...deduped.values()].slice(0, 6),
       sampleLook: lookRow
         ? {
             id: lookRow.id,
@@ -87,14 +88,15 @@ async function loadJourneyData(): Promise<JourneyData> {
   } catch (error) {
     console.error('[together] could not load journey catalog', error)
     return {
-      articles: [],
+      products: [],
       sampleLook: null,
-      error: 'The live catalog is unavailable. Start the database and reload.',
+      error: unavailable,
     }
   }
 }
 
 export default async function TogetherHubPage() {
-  const data = await loadJourneyData()
+  const { t } = await getI18n()
+  const data = await loadJourneyData(t.social.tour.catalogUnavailable)
   return <JourneyPrototype {...data} />
 }

@@ -1,6 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import type { ProductSearch } from '@lookline/engine'
+import { useI18n } from '@/i18n/client'
 import { cn } from '@/lib/cn'
 import { shopHref } from './query'
 
@@ -29,23 +32,25 @@ export function Pagination({
   page: number
   pageSize: number
 }) {
+  const { t } = useI18n()
   const pages = Math.max(1, Math.ceil(total / Math.max(1, pageSize)))
   if (pages <= 1) return null
   const current = Math.min(Math.max(1, page), pages)
   const link =
     'inline-flex h-9 min-w-9 items-center justify-center rounded-sm px-2 text-[13px] transition-colors'
   return (
-    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-4">
-      <p className="tabular text-[12px] text-muted">
-        Page {current.toLocaleString('en-US')} of {pages.toLocaleString('en-US')}
-      </p>
+    <nav
+      aria-label={t.shop.pagination.label}
+      className="flex flex-wrap items-center justify-between gap-4"
+    >
+      <p className="tabular text-[12px] text-muted">{t.shop.pagination.pageOf(current, pages)}</p>
       <ol className="flex items-center gap-1">
         <li>
           {current > 1 ? (
             <Link
               href={shopHref(search, { page: current - 1 })}
               rel="prev"
-              aria-label="Previous page"
+              aria-label={t.shop.pagination.previous}
               className={cn(link, 'hover:bg-mist')}
             >
               <ChevronLeft className="size-4" />
@@ -82,7 +87,7 @@ export function Pagination({
             <Link
               href={shopHref(search, { page: current + 1 })}
               rel="next"
-              aria-label="Next page"
+              aria-label={t.shop.pagination.next}
               className={cn(link, 'hover:bg-mist')}
             >
               <ChevronRight className="size-4" />

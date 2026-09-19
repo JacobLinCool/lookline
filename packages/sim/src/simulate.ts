@@ -13,7 +13,7 @@ import {
   type Rng,
 } from '@lookline/catalog'
 import type { Database } from '@lookline/db'
-import { deriveLookStyle, renderLookPosterSvg } from '@lookline/engine'
+import { contextVector, deriveLookStyle, renderLookPosterSvg } from '@lookline/engine'
 import { buildSocialGraph } from './graph'
 import { generatePersonas } from './personas'
 import {
@@ -61,6 +61,8 @@ interface AskState {
 interface UserState {
   purchases: Array<{ articleId: string; purchaseId: string; self: boolean }>
   looks: string[]
+  /** Self-targeted feedback events so far — the bandit's `eventCount` dimension (§4.4). */
+  selfEvents: number
 }
 
 const stamp = (e: PlannedEvent, k: number): Date => new Date(e.at.getTime() + k * 1000)
@@ -162,7 +164,7 @@ export async function simulateSocial(
   const looks = new Map<string, LookState>()
   const asks = new Map<string, AskState>()
   const usersState = new Map<string, UserState>()
-  for (const p of personas) usersState.set(p.id, { purchases: [], looks: [] })
+  for (const p of personas) usersState.set(p.id, { purchases: [], looks: [], selfEvents: 0 })
   const executed = emptyCounts()
   const skipped = emptyCounts()
   const totals = {
@@ -212,6 +214,10 @@ export async function simulateSocial(
   ): Promise<void> {
     await sink.recordFeedback({ ...input, id: fbId(e, k), createdAt: stamp(e, k) })
     totals.feedback++
+    if (!input.forOthers) {
+      const state = usersState.get(input.userId)
+      if (state) state.selfEvents++
+    }
   }
   async function purchase(
     e: PlannedEvent,
@@ -420,8 +426,17 @@ export async function simulateSocial(
     const aesthetic =
       p.primaryAesthetics[rng.int(0, Math.max(0, p.primaryAesthetics.length - 1))] ?? 'minimalist'
     let k = 0
+    // The slate's key for the bandit: every impression and every reward event below carries it,
+    // or `collectSlates` cannot group them and the run teaches the bandit nothing (§4.4).
+    const sessionId = `is_${String(e.seq).padStart(6, '0')}`
+    const slateContext = contextVector({
+      eventCount: usersState.get(p.id)?.selfEvents ?? 0,
+      recipientOther: e.forGift,
+      hasBudgetMax: profile.budget !== null,
+      daysSinceSignup: Math.max(0, (e.at.getTime() - createdAt.getTime()) / DAY_MS),
+    })
     await sink.recordSearch({
-      id: `is_${String(e.seq).padStart(6, '0')}`,
+      id: sessionId,
       userId: p.id,
       utterance: searchUtterance(rng, {
         aesthetic,
@@ -458,9 +473,12 @@ export async function simulateSocial(
         userId: p.id,
         kind: 'impression',
         articleId: s.product.id,
+        intentSessionId: sessionId,
         position: s.position,
         forOthers: e.forGift,
-        context: { armId: 'balanced', source: 'sim-browse' },
+        // `balanced` is the truth here: the slate below is ordered by taste similarity, not by an
+        // arm's weights, so claiming any other arm would credit it for a ranking it never made.
+        context: { armId: 'balanced', contextVector: slateContext, source: 'sim-browse' },
       })
     }
     const ranked = scored.toSorted((a, b) => b.sim - a.sim)
@@ -478,6 +496,7 @@ export async function simulateSocial(
         userId: p.id,
         kind: 'click',
         articleId: s.product.id,
+        intentSessionId: sessionId,
         position: s.position,
         forOthers: e.forGift,
       })
@@ -489,6 +508,7 @@ export async function simulateSocial(
         userId: p.id,
         kind: 'save',
         articleId: top.product.id,
+        intentSessionId: sessionId,
         forOthers: e.forGift,
       })
     }
@@ -499,6 +519,7 @@ export async function simulateSocial(
         userId: p.id,
         kind: 'dismiss',
         articleId: worst.product.id,
+        intentSessionId: sessionId,
         position: worst.position,
         forOthers: e.forGift,
       })

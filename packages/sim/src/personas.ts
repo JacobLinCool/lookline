@@ -8,7 +8,7 @@ import { createRng, hashSeed, logUniformInt, type Rng } from '@lookline/catalog'
 import type { Department } from '@lookline/db'
 import { CLUSTER_ARCHETYPES, CLUSTER_COUNT, clusterBySlug } from './clusters'
 import { asciiHandle, pickName } from './names'
-import { buildTasteVector, clamp01, topAesthetics } from './taste'
+import { buildTasteVector, clamp01 } from './taste'
 import type { Persona, PersonaParams } from './types'
 
 export const DEFAULT_PERSONA_COUNT = 1200
@@ -35,7 +35,7 @@ interface DemoSpec {
 export const DEMO_PERSONAS: readonly DemoSpec[] = [
   {
     handle: 'jacob',
-    displayName: 'Jacob Lin 林宇翔',
+    displayName: 'Jacob Lin',
     department: 'men',
     cluster: 'gorp-hikers',
     bio: 'Builds things on weekdays, climbs Qixing on weekends. Gorpcore by necessity, techwear by taste; the friend who always has a spare shell jacket.',
@@ -257,7 +257,9 @@ function demoPersona(spec: DemoSpec, index: number, seed: number): Persona {
     socialCluster: cluster,
     isPersona: true,
     archetype: archetype.slug,
-    primaryAesthetics: topAesthetics(hidden, 3),
+    primaryAesthetics: spec.extra
+      ? [...archetype.aesthetics, spec.extra]
+      : [...archetype.aesthetics],
     hiddenVector: hidden,
     giftHiddenVector: gift,
     giftDepartment: spec.gift?.department ?? null,
@@ -321,7 +323,7 @@ function generatedPersona(index: number, seed: number, taken: Set<string>): Pers
     socialCluster: cluster,
     isPersona: false,
     archetype: archetype.slug,
-    primaryAesthetics: topAesthetics(hidden, 3),
+    primaryAesthetics: [...archetype.aesthetics],
     hiddenVector: hidden,
     giftHiddenVector: gift,
     giftDepartment: hasGift ? giftPick[1] : null,

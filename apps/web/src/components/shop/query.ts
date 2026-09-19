@@ -14,16 +14,17 @@ export const SHOP_MAX_PAGE_SIZE = 48
 
 export type ShopSort = NonNullable<ProductSearch['sort']>
 
-export const SORT_OPTIONS: ReadonlyArray<{ value: ShopSort; label: string }> = [
-  { value: 'relevance', label: 'Relevance' },
-  { value: 'popular', label: 'Most popular' },
-  { value: 'trending', label: 'Trending in the network' },
-  { value: 'new', label: 'Newest' },
-  { value: 'price_asc', label: 'Price, low to high' },
-  { value: 'price_desc', label: 'Price, high to low' },
+/** Sort order in the URL, in the order the picker offers them; the labels live in `shop.sort`. */
+export const SHOP_SORTS: readonly ShopSort[] = [
+  'relevance',
+  'popular',
+  'trending',
+  'new',
+  'price_asc',
+  'price_desc',
 ]
 
-const SORT_VALUES = new Set<string>(SORT_OPTIONS.map((o) => o.value))
+const SORT_VALUES = new Set<string>(SHOP_SORTS)
 const DEPARTMENT_VALUES = new Set<string>(DEPARTMENTS)
 const GROUP_VALUES = new Set<string>(CATEGORY_GROUPS)
 const COLOR_VALUES = new Set<string>(COLOR_FAMILIES)

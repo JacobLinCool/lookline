@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Search, ShoppingBag, Shirt, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useI18n } from '@/i18n/client'
+import type { Messages } from '@/i18n'
 import { cn } from '@/lib/cn'
 
 interface NavItem {
@@ -14,10 +16,10 @@ interface NavItem {
   match: string[]
 }
 
-const items: NavItem[] = [
-  { href: '/', label: 'Find', icon: <Sparkles />, match: ['/'] },
-  { href: '/shop', label: 'Shop', icon: <Search />, match: ['/shop', '/p/'] },
-  { href: '/me', label: 'Wardrobe', icon: <Shirt />, match: ['/me', '/looks/', '/asks/'] },
+const navItems = (t: Messages): NavItem[] => [
+  { href: '/', label: t.nav.find, icon: <Sparkles />, match: ['/'] },
+  { href: '/shop', label: t.nav.shop, icon: <Search />, match: ['/shop', '/p/'] },
+  { href: '/me', label: t.nav.wardrobe, icon: <Shirt />, match: ['/me', '/looks/', '/asks/'] },
 ]
 
 function isActive(pathname: string, item: NavItem): boolean {
@@ -27,9 +29,10 @@ function isActive(pathname: string, item: NavItem): boolean {
 /** Desktop top-bar links. */
 export function NavLinks() {
   const pathname = usePathname()
+  const { t } = useI18n()
   return (
     <ul className="hidden items-center gap-1 md:flex">
-      {items.map((item) => {
+      {navItems(t).map((item) => {
         const active = isActive(pathname, item)
         return (
           <li key={item.href}>
@@ -53,13 +56,14 @@ export function NavLinks() {
 /** Phone tab bar: four labelled tabs, fixed to the bottom, above the home indicator. */
 export function TabBar({ bagCount = 0 }: { bagCount?: number }) {
   const pathname = usePathname()
+  const { t } = useI18n()
   const tabs: NavItem[] = [
-    ...items,
-    { href: '/bag', label: 'Bag', icon: <ShoppingBag />, match: ['/bag', '/checkout'] },
+    ...navItems(t),
+    { href: '/bag', label: t.nav.bag, icon: <ShoppingBag />, match: ['/bag', '/checkout'] },
   ]
   return (
     <nav
-      aria-label="Primary"
+      aria-label={t.nav.primary}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
     >
       <ul className="grid grid-cols-4">

@@ -1,6 +1,7 @@
 import { suggestRemix } from '@lookline/engine'
 import { FactorBreakdown, Notice, Section } from '@/components/ui'
 import { ProductOption } from '@/components/social/product-option'
+import { getI18n } from '@/i18n/server'
 import { reasonLine } from '@/lib/reason'
 import { getDb } from '@/server/db'
 
@@ -18,16 +19,16 @@ export async function RemixSuggestions({
   originalIds: string[]
   engineView?: boolean
 }) {
-  const result = await suggestRemix(getDb().db, lookId, userId, {
-    budget: budget && Number.isFinite(budget) && budget > 0 ? budget : undefined,
-  }).catch(() => null)
-  if (!result)
-    return (
-      <Notice tone="warning">Suggestions are unavailable. The original pieces still are.</Notice>
-    )
+  const [{ t, locale }, result] = await Promise.all([
+    getI18n(),
+    suggestRemix(getDb().db, lookId, userId, {
+      budget: budget && Number.isFinite(budget) && budget > 0 ? budget : undefined,
+    }).catch(() => null),
+  ])
+  if (!result) return <Notice tone="warning">{t.looks.remix.suggestionsUnavailable}</Notice>
   const items = result.items.filter((item) => !originalIds.includes(item.product.id))
   return (
-    <Section title="Swap in" rule={false}>
+    <Section title={t.looks.remix.swapIn} rule={false}>
       {items.length ? (
         <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           {items.map((item) => (
@@ -38,8 +39,15 @@ export async function RemixSuggestions({
                 footer={
                   engineView ? (
                     <div className="flex flex-col gap-2">
-                      <p className="text-[12px] text-muted">{reasonLine(item.explanation)}</p>
-                      <FactorBreakdown explanation={item.explanation} compact scoreLabel="Fit" />
+                      <p className="text-[12px] text-muted">
+                        {reasonLine(item.explanation, locale)}
+                      </p>
+                      <FactorBreakdown
+                        explanation={item.explanation}
+                        compact
+                        scoreLabel={t.looks.remix.fit}
+                        locale={locale}
+                      />
                     </div>
                   ) : undefined
                 }
@@ -48,9 +56,7 @@ export async function RemixSuggestions({
           ))}
         </ul>
       ) : (
-        <p className="text-[13px] text-muted">
-          Nothing fits this budget. Raise it or keep the original pieces.
-        </p>
+        <p className="text-[13px] text-muted">{t.looks.remix.noneInBudget}</p>
       )}
     </Section>
   )

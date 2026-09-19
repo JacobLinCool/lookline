@@ -5,15 +5,11 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { PurchaseFor } from '@lookline/db'
 import { recordPurchase } from '@lookline/engine'
+import { getI18n } from '@/i18n/server'
 import { requireUser } from '@/server/auth'
 import { clearBag, getBag, removeFromBag, type BagLine } from '@/server/bag'
 import { getDb } from '@/server/db'
-import {
-  SOURCE_ASK_COOKIE,
-  SOURCE_LOOK_COOKIE,
-  describeEngineError,
-  sanitizeId,
-} from '@/server/looks'
+import { SOURCE_ASK_COOKIE, SOURCE_LOOK_COOKIE, sanitizeId } from '@/server/looks'
 
 const FOR_KINDS: readonly PurchaseFor[] = ['self', 'other', 'undisclosed']
 
@@ -38,7 +34,7 @@ function readLabel(value: FormDataEntryValue | null): string | null {
  */
 export async function placeOrderAction(formData: FormData): Promise<void> {
   const user = await requireUser('/checkout')
-  const lines = await getBag()
+  const [{ t }, lines] = await Promise.all([getI18n(), getBag()])
   if (lines.length === 0) redirect('/bag')
 
   const forKind = readForKind(formData.get('forKind'))
@@ -68,7 +64,7 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
     }
   } catch (error) {
     console.warn('[purchase] recordPurchase failed', error)
-    failure = describeEngineError('purchase', error)
+    failure = t.bag.errors.orderFailed
   }
 
   const query = new URLSearchParams()

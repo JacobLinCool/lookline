@@ -8,6 +8,8 @@ const page = await browser.newPage({
   viewport: { width: 1440, height: 1000 },
   reducedMotion: 'reduce',
 })
+// These checks select by English accessible name; pin the language so they cannot drift.
+await page.context().addCookies([{ name: 'll_locale', value: 'en', url: base }])
 const errors: string[] = []
 page.on('pageerror', (error) => errors.push(error.message))
 const measurements: unknown[] = []
@@ -23,13 +25,20 @@ try {
   await page.goto(base, { waitUntil: 'networkidle' })
   console.log('home', (await page.locator('main').innerText()).slice(0, 600))
   await page
-    .getByRole('textbox', { name: 'What do you want to wear?' })
+    .getByRole('textbox', { name: 'What are you dressing for?' })
     .fill('a black hoodie under NT$3000')
-  const stream = page.waitForResponse((res) => res.url().endsWith('/api/intent/stream'))
-  await page.getByRole('button', { name: 'Show me', exact: true }).click()
-  await page.getByRole('heading', { name: 'What we understood' }).waitFor()
-  await page.getByRole('heading', { name: 'Picked for you.' }).waitFor()
-  const captured = await (await stream).text()
+  // Submitting pushes a shareable URL, and a navigation discards a response body that has not
+  // been read yet, so tee the stream through the route instead of reading it afterwards.
+  let captured = ''
+  await page.route('**/api/intent/stream', async (route) => {
+    const response = await route.fetch()
+    captured = await response.text()
+    await route.fulfill({ response, body: captured })
+  })
+  await page.getByRole('button', { name: 'Find pieces', exact: true }).click()
+  await page.getByRole('heading', { name: 'Pieces for you' }).waitFor()
+  await page.unroute('**/api/intent/stream')
+  assert.ok(captured, 'the intent stream was captured')
   const events = captured
     .trim()
     .split('\n')
@@ -49,7 +58,7 @@ try {
   await page.goto(`${base}/?q=${encodeURIComponent('a black hoodie under NT$3000')}`, {
     waitUntil: 'networkidle',
   })
-  await page.getByRole('heading', { name: 'Picked for you.' }).waitFor()
+  await page.getByRole('heading', { name: 'Pieces for you' }).waitFor()
 
   // A hanging request must not overwrite a subsequent query or disable its input.
   let first = true
@@ -70,17 +79,14 @@ try {
       body: updated.map((event) => JSON.stringify(event)).join('\n') + '\n',
     })
   })
-  await page.getByRole('textbox', { name: 'What do you want to wear?' }).fill('older request')
-  await page.getByRole('button', { name: 'Say it again', exact: true }).click()
-  await page.getByRole('textbox', { name: 'What do you want to wear?' }).fill('newest request')
-  await page.getByRole('button', { name: 'Say it again', exact: true }).click()
-  await page.getByRole('heading', { name: '“newest request”' }).waitFor()
-  await page.getByRole('heading', { name: 'Picked for you.' }).waitFor()
+  const sentence = page.getByRole('textbox', { name: 'Your sentence' })
+  await sentence.fill('older request')
+  await page.getByRole('button', { name: 'Find pieces', exact: true }).click()
+  await sentence.fill('newest request')
+  await page.getByRole('button', { name: 'Find pieces', exact: true }).click()
+  await page.getByRole('heading', { name: 'Pieces for you' }).waitFor()
   await page.waitForTimeout(1700)
-  assert.equal(
-    await page.getByRole('textbox', { name: 'What do you want to wear?' }).inputValue(),
-    'newest request',
-  )
+  assert.equal(await sentence.inputValue(), 'newest request')
   await page.unroute('**/api/intent/stream')
 
   // Delay persistence and then reject: local feedback must appear immediately and retain inputs.

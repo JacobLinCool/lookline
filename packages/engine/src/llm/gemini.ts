@@ -36,6 +36,7 @@ export function geminiImage(apiKey: string, model: string): ImageAdapter {
         { text: req.prompt },
       ]
       for (const ref of req.referenceImages ?? []) {
+        if (ref.label) parts.push({ text: `${ref.label}:` })
         parts.push({ inlineData: { mimeType: ref.mimeType, data: ref.data.toString('base64') } })
       }
       const response = await ai.models.generateContent({

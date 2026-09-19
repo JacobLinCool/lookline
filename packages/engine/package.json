@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./testing": "./src/recommend/testing/fixtures.ts"
+    "./testing": "./src/recommend/testing/fixtures.ts",
+    "./hints": "./src/decisions/hints.ts"
   },
   "scripts": {
     "analytics": "tsx scripts/analytics.ts",

@@ -83,6 +83,10 @@ Guarantees:
 
 - Every LLM-backed function works with no API keys (`provider: 'offline'`) and never throws
   because of a provider error.
+- `parseIntent` answers from the closed-option decision (`provider: 'jev'`) unless `routeIntent`
+  escalates, and its `route` says why it did; `ctx.deferRefinement` returns that answer with a
+  `refine()` the caller runs out of band. Without `TYPESAFE_API_KEY` it degrades to the previous
+  lexicon-plus-LLM path.
 - `recommend` returns items whose `explanation.factors` sum (Σ contribution) equals `score` within
   floating error, so the UI can render the breakdown honestly.
 - `recordPurchase` writes the `purchases` row, the `PURCHASE` (and `BUY_FOR`) interactions, and a
@@ -116,13 +120,23 @@ Guarantees:
   `GET /api/looks/[id]/image` (R2 object `looks.image_path`, or poster SVG fallback),
   `GET /api/avatars/[seed]` (SVG).
 - Routes and their purpose are listed in ARCHITECTURE.md.
+- `POST /api/admin/image` (engine lab) renders either a typed prompt (`application/json` with
+  `{ prompt, aspectRatio }`) or a composite (`multipart/form-data` with repeated `garment` and
+  `person` image parts, plus `stylePreset`, `aspectRatio`, `occasion?` and `notes?`). References
+  are labelled `Garment n` / `Person reference n` and the engine's `buildCompositePrompt` names
+  them, so the model is told which image is which. The response carries the composed `prompt`,
+  the provider and the model; nothing is persisted.
 - `POST /api/intent/stream` accepts `{ q, clarify?, previous? }` and streams newline-delimited JSON:
   `understood` → `result` → optional `refinement` → `done` (or `error` before `done`). The initial
   result uses the tested deterministic parser/ranker; refinement is explicitly applied by the user.
   Disconnects abort model enrichment. Impression logging runs after the response and is not a
   condition for rendering results.
+- Interface copy is owned by `apps/web/src/i18n/messages/<locale>/<surface>.ts`, one module per
+  surface, typed against the English catalog. Catalog nouns are not copied there: they come from
+  `@lookline/catalog` through `apps/web/src/i18n/taxonomy.ts`. See [two languages](specs/I18N_SPEC.md).
 - `POST /api/filters/resolve` accepts `{ utterance, base, revision }` and returns validated
-  `{ filters, unresolved, revision, model, contractVersion, latencyMs }` from TypeSafe Jev.
+  `{ filters, unresolved, hints, revision, model, contractVersion, latencyMs }` from TypeSafe Jev;
+  `hints` lists what the sentence leaves unsaid (`occasion`, `budget`, …) for Shop to ask about.
   `POST /api/voice/token` returns a short-lived, single-use, model-constrained Gemini token.
   Both require authenticated same-origin requests. See [live filters](specs/REALTIME_FILTER_SPEC.md).
   Shop uses repeated `categoryGroups`, `colorFamilies`, `aesthetics` and corresponding

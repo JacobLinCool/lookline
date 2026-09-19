@@ -4,11 +4,13 @@ import { useState } from 'react'
 import type { PurchaseFor } from '@lookline/db'
 import { cn } from '@/lib/cn'
 import { Field, Input } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
+import type { Messages } from '@/i18n'
 
-const OPTIONS: Array<{ value: PurchaseFor; label: string }> = [
-  { value: 'self', label: 'Me' },
-  { value: 'other', label: 'Someone else' },
-  { value: 'undisclosed', label: 'Not now' },
+const options = (t: Messages): Array<{ value: PurchaseFor; label: string }> => [
+  { value: 'self', label: t.looks.recipient.self },
+  { value: 'other', label: t.looks.recipient.other },
+  { value: 'undisclosed', label: t.looks.recipient.undisclosed },
 ]
 
 /**
@@ -16,12 +18,15 @@ const OPTIONS: Array<{ value: PurchaseFor; label: string }> = [
  * (`forLabel`). Client-only for the reveal; the values post through the surrounding form.
  */
 export function RecipientPicker({ defaultValue = 'self' }: { defaultValue?: PurchaseFor }) {
+  const { t } = useI18n()
   const [kind, setKind] = useState<PurchaseFor>(defaultValue)
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="mb-1.5 text-[13px] font-medium text-ink">Recipient</legend>
+      <legend className="mb-1.5 text-[13px] font-medium text-ink">
+        {t.looks.recipient.legend}
+      </legend>
       <div role="radiogroup" className="flex flex-wrap gap-1.5">
-        {OPTIONS.map((option) => (
+        {options(t).map((option) => (
           <label
             key={option.value}
             className={cn(
@@ -42,12 +47,12 @@ export function RecipientPicker({ defaultValue = 'self' }: { defaultValue?: Purc
         ))}
       </div>
       {kind === 'other' ? (
-        <Field label="Who is it for" htmlFor="forLabel" hint="A name is enough. Only you see it.">
+        <Field label={t.looks.recipient.label} htmlFor="forLabel" hint={t.looks.recipient.hint}>
           <Input
             id="forLabel"
             name="forLabel"
             maxLength={60}
-            placeholder="Mom · 小美 · a friend"
+            placeholder={t.looks.recipient.placeholder}
             autoComplete="off"
             lang="zh-Hant"
             className="max-w-sm"

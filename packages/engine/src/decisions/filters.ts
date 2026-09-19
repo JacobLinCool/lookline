@@ -10,13 +10,14 @@ import { z } from 'zod'
 import { parseIntentOffline } from '../intent/lexicon-parser'
 import { withTimeout } from '../llm/timeout'
 import type { ProductSearch } from '../types'
+import { hintQuestions, reduceHints, type ChoiceQuestion, type FilterHintId } from './hints'
 
 export const JEV_MODEL = 'jev-1.13.0'
 export const DECISION_TIMEOUT_MS = 1_200
 // Conservative starting thresholds, to be calibrated on the bilingual evaluation corpus.
 export const MIN_DECISION_CONFIDENCE = 0.8
 export const MIN_DECISION_PROBABILITY = 0.9
-export const FILTER_CONTRACT_VERSION = 'filters-v1'
+export const FILTER_CONTRACT_VERSION = 'filters-v2'
 
 const groups = CATEGORY_GROUP_DEFS.map((g) => g.slug)
 const aesthetics = AESTHETICS.map((a) => a.slug)
@@ -59,11 +60,7 @@ export const filterStateSchema = z
   })
 export type FilterState = z.infer<typeof filterStateSchema>
 
-interface Question {
-  type: 'choice'
-  instructions: string
-  criteria: Record<string, string>
-}
+type Question = ChoiceQuestion
 const probability = z.number().min(0).max(1)
 const answerSchema = z.object({
   type: z.literal('choice'),
@@ -78,6 +75,8 @@ const responseSchema = z.object({
 export interface FilterDecision {
   filters: FilterState
   unresolved: string[]
+  /** What the request leaves unsaid, most useful first; the app turns each into a question. */
+  hints: FilterHintId[]
   model: string
   contractVersion: string
   latencyMs: number
@@ -212,6 +211,7 @@ export async function resolveFilters(
   if (!apiKey) throw new Error('Live semantic filters are not configured.')
   const validatedBase = filterStateSchema.parse(base)
   const { questions, budgets } = filterQuestions(utterance, validatedBase)
+  const hints = hintQuestions(validatedBase)
   const response = await withTimeout(
     DECISION_TIMEOUT_MS,
     async (signal) => {
@@ -222,7 +222,7 @@ export async function resolveFilters(
         body: JSON.stringify({
           model: options.model ?? process.env.TYPESAFE_MODEL ?? JEV_MODEL,
           state: utterance,
-          questions,
+          questions: { ...questions, ...hints },
         }),
       })
       if (!res.ok) throw new Error(`Filter service returned HTTP ${res.status}. Try again.`)
@@ -330,6 +330,7 @@ export async function resolveFilters(
   return {
     filters: filterStateSchema.parse(next),
     unresolved,
+    hints: reduceHints(validatedBase, response.answers),
     model: response.model,
     contractVersion: FILTER_CONTRACT_VERSION,
     latencyMs: performance.now() - start,

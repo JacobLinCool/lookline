@@ -135,4 +135,11 @@ describe('aggregateFacets', () => {
     expect(f.categoryGroups.map((x) => x.key)).toEqual(['bottoms', 'tops'])
     expect(f.colorFamilies).toEqual([{ key: 'black', count: 3 }])
   })
+
+  // Counts are exact: the facet query groups the whole filtered set rather than a capped head
+  // of it, so there is no sample to scale back up.
+  it('counts are the exact row counts', () => {
+    const rows = [{ dim: 'group', key: 'tops', n: 1130 }]
+    expect(aggregateFacets(rows).categoryGroups[0]!.count).toBe(1130)
+  })
 })

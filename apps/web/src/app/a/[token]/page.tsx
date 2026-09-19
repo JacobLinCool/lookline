@@ -18,18 +18,23 @@ import {
   attempt,
   first,
   loadAskByToken,
+  occasionOptionLabel,
   presetOptions,
   type AskBundle,
   type AskResponseRow,
 } from '@/components/social/data'
 
 import { ProductLine, ProductOption } from '@/components/social/product-option'
+import { getI18n } from '@/i18n/server'
 import { answerAskAction, answerStyleMeAction } from '@/server/actions/asks'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { formatRelative, formatTwd } from '@/server/format'
 
-export const metadata: Metadata = { title: 'Ask' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.social.askCard.metaTitle }
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -51,7 +56,7 @@ function tally(bundle: AskBundle): Map<string, number> {
   return counts
 }
 
-function ThankYou({
+async function ThankYou({
   bundle,
   mine,
   lookError,
@@ -60,28 +65,26 @@ function ThankYou({
   mine: AskResponseRow
   lookError: string | undefined
 }) {
+  const { t, locale } = await getI18n()
+  const copy = t.social.askCard
   const { ask, asker, options } = bundle
   const chosen = options.find((p) => p.id === mine.response.choiceArticleId)
   const counts = tally(bundle)
-  const name = mine.responder?.displayName ?? mine.response.responderName ?? 'You'
+  const name = mine.responder?.displayName ?? mine.response.responderName ?? copy.you
   return (
     <div className="flex flex-col gap-6">
-      <Notice tone="success" title={`Sent to ${asker.displayName}.`} />
-      {lookError ? (
-        <Notice tone="warning">
-          Your picks were sent as a message; the Look could not be made.
-        </Notice>
-      ) : null}
+      <Notice tone="success" title={copy.sentTo(asker.displayName)} />
+      {lookError ? <Notice tone="warning">{copy.lookFailed}</Notice> : null}
       <div className="hairline flex flex-col gap-4 pt-5">
         <div className="flex items-center gap-3">
           <Avatar seed={mine.responder?.avatarSeed ?? 0} name={name} size="sm" />
           <p className="text-[14px]">
             <span className="font-medium">{name}</span>{' '}
-            <span className="text-muted">· {formatRelative(mine.response.createdAt)}</span>
+            <span className="text-muted">· {formatRelative(mine.response.createdAt, locale)}</span>
           </p>
           {chosen ? (
             <Tag tone="ink" size="md" className="ml-auto">
-              {LETTERS[options.indexOf(chosen)] ?? 'Pick'}
+              {LETTERS[options.indexOf(chosen)] ?? copy.pick}
             </Tag>
           ) : null}
         </div>
@@ -93,7 +96,7 @@ function ThankYou({
               owner={asker}
               hideOwner
               href={`/l/${encodeURIComponent(mine.styledLook.shareToken)}`}
-              lineage={`Styled by ${name}`}
+              lineage={t.social.ask.styledBy(name)}
             />
           </div>
         ) : null}
@@ -114,11 +117,11 @@ function ThankYou({
       </div>
       <div className="flex flex-wrap gap-2">
         <Button href="/asks/new" variant="secondary">
-          Ask a friend yourself
+          {copy.askYourself}
         </Button>
         {bundle.look ? (
           <Button href={`/l/${encodeURIComponent(bundle.look.shareToken)}`} variant="ghost">
-            See the Look
+            {copy.seeLook}
           </Button>
         ) : null}
       </div>
@@ -133,7 +136,8 @@ export default async function AskCardPage({
   params: Promise<{ token: string }>
   searchParams: SearchParams
 }) {
-  const [{ token }, query] = await Promise.all([params, searchParams])
+  const [{ token }, query, { t, locale }] = await Promise.all([params, searchParams, getI18n()])
+  const copy = t.social.askCard
   const bundle = await loadAskByToken(token)
   if (!bundle) notFound()
   const { ask, asker, options } = bundle
@@ -146,15 +150,18 @@ export default async function AskCardPage({
     bundle.responses.find((r) => r.response.id === answeredId) ??
     (viewer ? bundle.responses.find((r) => r.response.responderUserId === viewer.id) : undefined)
   const error = first(query.error)
+  const errors: Record<string, string | undefined> = {
+    choice: copy.errors.choice,
+    picks: copy.errors.picks,
+    name: copy.errors.name,
+  }
   const lookError = first(query.lookError)
 
   const isStyle = ask.kind === 'style_me'
-  const brief = [
-    ask.occasion ? `For ${ask.occasion}` : null,
-    ask.budget ? `under ${formatTwd(ask.budget)}` : null,
-  ]
-    .filter(Boolean)
-    .join(', ')
+  const brief = copy.brief(
+    ask.occasion ? occasionOptionLabel(locale, ask.occasion, t.social.occasions) : null,
+    ask.budget ? formatTwd(ask.budget) : null,
+  )
 
   // style_me: the responder searches the catalog through Engine 02's searchProducts.
   const q = first(query.q)?.trim() ?? ''
@@ -173,11 +180,11 @@ export default async function AskCardPage({
       : null
 
   const nameField = !viewer ? (
-    <Field label="Your name" htmlFor="displayName">
+    <Field label={t.social.guest.name} htmlFor="displayName">
       <Input
         id="displayName"
         name="displayName"
-        placeholder="Alice / 小美"
+        placeholder={t.social.guest.namePlaceholder}
         maxLength={40}
         autoComplete="name"
         required
@@ -191,22 +198,24 @@ export default async function AskCardPage({
         <p className="flex items-center gap-2 text-[13px] text-muted">
           <Avatar seed={asker.avatarSeed} name={asker.displayName} size={22} />
           <span>
-            <span className="text-ink">{asker.displayName}</span> asks
-            {bundle.target ? ` ${bundle.target.displayName}` : ''} · {formatRelative(ask.createdAt)}
+            <span className="text-ink">
+              {copy.asksLine(asker.displayName, bundle.target?.displayName ?? null)}
+            </span>{' '}
+            · {formatRelative(ask.createdAt, locale)}
           </span>
         </p>
         <h1 className="display text-3xl md:text-5xl">“{ask.question}”</h1>
         {isStyle && brief ? <p className="text-[14px] text-muted">{brief}</p> : null}
       </header>
 
-      {error && ERRORS[error] ? (
+      {error && errors[error] ? (
         <Notice tone="error" className="mb-6">
-          {ERRORS[error]}
+          {errors[error]}
         </Notice>
       ) : null}
       {error === 'engine' ? (
         <Notice tone="warning" className="mb-6">
-          The answer could not be sent. Send it again.
+          {copy.errors.engine}
         </Notice>
       ) : null}
 
@@ -215,42 +224,38 @@ export default async function AskCardPage({
       ) : isStyle ? (
         <div className="flex flex-col gap-8">
           <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <Field label="Search the catalog" htmlFor="q" className="flex-1">
+            <Field label={copy.searchCatalog} htmlFor="q" className="flex-1">
               <Input
                 id="q"
                 name="q"
                 defaultValue={q}
-                placeholder="linen shirt, 黑色寬褲, quiet luxury…"
+                placeholder={copy.searchPlaceholder}
                 maxLength={120}
               />
             </Field>
-            <Field label="Max price" htmlFor="budget" className="sm:w-36">
+            <Field label={copy.maxPrice} htmlFor="budget" className="sm:w-36">
               <Input
                 id="budget"
                 name="budget"
                 inputMode="numeric"
                 defaultValue={budgetParam}
-                placeholder={ask.budget ? String(ask.budget) : 'Any'}
+                placeholder={ask.budget ? String(ask.budget) : copy.anyPrice}
               />
             </Field>
             <Button type="submit" variant="secondary">
-              Search
+              {copy.search}
             </Button>
           </form>
 
           <form action={answerStyleMeAction} className="flex flex-col gap-8">
             <input type="hidden" name="token" value={token} />
-            {search && !search.ok ? (
-              <Notice tone="warning">Products could not be loaded. Search again.</Notice>
-            ) : null}
+            {search && !search.ok ? <Notice tone="warning">{copy.searchFailed}</Notice> : null}
             {search?.ok && search.value.items.length === 0 ? (
-              <Notice tone="info">
-                Nothing matched “{q}”. Try another word or a higher price.
-              </Notice>
+              <Notice tone="info">{copy.noMatch(q)}</Notice>
             ) : null}
             {search?.ok && search.value.items.length > 0 ? (
               <div className="flex flex-col gap-3">
-                <p className="text-[13px] text-muted">Pick up to 4</p>
+                <p className="text-[13px] text-muted">{copy.pickUpTo}</p>
                 <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
                   {search.value.items.map((product) => (
                     <li key={product.id}>
@@ -262,25 +267,25 @@ export default async function AskCardPage({
             ) : null}
 
             <div className="hairline grid grid-cols-1 gap-5 pt-6 md:grid-cols-2">
-              {presetOptions().length > 0 ? (
-                <Field label="Style of the Look" htmlFor="stylePreset">
-                  <Select id="stylePreset" name="stylePreset" options={presetOptions()} />
+              {presetOptions(locale).length > 0 ? (
+                <Field label={copy.stylePreset} htmlFor="stylePreset">
+                  <Select id="stylePreset" name="stylePreset" options={presetOptions(locale)} />
                 </Field>
               ) : null}
               {nameField}
-              <Field label="A word for them (optional)" htmlFor="comment" className="md:col-span-2">
+              <Field label={copy.comment} htmlFor="comment" className="md:col-span-2">
                 <Textarea
                   id="comment"
                   name="comment"
                   rows={2}
                   maxLength={500}
-                  placeholder="Why these pieces…"
+                  placeholder={copy.commentPlaceholderStyle}
                 />
               </Field>
             </div>
             <div>
               <Button type="submit" size="lg">
-                Send this Look
+                {copy.sendLook}
               </Button>
             </div>
           </form>
@@ -288,13 +293,13 @@ export default async function AskCardPage({
       ) : (
         <InstantForm
           name="ask"
-          confirmation="Sending"
+          confirmation={t.social.ask.sending}
           action={answerAskAction}
           className="flex flex-col gap-8"
         >
           <input type="hidden" name="token" value={token} />
           {options.length === 0 ? (
-            <Notice tone="info">This Ask has no pieces attached.</Notice>
+            <Notice tone="info">{copy.noPieces}</Notice>
           ) : (
             <ul
               className={
@@ -318,7 +323,7 @@ export default async function AskCardPage({
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {nameField}
             <Field
-              label="A word for them (optional)"
+              label={copy.comment}
               htmlFor="comment"
               className={viewer ? 'md:col-span-2' : undefined}
             >
@@ -327,13 +332,13 @@ export default async function AskCardPage({
                 name="comment"
                 rows={2}
                 maxLength={500}
-                placeholder="The cut suits you better… / 這件比較顯瘦"
+                placeholder={copy.commentPlaceholder}
               />
             </Field>
           </div>
           <div>
             <Button type="submit" size="lg">
-              Send my pick
+              {copy.sendPick}
             </Button>
           </div>
         </InstantForm>

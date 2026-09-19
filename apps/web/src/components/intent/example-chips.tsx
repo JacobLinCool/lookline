@@ -1,6 +1,7 @@
 'use client'
 
 import type { MouseEvent } from 'react'
+import { useI18n } from '@/i18n/client'
 import { intentHref } from './urls'
 
 export interface ExampleChipsProps {
@@ -11,10 +12,11 @@ export interface ExampleChipsProps {
 }
 
 /**
- * Bilingual example sentences. Each is a real link (`/?q=…`) so it works without JavaScript;
- * with JavaScript it fills the field and submits the form, which reads as "typing".
+ * Example sentences in the reader's language. Each is a real link (`/?q=…`) so it works without
+ * JavaScript; with JavaScript it fills the field and submits the form, which reads as "typing".
  */
 export function ExampleChips({ examples, inputId, className }: ExampleChipsProps) {
+  const { t } = useI18n()
   function pick(event: MouseEvent<HTMLAnchorElement>, example: string) {
     const input = document.getElementById(inputId)
     if (!(input instanceof HTMLInputElement) || !input.form) return
@@ -24,7 +26,10 @@ export function ExampleChips({ examples, inputId, className }: ExampleChipsProps
     input.form.requestSubmit()
   }
   return (
-    <ul className={className ?? 'flex max-w-full flex-wrap gap-2'} aria-label="Example sentences">
+    <ul
+      className={className ?? 'flex max-w-full flex-wrap gap-2'}
+      aria-label={t.home.sayIt.examplesLabel}
+    >
       {examples.map((example) => (
         <li key={example} className="min-w-0 max-w-full">
           <a

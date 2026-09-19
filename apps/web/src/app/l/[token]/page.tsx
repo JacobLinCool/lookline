@@ -18,6 +18,7 @@ import {
 } from '@/components/ui'
 import { first, loadLookByToken, ensureInteraction, logInteraction } from '@/components/social/data'
 import { ShareLink } from '@/components/social/share-link'
+import { getI18n } from '@/i18n/server'
 import { guestLoginAction } from '@/server/actions/auth'
 import { addToBagAction } from '@/server/actions/bag'
 import { reactToLookAction } from '@/server/actions/remix'
@@ -25,7 +26,10 @@ import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { formatRelative } from '@/server/format'
 
-export const metadata: Metadata = { title: 'Shared Look' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.social.sharedLook.metaTitle }
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -42,7 +46,8 @@ export default async function SharedLookPage({
   params: Promise<{ token: string }>
   searchParams: SearchParams
 }) {
-  const [{ token }, query] = await Promise.all([params, searchParams])
+  const [{ token }, query, { t, locale }] = await Promise.all([params, searchParams, getI18n()])
+  const copy = t.social.sharedLook
   const bundle = await loadLookByToken(token)
   if (!bundle) notFound()
   const { look, owner, articles } = bundle
@@ -120,7 +125,7 @@ export default async function SharedLookPage({
       disabled={reacted}
       className={reacted ? 'text-accent' : undefined}
     >
-      {reacted ? 'Liked' : 'Like'}
+      {reacted ? copy.liked : copy.like}
     </Button>
   )
 
@@ -149,36 +154,34 @@ export default async function SharedLookPage({
             <div className="flex items-center gap-2 text-[13px] text-muted">
               <Avatar seed={owner.avatarSeed} name={owner.displayName} size="sm" />
               <span className="text-ink">{owner.displayName}</span>
-              <span>· {formatRelative(look.createdAt)}</span>
+              <span>· {formatRelative(look.createdAt, locale)}</span>
             </div>
           </div>
 
-          {error === 'name' ? <Notice tone="error">Add your name first.</Notice> : null}
-          {error === 'engine' ? (
-            <Notice tone="warning">Your like was not saved. Try again.</Notice>
-          ) : null}
+          {error === 'name' ? <Notice tone="error">{copy.nameError}</Notice> : null}
+          {error === 'engine' ? <Notice tone="warning">{copy.likeError}</Notice> : null}
           {reacted && first(query.reacted) === '1' ? (
-            <Notice tone="success">{firstName} will see you liked it.</Notice>
+            <Notice tone="success">{copy.likeSaved(firstName)}</Notice>
           ) : null}
 
           {isOwner ? (
             <div className="flex flex-col gap-3">
-              <ShareLink path={path} label="Share link" />
+              <ShareLink path={path} label={t.social.share.shareLink} />
               <Button href={`/looks/${look.id}`} variant="secondary">
-                Open Look
+                {copy.openLook}
               </Button>
             </div>
           ) : viewer ? (
             <div className="flex flex-col gap-2">
               <Button href={remixPath} size="lg" full icon={<Sparkles />}>
-                Make it mine
+                {copy.makeItMine}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button href={askPath} variant="secondary">
-                  Ask about a piece
+                  {copy.askAboutPiece}
                 </Button>
                 <Button href={stylePath} variant="secondary">
-                  Style {firstName}
+                  {copy.stylePerson(firstName)}
                 </Button>
               </div>
               <form action={reactToLookAction} className="flex">
@@ -189,25 +192,25 @@ export default async function SharedLookPage({
           ) : (
             <form className="flex flex-col gap-3">
               <input type="hidden" name="token" value={token} />
-              <Field label="Your name" htmlFor="displayName">
+              <Field label={t.social.guest.name} htmlFor="displayName">
                 <Input
                   id="displayName"
                   name="displayName"
-                  placeholder="Alice / 小美"
+                  placeholder={t.social.guest.namePlaceholder}
                   maxLength={40}
                   autoComplete="name"
                   required
                 />
               </Field>
               <Button type="submit" formAction={guestRemix} size="lg" full icon={<Sparkles />}>
-                Make it mine
+                {copy.makeItMine}
               </Button>
               <div className="grid grid-cols-2 gap-2">
                 <Button type="submit" formAction={guestAsk} variant="secondary">
-                  Ask about a piece
+                  {copy.askAboutPiece}
                 </Button>
                 <Button type="submit" formAction={guestStyle} variant="secondary">
-                  Style {firstName}
+                  {copy.stylePerson(firstName)}
                 </Button>
               </div>
               <div className="flex">{likeButton(reactToLookAction)}</div>
@@ -216,9 +219,9 @@ export default async function SharedLookPage({
         </div>
       </div>
 
-      <Section title="In this Look">
+      <Section title={copy.inThisLook}>
         {articles.length === 0 ? (
-          <p className="text-[13px] text-muted">No pieces attached.</p>
+          <p className="text-[13px] text-muted">{copy.noPieces}</p>
         ) : (
           <Rail itemWidth="md">
             {articles.map((product) => (
@@ -230,13 +233,13 @@ export default async function SharedLookPage({
                     <InstantForm
                       action={addToBagAction}
                       name="add-to-bag"
-                      confirmation="Added to your bag"
+                      confirmation={t.social.bag.confirmation}
                       className="flex"
                     >
                       <input type="hidden" name="articleId" value={product.id} />
                       <input type="hidden" name="redirect" value={`${path}?bag=1`} />
                       <Button type="submit" variant="secondary" size="sm" full>
-                        Add to bag
+                        {t.social.bag.add}
                       </Button>
                     </InstantForm>
                   }
@@ -251,11 +254,11 @@ export default async function SharedLookPage({
             className="mt-6"
             action={
               <Button href="/bag" size="sm">
-                Open bag
+                {t.social.bag.open}
               </Button>
             }
           >
-            Added to your bag.
+            {t.social.bag.added}
           </Notice>
         ) : null}
       </Section>

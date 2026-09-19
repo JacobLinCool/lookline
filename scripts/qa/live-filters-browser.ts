@@ -31,7 +31,11 @@ const browser = await launchBrowser([
 ])
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
 page.setDefaultTimeout(12_000)
-await page.context().addCookies([{ name: 'll_session', value: `${id}.${signature}`, url: base }])
+await page.context().addCookies([
+  { name: 'll_session', value: `${id}.${signature}`, url: base },
+  // These checks select by English accessible name; pin the language so they cannot drift.
+  { name: 'll_locale', value: 'en', url: base },
+])
 await page.addInitScript(() => {
   const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
   Object.assign(window, { qaTracks: [] as MediaStreamTrack[] })
@@ -50,11 +54,11 @@ const report: Record<string, unknown> = {
 const passed = report.tests as string[]
 try {
   await page.goto(`${base}/shop`, { waitUntil: 'networkidle' })
-  const input = page.getByRole('textbox', { name: 'Describe your filters' })
+  const input = page.getByRole('textbox', { name: 'Describe what you are looking for' })
   assert.ok(await input.isEnabled(), 'TypeSafe must be configured')
   const chip = (label: string) =>
     page.getByRole('link', { name: `Remove filter ${label}`, exact: true })
-  const languageSummary = page.getByRole('button', { name: /Voice languages/ })
+  const languageSummary = page.getByLabel(/Voice languages/)
   await languageSummary.click()
   const traditional = page.getByRole('checkbox', { name: '繁體中文（台灣）', exact: true })
   const english = page.getByRole('checkbox', { name: 'English', exact: true })
@@ -89,9 +93,9 @@ try {
   passed.push('authenticated, same-origin endpoints')
 
   // Real provider connection, with synthetic browser audio only; no microphone is recorded.
-  await page.getByRole('button', { name: 'Start voice filters' }).click()
+  await page.getByRole('button', { name: 'Speak', exact: true }).click()
   try {
-    await page.getByText('● Listening', { exact: true }).waitFor({ timeout: 15_000 })
+    await page.getByText('Listening', { exact: true }).waitFor({ timeout: 15_000 })
     assert.ok(await english.isDisabled(), 'Active capture locks its language configuration')
     report.realVoice =
       'Gemini ephemeral token and Transcribe Live setup succeeded with synthetic audio'
@@ -110,15 +114,15 @@ try {
       report.realSpeechFilters = true
     }
     await page.getByRole('button', { name: 'Stop', exact: true }).click()
-    await page.getByRole('button', { name: 'Start voice filters' }).waitFor()
+    await page.getByRole('button', { name: 'Speak', exact: true }).waitFor()
   } catch (error) {
     if (process.env.QA_VOICE_WAV) throw error
     report.realVoice = await page
       .locator('main')
       .innerText()
       .then((t) => t.slice(0, 1200))
-    if (await page.getByRole('button', { name: 'Cancel live filters' }).count())
-      await page.getByRole('button', { name: 'Cancel live filters' }).click()
+    if (await page.getByRole('button', { name: 'Clear', exact: true }).count())
+      await page.getByRole('button', { name: 'Clear', exact: true }).click()
   }
   console.log('realVoice', report.realVoice, report.realTranscript, report.realSpeechFilters)
   await page.goto(`${base}/shop`, { waitUntil: 'networkidle' })
@@ -170,8 +174,9 @@ try {
         revision: request.revision,
         filters,
         unresolved: [],
+        hints: [],
         model: 'qa-mock',
-        contractVersion: 'filters-v1',
+        contractVersion: 'filters-v2',
         latencyMs: 25,
       },
     })
@@ -180,13 +185,13 @@ try {
   await input.fill('black outerwear')
   await chip('Black').waitFor()
   assert.equal(new URL(page.url()).search, '')
-  await page.getByText(/matching pieces · preview/).waitFor()
-  await page.getByRole('button', { name: 'Apply', exact: true }).click()
+  await page.getByText(/pieces · preview/).waitFor()
+  await page.getByRole('button', { name: 'Apply', exact: true }).last().click()
   await page.waitForURL('**/shop?*colorFamilies=black*')
   passed.push('typed live chips and products; explicit URL commit')
   await input.fill('navy outerwear')
   await chip('Blue').waitFor()
-  await page.getByRole('button', { name: 'Cancel live filters' }).click()
+  await page.getByRole('button', { name: 'Clear', exact: true }).click()
   await chip('Black').waitFor()
   assert.equal(await chip('Blue').count(), 0)
   passed.push('cancel restores committed filters')
@@ -207,7 +212,7 @@ try {
   assert.ok(await chip('Black').isVisible())
   assert.ok(await page.locator('main a[href^="/p/"]').first().isVisible())
   passed.push('provider error keeps usable catalog results')
-  await page.getByRole('button', { name: 'Cancel live filters' }).click()
+  await page.getByRole('button', { name: 'Clear', exact: true }).click()
 
   await page.route('**/api/voice/token', (route) => {
     assert.deepEqual(route.request().postDataJSON(), { languageCodes: ['en-US', 'ja-JP'] })
@@ -259,8 +264,8 @@ try {
   await languageSummary.click()
   await traditional.uncheck()
   await japanese.check()
-  await page.getByRole('button', { name: 'Start voice filters' }).click()
-  await page.getByText('● Listening', { exact: true }).waitFor()
+  await page.getByRole('button', { name: 'Speak', exact: true }).click()
+  await page.getByText('Listening', { exact: true }).waitFor()
   await Promise.race([
     pcmReady,
     new Promise((_, reject) =>
@@ -295,7 +300,7 @@ try {
   )
   await page.getByRole('button', { name: 'Stop', exact: true }).click()
   await page.waitForURL('**/shop?*colorFamilies=blue*')
-  await page.getByRole('button', { name: 'Start voice filters' }).waitFor()
+  await page.getByRole('button', { name: 'Speak', exact: true }).waitFor()
   assert.ok(setupModel.endsWith('gemini-3.5-transcribe-live'))
   assert.ok(pcmChunks > 0, 'real AudioWorklet emits PCM packets')
   assert.ok(audioEnded)
@@ -311,7 +316,13 @@ try {
   )
   passed.push('Selected languages reach both token request and Live setup')
   report.pcmChunks = pcmChunks
-  await page.getByText(/^326 matching pieces$/).waitFor()
+  // The committed URL and the results line must agree; the catalog is reseeded, so read the total
+  // rather than pinning a number.
+  const committedTotal = await page.evaluate(async () => {
+    const response = await fetch(`/api/products/search${window.location.search}`)
+    return ((await response.json()) as { total: number }).total
+  })
+  await page.getByText(new RegExp(`^${committedTotal.toLocaleString('en-US')} pieces$`)).waitFor()
   await mkdir('output/playwright', { recursive: true })
   await page.screenshot({ path: 'output/playwright/live-filters.png', fullPage: false })
   report.errors = errors

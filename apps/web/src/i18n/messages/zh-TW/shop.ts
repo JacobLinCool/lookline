@@ -1,0 +1,400 @@
+import { formatNumber } from '@/server/format'
+import type { ShopMessages } from '../en/shop'
+
+export const shop: ShopMessages = {
+  title: '選購',
+  loadError: '單品沒有載入。',
+  list: (items: readonly string[]) => items.join('、'),
+
+  sentence: {
+    label: '用一句話篩選',
+    field: '說出你想找的單品',
+    placeholder: '黑色或海軍藍外套，三千以內，不要紅色…',
+    unavailable: '目前無法用句子篩選',
+    signIn: '登入後可用句子篩選',
+    listening: '聆聽中',
+    connecting: '連線中…',
+    finishing: '收尾中…',
+    reading: '解讀中…',
+    speak: '說話',
+    stop: '停止',
+    languages: '語音語言',
+    languagesOf: (languages: string) => `語音語言：${languages}`,
+    nextQuestion: '下一個問題',
+    tooLong: '這句話太長了。可以保留預覽，或換一句短一點的。',
+    refreshFailed: '單品沒有更新，先前的結果還在。',
+    refreshFailedShort: '單品沒有更新。',
+    resolveFailed: '目前無法用句子篩選。',
+    unverified: '篩選結果無法驗證。',
+  },
+
+  results: {
+    previous: '先前的結果',
+    unavailable: '單品暫不可用',
+    withPreview: (count: string) => `${count} · 預覽`,
+    emptyTitle: '沒有符合的單品。',
+    emptyDescription: '換個顏色、放寬分類，或提高價格。',
+  },
+
+  filters: {
+    label: '篩選',
+    active: '已套用的篩選',
+    department: '館別',
+    category: '分類',
+    colour: '顏色',
+    style: '風格',
+    price: '價格',
+    any: '不限',
+    anyColour: '不限顏色',
+    moreStyles: (n: number) => `另外 ${n} 種風格`,
+    not: (label: string) => `排除${label}`,
+    brand: (id: number) => `品牌 #${id}`,
+    priceFrom: (amount: string) => `${amount} 以上`,
+    priceUnder: (amount: string) => `${amount} 以下`,
+    withCount: (label: string, n: number) => `${label} · ${formatNumber(n)} 件`,
+    sort: '排序',
+    sortField: '單品排序',
+    pricePresets: {
+      under1000: 'NT$1,000 以下',
+      band1to3: 'NT$1,000 – 3,000',
+      band3to8: 'NT$3,000 – 8,000',
+      from8000: 'NT$8,000 以上',
+    },
+  },
+
+  sort: {
+    relevance: '相關度',
+    popular: '最熱門',
+    trending: '社群正流行',
+    new: '最新',
+    price_asc: '價格由低到高',
+    price_desc: '價格由高到低',
+  },
+
+  pagination: {
+    label: '分頁',
+    pageOf: (page: number, pages: number) =>
+      `第 ${formatNumber(page)} 頁，共 ${formatNumber(pages)} 頁`,
+    previous: '上一頁',
+    next: '下一頁',
+  },
+
+  product: {
+    notFound: '找不到這件單品',
+    fallbackTitle: '單品',
+    breadcrumb: '階層導覽',
+    added: '已加入購物袋',
+    addedCount: (n: number) => `${formatNumber(n)} 件已加入購物袋`,
+    openBag: '開啟購物袋',
+    lowStock: '庫存不多',
+    secondColour: '第二色',
+    rating: (rating: string, reviews: number) => `${rating} / 5 · ${formatNumber(reviews)} 則評論`,
+    details: '商品細節',
+    size: '尺寸',
+    oneSize: '單一尺寸',
+    quantity: '數量',
+    soldOut: '已售完',
+    addToBag: '加入購物袋',
+    askFriend: '問朋友該選哪一件',
+  },
+
+  attributes: {
+    material: '材質',
+    fit: '版型',
+    silhouette: '輪廓',
+    length: '長度',
+    neckline: '領口',
+    sleeve: '袖長',
+    closure: '開合',
+    pattern: '圖案',
+    occasions: '場合',
+    seasons: '季節',
+  },
+
+  look: {
+    title: '這樣搭',
+    unavailable: '目前無法提供穿搭建議。',
+    none: '這件還沒有可以搭配的穿搭。',
+    alone: '單穿',
+    withPieces: (pieces: readonly string[]) => `搭配${pieces.join('、')}`,
+    thisPiece: '這一件',
+    total: (amount: string) => `合計 ${amount}`,
+    addAll: (n: number) => `${n} 件全部加入購物袋`,
+    added: '整套已加入購物袋',
+    score: '穿搭',
+  },
+
+  outfitRoles: {
+    outer: '外套',
+    tailoring: '西裝',
+    top: '上衣',
+    dress: '洋裝',
+    bottom: '下身',
+    shoes: '鞋子',
+    bag: '包款',
+    accessory: '配件',
+    jewelry: '首飾',
+    activewear: '運動服',
+    swimwear: '泳裝',
+  },
+
+  similar: '相似單品',
+
+  fit: {
+    signIn: '登入後看適合度',
+    empty: '收藏幾件單品，就能看到適合度。',
+    score: '適合度',
+    close: '很接近你的喜好',
+    partly: '部分符合你的喜好',
+    different: '和你平常挑的不太一樣',
+    colourIsYours: (colour: string) => `${colour}是你常穿的顏色`,
+    evidence: {
+      close: '接近你平常挑的單品',
+      partly: '和你平常的風格有些相符',
+      different: '和你平常挑的單品不同',
+      shares: (styles: string) => `與你的主要風格有 ${styles} 相符`,
+      sharesNothing: '目前與你的主要風格沒有交集',
+      colourOutside: '顏色不在你常穿的色系',
+      trend: (score: string) => `來自 Look、改搭與提問的趨勢分數 ${score}`,
+      noTrend: '這件還沒有趨勢動能紀錄',
+      join: (clauses: readonly string[]) => clauses.join('；'),
+    },
+  },
+
+  voice: {
+    connectTimeout: '語音連線太久沒有回應，請再試一次。',
+    connectionFailed: '語音連線失敗，你儲存的篩選條件還在。',
+    disconnected: '語音已中斷，可以重新連線或繼續輸入。',
+    processingFailed: '麥克風處理失敗，請重新連線。',
+    audioFailed: '音訊沒有送出，請重新連線。',
+    permission: '請允許使用麥克風，才能用語音篩選。',
+    connectFailed: '語音無法連線，請再試一次或繼續輸入。',
+    finishFailed: '無法完成辨識，未確認的語音沒有套用。',
+    unfinalized: '最後幾個字還沒確認，套用前請先看過預覽。',
+  },
+
+  hints: {
+    recipient: {
+      question: '給誰的？',
+      choices: {
+        myself: '自己穿',
+        partner: '另一半',
+        mum: '媽媽',
+        dad: '爸爸',
+        kid: '小孩',
+      },
+    },
+    occasion: {
+      question: '什麼場合？',
+      choices: {
+        work: '上班',
+        wedding: '婚禮',
+        date: '約會',
+        weekend: '週末',
+        travel: '旅行',
+      },
+    },
+    formality: {
+      question: '要多正式？',
+      choices: {
+        casual: '休閒',
+        smartCasual: '半正式',
+        business: '商務',
+        formal: '正式',
+      },
+    },
+    'wedding-role': {
+      question: '在婚禮上的身分？',
+      choices: {
+        guest: '賓客',
+        bridesmaid: '伴娘',
+        groomsman: '伴郎',
+        family: '新人的家人',
+      },
+    },
+    'office-type': {
+      question: '哪一種辦公環境？',
+      choices: {
+        corporate: '傳統辦公室',
+        creative: '創意產業',
+        client: '要見客戶',
+        hybrid: '混合辦公',
+      },
+    },
+    'trip-type': {
+      question: '要去哪裡？',
+      choices: {
+        city: '城市旅行',
+        beach: '海島',
+        mountains: '山上',
+        cold: '很冷的地方',
+        flight: '長途飛行',
+      },
+    },
+    activity: {
+      question: '哪一種運動？',
+      choices: {
+        gym: '健身房',
+        running: '跑步',
+        yoga: '瑜珈',
+        hiking: '登山',
+        swimming: '游泳',
+      },
+    },
+    category: {
+      question: '想找什麼單品？',
+      choices: {
+        outerwear: '外套',
+        tops: '上衣',
+        dresses: '洋裝',
+        bottoms: '下身',
+        shoes: '鞋子',
+        bags: '包款',
+      },
+    },
+    budget: {
+      question: '預算？',
+      choices: {
+        under1000: 'NT$1,000 以內',
+        under3000: 'NT$3,000 以內',
+        under8000: 'NT$8,000 以內',
+        noLimit: '不限',
+      },
+    },
+    colour: {
+      question: '有想要的顏色嗎？',
+      choices: {
+        black: '黑色',
+        white: '白色',
+        navy: '海軍藍',
+        beige: '米色',
+        red: '紅色',
+        green: '綠色',
+      },
+    },
+    warmth: {
+      question: '要多保暖？',
+      choices: {
+        light: '薄外搭',
+        mid: '中等厚度',
+        heavy: '厚外套',
+        rainproof: '防風防水',
+      },
+    },
+    length: {
+      question: '哪一種長度？',
+      choices: { mini: '短版', midi: '中長版', maxi: '長版' },
+    },
+    sleeve: {
+      question: '袖長？',
+      choices: { sleeveless: '無袖', short: '短袖', long: '長袖' },
+    },
+    'trouser-cut': {
+      question: '褲型？',
+      choices: { straight: '直筒', wide: '寬褲', tapered: '錐形', cropped: '九分' },
+    },
+    heel: {
+      question: '有跟還是平底？',
+      choices: {
+        flats: '平底',
+        low: '低跟',
+        high: '高跟',
+        sneakers: '球鞋',
+        boots: '靴子',
+      },
+    },
+    'bag-size': {
+      question: '包款大小？',
+      choices: { mini: '迷你包', everyday: '日常包', tote: '托特包', weekender: '旅行包' },
+    },
+    neckline: {
+      question: '領口？',
+      choices: { crew: '圓領', vNeck: 'V領', collared: '有領', offShoulder: '露肩' },
+    },
+    mood: {
+      question: '哪一種風格？',
+      choices: {
+        minimalist: '極簡',
+        streetwear: '街頭',
+        preppy: '學院',
+        romantic: '浪漫',
+        quietLuxury: '低調奢華',
+        athleisure: '運動休閒',
+      },
+    },
+    fit: {
+      question: '想要什麼版型？',
+      choices: { slim: '合身', regular: '正常版型', relaxed: '寬鬆', oversized: 'Oversize' },
+    },
+    season: {
+      question: '哪一季穿？',
+      choices: { spring: '春天', summer: '夏天', autumn: '秋天', winter: '冬天' },
+    },
+    'avoid-colour': {
+      question: '有不要的顏色嗎？',
+      choices: {
+        red: '不要紅色',
+        black: '不要黑色',
+        white: '不要白色',
+        pink: '不要粉色',
+        yellow: '不要黃色',
+      },
+    },
+    fabric: {
+      question: '材質？',
+      choices: {
+        cotton: '棉',
+        linen: '亞麻',
+        wool: '羊毛',
+        silk: '絲',
+        denim: '丹寧',
+        leather: '皮革',
+      },
+    },
+    pattern: {
+      question: '素色還是有圖案？',
+      choices: {
+        solid: '素色',
+        stripes: '條紋',
+        checks: '格紋',
+        floral: '碎花',
+        prints: '印花',
+      },
+    },
+    order: {
+      question: '先看哪些？',
+      choices: {
+        newest: '最新',
+        popular: '最熱門',
+        trending: '最近流行',
+        cheapest: '最便宜',
+      },
+    },
+    time: {
+      question: '白天還是晚上？',
+      choices: { day: '白天', evening: '晚上', both: '都可以' },
+    },
+    pair: {
+      question: '要搭你已有的單品嗎？',
+      choices: {
+        jeans: '牛仔褲',
+        suit: '西裝',
+        skirt: '裙子',
+        sneakers: '球鞋',
+        boots: '靴子',
+      },
+    },
+    care: {
+      question: '需要好整理嗎？',
+      choices: {
+        machineWash: '可機洗',
+        wrinkleFree: '不易皺',
+        quickDry: '快乾',
+      },
+    },
+    statement: {
+      question: '亮眼還是基本款？',
+      choices: { statement: '亮眼單品', basic: '百搭基本款' },
+    },
+  },
+}

@@ -1,14 +1,16 @@
 import { Button, Container, PageHeader } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
 
-export default function NotFound() {
+export default async function NotFound() {
+  const { t } = await getI18n()
   return (
     <Container size="narrow" className="pb-24">
       <PageHeader
-        title="Nothing here"
-        description="This page does not exist, or the Look was never shared."
+        title={t.ui.notFoundTitle}
+        description={t.ui.notFoundDescription}
         actions={
           <Button href="/" variant="secondary">
-            Back to Find
+            {t.ui.notFoundAction}
           </Button>
         }
       />

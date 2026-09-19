@@ -119,6 +119,15 @@ Layout, in order:
 `CATEGORY_GROUPS`) and the `toStyleVector()` function. Everything else imports them. Similarity is
 cosine.
 
+## Languages
+
+English and Traditional Chinese (Taiwan), chosen by the `ll_locale` cookie and otherwise by
+`Accept-Language`; URLs carry no locale prefix so a filtered `/shop` link is shareable between
+readers of either language. Interface copy lives in `apps/web/src/i18n/messages/<locale>/`, typed
+against the English catalog; catalog nouns are read from `@lookline/catalog`'s own `labelZh`
+through `apps/web/src/i18n/taxonomy.ts` and are never re-typed as translations. See
+[two languages](specs/I18N_SPEC.md).
+
 ## Money, departments, sizes
 
 - Prices are integer TWD (`price` column). The intent parser converts other currencies.
@@ -186,4 +195,6 @@ route handler; Looks without a generated image get their composition poster rend
 clean clone: `pnpm install`, `pnpm db:migrate`, `pnpm seed` (100k products + simulation into
 `data/lookline.sqlite`), `pnpm d1:migrate:local && pnpm d1:local` (copy into the dev D1),
 `pnpm dev`. Production: `wrangler d1 create lookline`, `wrangler r2 bucket create lookline-media`,
-`pnpm d1:migrate:remote && pnpm d1:remote`, `pnpm deploy`.
+`pnpm d1:migrate:remote && pnpm d1:remote`, `pnpm deploy`. On the shared account both
+resources already exist and a collaborator needs a scoped API token instead —
+see [onboarding](ONBOARDING.md).

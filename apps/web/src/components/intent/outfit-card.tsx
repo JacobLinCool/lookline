@@ -1,10 +1,13 @@
+'use client'
+
 import type { Outfit } from '@lookline/engine'
 import { InstantForm } from '@/components/latency/instant-form'
-import { OUTFIT_ROLE_LABELS } from '@/components/shop/constants'
 import { Button, FactorBreakdown, ProductCard, Rail, RailItem, Tag } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
+import { facetLabel } from '@/i18n/taxonomy'
 import { GENERIC_FACTORS, reasonLine } from '@/lib/reason'
 import { addOutfitToBagAction } from '@/server/actions/bag'
-import { formatTwd, humanize } from '@/server/format'
+import { formatTwd } from '@/server/format'
 import { askHref, intentHref, productHref, type IntentQuery } from './urls'
 
 export interface OutfitRailProps {
@@ -27,15 +30,18 @@ export function OutfitRail({
   budgetMax,
   engineView = false,
 }: OutfitRailProps) {
+  const { t, locale } = useI18n()
+  const copy = t.home.outfits
+  const roleLabel = (role: string) => copy.roles[role] ?? facetLabel(locale, role)
   const articleIds = outfit.items.map((item) => item.product.id)
   const budget = outfit.budget ?? budgetMax ?? null
   const over = budget !== null && outfit.total > budget
   const back = intentHref({ ...query, added: outfit.id })
   const roles = outfit.items
-    .map((item) => (item.role ? (OUTFIT_ROLE_LABELS[item.role] ?? humanize(item.role)) : null))
+    .map((item) => (item.role ? roleLabel(item.role) : null))
     .filter((role): role is string => role !== null)
-  const title = roles.length > 0 ? [...new Set(roles)].join(' + ') : 'Outfit'
-  const notable = reasonLine(outfit.explanation, 1, GENERIC_FACTORS)
+  const title = roles.length > 0 ? [...new Set(roles)].join(' + ') : copy.one
+  const notable = reasonLine(outfit.explanation, locale, 1, GENERIC_FACTORS)
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,7 +52,7 @@ export function OutfitRail({
         actions={
           <Tag tone={over ? 'accent' : 'neutral'} size="md">
             {budget !== null
-              ? `${formatTwd(outfit.total)} of ${formatTwd(budget)}`
+              ? copy.totalOfBudget(formatTwd(outfit.total), formatTwd(budget))
               : formatTwd(outfit.total)}
           </Tag>
         }
@@ -61,7 +67,7 @@ export function OutfitRail({
                 brandName: item.brandName,
               }}
               href={productHref(item.product.id, sessionId, position + 1)}
-              tag={item.role ? (OUTFIT_ROLE_LABELS[item.role] ?? humanize(item.role)) : undefined}
+              tag={item.role ? roleLabel(item.role) : undefined}
             />
           </RailItem>
         ))}
@@ -71,7 +77,7 @@ export function OutfitRail({
         <InstantForm
           action={addOutfitToBagAction}
           name="add-outfit"
-          confirmation="Added to your bag"
+          confirmation={copy.added}
           className="contents"
         >
           {articleIds.map((id) => (
@@ -80,17 +86,17 @@ export function OutfitRail({
           <input type="hidden" name="intentSession" value={sessionId} />
           <input type="hidden" name="redirect" value={back} />
           <Button type="submit" variant="secondary" size="sm">
-            Add all to bag
+            {copy.addAll}
           </Button>
         </InstantForm>
         <Button href={askHref(articleIds, sessionId)} variant="ghost" size="sm">
-          Ask a friend
+          {copy.askFriend}
         </Button>
       </div>
 
       {engineView ? (
         <div className="rounded-md bg-mist p-4">
-          <FactorBreakdown explanation={outfit.explanation} scoreLabel="Outfit" />
+          <FactorBreakdown explanation={outfit.explanation} scoreLabel={copy.one} locale={locale} />
         </div>
       ) : null}
     </div>

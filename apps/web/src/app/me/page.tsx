@@ -24,19 +24,23 @@ import { EditionsGrid, type EditionItem } from '@/components/me/editions'
 import { ProfileCard } from '@/components/me/profile-card'
 import { Wardrobe, type WardrobeRow } from '@/components/me/wardrobe'
 import { callEngine } from '@/components/trends/engine-guard'
+import { getI18n } from '@/i18n/server'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { isEngineView } from '@/server/engine-view'
 import { formatRelative } from '@/server/format'
 
-export const metadata: Metadata = { title: 'Wardrobe' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.me.metaTitle }
+}
 
 const EDITIONS_LIMIT = 48
 const WARDROBE_LIMIT = 60
 const ASKS_LIMIT = 30
 
 /** Looks the user owns or took part in, newest first, with owner and lineage hint. */
-async function loadEditions(userId: string): Promise<EditionItem[]> {
+async function loadEditions(userId: string, madeTogether: string): Promise<EditionItem[]> {
   const { db } = getDb()
   const participating = db
     .select({ lookId: lookParticipants.lookId })
@@ -76,7 +80,7 @@ async function loadEditions(userId: string): Promise<EditionItem[]> {
     if (look.kind === 'remix' && parent) lineage = { kind: 'remix', handle: parent }
     else if (look.kind === 'together' && owner.id !== userId) {
       lineage = { kind: 'together', handle: owner.handle }
-    } else if (look.kind === 'together') lineage = 'Made together'
+    } else if (look.kind === 'together') lineage = madeTogether
     else if (parent) lineage = { kind: 'inspired', handle: parent }
     return {
       look,
@@ -159,17 +163,18 @@ export default async function MePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const user = await requireUser('/me')
-  const showAll = (await searchParams).all === '1'
+  const [{ t, locale }, params] = await Promise.all([getI18n(), searchParams])
+  const showAll = params.all === '1'
   const { db } = getDb()
   const [editions, wardrobe, askData, profile, network, engineView] = await Promise.all([
-    callEngine('editions', () => loadEditions(user.id)),
+    callEngine('editions', () => loadEditions(user.id, t.me.looks.madeTogether)),
     callEngine('wardrobe', () => loadWardrobe(user.id)),
     callEngine('asks', () => loadAsks(user.id)),
     callEngine('getPreferenceProfile', () => getPreferenceProfile(db, user.id)),
     callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
     isEngineView(),
   ])
-  const unavailable = <Notice tone="warning">This part could not be loaded.</Notice>
+  const unavailable = <Notice tone="warning">{t.me.sectionUnavailable}</Notice>
   const moreLink =
     'text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-ink'
 
@@ -180,20 +185,20 @@ export default async function MePage({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h1 className="display truncate text-[28px] md:text-[36px]">{user.displayName}</h1>
           <p className="text-[13px] text-muted">
-            @{user.handle} · member since {formatRelative(user.createdAt)}
+            {t.me.profileMeta(user.handle, formatRelative(user.createdAt, locale))}
           </p>
         </div>
         <Button href="/looks/new" className="shrink-0">
-          New Look
+          {t.me.newLook}
         </Button>
       </header>
 
       <Section
-        title="Looks"
+        title={t.me.looks.title}
         actions={
           editions.ok && !showAll && editions.value.length > LOOKS_SHOWN ? (
             <Link href="/me?all=1" className={moreLink}>
-              All {editions.value.length}
+              {t.me.allCount(editions.value.length)}
             </Link>
           ) : null
         }
@@ -209,11 +214,11 @@ export default async function MePage({
       </Section>
 
       <Section
-        title="Wardrobe"
+        title={t.me.wardrobe.title}
         actions={
           wardrobe.ok && !showAll && wardrobe.value.length > WARDROBE_SHOWN ? (
             <Link href="/me?all=1" className={moreLink}>
-              All {wardrobe.value.length}
+              {t.me.allCount(wardrobe.value.length)}
             </Link>
           ) : null
         }
@@ -225,15 +230,15 @@ export default async function MePage({
         )}
       </Section>
 
-      <Section title="Your taste">
+      <Section title={t.me.taste.title}>
         {profile.ok ? <ProfileCard profile={profile.value} engineView={engineView} /> : unavailable}
       </Section>
 
-      <Section title="People">
+      <Section title={t.me.people.title}>
         {network.ok ? <Circle network={network.value} /> : unavailable}
       </Section>
 
-      <Section title="Asks">
+      <Section title={t.me.asks.title}>
         {askData.ok ? (
           <AsksPanel
             sent={showAll ? askData.value.sent : askData.value.sent.slice(0, ASKS_SHOWN)}

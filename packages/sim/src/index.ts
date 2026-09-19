@@ -26,7 +26,6 @@ export {
   buildTasteVector,
   tasteKey,
   tasteSimilarity,
-  topAesthetics,
 } from './taste'
 export {
   ProductPool,

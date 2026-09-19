@@ -338,6 +338,54 @@
 .disclosureContent {
   padding: 12px 2px 4px;
 }
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 36px;
+  animation: hint-in 160ms var(--filter-ease, ease-out);
+}
+.hintQuestion {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink);
+}
+.hint .chip {
+  cursor: pointer;
+}
+.hintSkip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--color-muted);
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+.hintSkip:hover {
+  background: var(--color-mist);
+  color: var(--color-ink);
+}
+.hintSkip svg {
+  width: 16px;
+  height: 16px;
+}
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 .liveInput::placeholder {
   color: var(--color-muted);
   opacity: 1;
@@ -358,6 +406,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .hint {
+    animation: none;
+  }
   .choice,
   .check,
   .swatchCheck,

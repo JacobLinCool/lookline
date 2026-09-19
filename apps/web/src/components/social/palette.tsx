@@ -1,6 +1,7 @@
 import { Tag } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
+import { aestheticLabel, colorFamilyLabel } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
-import { humanize } from '@/server/format'
 
 /** Colour-family → swatch hex, for palettes stored as family names rather than hex codes. */
 const FAMILY_HEX: Record<string, string> = {
@@ -26,26 +27,27 @@ function swatchHex(value: string): string {
 export interface KeptStyleProps {
   aesthetics: readonly string[]
   palette: readonly string[]
-  /** Short inline prefix, default "Keeps". */
+  /** Short inline prefix; the translated "Keeps" by default. */
   label?: string
   className?: string
 }
 
 /** "Keeps · Quiet luxury · Minimalist · ● ● ●" — what a remix preserves from its source. */
-export function KeptStyle({ aesthetics, palette, label = 'Keeps', className }: KeptStyleProps) {
+export async function KeptStyle({ aesthetics, palette, label, className }: KeptStyleProps) {
   if (aesthetics.length === 0 && palette.length === 0) return null
+  const { t, locale } = await getI18n()
   return (
     <div className={cn('flex flex-wrap items-center gap-1.5', className)}>
-      <span className="mr-1 text-[12px] text-muted">{label}</span>
+      <span className="mr-1 text-[12px] text-muted">{label ?? t.social.keptStyle.keeps}</span>
       {aesthetics.slice(0, 4).map((slug) => (
-        <Tag key={slug}>{humanize(slug)}</Tag>
+        <Tag key={slug}>{aestheticLabel(locale, slug)}</Tag>
       ))}
       {palette.length > 0 ? (
         <span className="ml-1 flex items-center gap-1">
           {palette.slice(0, 5).map((value, i) => (
             <span
               key={`${value}-${i}`}
-              title={value}
+              title={value.startsWith('#') ? value : colorFamilyLabel(locale, value)}
               className="size-4 rounded-full border border-line"
               style={{ background: swatchHex(value) }}
             />

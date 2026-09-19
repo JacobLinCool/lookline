@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { useI18n } from '@/i18n/client'
 import { shortDay } from './format'
 import { CHART } from './palette'
 
@@ -31,12 +32,15 @@ interface TooltipPayload {
 }
 
 function VolumeTooltip({ active, label, payload }: TooltipPayload) {
+  const { t, locale } = useI18n()
   if (!active || !payload?.length) return null
   const value = payload[0]?.value
   return (
     <div className="rounded-sm border border-line bg-card px-2.5 py-1.5 text-[12px]">
-      <p className="text-muted">{typeof label === 'string' ? shortDay(label) : label}</p>
-      <p className="tabular font-medium text-ink">{value} weighted events</p>
+      <p className="text-muted">{typeof label === 'string' ? shortDay(label, locale) : label}</p>
+      <p className="tabular font-medium text-ink">
+        {t.trends.chart.weightedEvents(Number(value ?? 0))}
+      </p>
     </div>
   )
 }
@@ -46,6 +50,7 @@ function VolumeTooltip({ active, label, payload }: TooltipPayload) {
  * across panels. Daily volume = the engine's weighted event count (views 1 … purchases 10).
  */
 export function MomentumChart({ series }: MomentumChartProps) {
+  const { t, locale } = useI18n()
   const max = Math.max(1, ...series.flatMap((s) => s.points.map((p) => p.volume)))
   return (
     <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -57,7 +62,9 @@ export function MomentumChart({ series }: MomentumChartProps) {
               <span className="truncate text-[14px] font-medium">{s.label}</span>
               <span className="tabular shrink-0 text-[12px] text-muted">
                 {Math.round(s.momentum)}
-                {s.emerging ? <span className="ml-1.5 text-accent">emerging</span> : null}
+                {s.emerging ? (
+                  <span className="ml-1.5 text-accent">{t.trends.chart.emerging}</span>
+                ) : null}
               </span>
             </figcaption>
             <div className="h-28 w-full min-w-0">
@@ -66,7 +73,7 @@ export function MomentumChart({ series }: MomentumChartProps) {
                   <CartesianGrid vertical={false} stroke={CHART.line} strokeDasharray="2 4" />
                   <XAxis
                     dataKey="day"
-                    tickFormatter={shortDay}
+                    tickFormatter={(day: string) => shortDay(day, locale)}
                     tick={{ fontSize: 10, fill: CHART.muted }}
                     tickLine={false}
                     axisLine={{ stroke: CHART.line }}

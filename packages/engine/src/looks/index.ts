@@ -9,7 +9,14 @@ import { buildLookImagePrompt as buildPrompt, type LookPromptInput } from './pro
 export { STYLE_PRESETS, findStylePreset } from './presets'
 export { deriveLookStyle } from './style'
 export { renderLookPosterSvg, POSTER_WIDTH, POSTER_HEIGHT } from './poster'
-export { PROMPT_NEGATIVE_GUIDANCE } from './prompt'
+export {
+  buildCompositePrompt,
+  compositeReferenceLabels,
+  GARMENT_LABEL,
+  PERSON_LABEL,
+  PROMPT_NEGATIVE_GUIDANCE,
+  type CompositePromptInput,
+} from './prompt'
 export { SHAPES, shapeFamilyFor, type ShapeFamily } from './shapes'
 export type { LookPromptInput, LookPosterInput, LookStyle, StylePreset }
 

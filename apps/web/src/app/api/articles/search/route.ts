@@ -1,5 +1,6 @@
 import { searchProducts } from '@lookline/engine'
 import { parseProductSearch, type RawSearchParams } from '@/components/shop/query'
+import { getMessages } from '@/i18n/server'
 import { getDb } from '@/server/db'
 
 export const dynamic = 'force-dynamic'
@@ -35,7 +36,7 @@ export async function GET(req: Request): Promise<Response> {
     const message = error instanceof Error ? error.message : String(error)
     console.warn('[api/articles/search] searchProducts failed', message)
     return Response.json(
-      { error: 'Products could not be loaded. Please try again.' },
+      { error: (await getMessages()).ui.errors.productsUnavailable },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     )
   }

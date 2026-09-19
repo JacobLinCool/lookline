@@ -1,7 +1,8 @@
 import type { Ask, User } from '@lookline/db'
 import Link from 'next/link'
 import { Avatar, Tag } from '@/components/ui'
-import { formatRelative, pluralize } from '@/server/format'
+import { getI18n } from '@/i18n/server'
+import { formatRelative } from '@/server/format'
 
 export interface SentAsk {
   ask: Ask
@@ -13,27 +14,23 @@ export interface ReceivedAsk {
   asker: Pick<User, 'displayName' | 'handle' | 'avatarSeed'>
 }
 
-const KIND_LABEL: Record<Ask['kind'], string> = {
-  choose: 'Which one?',
-  style_me: 'Style me',
-}
-
-function StatusTag({ status }: { status: Ask['status'] }) {
-  if (status === 'open') return <Tag tone="accent">Open</Tag>
-  return <Tag tone="outline">{status === 'answered' ? 'Answered' : 'Closed'}</Tag>
+function StatusTag({ status, labels }: { status: Ask['status']; labels: Record<string, string> }) {
+  if (status === 'open') return <Tag tone="accent">{labels.open}</Tag>
+  return <Tag tone="outline">{status === 'answered' ? labels.answered : labels.closed}</Tag>
 }
 
 const linkClass =
   'text-[12px] text-muted underline decoration-line underline-offset-4 hover:text-ink'
 
 /** Asks you sent (with reply counts) and asks addressed to you. */
-export function AsksPanel({ sent, received }: { sent: SentAsk[]; received: ReceivedAsk[] }) {
+export async function AsksPanel({ sent, received }: { sent: SentAsk[]; received: ReceivedAsk[] }) {
+  const { t, locale } = await getI18n()
   return (
     <div className="grid gap-8 md:grid-cols-2 [&>div]:min-w-0">
       <div className="flex flex-col gap-2">
-        <p className="text-[13px] font-medium">You asked</p>
+        <p className="text-[13px] font-medium">{t.me.asks.youAsked}</p>
         {sent.length === 0 ? (
-          <p className="text-[13px] text-muted">Nothing yet</p>
+          <p className="text-[13px] text-muted">{t.me.asks.nothingYet}</p>
         ) : (
           <ul className="flex flex-col divide-y divide-line">
             {sent.map(({ ask, responses }) => (
@@ -46,16 +43,16 @@ export function AsksPanel({ sent, received }: { sent: SentAsk[]; received: Recei
                     {ask.question}
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
-                    <span>{KIND_LABEL[ask.kind]}</span>
+                    <span>{t.me.asks.kinds[ask.kind]}</span>
                     <span>·</span>
-                    <span className="tabular">{pluralize(responses, 'reply', 'replies')}</span>
+                    <span className="tabular">{t.common.count.replies(responses)}</span>
                     <span>·</span>
-                    <span>{formatRelative(ask.createdAt)}</span>
-                    <StatusTag status={ask.status} />
+                    <span>{formatRelative(ask.createdAt, locale)}</span>
+                    <StatusTag status={ask.status} labels={t.me.asks.status} />
                   </div>
                 </div>
                 <Link href={`/a/${ask.shareToken}`} className={linkClass}>
-                  Card
+                  {t.me.asks.card}
                 </Link>
               </li>
             ))}
@@ -64,9 +61,9 @@ export function AsksPanel({ sent, received }: { sent: SentAsk[]; received: Recei
       </div>
 
       <div className="flex flex-col gap-2">
-        <p className="text-[13px] font-medium">Asked of you</p>
+        <p className="text-[13px] font-medium">{t.me.asks.askedOfYou}</p>
         {received.length === 0 ? (
-          <p className="text-[13px] text-muted">Nothing yet</p>
+          <p className="text-[13px] text-muted">{t.me.asks.nothingYet}</p>
         ) : (
           <ul className="flex flex-col divide-y divide-line">
             {received.map(({ ask, asker }) => (
@@ -82,16 +79,16 @@ export function AsksPanel({ sent, received }: { sent: SentAsk[]; received: Recei
                     </Link>
                     <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
                       <span>
-                        {asker.displayName} · {KIND_LABEL[ask.kind]}
+                        {asker.displayName} · {t.me.asks.kinds[ask.kind]}
                       </span>
                       <span>·</span>
-                      <span>{formatRelative(ask.createdAt)}</span>
-                      <StatusTag status={ask.status} />
+                      <span>{formatRelative(ask.createdAt, locale)}</span>
+                      <StatusTag status={ask.status} labels={t.me.asks.status} />
                     </div>
                   </div>
                 </div>
                 <Link href={`/a/${ask.shareToken}`} className={linkClass}>
-                  Answer
+                  {t.me.asks.answer}
                 </Link>
               </li>
             ))}

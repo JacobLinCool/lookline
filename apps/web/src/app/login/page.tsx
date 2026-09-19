@@ -10,11 +10,16 @@ import {
   Notice,
   PageHeader,
 } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
+import { departmentLabel } from '@/i18n/taxonomy'
 import { guestLoginAction, loginAsAction } from '@/server/actions/auth'
 import { safeNextPath } from '@/server/auth'
 import { getDb } from '@/server/db'
 
-export const metadata: Metadata = { title: 'Choose a profile' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.auth.metaTitle }
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
@@ -24,53 +29,44 @@ function firstSentence(bio: string): string {
   return (match?.[0] ?? bio).trim()
 }
 
-const ERRORS: Record<string, string> = {
-  missing: 'Choose a profile to continue.',
-  unknown: 'That profile no longer exists. Choose another one.',
-  guest: 'Sign-in did not go through. Enter your name and continue again.',
-}
-
-const DEPARTMENT: Record<string, string> = {
-  women: 'Women',
-  men: 'Men',
-  unisex: 'Unisex',
-  kids: 'Kids',
-}
-
-async function loadPersonas(): Promise<{ personas: User[]; error: string | null }> {
+async function loadPersonas(): Promise<{ personas: User[]; failed: boolean }> {
   try {
     const personas = await getDb()
       .db.select()
       .from(users)
       .where(eq(users.isPersona, true))
       .orderBy(asc(users.handle))
-    return { personas, error: null }
+    return { personas, failed: false }
   } catch (error) {
     console.warn('[login] profiles unavailable', error)
-    return { personas: [], error: 'Profiles are unavailable right now.' }
+    return { personas: [], failed: true }
   }
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: SearchParams }) {
-  const params = await searchParams
+  const [params, { t, locale }, { personas, failed }] = await Promise.all([
+    searchParams,
+    getI18n(),
+    loadPersonas(),
+  ])
   const next = safeNextPath(params.next)
   const errorKey = typeof params.error === 'string' ? params.error : null
-  const { personas, error: dbError } = await loadPersonas()
+  const error = errorKey ? t.auth.errors[errorKey] : undefined
 
   return (
     <Container className="pb-24">
-      <PageHeader title="Choose a profile" />
+      <PageHeader title={t.auth.title} />
 
-      {errorKey && ERRORS[errorKey] ? (
+      {error ? (
         <Notice tone="error" className="mb-6">
-          {ERRORS[errorKey]}
+          {error}
         </Notice>
       ) : null}
 
-      {dbError ? (
-        <Notice tone="error" title={dbError} />
+      {failed ? (
+        <Notice tone="error" title={t.auth.profilesUnavailable} />
       ) : personas.length === 0 ? (
-        <EmptyState title="No profiles yet." description="Continue with your name below." />
+        <EmptyState title={t.auth.noProfiles} description={t.auth.noProfilesNote} />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {personas.map((persona) => (
@@ -91,7 +87,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
                       </span>
                     ) : null}
                     <span className="truncate text-[11px] text-muted">
-                      {DEPARTMENT[persona.department] ?? persona.department} · @{persona.handle}
+                      {departmentLabel(locale, persona.department)} · @{persona.handle}
                     </span>
                   </span>
                 </button>
@@ -106,11 +102,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Search
         className="hairline mt-10 flex max-w-lg flex-col gap-3 pt-8 sm:flex-row sm:items-end"
       >
         <input type="hidden" name="next" value={next} />
-        <Field label="Your name" htmlFor="displayName" className="flex-1">
+        <Field label={t.auth.nameLabel} htmlFor="displayName" className="flex-1">
           <Input id="displayName" name="displayName" maxLength={40} autoComplete="name" required />
         </Field>
         <Button type="submit" variant="secondary">
-          Continue
+          {t.common.continue}
         </Button>
       </form>
     </Container>

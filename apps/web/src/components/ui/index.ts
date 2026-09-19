@@ -12,6 +12,7 @@ export {
   type ButtonVariant,
 } from './button'
 export { Card, type CardProps } from './card'
+export { ColorName } from './color-name'
 export {
   Badge,
   Chip,
@@ -25,7 +26,6 @@ export {
 export { EmptyState, type EmptyStateProps } from './empty-state'
 export {
   FACTOR_COLORS,
-  FACTOR_LABELS,
   FactorBreakdown,
   factorColor,
   factorLabel,
@@ -46,6 +46,7 @@ export {
   type SelectProps,
   type TextareaProps,
 } from './input'
+export { LineageText } from './lineage-text'
 export {
   LookCard,
   type LookCardLook,

@@ -1,5 +1,6 @@
 import { filterStateSchema, resolveFilters } from '@lookline/engine'
 import { z } from 'zod'
+import { getMessages } from '@/i18n/server'
 import { liveAccess } from '@/server/live-access'
 
 const inputSchema = z.object({
@@ -10,9 +11,10 @@ const inputSchema = z.object({
 export async function POST(request: Request) {
   const access = await liveAccess(request, 'filters')
   if (access.response) return access.response
+  const { errors } = (await getMessages()).ui
   try {
     if (Number(request.headers.get('content-length')) > 12_000)
-      return Response.json({ error: 'Request too large.' }, { status: 413 })
+      return Response.json({ error: errors.tooLarge }, { status: 413 })
     const reader = request.body?.getReader()
     const chunks: Uint8Array[] = []
     let bytes = 0
@@ -24,7 +26,7 @@ export async function POST(request: Request) {
           bytes += value.byteLength
           if (bytes > 12_000) {
             await reader.cancel()
-            return Response.json({ error: 'Request too large.' }, { status: 413 })
+            return Response.json({ error: errors.tooLarge }, { status: 413 })
           }
           chunks.push(value)
         }
@@ -39,7 +41,7 @@ export async function POST(request: Request) {
       body = null
     }
     const parsed = inputSchema.safeParse(body)
-    if (!parsed.success) return Response.json({ error: 'Invalid filter request.' }, { status: 400 })
+    if (!parsed.success) return Response.json({ error: errors.invalidRequest }, { status: 400 })
     const decision = await resolveFilters(parsed.data.utterance, parsed.data.base, {
       signal: request.signal,
     })
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.warn('[filters] resolve failed', error)
     return Response.json(
-      { error: 'Live filters are temporarily unavailable. Please try again.' },
+      { error: errors.filtersUnavailable },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     )
   } finally {

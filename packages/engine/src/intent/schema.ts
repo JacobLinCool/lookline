@@ -121,7 +121,7 @@ export const IntentSchema = z.object({
   excludeCategoryGroups: z.array(CategoryGroupSchema).optional(),
   referenceRole: z.enum(['style-source', 'coordinate-with']).optional(),
   giftCategoryPrior: z.array(CategoryGroupSchema).optional(),
-  parser: z.enum(['lexicon', 'llm', 'merged']).optional(),
+  parser: z.enum(['lexicon', 'jev', 'llm', 'merged']).optional(),
   // engine-internal additions
   previousUtterance: z.string().optional(),
   signals: SignalsSchema.optional(),
@@ -162,6 +162,11 @@ export interface IntentContextExt extends IntentContext {
   trendingAesthetics?: string[]
   /** Feedback event count of the user (preference blend strength in `intentToVector`). */
   eventCount?: number
+  /**
+   * Return the decision result without waiting for the generative parser, leaving the escalation
+   * to the caller. `apps/web` sets it and runs the refinement in `after()`.
+   */
+  deferRefinement?: boolean
 }
 
 // ---------------------------------------------------------------------------

@@ -86,6 +86,22 @@
     text-wrap: pretty;
   }
 
+  /*
+   * Signage tracking is cut for Bricolage's Latin letterforms. Han characters are already set on
+   * a full em body, so the same negative tracking reads as crowding; Chinese headings run at the
+   * face's own spacing and break between characters rather than between words.
+   */
+  :lang(zh) h1,
+  :lang(zh) h2,
+  :lang(zh) h3,
+  :lang(zh) h4 {
+    letter-spacing: normal;
+    line-height: 1.3;
+    word-break: normal;
+    line-break: strict;
+    overflow-wrap: anywhere;
+  }
+
   img,
   svg {
     display: block;
@@ -157,6 +173,12 @@
   font-optical-sizing: auto;
   line-height: 1.02;
   letter-spacing: -0.02em;
+}
+
+/* Han characters carry their own sidebearings; the Latin signage tracking would crowd them. */
+:lang(zh) .display {
+  line-height: 1.24;
+  letter-spacing: normal;
 }
 
 /* One rail line above a group. */

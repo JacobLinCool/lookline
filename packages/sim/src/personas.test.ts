@@ -1,3 +1,4 @@
+import { STYLE_DIMENSIONS } from '@lookline/db'
 import { describe, expect, it } from 'vitest'
 import { CLUSTER_ARCHETYPES, CLUSTER_COUNT } from './clusters'
 import { DEMO_PERSONAS, GIFT_SHARE, generatePersonas } from './personas'
@@ -43,7 +44,7 @@ describe('generatePersonas', () => {
     for (const p of personas) {
       const archetype = CLUSTER_ARCHETYPES[p.socialCluster]!
       expect(p.archetype).toBe(archetype.slug)
-      expect(p.hiddenVector).toHaveLength(64)
+      expect(p.hiddenVector).toHaveLength(STYLE_DIMENSIONS)
       expect(p.hiddenVector.every((x) => x >= 0 && x <= 1)).toBe(true)
       expect(p.primaryAesthetics[0]).toBe(archetype.aesthetics[0])
     }

@@ -1,4 +1,6 @@
 import type { Session } from '@google/genai'
+import { DEFAULT_LOCALE, type Locale } from '@/i18n/config'
+import { CATALOGS, type Messages } from '@/i18n/messages'
 import { advanceTranscript, emptyTranscript } from './transcript'
 import {
   transcribeConfig,
@@ -31,19 +33,20 @@ export class VoiceCapture {
   private closed = false
   private transcript = emptyTranscript()
   private languageCodes: VoiceLanguageCode[]
+  /** What the shopper is told when capture cannot continue, in their language. */
+  private copy: Messages['shop']['voice']
   constructor(
     private callbacks: Callbacks,
     languageCodes: readonly VoiceLanguageCode[],
+    locale: Locale = DEFAULT_LOCALE,
   ) {
     this.languageCodes = [...languageCodes]
+    this.copy = CATALOGS[locale].shop.voice
   }
 
   async start() {
     this.callbacks.phase('connecting')
-    this.connectTimer = setTimeout(
-      () => this.fail('Voice took too long to connect. Please try again.'),
-      10_000,
-    )
+    this.connectTimer = setTimeout(() => this.fail(this.copy.connectTimeout), 10_000)
     try {
       if (!navigator.mediaDevices?.getUserMedia || !window.AudioWorkletNode)
         throw new Error(
@@ -99,10 +102,9 @@ export class VoiceCapture {
               this.callbacks.transcript(update.text, update.finalized)
             if (this.audioEnded && update.finalized) this.cancel()
           },
-          onerror: () =>
-            this.fail('Voice connection failed. Your saved filters are still available.'),
+          onerror: () => this.fail(this.copy.connectionFailed),
           onclose: () => {
-            if (!this.closed) this.fail('Voice disconnected. You can reconnect or keep typing.')
+            if (!this.closed) this.fail(this.copy.disconnected)
           },
         },
       })
@@ -116,9 +118,7 @@ export class VoiceCapture {
         channelCountMode: 'explicit',
       })
       this.node = node
-      node.addEventListener('processorerror', () =>
-        this.fail('Microphone processing failed. Please reconnect.'),
-      )
+      node.addEventListener('processorerror', () => this.fail(this.copy.processingFailed))
       node.port.addEventListener('message', ({ data }: MessageEvent<ArrayBuffer | string>) => {
         if (data === 'flushed') {
           this.flushed?.()
@@ -131,7 +131,7 @@ export class VoiceCapture {
             audio: { data: btoa(String.fromCharCode(...bytes)), mimeType: 'audio/pcm;rate=16000' },
           })
         } catch {
-          this.fail('Audio could not be sent. Please reconnect.')
+          this.fail(this.copy.audioFailed)
         }
       })
       node.port.start()
@@ -143,11 +143,12 @@ export class VoiceCapture {
       this.callbacks.phase('listening')
       this.expiry = setTimeout(() => void this.stop(), VOICE_SESSION_MS - 5_000)
     } catch (error) {
+      // Only these two lines reach the shopper; the messages thrown above stay in the console.
       if (!this.closed)
         this.fail(
           error instanceof DOMException && error.name === 'NotAllowedError'
-            ? 'Allow microphone access to use voice filters.'
-            : 'Voice could not connect. Please try again or keep typing.',
+            ? this.copy.permission
+            : this.copy.connectFailed,
         )
     }
   }
@@ -174,14 +175,12 @@ export class VoiceCapture {
       this.audioEnded = true
       this.session.sendRealtimeInput({ audioStreamEnd: true })
     } catch {
-      this.fail('Could not finish transcription. Unconfirmed speech was not applied.')
+      this.fail(this.copy.finishFailed)
       return
     }
     this.finishTimer = setTimeout(() => {
       if (this.transcript.interim || this.transcript.fragment)
-        this.callbacks.error(
-          'The last words were not finalized. Review the preview before applying.',
-        )
+        this.callbacks.error(this.copy.unfinalized)
       this.cancel()
     }, 2_500)
   }

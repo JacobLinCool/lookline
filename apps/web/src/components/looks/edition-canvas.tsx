@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Button, Notice, Select } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
 import { afterPaint, startInteraction, type InteractionTrace } from '@/lib/latency'
 
 export interface EditionState {
@@ -31,6 +32,7 @@ export function EditionCanvas({
   stylePreset: string
   presets: { value: string; label: string }[]
 }) {
+  const { t } = useI18n()
   const [state, setState] = useState(initial)
   const [preset, setPreset] = useState(stylePreset)
   const [requesting, setRequesting] = useState(false)
@@ -62,7 +64,7 @@ export function EditionCanvas({
           signal: AbortSignal.any([controller.signal, AbortSignal.timeout(4_000)]),
           cache: 'no-store',
         })
-        if (!response.ok) throw new Error('Could not check the render. Reload to reconnect.')
+        if (!response.ok) throw new Error(t.looks.canvas.checkFailed)
         const next = (await response.json()) as EditionState
         if (controller.signal.aborted || revision !== pollRevision.current) return
         setProblem(null)
@@ -73,7 +75,7 @@ export function EditionCanvas({
         if (next.status === 'pending') timer = setTimeout(poll, 600)
       } catch (error) {
         if (!controller.signal.aborted) {
-          setProblem(error instanceof Error ? error.message : 'Could not check the render.')
+          setProblem(error instanceof Error ? error.message : t.looks.canvas.checkFailed)
           timer = setTimeout(poll, 1_000)
         }
       }
@@ -83,7 +85,7 @@ export function EditionCanvas({
       clearTimeout(timer)
       controller.abort()
     }
-  }, [state.status, state.generationId, state.id])
+  }, [state.status, state.generationId, state.id, t])
 
   // Decode off-screen, then replace the existing visual in one paint.
   useEffect(() => {
@@ -102,12 +104,12 @@ export function EditionCanvas({
         })
       })
       .catch(() => {
-        if (active) setProblem('The new image could not be loaded. The previous one is still here.')
+        if (active) setProblem(t.looks.canvas.imageLoadFailed)
       })
     return () => {
       active = false
     }
-  }, [state.imageUrl, state.status])
+  }, [state.imageUrl, state.status, t])
 
   async function render() {
     if (mutation.current) return
@@ -129,11 +131,11 @@ export function EditionCanvas({
         signal: AbortSignal.timeout(5_000),
       })
       const next = (await response.json()) as EditionState & { error?: string }
-      if (!response.ok) throw new Error(next.error ?? 'The render could not start.')
+      if (!response.ok) throw new Error(next.error ?? t.looks.canvas.renderFailed)
       if (mounted.current) setState(next)
     } catch (error) {
       if (mounted.current)
-        setProblem(error instanceof Error ? error.message : 'The render could not start.')
+        setProblem(error instanceof Error ? error.message : t.looks.canvas.renderFailed)
       trace.current?.mark('failed')
     } finally {
       mutation.current = false
@@ -151,13 +153,13 @@ export function EditionCanvas({
         body: JSON.stringify({ generationId: state.generationId }),
         signal: AbortSignal.timeout(5_000),
       })
-      if (!response.ok) throw new Error('The render could not be cancelled.')
+      if (!response.ok) throw new Error(t.looks.canvas.cancelFailed)
       ++pollRevision.current
       if (mounted.current) setState((await response.json()) as EditionState)
       trace.current?.mark('cancelled')
     } catch (error) {
       if (mounted.current)
-        setProblem(error instanceof Error ? error.message : 'The render could not be cancelled.')
+        setProblem(error instanceof Error ? error.message : t.looks.canvas.cancelFailed)
     } finally {
       mutation.current = false
     }
@@ -181,15 +183,19 @@ export function EditionCanvas({
         ) : null}
       </div>
       <p role="status" className="sr-only">
-        {rendering ? 'Rendering the image' : state.status === 'ready' ? 'Image ready' : ''}
+        {rendering
+          ? t.looks.canvas.renderingStatus
+          : state.status === 'ready'
+            ? t.looks.canvas.ready
+            : ''}
       </p>
       {problem || state.error ? (
-        <Notice tone="warning">{problem ?? 'The image is unavailable. Your Look is saved.'}</Notice>
+        <Notice tone="warning">{problem ?? t.looks.canvas.imageUnavailable}</Notice>
       ) : null}
       {isOwner ? (
         <div className="flex items-center gap-2">
           <Select
-            aria-label="Image style"
+            aria-label={t.looks.canvas.imageStyle}
             value={preset}
             onChange={(event) => setPreset(event.target.value)}
             options={presets}
@@ -203,11 +209,15 @@ export function EditionCanvas({
             disabled={rendering}
             aria-busy={rendering}
           >
-            {rendering ? 'Rendering…' : state.status === 'failed' ? 'Retry' : 'Render'}
+            {rendering
+              ? t.looks.canvas.rendering
+              : state.status === 'failed'
+                ? t.common.retry
+                : t.looks.canvas.render}
           </Button>
           {state.status === 'pending' ? (
             <Button variant="ghost" size="sm" onClick={() => void cancel()}>
-              Cancel
+              {t.common.cancel}
             </Button>
           ) : null}
         </div>

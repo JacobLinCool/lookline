@@ -1,9 +1,4 @@
-import type {
-  InputHTMLAttributes,
-  ReactNode,
-  SelectHTMLAttributes,
-  TextareaHTMLAttributes,
-} from 'react'
+import type { ComponentProps, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
 
 const control =
@@ -18,7 +13,7 @@ const inputSizes: Record<InputSize, string> = {
   lg: 'h-14 px-4 text-[17px] md:h-16 md:px-5 md:text-[19px]',
 }
 
-export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+export interface InputProps extends Omit<ComponentProps<'input'>, 'size'> {
   size?: InputSize
 }
 

@@ -1,9 +1,17 @@
 import { STYLE_DIMENSIONS } from '@lookline/catalog'
 import { describe, expect, it } from 'vitest'
+import { LinUCB } from '../preference/bandit'
 import { sumContributions } from './explain'
-import { completeTheLookWith, runRecommend, similarProductsWith } from './index'
+import type { RankUser } from './factors'
+import {
+  DEFAULT_WEIGHTS,
+  chooseArm,
+  completeTheLookWith,
+  runRecommend,
+  similarProductsWith,
+} from './index'
 import { MemoryRetriever } from './retrieve'
-import { makeCatalog, makeContext, makeIntent } from './testing/fixtures'
+import { FIXTURE_NOW, makeCatalog, makeContext, makeIntent } from './testing/fixtures'
 import { fallbackIntentVector } from './intent-vector'
 
 const rows = makeCatalog(2000, 42)
@@ -217,5 +225,63 @@ describe('similarProductsWith / completeTheLookWith', () => {
       expect(o.items.some((x) => x.product.categoryGroup === 'bottoms')).toBe(true)
       expect(o.items.some((x) => x.product.categoryGroup === 'footwear')).toBe(true)
     }
+  })
+})
+
+describe('chooseArm (§4.4 — the bandit reaches the blend)', () => {
+  const user: RankUser = {
+    id: 'u_1',
+    department: 'women',
+    eventCount: 25,
+    giftEventCount: 0,
+    preference: null,
+    giftPreference: null,
+    budgetHint: null,
+    brandCounts: new Map(),
+    trusted: [
+      { userId: 'u_2', displayName: 'A', strength: 0.5 },
+      { userId: 'u_3', displayName: 'B', strength: 0.4 },
+    ],
+    createdAt: new Date(FIXTURE_NOW.getTime() - 30 * 86_400_000),
+  }
+  const withUser = () => makeContext({ user })
+
+  it('stays out of the way without a bandit or for a guest', () => {
+    const intent = makeIntent()
+    expect(chooseArm(null, intent, withUser(), { userId: 'u_1', outfit: false })).toBeNull()
+    expect(chooseArm(new LinUCB(), intent, withUser(), { outfit: false })).toBeNull()
+  })
+
+  it('builds the 8-d context out of the loaded user, not a cold-start default', () => {
+    const arm = chooseArm(new LinUCB(), makeIntent(), withUser(), {
+      userId: 'u_1',
+      outfit: true,
+    })
+    expect(arm).not.toBeNull()
+    const x = arm!.contextVector
+    expect(x).toHaveLength(8)
+    expect(x[1]).toBeCloseTo(25 / 50) // eventCount
+    expect(x[3]).toBeCloseTo(2 / 10) // trusted people
+    expect(x[5]).toBe(1) // outfit mode
+    expect(x[7]).toBeCloseTo(30 / 60) // days since signup
+    expect(arm!.name).toBe('balanced') // a fresh bandit ties to table order
+  })
+
+  it('reports the arm on the response so the impression can be attributed', async () => {
+    const res = await runRecommend(
+      { intent: makeIntent(), userId: 'u_1', limit: 4 },
+      { retriever, context: withUser(), bandit: new LinUCB() },
+    )
+    expect(res.arm?.name).toBe('balanced')
+    expect(res.arm?.contextVector).toHaveLength(8)
+  })
+
+  it('an explicit weights override keeps the bandit out of it', async () => {
+    const res = await runRecommend(
+      { intent: makeIntent(), userId: 'u_1', limit: 4, weights: { social_signal: 0.9 } },
+      { retriever, context: withUser(), bandit: new LinUCB() },
+    )
+    expect(res.arm).toBeUndefined()
+    expect(res.weights.social_signal).toBeGreaterThan(DEFAULT_WEIGHTS.social_signal)
   })
 })

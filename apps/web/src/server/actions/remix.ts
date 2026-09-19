@@ -11,10 +11,11 @@ import {
   loadProductsByIds,
   loadUser,
 } from '@/components/social/data'
+import { getI18n } from '@/i18n/server'
 import { recordFeedbackFor } from '@/server/actions/feedback'
 import { createGuest, getSessionUser, safeNextPath } from '@/server/auth'
 import { getDb } from '@/server/db'
-import type { ReferencePhoto } from '@/server/looks'
+import { MAX_PHOTO_BYTES, type ReferencePhoto } from '@/server/looks'
 import { createLookDraft } from '@/server/look-generation'
 
 /**
@@ -47,10 +48,16 @@ function withParams(path: string, params: Record<string, string | null | undefin
   return qs ? `${path}?${qs}` : path
 }
 
-async function readPhoto(value: FormDataEntryValue | null): Promise<ReferencePhoto | null> {
-  if (!(value instanceof File) || value.size === 0) return null
-  if (!value.type.startsWith('image/')) return null
-  return { mimeType: value.type, data: Buffer.from(await value.arrayBuffer()) }
+async function readPhoto(
+  value: FormDataEntryValue | null,
+): Promise<{ photo: ReferencePhoto | null; error: string | null }> {
+  if (!(value instanceof File) || value.size === 0) return { photo: null, error: null }
+  if (!value.type.startsWith('image/')) return { photo: null, error: 'photoType' }
+  if (value.size > MAX_PHOTO_BYTES) return { photo: null, error: 'photoSize' }
+  return {
+    photo: { mimeType: value.type, data: Buffer.from(await value.arrayBuffer()) },
+    error: null,
+  }
 }
 
 export async function reactToLookAction(formData: FormData): Promise<void> {
@@ -110,15 +117,17 @@ export async function createRemixAction(formData: FormData): Promise<void> {
   const stylePreset =
     STYLE_PRESETS.find((p) => p.slug === requestedPreset)?.slug ??
     (requestedPreset || source.look.stylePreset)
-  const photo = await readPhoto(formData.get('photo'))
+  const { photo, error: photoError } = await readPhoto(formData.get('photo'))
+  if (photoError) redirect(withParams(page, { error: photoError }))
 
   const recipient = forUserId ? await loadUser(forUserId) : null
   if (forUserId && !recipient) redirect(withParams(page, { error: 'recipient' }))
 
+  const { t } = await getI18n()
   const customTitle = text(formData.get('title'), 120)
   const title = recipient
-    ? customTitle || `Styled by ${user.displayName} for ${recipient.displayName}`
-    : customTitle || `${user.displayName} remix of ${source.look.title}`
+    ? customTitle || t.looks.titles.styledFor(user.displayName, recipient.displayName)
+    : customTitle || t.looks.titles.remixOf(user.displayName, source.look.title)
 
   const created = await attempt(() =>
     createLookDraft({
