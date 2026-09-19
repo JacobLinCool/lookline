@@ -68,8 +68,8 @@ export async function attempt<T>(fn: () => Promise<T>): Promise<Attempt<T>> {
 }
 
 /** Products (with brand name) by id, returned in the order of `ids`; unknown ids are dropped. */
-export async function loadProductsByIds(ids: readonly number[]): Promise<ShopProduct[]> {
-  const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))]
+export async function loadProductsByIds(ids: readonly string[]): Promise<ShopProduct[]> {
+  const unique = [...new Set(ids.filter((id) => /^\d{10}$/.test(id)))]
   if (unique.length === 0) return []
   const rows = await getDb()
     .db.select({ product: articles, brandName: brands.name })
@@ -297,17 +297,10 @@ export const OCCASION_OPTIONS = [
   { value: 'seasonal', label: 'Seasonal' },
 ] as const
 
-/** Parse `articles=1,2,3` (or repeated params) into positive integer ids. */
-export function parseIdList(value: string | string[] | undefined): number[] {
+/** Parse `articles=0108775015,0110065011` (or repeated params) into article ids. */
+export function parseIdList(value: string | string[] | undefined): string[] {
   const raw = Array.isArray(value) ? value.join(',') : (value ?? '')
-  return [
-    ...new Set(
-      raw
-        .split(/[,\s]+/)
-        .map((s) => Number(s))
-        .filter((n) => Number.isInteger(n) && n > 0),
-    ),
-  ]
+  return [...new Set(raw.split(/[,\s]+/).filter((s) => /^\d{10}$/.test(s)))]
 }
 
 /** First string of a search param. */

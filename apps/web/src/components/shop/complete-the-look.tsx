@@ -15,7 +15,7 @@ function roleLabel(item: RankedItem): string {
 }
 
 /** "With sweater and boots" — the other pieces in the outfit, by kind. */
-function withLine(outfit: Outfit, anchorId: number): string {
+function withLine(outfit: Outfit, anchorId: string): string {
   const others = outfit.items
     .filter((item) => item.product.id !== anchorId)
     .map((item) => humanize(item.product.subcategory).toLowerCase())
@@ -33,7 +33,7 @@ function OutfitRail({
   engineView,
 }: {
   outfit: Outfit
-  anchorId: number
+  anchorId: string
   engineView: boolean
 }) {
   return (

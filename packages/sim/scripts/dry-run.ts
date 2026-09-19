@@ -1,4 +1,3 @@
-import { generateCatalog } from '@lookline/catalog'
 import { computeLineage } from '@lookline/engine'
 import {
   generatePersonas,
@@ -58,14 +57,26 @@ console.log(
   plan.trendSeeds.map((s) => `${s.seed.slug} carrier=${s.carrierId} looks=${s.lookIds.length}`),
 )
 const t3 = performance.now()
-const articles = [...generateCatalog({ seed: 20260918, size: 4000 })]
-  .filter((p) => (p.stock ?? 0) > 0)
-  .map((p) => ({
-    ...p,
-    secondaryColorHex: p.secondaryColorHex ?? null,
-    popularity: p.popularity ?? 0,
-    imageSeed: p.imageSeed ?? 0,
-  }))
+// A synthetic pool: the dry run measures the simulation's shape, not the catalogue's.
+const groups = ['tops', 'bottoms', 'outerwear', 'footwear', 'bags'] as const
+const roles = ['top', 'bottom', 'outer', 'shoes', 'bag'] as const
+const articles = Array.from({ length: 4000 }, (_, i) => {
+  const g = i % groups.length
+  return {
+    id: String(i + 1).padStart(10, '0'),
+    department: i % 3 === 0 ? ('men' as const) : ('women' as const),
+    categoryGroup: groups[g]!,
+    outfitRole: roles[g]!,
+    subcategory: `type-${g}`,
+    price: 300 + ((i * 137) % 4000),
+    colorFamily: ['black', 'white', 'blue', 'neutral', 'red'][i % 5]!,
+    colorHex: '#1C1C1C',
+    popularity: ((i * 31) % 100) / 100,
+    name: `Fixture ${i + 1}`,
+    pattern: 'Solid',
+    styleVector: Array.from({ length: 64 }, (_unused, d) => ((i * 7 + d * 13) % 100) / 100),
+  }
+})
 console.log('catalog', articles.length, Math.round(performance.now() - t3), 'ms')
 const sink = createMemorySink(articles as any)
 const t4 = performance.now()

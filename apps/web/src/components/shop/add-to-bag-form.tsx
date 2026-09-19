@@ -24,9 +24,10 @@ export function AddToBagForm({
   product: Article
   attribution?: BagAttribution
 }) {
-  const soldOut = product.stock <= 0
-  const hasSizes = product.sizes.length > 0 && product.sizeSystem !== 'one-size'
-  const maxQty = Math.max(1, Math.min(10, product.stock))
+  // Nothing sells out and nothing has a size: the catalogue records neither.
+  const soldOut = false
+  const hasSizes = false
+  const maxQty = 10
   return (
     <div className="flex flex-col gap-3">
       <InstantForm
@@ -51,16 +52,11 @@ export function AddToBagForm({
             <span className="text-[13px] font-medium text-ink" id="size-label">
               Size
             </span>
-            <Segmented
-              name="size"
-              options={product.sizes.map((s) => ({ value: s, label: s }))}
-              defaultValue={product.sizes[0]}
-              disabled={soldOut}
-            />
+            <Segmented name="size" options={[]} disabled={soldOut} />
           </div>
         ) : (
           <>
-            <input type="hidden" name="size" value={product.sizes[0] ?? ''} />
+            <input type="hidden" name="size" value="" />
             <p className="text-[13px] text-muted">One size</p>
           </>
         )}

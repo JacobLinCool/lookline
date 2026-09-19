@@ -14,16 +14,13 @@ import {
 import { trendKey, type TrendEvent, type TrendSignalRow } from './signals'
 
 const END = '2026-09-18'
+const ID1 = '0000000001'
 
 const product = (id: number, partial: Partial<ProductLite> = {}): ProductLite => ({
-  id,
-  aesthetics: ['minimalist'],
+  id: String(id).padStart(10, '0'),
   categoryGroup: 'outerwear',
   subcategory: 'trench-coat',
   colorFamily: 'black',
-  silhouette: 'a-line',
-  silhouetteId: 'outerwear-trench',
-  stock: 10,
   price: 3000,
   ...partial,
 })
@@ -88,7 +85,7 @@ function intent(id: string, partial: Partial<IntentSessionLite> = {}): IntentSes
     userId: 'u1',
     utterance: `utterance ${id}`,
     mode: 'single',
-    aesthetics: ['minimalist'],
+    aesthetics: ['trench-coat'],
     categoryGroups: ['outerwear'],
     colorFamilies: ['black'],
     createdAt: new Date(`${END}T01:00:00Z`),
@@ -98,20 +95,20 @@ function intent(id: string, partial: Partial<IntentSessionLite> = {}): IntentSes
 
 function input(partial: Partial<ManufacturingInput> = {}): ManufacturingInput {
   return {
-    events: events([1], 3),
-    articles: new Map([[1, product(1)]]),
+    events: events([ID1], 3),
+    articles: new Map([[ID1, product(1)]]),
     intents: [intent('s1'), intent('s2'), intent('s3'), intent('s4'), intent('s5')],
     sessionsWithPurchase: new Set(['s1', 's2']),
     signals: new Map([
       [
-        trendKey('aesthetic_category', 'minimalist|outerwear'),
-        signal('aesthetic_category', 'minimalist|outerwear', {}),
+        trendKey('aesthetic_category', 'trench-coat|outerwear'),
+        signal('aesthetic_category', 'trench-coat|outerwear', {}),
       ],
       [trendKey('color', 'black'), signal('color', 'black', { momentum: 60 })],
     ]),
     supply: new Map([
-      [supplyKey('minimalist', 'outerwear', 'black'), { supply: 5, lowStock: 2 }],
-      [supplyKey('minimalist', 'outerwear', null), { supply: 5, lowStock: 2 }],
+      [supplyKey('trench-coat', 'outerwear', 'black'), { supply: 5, lowStock: 2 }],
+      [supplyKey('trench-coat', 'outerwear', null), { supply: 5, lowStock: 2 }],
     ]),
     clusterLabels: new Map([[0, 'Minimalist / Scandi']]),
     endDay: END,
@@ -174,8 +171,8 @@ describe('recommendManufacturing', () => {
       searchGap: 0.6,
       clusters: 3,
       purchases14d: 3,
-      dominantSilhouette: 'a-line',
-      topProducts: [1],
+      dominantSilhouette: 'trench-coat',
+      topProducts: [ID1],
       clusterLabels: ['Minimalist / Scandi', 'cluster 1', 'cluster 2'],
     })
     expect(colour.evidence.lowStockShare).toBeCloseTo(0.4, 6)
@@ -188,7 +185,7 @@ describe('recommendManufacturing', () => {
     const [row] = recommendManufacturing(input())
     const r = row!
     expect(r.rationale).toContain('Develop (開款)')
-    expect(r.rationale).toContain('Minimalist × Outerwear')
+    expect(r.rationale).toContain('Outerwear')
     expect(r.rationale).toContain('5 searches')
     expect(r.rationale).toContain('0 remixes')
     expect(r.rationale).toContain('3 purchases')
@@ -200,7 +197,7 @@ describe('recommendManufacturing', () => {
   })
 
   it('drops cells under the demand threshold and honours the per-aesthetic cap and limit', () => {
-    expect(recommendManufacturing(input({ events: events([1], 1, 'VIEW', 1) }))).toEqual([])
+    expect(recommendManufacturing(input({ events: events([ID1], 1, 'VIEW', 1) }))).toEqual([])
     expect(recommendManufacturing(input(), { perAesthetic: 1 })).toHaveLength(1)
     expect(recommendManufacturing(input(), { limit: 1 })).toHaveLength(1)
   })
@@ -209,8 +206,18 @@ describe('recommendManufacturing', () => {
     const rows = recommendManufacturing(
       input({
         intents: [
-          intent('o1', { mode: 'outfit', categoryGroups: [], colorFamilies: [] }),
-          intent('o2', { mode: 'outfit', categoryGroups: [], colorFamilies: ['red'] }),
+          intent('o1', {
+            mode: 'outfit',
+            categoryGroups: [],
+            colorFamilies: [],
+            aesthetics: ['tee'],
+          }),
+          intent('o2', {
+            mode: 'outfit',
+            categoryGroups: [],
+            colorFamilies: ['red'],
+            aesthetics: ['tee'],
+          }),
         ],
         sessionsWithPurchase: new Set(),
       }),
@@ -219,17 +226,27 @@ describe('recommendManufacturing', () => {
     for (const r of rows) expect(r.evidence.demandIntents14d).toBe(0)
     const tops = recommendManufacturing(
       input({
-        articles: new Map([[1, product(1, { categoryGroup: 'tops', subcategory: 'tee' })]]),
+        articles: new Map([[ID1, product(1, { categoryGroup: 'tops', subcategory: 'tee' })]]),
         signals: new Map([
           [
-            trendKey('aesthetic_category', 'minimalist|tops'),
-            signal('aesthetic_category', 'minimalist|tops', {}),
+            trendKey('aesthetic_category', 'tee|tops'),
+            signal('aesthetic_category', 'tee|tops', {}),
           ],
         ]),
-        supply: new Map([[supplyKey('minimalist', 'tops', null), { supply: 3, lowStock: 0 }]]),
+        supply: new Map([[supplyKey('tee', 'tops', null), { supply: 3, lowStock: 0 }]]),
         intents: [
-          intent('o1', { mode: 'outfit', categoryGroups: [], colorFamilies: [] }),
-          intent('o2', { mode: 'outfit', categoryGroups: [], colorFamilies: ['red'] }),
+          intent('o1', {
+            mode: 'outfit',
+            categoryGroups: [],
+            colorFamilies: [],
+            aesthetics: ['tee'],
+          }),
+          intent('o2', {
+            mode: 'outfit',
+            categoryGroups: [],
+            colorFamilies: ['red'],
+            aesthetics: ['tee'],
+          }),
         ],
         sessionsWithPurchase: new Set(),
       }),

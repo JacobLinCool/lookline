@@ -3,7 +3,7 @@
  * `completeTheLook`, `searchProducts`). `recommend` never writes feedback events or interactions:
  * the web layer logs impressions.
  */
-import { axisIndex, findColor, toStyleVector } from '@lookline/catalog'
+import { axisIndex, toStyleVector } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
 import { brands, eq, lookArticles, looks, articles, users } from '@lookline/db'
 import type { Database, Department, Article } from '@lookline/db'
@@ -279,7 +279,6 @@ export function pseudoIntent(
   mode: 'single' | 'outfit',
   opts: { budget?: { min?: number; max?: number } } = {},
 ): EngineIntent {
-  const ladder = [1, 0.6, 0.4]
   // Was the article's own aesthetic tags; the catalogue has none, so an intent built from a
   // product carries its measurable axes and no style label.
   const aestheticWeights: Record<string, number> = {}

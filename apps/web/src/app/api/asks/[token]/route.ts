@@ -57,7 +57,6 @@ export async function GET(
         brandName: p.brandName,
         price: p.price,
         colorName: p.colorName,
-        aesthetics: p.aesthetics,
         imagePath: `/api/articles/${p.id}/image`,
         votes: counts[String(p.id)] ?? 0,
       })),

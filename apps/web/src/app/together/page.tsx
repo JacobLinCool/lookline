@@ -3,7 +3,7 @@
  * catalog articles with sample fulfilment states. Reached from the footer, not the primary nav.
  */
 import type { Metadata } from 'next'
-import { brands, desc, eq, gt, lookArticles, looks, articles, users } from '@lookline/db'
+import { brands, desc, eq, lookArticles, looks, articles, users } from '@lookline/db'
 import {
   JourneyPrototype,
   type JourneyLook,
@@ -52,11 +52,10 @@ async function loadJourneyData(): Promise<JourneyData> {
       .select({ product: articles, brandName: brands.name })
       .from(articles)
       .innerJoin(brands, eq(articles.brandId, brands.id))
-      .where(gt(articles.stock, 0))
       .orderBy(desc(articles.trendScore), desc(articles.popularity))
       .limit(8)
 
-    const deduped = new Map<number, JourneyProduct>()
+    const deduped = new Map<string, JourneyProduct>()
     for (const row of [...lookRows, ...catalogRows]) {
       if (deduped.has(row.product.id)) continue
       deduped.set(row.product.id, {
@@ -69,8 +68,6 @@ async function loadJourneyData(): Promise<JourneyData> {
         material: row.product.material,
         pattern: row.product.pattern,
         subcategory: row.product.subcategory,
-        sizes: row.product.sizes,
-        stock: row.product.stock,
       })
     }
 

@@ -15,9 +15,9 @@ function list(values: readonly string[]): string | null {
 /** The few facts a shopper checks before buying; raw catalog fields never appear here. */
 export function AttributeList({ product }: { product: Article }) {
   const rows: Row[] = [
-    { label: 'Material', value: humanize(product.material) },
+    { label: 'Material', value: product.material ? humanize(product.material) : null },
+    { label: 'Type', value: product.subcategory },
     { label: 'Fit', value: product.fit ? humanize(product.fit) : null },
-    { label: 'Silhouette', value: product.silhouette ? humanize(product.silhouette) : null },
     { label: 'Length', value: product.length ? humanize(product.length) : null },
     { label: 'Neckline', value: product.neckline ? humanize(product.neckline) : null },
     { label: 'Sleeve', value: product.sleeve ? humanize(product.sleeve) : null },

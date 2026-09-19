@@ -47,7 +47,7 @@ export default async function AskOwnerPage({
   if (viewer.id !== asker.id) redirect(`/a/${encodeURIComponent(ask.shareToken)}`)
 
   const cardPath = `/a/${encodeURIComponent(ask.shareToken)}`
-  const counts = new Map<number, number>()
+  const counts = new Map<string, number>()
   for (const { response } of responses) {
     if (response.choiceArticleId) {
       counts.set(response.choiceArticleId, (counts.get(response.choiceArticleId) ?? 0) + 1)

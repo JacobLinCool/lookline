@@ -45,6 +45,12 @@ function readInt(value: FormDataEntryValue | null): number | null {
   return Number.isInteger(n) ? n : null
 }
 
+/** An article id from a form field: ten digits with their leading zeros. */
+function readArticleId(value: FormDataEntryValue | null): string | null {
+  const s = String(value ?? '')
+  return /^\d{10}$/.test(s) ? s : null
+}
+
 function readSize(value: FormDataEntryValue | null): string | null {
   const s = typeof value === 'string' ? value.trim() : ''
   return s ? s : null
@@ -62,8 +68,8 @@ function finish(formData: FormData): void {
  * `/checkout`).
  */
 export async function addToBagAction(formData: FormData): Promise<ActionResult> {
-  const articleId = readInt(formData.get('articleId'))
-  if (articleId === null || articleId <= 0) return { ok: false, message: 'Choose a product.' }
+  const articleId = readArticleId(formData.get('articleId'))
+  if (articleId === null) return { ok: false, message: 'Choose a product.' }
   const result = await addToBag({
     articleId,
     size: readSize(formData.get('size')),
@@ -94,7 +100,7 @@ export async function addToBagAction(formData: FormData): Promise<ActionResult> 
 
 /** Fields: `articleId`, `size` (optional; omit to drop every size of the product), `redirect`. */
 export async function removeFromBagAction(formData: FormData): Promise<void> {
-  const articleId = readInt(formData.get('articleId'))
+  const articleId = readArticleId(formData.get('articleId'))
   if (articleId === null) return
   const size = formData.has('size') ? readSize(formData.get('size')) : undefined
   await removeFromBag(articleId, size)
@@ -103,7 +109,7 @@ export async function removeFromBagAction(formData: FormData): Promise<void> {
 
 /** Fields: `articleId`, `size`, `qty` (0 removes), `redirect`. */
 export async function setBagQtyAction(formData: FormData): Promise<void> {
-  const articleId = readInt(formData.get('articleId'))
+  const articleId = readArticleId(formData.get('articleId'))
   const qty = readInt(formData.get('qty'))
   if (articleId === null || qty === null) return
   await setBagQty(articleId, readSize(formData.get('size')), qty)
@@ -118,8 +124,10 @@ export async function clearBagAction(formData: FormData): Promise<void> {
 
 /** Outfit additions share one cookie commit and the same attribution path as single pieces. */
 export async function addOutfitToBagAction(formData: FormData): Promise<ActionResult> {
-  const ids = [...new Set(formData.getAll('articleId').map(Number))]
-  if (!ids.length || ids.length > 12 || ids.some((id) => !Number.isInteger(id) || id <= 0))
+  const ids = [...new Set(formData.getAll('articleId').map(String))].filter((id) =>
+    /^\d{10}$/.test(id),
+  )
+  if (!ids.length || ids.length > 12)
     return { ok: false, message: 'Choose up to 12 available pieces.' }
   const result = await addManyToBag(ids.map((articleId) => ({ articleId })))
   if (!result.ok)

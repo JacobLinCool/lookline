@@ -14,7 +14,8 @@ import {
   users,
 } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
-import { aestheticIndex, generateBrands, generateProduct } from '@lookline/catalog'
+import { aestheticIndex } from '@lookline/catalog'
+import { fixtureBrands, makeProduct } from '../recommend/testing/fixtures'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getPreferenceProfile, recordFeedback } from './index'
 import { BANDIT_STATE_ID } from './bandit'
@@ -25,13 +26,13 @@ const USER_ID = 'u_test_engine03'
 const SESSION = `is_test_${USER_ID}`
 
 let handle: DbHandle
-let articleId = 0
-let otherProductId = 0
+let articleId = ''
+let otherProductId = ''
 let productAesthetics: string[] = []
 
 beforeAll(async () => {
   handle = await createTestDb()
-  const brandRecords = generateBrands(SEED)
+  const brandRecords = fixtureBrands(SEED)
   await insertAll(
     handle.db,
     brands,
@@ -43,16 +44,18 @@ beforeAll(async () => {
       homeAesthetics: b.homeAesthetics,
       homeDepartments: b.homeDepartments,
       priceMultiplier: b.priceMultiplier,
-      origin: b.origin,
-      description: b.description,
+      origin: null,
+      description: null,
     })),
     { maxParams: 30_000 },
   )
-  const [first, second] = [1, 2].map((i) => generateProduct(i, SEED, brandRecords))
-  await insertAll(handle.db, articles, [first!, second!], { maxParams: 30_000 })
+  const [first, second] = [1, 2].map((i) => makeProduct(i, SEED, brandRecords))
+  const rows = [first!, second!].map(({ brandName: _brandName, ...row }) => row)
+  await insertAll(handle.db, articles, rows, { maxParams: 20_000 })
   articleId = first!.id
   otherProductId = second!.id
-  productAesthetics = first!.aesthetics ?? []
+  // The catalogue tags no aesthetics; the profile's top tags come from the style vector.
+  productAesthetics = []
   await handle.db
     .insert(users)
     .values({ id: USER_ID, handle: USER_ID, displayName: 'Engine 03 test', department: 'unisex' })

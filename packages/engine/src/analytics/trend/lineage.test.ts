@@ -44,7 +44,7 @@ const purchase = (
 ): PurchaseLite => ({
   id: `pu_${++seq}`,
   userId,
-  articleId: 1,
+  articleId: '0000000001',
   quantity,
   price,
   forKind: 'self',

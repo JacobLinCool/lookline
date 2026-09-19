@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "42a9d626-12d0-46f1-9294-347b83fcd515",
+  "id": "a08a96d6-f2f8-4149-a048-2ac993b043a5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "articles": {
@@ -155,21 +155,6 @@
           "autoincrement": false,
           "default": "'#9E9E9E'"
         },
-        "size_system": {
-          "name": "size_system",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sizes": {
-          "name": "sizes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
         "image_path": {
           "name": "image_path",
           "type": "text",
@@ -255,22 +240,6 @@
           "autoincrement": false,
           "default": "''"
         },
-        "silhouette": {
-          "name": "silhouette",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
-        "silhouette_id": {
-          "name": "silhouette_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "''"
-        },
         "length": {
           "name": "length",
           "type": "text",
@@ -303,13 +272,6 @@
           "autoincrement": false,
           "default": "''"
         },
-        "secondary_color_hex": {
-          "name": "secondary_color_hex",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "seasons": {
           "name": "seasons",
           "type": "text",
@@ -320,14 +282,6 @@
         },
         "occasions": {
           "name": "occasions",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "aesthetics": {
-          "name": "aesthetics",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -348,38 +302,6 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
-        },
-        "stock": {
-          "name": "stock",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1
-        },
-        "rating": {
-          "name": "rating",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "review_count": {
-          "name": "review_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "image_seed": {
-          "name": "image_seed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
         },
         "created_at": {
           "name": "created_at",

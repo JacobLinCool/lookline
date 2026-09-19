@@ -35,21 +35,22 @@ describe('deriveLookStyle', () => {
     expect(dup.palette).toEqual(['#D9CDB8'])
   })
 
-  it('handles empty input and zero vectors by voting on tags', () => {
+  it('handles empty input and zero vectors', () => {
     expect(deriveLookStyle([])).toEqual({ aesthetics: [], palette: [], styleVector: zeroVector() })
     const flat = makeProduct({
       id: 9,
       name: 'Flat',
       categoryGroup: 'tops',
+      outfitRole: 'top',
       subcategory: 'tee',
-      silhouetteId: 'tee',
       colorName: 'Sky',
       colorHex: '#9FCAE9',
       colorFamily: 'blue',
       aesthetics: ['coastal', 'resort'],
     })
+    // Nothing tags the catalogue, so a zero vector yields no aesthetics rather than a tag vote.
     const style = deriveLookStyle([{ ...flat, styleVector: zeroVector() }])
-    expect(style.aesthetics).toEqual(['coastal', 'resort'])
+    expect(style.aesthetics).toEqual([])
     expect(style.palette).toEqual(['#9FCAE9'])
   })
 })

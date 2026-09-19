@@ -41,9 +41,8 @@ describe('buildSearchQuery', () => {
     for (const statement of [query.page, query.total]) {
       const { sql, params } = statement.toSQL()
       expect(sql).toContain('"articles"."category_group" in (')
-      expect(sql).toContain('"articles"."color_family" in (')
-      expect(sql).toContain('"articles"."color_family" not in (')
-      expect(sql).toContain('not exists (select 1 from json_each("articles"."aesthetics")')
+      expect(sql).toContain('"articles"."perceived_colour_master_name" in (')
+      expect(sql).toContain('"articles"."perceived_colour_master_name" not in (')
       expect(params).toEqual(
         expect.arrayContaining(['tops', 'outerwear', 'black', 'blue', 'red', 'footwear', 3000]),
       )
@@ -65,18 +64,17 @@ describe('buildSearchQuery', () => {
     expect(plan.text).toBe('nike')
     expect(plan.ftsExpr).toBe('"nike"*')
     expect(sql).toContain(
-      '"articles"."id" in (select rowid from products_fts where products_fts match ?)',
+      'articles.rowid in (select rowid from articles_fts where articles_fts match ?)',
     )
-    expect(sql).toContain('"articles"."stock" >')
     expect(sql).toContain('"articles"."department" =')
-    expect(sql).toContain('"articles"."subcategory" in (')
+    expect(sql).toContain('"articles"."product_type_name" in (')
     expect(sql).toContain('"articles"."price" >=')
     expect(sql).toContain('"articles"."price" <=')
     expect(sql).toContain('"articles"."brand_id" =')
-    expect(sql).toContain('order by "articles"."price" asc, "articles"."id" asc')
+    expect(sql).toContain('order by "articles"."price" asc, "articles"."article_id" asc')
     expect(sql).toMatch(/limit \? offset \?$/)
     expect(sql).toContain('inner join "brands"')
-    expect(sql).not.toContain('inner join "products_fts"')
+    expect(sql).not.toContain('inner join "articles_fts"')
     expect(params).toContain('"nike"*')
     expect(params).toContain('men')
     expect(params).toContain('hoodie')
@@ -88,13 +86,14 @@ describe('buildSearchQuery', () => {
 
   it('uses bm25 + cosine for relevance when text and a style vector exist, and each other sort', () => {
     const rel = buildSearchQuery(handle.db, { q: 'minimalist tote zephyr' }).page.toSQL().sql
-    expect(rel).toContain('bm25(products_fts)')
-    expect(rel).toContain('inner join "products_fts"')
-    expect(rel).toContain('"product_vectors"."v')
-    expect(rel).toContain('json_each("articles"."aesthetics")')
+    expect(rel).toContain('bm25(articles_fts)')
+    expect(rel).toContain('articles_fts match')
+    expect(rel).toContain('"article_vectors"."v')
     const vecOnly = buildSearchQuery(handle.db, { q: '極簡' }).page.toSQL().sql
     expect(vecOnly).not.toContain('bm25(')
-    expect(vecOnly).toMatch(/order by \("product_vectors"\."v\d+"\*.*\) desc, "articles"\."id" asc/)
+    expect(vecOnly).toMatch(
+      /order by \("article_vectors"\."v\d+"\*.*\) desc, "articles"\."article_id" asc/,
+    )
     const pop = buildSearchQuery(handle.db, { sort: 'popular' }).page.toSQL().sql
     expect(pop).toContain('order by "articles"."popularity" desc')
     expect(buildSearchQuery(handle.db, { sort: 'trending' }).page.toSQL().sql).toContain(

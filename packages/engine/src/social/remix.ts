@@ -11,7 +11,6 @@ import {
   cosineExpr,
   desc,
   eq,
-  gt,
   inArray,
   lookArticles,
   looks,

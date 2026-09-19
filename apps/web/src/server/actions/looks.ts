@@ -41,11 +41,6 @@ function readPresetSlug(value: FormDataEntryValue | null): string {
   return /^[a-z0-9][a-z0-9-]*$/.test(slug) ? slug : DEFAULT_STYLE_PRESET
 }
 
-function readInt(value: FormDataEntryValue | null): number | null {
-  const n = Number(value)
-  return Number.isInteger(n) && n > 0 ? n : null
-}
-
 function withParam(path: string, key: string, value: string): string {
   const url = new URL(path, 'http://lookline.local')
   url.searchParams.set(key, value)
@@ -80,8 +75,8 @@ export async function createLookAction(formData: FormData): Promise<void> {
     ...new Set(
       formData
         .getAll('articleId')
-        .map(readInt)
-        .filter((n): n is number => n !== null),
+        .map(String)
+        .filter((id) => /^\d{10}$/.test(id)),
     ),
   ].slice(0, MAX_LOOK_PRODUCTS)
   if (articleIds.length === 0) {

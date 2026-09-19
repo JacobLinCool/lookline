@@ -20,7 +20,6 @@ import {
   hardwareColorFor,
   lighten,
   lightness,
-  normalizeHex,
   safeHex,
 } from './palette'
 import { patternDef, patternKind } from './patterns'

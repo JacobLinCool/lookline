@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { and, brands, desc, eq, gt, inArray, looks, articles, users } from '@lookline/db'
+import { and, brands, desc, eq, inArray, looks, articles, users } from '@lookline/db'
 import { getUserNetwork } from '@lookline/engine'
 import { IntentWorkspace, type HomeLook, type HomeProduct } from '@/components/intent/workspace'
 import { paramList, paramString } from '@/components/intent/urls'
@@ -72,7 +72,6 @@ async function loadTrending(): Promise<HomeProduct[]> {
       })
       .from(articles)
       .innerJoin(brands, eq(articles.brandId, brands.id))
-      .where(gt(articles.stock, 0))
       .orderBy(desc(articles.trendScore), desc(articles.popularity))
       .limit(RAIL_LIMIT)
   } catch (error) {

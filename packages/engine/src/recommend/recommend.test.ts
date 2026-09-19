@@ -42,7 +42,6 @@ describe('runRecommend (MemoryRetriever)', () => {
         r.subcategory === 'hoodie' &&
         r.colorFamily === 'black' &&
         r.price <= 3000 &&
-        r.stock > 0 &&
         r.department !== 'men' &&
         r.department !== 'kids',
     )
@@ -187,9 +186,7 @@ describe('runRecommend (MemoryRetriever)', () => {
 
 describe('similarProductsWith / completeTheLookWith', () => {
   it('similar articles share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
-    const anchor = rows.find(
-      (r) => r.stock > 0 && r.categoryGroup === 'tops' && r.department === 'women',
-    )!
+    const anchor = rows.find((r) => r.categoryGroup === 'tops' && r.department === 'women')!
     const items = await similarProductsWith(anchor, { retriever, context }, { limit: 6 })
     expect(items.length).toBeGreaterThan(0)
     expect(items.length).toBeLessThanOrEqual(6)
@@ -203,8 +200,7 @@ describe('similarProductsWith / completeTheLookWith', () => {
   })
   it('complete the look pins the product and stays under the budget', async () => {
     const anchor = rows.find(
-      (r) =>
-        r.stock > 0 && r.categoryGroup === 'tops' && r.department === 'women' && r.price < 2000,
+      (r) => r.categoryGroup === 'tops' && r.department === 'women' && r.price < 2000,
     )!
     const outfits = await completeTheLookWith(
       anchor,

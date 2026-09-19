@@ -16,6 +16,7 @@ export {
   articleVectorsInsertSql,
 } from './vectors'
 export {
+  articleRowid,
   articlesFts,
   FTS_REBUILD_SQL,
   FTS_MAX_TOKENS,

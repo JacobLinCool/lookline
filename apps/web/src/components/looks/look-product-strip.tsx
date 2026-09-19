@@ -1,6 +1,6 @@
 import { InstantForm } from '@/components/latency/instant-form'
 import type { Article } from '@lookline/db'
-import { Button, ProductCard, Rail, RailItem, Select } from '@/components/ui'
+import { Button, ProductCard, Rail, RailItem } from '@/components/ui'
 import { addToBagAction } from '@/server/actions/bag'
 import { humanize } from '@/server/format'
 
@@ -43,23 +43,9 @@ export function LookProductStrip({
                 <input type="hidden" name="sourceLook" value={lookId} />
                 {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
                 <div className="flex items-center gap-1.5">
-                  {product.sizeSystem !== 'one-size' && product.sizes.length > 0 ? (
-                    <Select
-                      name="size"
-                      aria-label={`Size for ${product.name}`}
-                      defaultValue={product.sizes[0]}
-                      options={product.sizes.map((s) => ({ value: s, label: s }))}
-                      className="h-9 w-20 shrink-0 text-[13px]"
-                    />
-                  ) : null}
-                  <Button
-                    type="submit"
-                    size="sm"
-                    variant="secondary"
-                    className="flex-1"
-                    disabled={product.stock <= 0}
-                  >
-                    {product.stock > 0 ? 'Add to bag' : 'Sold out'}
+                  {/* No size picker: the catalogue records no sizes, and no inventory to sell out of. */}
+                  <Button type="submit" size="sm" variant="secondary" className="flex-1">
+                    Add to bag
                   </Button>
                 </div>
               </InstantForm>

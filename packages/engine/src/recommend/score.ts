@@ -35,8 +35,6 @@ export interface ScoredCandidate {
 /** In-process hard filters beyond SQL (§2.3): `text:`/`pattern:` avoids, sizes, kids mismatch. */
 export function hardFilters(cands: readonly Candidate[], ctx: RankContext): Candidate[] {
   const avoid = parseTokens(ctx.intent.mustAvoid)
-  const sizes = ctx.intent.sizes ?? {}
-  const sizeEntries = Object.entries(sizes).filter(([, v]) => typeof v === 'string' && v.length > 0)
   const wantsKids = ctx.intent.department === 'kids' || ctx.intent.recipient?.department === 'kids'
   return cands.filter((c) => {
     const p = c.product

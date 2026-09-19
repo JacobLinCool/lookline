@@ -41,8 +41,8 @@ const ERRORS: Record<string, string> = {
   name: 'Add your name so they know who answered.',
 }
 
-function tally(bundle: AskBundle): Map<number, number> {
-  const counts = new Map<number, number>()
+function tally(bundle: AskBundle): Map<string, number> {
+  const counts = new Map<string, number>()
   for (const { response } of bundle.responses) {
     if (response.choiceArticleId) {
       counts.set(response.choiceArticleId, (counts.get(response.choiceArticleId) ?? 0) + 1)

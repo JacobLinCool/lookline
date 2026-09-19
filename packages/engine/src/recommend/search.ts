@@ -13,14 +13,13 @@ import {
   count,
   desc,
   eq,
+  articleRowid,
   ftsHitsSubquery,
   ftsMatch,
   ftsQuery,
   ftsRank,
-  gt,
   gte,
   inArray,
-  jsonArrayOverlaps,
   lte,
   notInArray,
   articleVectors,
@@ -237,7 +236,7 @@ export function planSearch(query: ProductSearch, opts: { withText?: boolean } = 
   const withText = opts.withText ?? true
   const text = withText && scan.residual ? scan.residual : null
   const ftsExpr = text ? ftsQuery(text) : null
-  if (ftsExpr) where.push(sql`${articles.id} in ${ftsHitsSubquery(ftsExpr)}`)
+  if (ftsExpr) where.push(sql`${articleRowid} in ${ftsHitsSubquery(ftsExpr)}`)
   const vector = scanVector(scan, query.aesthetics ?? [])
   const pageSize = Math.max(
     1,

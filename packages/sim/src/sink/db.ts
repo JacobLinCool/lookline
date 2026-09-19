@@ -6,8 +6,6 @@
  * every Look without an `imagePath` (only generated images live in R2).
  */
 import {
-  and,
-  gt,
   inArray,
   insertAll,
   intentSessions,
@@ -47,13 +45,10 @@ const POOL_COLUMNS = {
   price: articles.price,
   colorFamily: articles.colorFamily,
   colorHex: articles.colorHex,
-  sizeSystem: articles.sizeSystem,
-  sizes: articles.sizes,
+  outfitRole: articles.outfitRole,
   popularity: articles.popularity,
   name: articles.name,
-  silhouetteId: articles.silhouetteId,
   pattern: articles.pattern,
-  imageSeed: articles.imageSeed,
   styleVector: articles.styleVector,
 } as const
 
@@ -107,7 +102,7 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
       const rows = await db
         .select(POOL_COLUMNS)
         .from(articles)
-        .where(and(gt(articles.stock, 0), sql`${articles.id} % ${modulo} = 0`))
+        .where(sql`cast(${articles.id} as integer) % ${modulo} = 0`)
         .orderBy(articles.id)
       return rows
     },

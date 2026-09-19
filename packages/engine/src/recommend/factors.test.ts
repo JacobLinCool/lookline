@@ -228,7 +228,7 @@ describe('trend_momentum', () => {
     const empty = trendMomentum(candidate(hoodie), makeRankContext(makeIntent()))
     expect(empty.applicable).toBe(false)
     const trend = new Map([
-      ['aesthetic:streetwear', { momentum: 72, velocity: 1, emerging: true, crossCluster: 0.4 }],
+      ['aesthetic:hoodie', { momentum: 72, velocity: 1, emerging: true, crossCluster: 0.4 }],
     ])
     const hit = trendMomentum(candidate(hoodie), makeRankContext(makeIntent(), { trend }))
     expect(hit.value).toBeCloseTo(0.72, 9)

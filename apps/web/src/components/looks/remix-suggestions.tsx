@@ -15,7 +15,7 @@ export async function RemixSuggestions({
   lookId: string
   userId: string
   budget?: number
-  originalIds: number[]
+  originalIds: string[]
   engineView?: boolean
 }) {
   const result = await suggestRemix(getDb().db, lookId, userId, {

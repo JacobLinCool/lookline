@@ -85,11 +85,11 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
   ])
   const bagProducts = await loadProductsByIds(bagLines.map((l) => l.articleId))
 
-  const preselected = new Set<number>([
+  const preselected = new Set<string>([
     ...paramProducts.map((p) => p.id),
     ...(look?.articles.map((p) => p.id) ?? []),
   ])
-  const candidates = new Map<number, ShopProduct>()
+  const candidates = new Map<string, ShopProduct>()
   for (const p of [...paramProducts, ...(look?.articles ?? []), ...bagProducts]) {
     if (!candidates.has(p.id)) candidates.set(p.id, p)
   }

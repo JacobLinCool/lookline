@@ -37,8 +37,6 @@ export interface JourneyProduct {
   material: string
   pattern: string
   subcategory: string
-  sizes: string[]
-  stock: number
 }
 
 export interface JourneyLook {
@@ -204,7 +202,6 @@ function ProductFacts({ product }: { product: JourneyProduct }) {
         ['Color', product.colorName],
         ['Material', product.material],
         ['Pattern', product.pattern],
-        ['Available', `${product.stock} pieces`],
       ].map(([term, value]) => (
         <div key={term} className="border-r border-line px-3 py-3 last:border-r-0">
           <dt className="text-[11px] text-muted">{term}</dt>
@@ -221,8 +218,8 @@ function ProductChooser({
   onSelect,
 }: {
   articles: JourneyProduct[]
-  selectedId: number | null
-  onSelect: (id: number) => void
+  selectedId: string | null
+  onSelect: (id: string) => void
 }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
@@ -453,8 +450,8 @@ function ReadyStage({
   articles: JourneyProduct[]
   product: JourneyProduct
   look: JourneyLook | null
-  selectedId: number
-  onSelect: (id: number) => void
+  selectedId: string
+  onSelect: (id: string) => void
   query: string
   onQuery: (value: string) => void
   selectedSize: string
@@ -515,7 +512,7 @@ function ReadyStage({
   }
 
   if (step === 3) {
-    const sizes = product.sizes.length > 0 ? product.sizes : ['One size']
+    const sizes = ['One size']
     return (
       <div className="grid gap-8 lg:grid-cols-[10rem_minmax(0,1fr)]">
         <ProductImage articleId={product.id} alt={product.name} priority />
@@ -786,7 +783,7 @@ function BorrowStage({
   }
 
   if (step === 3) {
-    const sizes = product.sizes.length > 0 ? product.sizes : ['One size']
+    const sizes = ['One size']
     return (
       <div className="grid gap-8 md:grid-cols-[10rem_minmax(0,1fr)]">
         <ProductImage articleId={product.id} alt={product.name} />
@@ -872,11 +869,9 @@ export function JourneyPrototype({
     'Keep the relaxed shape, but explore an original embroidered back graphic and a deeper red finish.',
   )
   const [referenceName, setReferenceName] = useState<string | null>(null)
-  const [selectedId, setSelectedId] = useState<number | null>(articles[0]?.id ?? null)
-  const [readySize, setReadySize] = useState(articles[0]?.sizes[0] ?? 'One size')
-  const [borrowSize, setBorrowSize] = useState(
-    articles[1]?.sizes[0] ?? articles[0]?.sizes[0] ?? 'One size',
-  )
+  const [selectedId, setSelectedId] = useState<string | null>(articles[0]?.id ?? null)
+  const [readySize, setReadySize] = useState('One size')
+  const [borrowSize, setBorrowSize] = useState('One size')
   const [unlocked, setUnlocked] = useState<Record<ScenarioKey, number>>({
     ready: 0,
     custom: 0,
@@ -911,10 +906,9 @@ export function JourneyPrototype({
     setStep(next)
   }
 
-  function selectReadyProduct(id: number) {
-    const next = articles.find((product) => product.id === id)
+  function selectReadyProduct(id: string) {
     setSelectedId(id)
-    setReadySize(next?.sizes[0] ?? 'One size')
+    setReadySize('One size')
     setUnlocked((current) => ({ ...current, ready: Math.min(current.ready, 1) }))
     if (scenarioKey === 'ready' && step > 1) setStep(1)
   }

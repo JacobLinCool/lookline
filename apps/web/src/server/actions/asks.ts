@@ -38,19 +38,23 @@ function text(value: FormDataEntryValue | null, max = 500): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function ints(values: FormDataEntryValue[]): number[] {
-  return [
-    ...new Set(
-      values.map((v) => Number(v)).filter((n): n is number => Number.isInteger(n) && n > 0),
-    ),
-  ]
+/** Article ids from a form: ten digits, leading zeros kept. */
+function ints(values: FormDataEntryValue[]): string[] {
+  return [...new Set(values.map(String).filter((v) => /^\d{10}$/.test(v)))]
 }
 
+/** A number from a form field (a budget), or null. */
 function optionalInt(value: FormDataEntryValue | null): number | null {
   const s = text(value, 12)
   if (!s) return null
   const n = Number(s.replace(/[^\d]/g, ''))
   return Number.isInteger(n) && n > 0 ? n : null
+}
+
+/** An article id from a form field, or null: ten digits with their leading zeros. */
+function optionalArticleId(value: FormDataEntryValue | null): string | null {
+  const s = text(value, 12)
+  return s && /^\d{10}$/.test(s) ? s : null
 }
 
 function withParams(path: string, params: Record<string, string | null | undefined>): string {
@@ -138,7 +142,7 @@ export async function answerAskAction(formData: FormData): Promise<ActionResult>
   if (ask.kind !== 'choose')
     return { ok: false, message: 'Choose a styling response for this question.' }
 
-  const choiceArticleId = optionalInt(formData.get('choiceArticleId'))
+  const choiceArticleId = optionalArticleId(formData.get('choiceArticleId'))
   if (!choiceArticleId || !options.some((p) => p.id === choiceArticleId)) {
     return { ok: false, message: 'Choose one of the available pieces.' }
   }

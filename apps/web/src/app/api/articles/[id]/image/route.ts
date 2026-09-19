@@ -52,12 +52,14 @@ export async function GET(
 
   try {
     const svg = renderProductSvg({
-      silhouetteId: product.silhouetteId,
+      // The drawn fallback takes its shape from the product type and its seed from the article
+      // id, the catalogue having no silhouette or seed of its own.
+      silhouetteId: product.subcategory.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       colorHex: product.colorHex,
-      secondaryColorHex: product.secondaryColorHex,
+      secondaryColorHex: null,
       pattern: product.pattern,
-      aesthetics: product.aesthetics,
-      imageSeed: product.imageSeed,
+      aesthetics: [],
+      imageSeed: Number(product.id),
       categoryGroup: product.categoryGroup,
       name: product.name,
       brandName,

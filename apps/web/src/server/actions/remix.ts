@@ -35,12 +35,9 @@ function text(value: FormDataEntryValue | null, max = 500): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : ''
 }
 
-function ints(values: FormDataEntryValue[]): number[] {
-  return [
-    ...new Set(
-      values.map((v) => Number(v)).filter((n): n is number => Number.isInteger(n) && n > 0),
-    ),
-  ]
+/** Article ids from a form: ten digits, leading zeros kept. */
+function ints(values: FormDataEntryValue[]): string[] {
+  return [...new Set(values.map(String).filter((v) => /^\d{10}$/.test(v)))]
 }
 
 function withParams(path: string, params: Record<string, string | null | undefined>): string {

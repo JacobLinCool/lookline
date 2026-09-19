@@ -228,8 +228,8 @@ async function main(): Promise<void> {
   }
 
   const anchor = (
-    await db.all<{ id: number }>(
-      sql`select id from articles where stock > 0 and category_group = 'tops' and department = 'women' order by popularity desc limit 1`,
+    await db.all<{ id: string }>(
+      sql`select article_id as id from articles where category_group = 'tops' and department = 'women' order by popularity desc limit 1`,
     )
   )[0]?.id
   if (anchor) {

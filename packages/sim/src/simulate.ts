@@ -53,7 +53,7 @@ interface LookState {
 interface AskState {
   askerId: string
   kind: 'choose' | 'style_me'
-  options: number[]
+  options: string[]
   occasion: string
   lookId: string | null
 }
@@ -73,8 +73,8 @@ const selfProfile = (p: Persona): TasteProfile => ({
   sizes: p.sizes,
   budget: p.budgetHint,
 })
-const sizeFor = (p: Persona, product: SimProduct): string | null =>
-  product.sizeSystem === 'one-size' ? null : (p.sizes[product.sizeSystem] ?? null)
+/** The catalogue records no sizes, so a purchase carries none. */
+const sizeFor = (_p: Persona, _product: SimProduct): string | null => null
 
 function isSink(target: Database | SimSink): target is SimSink {
   const t = target as Partial<SimSink>
@@ -246,7 +246,7 @@ export async function simulateSocial(
       self: opts.forKind !== 'other',
     })
   }
-  async function ensureLoaded(ids: readonly number[]): Promise<void> {
+  async function ensureLoaded(ids: readonly string[]): Promise<void> {
     const missing = ids.filter((id) => !pool.has(id))
     if (missing.length > 0) pool.add(await sink.loadProducts(missing))
   }
@@ -363,7 +363,8 @@ export async function simulateSocial(
       const lead = aestheticIndex(parent.aesthetics[0] ?? '')
       const keep = keepable.toSorted(
         (a, b) =>
-          (pool.get(b)?.styleVector[lead] ?? 0) - (pool.get(a)?.styleVector[lead] ?? 0) || a - b,
+          (pool.get(b)?.styleVector[lead] ?? 0) - (pool.get(a)?.styleVector[lead] ?? 0) ||
+          a.localeCompare(b),
       )[0]!
       const kept = pool.get(keep)!
       const idx = ids.findIndex((id) => pool.get(id)?.categoryGroup === kept.categoryGroup)
@@ -435,7 +436,7 @@ export async function simulateSocial(
     totals.interactions++
     // slate: 4 taste picks (2 in the searched group) + 2 random pieces
     const slate: SimProduct[] = []
-    const seen = new Set<number>()
+    const seen = new Set<string>()
     const take = (x: SimProduct | null): void => {
       if (x && !seen.has(x.id)) {
         seen.add(x.id)
@@ -607,25 +608,25 @@ export async function simulateSocial(
     const p = byId.get(e.userId)!
     const rng = eventRng(e)
     const shortlist = pool.shortlist(selfProfile(p))
-    let options: number[] = []
+    let options: string[] = []
     if (e.askKind === 'choose') {
       const look = e.lookId ? looks.get(e.lookId) : undefined
       const pair = look
-        ? ((): [number, number] | null => {
+        ? ((): [string, string] | null => {
             const first = look.articleIds[0]
             if (first === undefined) return null
             const alt = chooseProduct(pool, shortlist, rng, {
               group: (pool.get(first)?.categoryGroup as CategoryGroup | undefined) ?? null,
               exclude: new Set(look.articleIds),
             })
-            return alt ? [first, alt.id] : null
+            return alt ? ([first, alt.id] as [string, string]) : null
           })()
         : chooseOptions(pool, shortlist, rng)
       if (!pair) {
         skipped.ask++
         return
       }
-      options = pair
+      options = [...pair]
     }
     await sink.createAsk({
       id: e.askId,

@@ -83,21 +83,21 @@ describe('deriveRelationships', () => {
       {
         askId: 'ask1',
         responderUserId: 'B',
-        choiceArticleId: 7,
+        choiceArticleId: '0000000007',
         styledLookId: null,
         createdAt: daysAgo(10),
       },
       {
         askId: 'ask2',
         responderUserId: 'C',
-        choiceArticleId: 8,
+        choiceArticleId: '0000000008',
         styledLookId: null,
         createdAt: daysAgo(10),
       },
       {
         askId: 'ask3',
         responderUserId: 'D',
-        choiceArticleId: 9,
+        choiceArticleId: '0000000009',
         styledLookId: null,
         createdAt: daysAgo(10),
       },
@@ -131,12 +131,22 @@ describe('deriveRelationships', () => {
             askId: 'ask3',
             createdAt: daysAgo(10),
           }),
-          ix({ actorUserId: 'A', type: 'SAVE', articleId: 8, createdAt: daysAgo(8) }),
+          ix({ actorUserId: 'A', type: 'SAVE', articleId: '0000000008', createdAt: daysAgo(8) }),
         ],
         purchases: [
-          purchase({ userId: 'A', articleId: 7, sourceAskId: 'ask1', createdAt: daysAgo(8) }),
+          purchase({
+            userId: 'A',
+            articleId: '0000000007',
+            sourceAskId: 'ask1',
+            createdAt: daysAgo(8),
+          }),
           // too late to count as "followed"
-          purchase({ userId: 'A', articleId: 9, sourceAskId: 'ask3', createdAt: daysAgo(1) }),
+          purchase({
+            userId: 'A',
+            articleId: '0000000009',
+            sourceAskId: 'ask3',
+            createdAt: daysAgo(1),
+          }),
         ],
       },
       NOW,
@@ -157,7 +167,7 @@ describe('deriveRelationships', () => {
           look({ id: 'l1', ownerId: 'B' }),
           look({ id: 'l2', ownerId: 'A', kind: 'remix', parentLookId: 'l1' }),
         ],
-        purchases: [purchase({ userId: 'C', articleId: 1, sourceLookId: 'l1' })],
+        purchases: [purchase({ userId: 'C', articleId: '0000000001', sourceLookId: 'l1' })],
       },
       NOW,
     )
@@ -178,7 +188,9 @@ describe('deriveRelationships', () => {
         ...empty(),
         looks: [look({ id: 't1', ownerId: 'A', kind: 'together' })],
         lookParticipants: participants,
-        purchases: [purchase({ userId: 'A', articleId: 3, forKind: 'other', forUserId: 'C' })],
+        purchases: [
+          purchase({ userId: 'A', articleId: '0000000003', forKind: 'other', forUserId: 'C' }),
+        ],
       },
       NOW,
     )
@@ -203,7 +215,12 @@ describe('deriveRelationships', () => {
           }),
         ],
         purchases: [
-          purchase({ userId: 'A', articleId: 1, sourceLookId: 'l9', createdAt: daysAgo(2) }),
+          purchase({
+            userId: 'A',
+            articleId: '0000000001',
+            sourceLookId: 'l9',
+            createdAt: daysAgo(2),
+          }),
         ],
       },
       NOW,

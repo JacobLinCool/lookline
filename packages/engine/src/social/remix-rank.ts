@@ -142,8 +142,6 @@ export function scoreCandidate(
 
   const sameFamily = cand.colorFamily === slot.source.colorFamily
   const sameSub = cand.subcategory === slot.source.subcategory
-  // Nothing to check a size against; see filterBySize above.
-  const sizeOk = true
   const attr = (sameFamily ? 0.5 : 0) + (sameSub ? 0.5 : 0)
   const attrBits = [
     sameFamily

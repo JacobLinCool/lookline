@@ -13,7 +13,7 @@ export const BAG_MAX_QTY = 10
 const BAG_TTL_SECONDS = 30 * 24 * 60 * 60
 
 const lineSchema = z.object({
-  articleId: z.number().int().positive(),
+  articleId: z.string().regex(/^\d{10}$/),
   size: z.string().max(24).nullable(),
   qty: z.number().int().min(1).max(BAG_MAX_QTY),
 })

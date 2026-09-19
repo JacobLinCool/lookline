@@ -58,7 +58,7 @@ function ev(
     forOthers: false,
     context: {},
     createdAt,
-    articleId: seq,
+    articleId: String(seq).padStart(10, '0'),
     lookId: null,
     intentSessionId: null,
     vector,

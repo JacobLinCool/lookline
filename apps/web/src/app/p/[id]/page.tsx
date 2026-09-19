@@ -21,15 +21,14 @@ import { displayName } from '@/lib/product-name'
 type Params = Promise<{ id: string }>
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
-function parseId(raw: string): number | null {
-  if (!/^\d{1,9}$/.test(raw)) return null
-  const id = Number(raw)
-  return id > 0 ? id : null
+/** H&M article ids are ten digits with their leading zeros; parsing one as a number loses them. */
+function parseId(raw: string): string | null {
+  return /^\d{10}$/.test(raw) ? raw : null
 }
 
 /** Article + brand, deduplicated between `generateMetadata` and the page for one request. */
 const loadProduct = cache(
-  async (id: number): Promise<{ product: Article; brand: Brand } | null> => {
+  async (id: string): Promise<{ product: Article; brand: Brand } | null> => {
     const [row] = await getDb()
       .db.select({ product: articles, brand: brands })
       .from(articles)
@@ -146,7 +145,7 @@ export default async function ProductPage({
   const colourLabel =
     COLOR_FAMILY_LABELS[product.colorFamily as keyof typeof COLOR_FAMILY_LABELS] ??
     humanize(product.colorFamily)
-  const lowStock = product.stock > 0 && product.stock <= 5
+  const lowStock = false
 
   return (
     <Container className="pb-24">
@@ -224,20 +223,9 @@ export default async function ProductPage({
               >
                 {colourLabel}
               </Link>
-              {product.secondaryColorHex ? (
-                <span
-                  aria-label="Second colour"
-                  className="size-4 rounded-full border border-line"
-                  style={{ background: product.secondaryColorHex }}
-                />
-              ) : null}
+              {null}
             </div>
-            {product.reviewCount > 0 ? (
-              <p className="tabular text-[13px] text-muted">
-                {product.rating.toFixed(1)} / 5 · {product.reviewCount.toLocaleString('en-US')}{' '}
-                {product.reviewCount === 1 ? 'review' : 'reviews'}
-              </p>
-            ) : null}
+            {null}
             <WhyThisSuitsYou product={product} userId={user?.id ?? null} engineView={engineView} />
           </header>
 
@@ -258,20 +246,6 @@ export default async function ProductPage({
               <AttributeList product={product} />
             </div>
           </details>
-
-          {engineView && product.aesthetics.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {product.aesthetics.map((slug) => (
-                <Tag
-                  key={slug}
-                  tone="outline"
-                  href={`/shop?aesthetics=${encodeURIComponent(slug)}`}
-                >
-                  {humanize(slug)}
-                </Tag>
-              ))}
-            </div>
-          ) : null}
         </div>
       </div>
 

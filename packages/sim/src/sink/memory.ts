@@ -224,7 +224,7 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
       })
       const departments = new Set(compatibleDepartments(user.department))
       const exclude = new Set(look.articleIds)
-      const out: number[] = []
+      const out: string[] = []
       for (const src of sources) {
         let best: SimProduct | null = null
         let bestScore = -1

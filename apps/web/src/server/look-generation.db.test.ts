@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { brands, eq, insertAll, looks, articles, users } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
-import { generateBrands, generateProduct } from '@lookline/catalog'
+import { fixtureBrands, makeProduct } from '@lookline/engine/testing'
 import { setLlm, type LlmImageResult } from '@lookline/engine'
 
 const scheduled = vi.hoisted(() => [] as (() => Promise<void>)[])
@@ -25,7 +25,7 @@ describe('persisted image operations', () => {
     setDb(handle.db)
     storage = memoryStorage()
     setStorage(storage)
-    const brandRecords = generateBrands(1)
+    const brandRecords = fixtureBrands(1)
     await insertAll(
       handle.db,
       brands,
@@ -37,12 +37,12 @@ describe('persisted image operations', () => {
         homeAesthetics: b.homeAesthetics,
         homeDepartments: b.homeDepartments,
         priceMultiplier: b.priceMultiplier,
-        origin: b.origin,
-        description: b.description,
+        origin: null,
+        description: null,
       })),
       { maxParams: 30_000 },
     )
-    const product = generateProduct(1, 1, brandRecords)
+    const { brandName: _brandName, ...product } = makeProduct(1, 1, brandRecords)
     await handle.db.insert(articles).values(product)
     articleId = product.id
     await handle.db.insert(users).values({

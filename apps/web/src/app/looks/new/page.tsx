@@ -45,15 +45,13 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
   const purchaseIds = readIdList(params.purchases)
     .map((id) => sanitizeId(id))
     .filter((id): id is string => id !== null)
-  const productParam = readIdList(params.articles)
-    .map(Number)
-    .filter((n) => Number.isInteger(n) && n > 0)
+  const productParam = readIdList(params.articles).filter((id) => /^\d{10}$/.test(id))
 
   // Which articles may go into the Look: from the given purchases, explicit product ids, or the
   // user's most recent purchases.
   let source: 'purchases' | 'articles' | 'recent' = 'recent'
-  let candidateIds: number[] = []
-  let purchasedAt = new Map<number, Date>()
+  let candidateIds: string[] = []
+  let purchasedAt = new Map<string, Date>()
   if (purchaseIds.length > 0) {
     source = 'purchases'
     const rows = await db

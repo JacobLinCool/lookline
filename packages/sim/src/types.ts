@@ -236,19 +236,14 @@ export type SimProduct = Pick<
   | 'id'
   | 'department'
   | 'categoryGroup'
+  | 'outfitRole'
   | 'subcategory'
   | 'price'
   | 'colorFamily'
   | 'colorHex'
-  | 'secondaryColorHex'
-  | 'aesthetics'
-  | 'sizeSystem'
-  | 'sizes'
   | 'popularity'
   | 'name'
-  | 'silhouetteId'
   | 'pattern'
-  | 'imageSeed'
 > & { styleVector: number[] }
 
 export type Deterministic<T> = T & { id: string; createdAt: Date }
@@ -267,7 +262,7 @@ export interface SimSink {
   /** Candidate articles the simulation chooses from (a sample of the catalog). */
   loadPool(): Promise<SimProduct[]>
   /** Products by id that may be missing from the pool (e.g. from `suggestRemix`). */
-  loadProducts(ids: readonly number[]): Promise<SimProduct[]>
+  loadProducts(ids: readonly string[]): Promise<SimProduct[]>
   recordSearch(input: SearchInput): Promise<void>
   recordInteraction(input: Deterministic<InteractionInput>): Promise<void>
   recordFeedback(input: Deterministic<FeedbackInput>): Promise<void>
@@ -277,7 +272,7 @@ export interface SimSink {
     poster: string | null,
   ): Promise<{ depth: number; rootLookId: string }>
   /** Article ids of a "Make It Mine" suggestion (may be empty). */
-  suggestRemix(sourceLookId: string, userId: string): Promise<number[]>
+  suggestRemix(sourceLookId: string, userId: string): Promise<string[]>
   createAsk(input: Deterministic<CreateAskInput>): Promise<void>
   answerAsk(input: Deterministic<AnswerAskInput>): Promise<void>
   /** Optional: called once after the run. */

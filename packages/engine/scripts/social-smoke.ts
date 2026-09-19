@@ -14,7 +14,6 @@ import {
   desc,
   eq,
   feedbackEvents,
-  gt,
   inArray,
   interactions,
   lookParticipants,
@@ -49,12 +48,7 @@ async function main(): Promise<void> {
     console.log('articles table is empty — skipping social smoke test')
     return
   }
-  const picks = await db
-    .select()
-    .from(articles)
-    .where(gt(articles.stock, 0))
-    .orderBy(desc(articles.popularity))
-    .limit(60)
+  const picks = await db.select().from(articles).orderBy(desc(articles.popularity)).limit(60)
   const byGroup = new Map<string, (typeof picks)[number]>()
   for (const p of picks) if (!byGroup.has(p.categoryGroup)) byGroup.set(p.categoryGroup, p)
   const outfit = [...byGroup.values()].slice(0, 4)

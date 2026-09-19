@@ -2,13 +2,7 @@
  * The ten scoring factors (ENGINE_SPEC §2.3): one function per `FactorName`, each returning a
  * value in [0, 1] (diversity in [−1, 0]), an `applicable` flag and a bilingual evidence string.
  */
-import {
-  AESTHETICS,
-  SUBCATEGORIES,
-  axisIndex,
-  colorFamilyIndex,
-  findColor,
-} from '@lookline/catalog'
+import { AESTHETICS, SUBCATEGORIES, axisIndex, colorFamilyIndex } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily } from '@lookline/catalog'
 import type { Department, Article } from '@lookline/db'
 import type { FactorName } from '../types'
@@ -109,13 +103,6 @@ const FIT_ADJACENT: ReadonlyArray<readonly [string, string]> = [
 function fitsAdjacent(a: string, b: string): boolean {
   return FIT_ADJACENT.some(([x, y]) => (x === a && y === b) || (x === b && y === a))
 }
-
-const familyOfHex = (hex: string | null | undefined): ColorFamily | null => {
-  if (!hex) return null
-  const c = findColor(hex)
-  return c ? c.family : null
-}
-
 export function styleSimilarity(c: Candidate, ctx: RankContext): FactorResult {
   const locale = localeOf(ctx.intent)
   const raw = blockCosine(ctx.intentVector, c.product.styleVector, SIMILARITY_BLOCK_WEIGHTS)

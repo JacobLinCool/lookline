@@ -12,7 +12,7 @@ import type { SimProduct } from './types'
 export const SHORTLIST_PER_GROUP = 40
 
 export interface Scored {
-  id: number
+  id: string
   score: number
 }
 
@@ -43,10 +43,9 @@ export function compatibleDepartments(department: Department): Department[] {
   }
 }
 
-function sizeOk(p: SimProduct, sizes: Readonly<Record<string, string>>): boolean {
-  if (p.sizeSystem === 'one-size' || p.sizes.length === 0) return true
-  const mine = sizes[p.sizeSystem]
-  return mine === undefined || p.sizes.includes(mine)
+/** The catalogue ships no sizes, so every article fits every persona. */
+function sizeOk(_p: SimProduct, _sizes: Readonly<Record<string, string>>): boolean {
+  return true
 }
 
 export function budgetFit(price: number, budget: number): number {
@@ -57,7 +56,7 @@ export function budgetFit(price: number, budget: number): number {
 
 export class ProductPool {
   readonly articles: SimProduct[] = []
-  private readonly index = new Map<number, number>()
+  private readonly index = new Map<string, number>()
   private readonly keys: Float64Array[] = []
   private readonly byDeptGroup = new Map<string, number[]>()
   private readonly shortlists = new Map<string, Shortlist>()
@@ -86,12 +85,12 @@ export class ProductPool {
     if (articles.length > 0) this.shortlists.clear()
   }
 
-  get(id: number): SimProduct | undefined {
+  get(id: string): SimProduct | undefined {
     const i = this.index.get(id)
     return i === undefined ? undefined : this.articles[i]
   }
 
-  has(id: number): boolean {
+  has(id: string): boolean {
     return this.index.has(id)
   }
 
@@ -178,7 +177,7 @@ export function pickGroup(
 
 export interface ChoiceOptions {
   group?: CategoryGroup | null
-  exclude?: ReadonlySet<number>
+  exclude?: ReadonlySet<string>
   /** Boost articles carrying this aesthetic (trend seeds). */
   aesthetic?: string | null
   /** Occasion-favoured groups get a nudge (kept simple: dresses/footwear for events). */
@@ -245,10 +244,10 @@ export function chooseOutfit(
   pool: ProductPool,
   shortlist: Shortlist,
   rng: Rng,
-  base: readonly number[],
+  base: readonly string[],
   opts: { aesthetic?: string | null; occasion?: string | null } = {},
-): number[] {
-  const chosen: number[] = []
+): string[] {
+  const chosen: string[] = []
   const groups = new Set<CategoryGroup>()
   for (const id of base) {
     const p = pool.get(id)
@@ -307,7 +306,7 @@ export function chooseOptions(
   pool: ProductPool,
   shortlist: Shortlist,
   rng: Rng,
-): [number, number] | null {
+): [string, string] | null {
   const group = pickGroup(rng, shortlist.department, shortlist)
   if (!group) return null
   const a = chooseProduct(pool, shortlist, rng, { group })
@@ -322,9 +321,9 @@ export function remixFallback(
   pool: ProductPool,
   shortlist: Shortlist,
   rng: Rng,
-  sourceProductIds: readonly number[],
-): number[] {
-  const out: number[] = []
+  sourceProductIds: readonly string[],
+): string[] {
+  const out: string[] = []
   for (const id of sourceProductIds) {
     const src = pool.get(id)
     const group = (src?.categoryGroup ?? 'tops') as CategoryGroup

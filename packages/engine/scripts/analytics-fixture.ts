@@ -16,7 +16,6 @@ import {
   like,
   lookArticles,
   looks,
-  lte,
   or,
   articles,
   purchases,
@@ -109,6 +108,7 @@ async function insertFixture(articleIds: string[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['minimalist'],
       palette: ['#000'],
+      styleVector: vec({}),
       shareToken: 'fx_t1',
       visibility: 'public',
       createdAt: ago(10),
@@ -121,6 +121,7 @@ async function insertFixture(articleIds: string[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['minimalist', 'streetwear'],
       palette: ['#111'],
+      styleVector: vec({}),
       shareToken: 'fx_t2',
       visibility: 'public',
       parentLookId: 'fx_l1',
@@ -136,6 +137,7 @@ async function insertFixture(articleIds: string[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['minimalist'],
       palette: ['#222'],
+      styleVector: vec({}),
       shareToken: 'fx_t3',
       visibility: 'public',
       parentLookId: 'fx_l2',
@@ -151,6 +153,7 @@ async function insertFixture(articleIds: string[]): Promise<void> {
       stylePreset: 'studio',
       aesthetics: ['quiet-luxury'],
       palette: ['#333'],
+      styleVector: vec({}),
       shareToken: 'fx_t4',
       visibility: 'public',
       parentLookId: 'fx_l3',
@@ -264,7 +267,6 @@ async function insertFixture(articleIds: string[]): Promise<void> {
     ])
     const rows = await db
       .select({
-        aesthetics: articles.aesthetics,
         categoryGroup: articles.categoryGroup,
         colorFamily: articles.colorFamily,
       })
@@ -279,7 +281,7 @@ async function insertFixture(articleIds: string[]): Promise<void> {
         locale: 'en',
         intent: {
           mode: 'single',
-          aesthetics: p?.aesthetics ?? ['minimalist'],
+          aesthetics: ['minimalist'],
           categoryGroups: p ? [p.categoryGroup] : ['tops'],
           colorFamilies: p ? [p.colorFamily] : [],
         },
@@ -292,7 +294,7 @@ async function insertFixture(articleIds: string[]): Promise<void> {
         locale: 'zh-TW',
         intent: {
           mode: 'outfit',
-          aesthetics: p?.aesthetics ?? ['minimalist'],
+          aesthetics: ['minimalist'],
           categoryGroups: [],
           colorFamilies: ['black'],
         },
@@ -326,7 +328,7 @@ try {
   const productRows = await db
     .select({ id: articles.id })
     .from(articles)
-    .where(lte(articles.id, 10))
+    .where(sql`cast(${articles.id} as integer) <= 10`)
     .orderBy(articles.id)
   const articleIds = productRows.map((r) => r.id)
   if (articleIds.length < 3)

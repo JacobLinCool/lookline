@@ -32,10 +32,9 @@ function buildExplanation(
   profile: Awaited<ReturnType<typeof getPreferenceProfile>>,
   similarity: number,
 ): Explanation {
-  const topSlugs = profile.topAesthetics.map((a) => a.slug)
-  const shared = product.aesthetics.filter((a) => topSlugs.includes(a))
-  const denominator = Math.max(1, Math.min(product.aesthetics.length, Math.max(1, topSlugs.length)))
-  const aestheticOverlap = clamp01(shared.length / denominator)
+  // The catalogue tags no aesthetics, so preference overlap rests on colour alone until a
+  // semantic pass gives the articles style tags to compare against.
+  const aestheticOverlap = 0
   const colourMatch = profile.topColorFamilies.find((c) => c.family === product.colorFamily)
   const attributeValue = clamp01(0.7 * aestheticOverlap + 0.3 * (colourMatch ? 1 : 0))
   const trendValue = clamp01(product.trendScore)
@@ -56,9 +55,6 @@ function buildExplanation(
       0.25,
       attributeValue,
       [
-        shared.length > 0
-          ? `shares ${shared.map(humanize).join(', ')} with your top aesthetics`
-          : 'no overlap with your top aesthetics yet',
         colourMatch
           ? `${COLOR_FAMILY_LABELS[product.colorFamily as keyof typeof COLOR_FAMILY_LABELS] ?? humanize(product.colorFamily)} is one of your colours`
           : 'colour outside your usual palette',
@@ -120,9 +116,7 @@ export async function WhyThisSuitsYou({
   if (!similarity.ok) return null
 
   const explanation = buildExplanation(product, profile.value, similarity.value)
-  const shared = product.aesthetics.filter((a) =>
-    profile.value.topAesthetics.some((t) => t.slug === a),
-  )
+  const shared: string[] = []
   const colourMatch = profile.value.topColorFamilies.some((c) => c.family === product.colorFamily)
   const colourLabel =
     COLOR_FAMILY_LABELS[product.colorFamily as keyof typeof COLOR_FAMILY_LABELS] ??
