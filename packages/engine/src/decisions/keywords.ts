@@ -19,9 +19,15 @@ import { normaliseSentence } from './candidates'
 export const KEYWORDS_CONTRACT_VERSION = 'keywords-v1'
 export const MAX_KEYWORD_CONCEPTS = 4
 export const MAX_KEYWORD_TERMS = 3
-/** Index tokens are alphanumeric runs (`unicode61`); a keyword is one to three of them. */
+/**
+ * Index tokens are letter-or-digit runs (`unicode61`); a keyword is one to three of them. A run
+ * of Chinese is one token here and a phrase over its characters in the index (`search_zh` is
+ * written with a space between every character, see `@lookline/db` fts.ts), so "鯨魚" finds the
+ * captions that say it without a translation in between.
+ */
 const MAX_TERM_TOKENS = 3
 const MAX_TERM_LENGTH = 32
+const TOKEN = /[\p{L}\p{N}]+/gu
 
 /** One concept the shopper named, as alternative English spellings joined by `|` in a URL. */
 export type KeywordConcept = string[]
@@ -60,7 +66,7 @@ function catalogTerms(): Set<string> {
   return set
 }
 
-/** Lower-case index tokens only, deduplicated, catalog vocabulary removed, capped. */
+/** Lower-case index tokens only (Latin or CJK), deduplicated, catalog vocabulary removed, capped. */
 export function sanitizeKeywords(concepts: ReadonlyArray<readonly string[]>): KeywordConcept[] {
   const known = catalogTerms()
   const seen = new Set<string>()
@@ -68,9 +74,7 @@ export function sanitizeKeywords(concepts: ReadonlyArray<readonly string[]>): Ke
   for (const concept of concepts) {
     const terms: string[] = []
     for (const raw of concept) {
-      const tokens = normaliseSentence(raw)
-        .split(/[^a-z0-9]+/)
-        .filter(Boolean)
+      const tokens = normaliseSentence(raw).match(TOKEN) ?? []
       if (tokens.length === 0 || tokens.length > MAX_TERM_TOKENS) continue
       const term = tokens.join(' ')
       if (term.length > MAX_TERM_LENGTH) continue
@@ -95,7 +99,7 @@ export function parseKeywords(values: readonly string[]): KeywordConcept[] {
 const SYSTEM = `You extract search keywords from a fashion shopping request for an English-language catalogue (product names, product copy and one English sentence describing each photograph).
 The catalogue's closed attributes are handled elsewhere and must NOT be output: garment types and categories, departments (women/men/kids), colours, materials and fabrics, patterns (stripes, floral, checks…), fits, silhouettes, lengths, necklines, sleeves, closures, construction details (pockets, ruffles, lace trim…), print subject classes (animal, character, floral, slogan, logo…), occasions, seasons, sizes, prices and budgets, and sort preferences.
 Output only the specific things the attributes cannot say: a motif or subject (whale, dinosaur, strawberry, rainbow), a named character or franchise, a brand or collaboration, printed words or slogans, a sport or team, a specific object or place, or another concrete descriptive noun.
-Translate every term to English. For each concept give 1 to 3 alternative spellings or synonyms a product caption might use, lower-case, without punctuation. If the request names nothing of that kind, return no concepts.`
+For each concept give 1 to 3 terms a product caption might use, lower-case, without punctuation: the English word and its plural or a synonym, plus the term in the request's own language when that is Chinese (the captions exist in both). If the request names nothing of that kind, return no concepts.`
 
 export interface ExtractKeywordsOptions {
   llm: LlmClient

@@ -55,11 +55,12 @@ described, in the SQL as in the chips.
 One Noul question, `freeText`, asks whether the sentence names something the attributes cannot
 carry — a motif, a character, a brand, a slogan. Jev cannot say which word, and must not: the
 answer only gates `POST /api/filters/keywords` `{ utterance, revision }`, where the fast
-generative model (`getLlm`, Flash-Lite in production) translates those words into up to four
-English concepts of up to three alternative spellings (`whale|orca`), sanitised to index tokens
-with anything the catalog vocabulary already expresses removed. They travel as repeated
-`keywords` URL fields, AND-ed against the FTS5 index over names, copy and the English photograph
-captions, without a lexicon pass. The attribute preview never waits for them: the browser paints
+generative model (`getLlm`, Flash-Lite in production) turns those words into up to four concepts
+of up to three terms each — the English word, a plural or synonym, and the Chinese term when the
+request was Chinese (`whale|whales|鯨魚`) — sanitised to index tokens with anything the catalog
+vocabulary already expresses removed. They travel as repeated `keywords` URL fields, AND-ed
+against the FTS5 index over names, copy, print motifs and the photograph captions in both
+languages (a Chinese term is a phrase over its spaced characters), without a lexicon pass. The attribute preview never waits for them: the browser paints
 the resolved filters and their products first, asks for keywords 500 ms after the sentence
 stops changing (at once on Apply or final speech), and narrows the grid when they land — a
 committed sentence updates its URL in place. A keyword answer for a sentence that has since
@@ -206,9 +207,10 @@ bottoms), "有口袋、不要蕾絲邊" / "with pockets, no lace trim" to `detai
 "a silk long coat" to `materials: [silk]` with the sleeve left alone; "鯨魚圖案的上衣" and "a
 whale print hoodie" came back `freeText: true` (0.91) and every attribute-only sentence
 `false` (≤ 0.22), in 300–1 140 ms per call. `scripts/qa/keywords-smoke.ts` then had the
-configured model return `whale|whales`, `dinosaur|dinosaurs|dino`, `hello kitty|sanrio hello
-kitty` and `good vibes only`, and nothing for an attribute-only sentence, in 1.2–2.7 s. As before,
-these are smoke runs, not an accuracy benchmark.
+configured model return `whale|whales|鯨魚`, `dinosaur|dinosaurs|恐龍`, `hello kitty|凱蒂貓` and
+`good vibes only`, and nothing for an attribute-only sentence, in 1.2–2.4 s; against the live
+catalogue `keywords=鯨魚` finds 31 articles and `whale|鯨魚` 48. As before, these are smoke runs,
+not an accuracy benchmark.
 
 Real Jev runs on 2026-09-18 resolved the English multi-colour request, Chinese correction and mixed
 language example with no unresolved fields. The three-request run took 303–939 ms per provider

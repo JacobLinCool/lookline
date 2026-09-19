@@ -23,12 +23,17 @@ describe('sanitizeKeywords', () => {
         ['Whale', 'orca', 'whale', 'humpback whale'],
         ['Hello Kitty!'],
         ['floral', 'black', 'hoodie'],
-        ['鯨魚'],
+        ['鯨魚圖案', '鯨魚'],
         ['x'.repeat(40)],
         ['a', 'b', 'c'],
         ['too many'],
       ]),
-    ).toEqual([['whale', 'orca', 'humpback whale'], ['hello kitty'], ['a', 'b', 'c'], ['too many']])
+    ).toEqual([
+      ['whale', 'orca', 'humpback whale'],
+      ['hello kitty'],
+      ['鯨魚圖案', '鯨魚'],
+      ['a', 'b', 'c'],
+    ])
     expect(sanitizeKeywords(Array.from({ length: 9 }, (_, i) => [`k${i}`])).length).toBe(
       MAX_KEYWORD_CONCEPTS,
     )
@@ -46,7 +51,7 @@ describe('extractSearchKeywords', () => {
     const llm = client([{ terms: ['Whale', '鯨魚', 'orca'] }, { terms: ['black'] }])
     const result = await extractSearchKeywords('黑色鯨魚圖案的上衣', { llm })
     expect(result).toMatchObject({
-      keywords: [['whale', 'orca']],
+      keywords: [['whale', '鯨魚', 'orca']],
       provider: 'gemini',
       model: 'test-model',
       contractVersion: 'keywords-v1',

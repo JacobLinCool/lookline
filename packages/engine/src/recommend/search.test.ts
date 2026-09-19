@@ -315,10 +315,11 @@ describe('registry facets and keywords', () => {
   })
 
   it('turns keywords into an FTS predicate without a lexicon pass and keeps them on the retry', () => {
-    const plan = planSearch({ keywords: ['whale|orca', 'Hello Kitty', 'floral'] })
-    // `floral` is a pattern term the facets already express, so it is not a keyword.
-    expect(plan.keywords).toEqual([['whale', 'orca'], ['hello kitty']])
-    expect(plan.ftsExpr).toBe('(("whale"*) OR ("orca"*)) AND (("hello"* "kitty"*))')
+    const plan = planSearch({ keywords: ['whale|orca|鯨魚', 'Hello Kitty', 'floral'] })
+    // `floral` is a pattern term the facets already express, so it is not a keyword; a Chinese
+    // term is a phrase over its characters, which is how the index writes it.
+    expect(plan.keywords).toEqual([['whale', 'orca', '鯨魚'], ['hello kitty']])
+    expect(plan.ftsExpr).toBe('(("whale"*) OR ("orca"*) OR ("鯨 魚")) AND (("hello"* "kitty"*))')
     expect(plan.lexiconFilters).toBe(false)
     const retry = planSearch({ keywords: ['whale'], q: 'zzzz hoodie' }, { withText: false })
     expect(retry.text).toBeNull()
