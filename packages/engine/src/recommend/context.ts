@@ -53,7 +53,16 @@ const TRUST_WEIGHTS: Readonly<Partial<Record<RelationshipKind, number>>> = {
   buys_for: 0.3,
 }
 
-export const TRUST_MIN = 0.3
+/**
+ * Trust floor for the social channel. Calibrated against the seeded graph: at 0.3 only 36 % of
+ * users had any trusted person at all (mean 1.2, max 3), while `TRUSTED_MAX`, the 50-row social
+ * channel cap and the bandit's `trustedCount / 10` context dimension all assume 10–20 of them.
+ * At 0.1 the coverage is 76 % (mean 1.9, max 8) — still far inside every cap downstream.
+ *
+ * The floor is not a quality filter: `social_signal` weights each piece of evidence by `strength`
+ * (§2.3), so a weak edge already contributes proportionally little without being cut off here.
+ */
+export const TRUST_MIN = 0.1
 export const TRUSTED_MAX = 20
 
 /** §5.1 `trust(A, B)` from the relationship rows A → B. */
