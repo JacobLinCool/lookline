@@ -552,6 +552,8 @@ export interface AnalyticsSummary {
   lineages: number
   trendSignals: number
   manufacturing: number
+  /** Closed slates replayed into `bandit_state` (§4.4). */
+  banditSlates: number
   durationMs: number
 }
 
