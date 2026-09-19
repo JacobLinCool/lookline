@@ -155,7 +155,7 @@ export function parseIntentOffline(utterance: string, ctx: IntentContextExt = {}
   const pre: boolean[] = Array.from({ length: text.length }, () => false)
   for (const [s, e] of refDet.spans) for (let i = s; i < e; i++) pre[i] = true
   const { hits, consumed } = scanText(text, clauseOfPos, pre)
-  const scopes = applyNegation(hits, clauseEndOf)
+  const scopes = applyNegation(hits, clauseEndOf, text)
   const extraSpans: Array<[number, number]> = []
 
   const assumptions: IntentAssumptionExt[] = []

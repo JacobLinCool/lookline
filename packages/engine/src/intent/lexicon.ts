@@ -693,17 +693,33 @@ export const NEGATABLE: ReadonlySet<Section> = new Set<Section>([
 ])
 
 /**
+ * Chinese marks what a modifier attaches to with 的, and the noun after it is the thing being
+ * asked for, not a second thing being refused. `不要紅色的洋裝` is a dress, just not a red one —
+ * negating through 的 excluded dresses outright and returned the opposite of the request.
+ *
+ * So a negation stops there. `不要洋裝`, with no 的, still negates the category: nothing follows
+ * to be the head noun.
+ */
+const CJK_MODIFIER_MARK = /[的之]/u
+
+/**
  * §1.4 step 4: after each negation trigger, the next ≤ 4 negatable hits in the same clause are
- * negated. Returns the scope ranges so leftover tokens (brand names) can be collected.
+ * negated, stopping at a 的 that hands the rest of the clause to a head noun. Returns the scope
+ * ranges so leftover tokens (brand names) can be collected.
  */
 export function applyNegation(
   hits: Hit[],
   clauseEndOf: (clause: number) => number,
+  text = '',
 ): Array<{ start: number; end: number; clause: number }> {
   const scopes: Array<{ start: number; end: number; clause: number }> = []
   for (const trigger of hits) {
     if (trigger.section !== 'negation') continue
-    const end = clauseEndOf(trigger.clause)
+    const clauseTo = clauseEndOf(trigger.clause)
+    // Only when something follows it; a trailing 的 marks no head noun.
+    const mark = text.slice(trigger.end, clauseTo).search(CJK_MODIFIER_MARK)
+    const markAt = mark < 0 ? -1 : trigger.end + mark
+    const end = markAt >= 0 && markAt + 1 < clauseTo ? markAt : clauseTo
     scopes.push({ start: trigger.end, end, clause: trigger.clause })
     let count = 0
     for (const h of hits) {
