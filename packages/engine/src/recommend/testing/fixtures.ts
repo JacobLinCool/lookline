@@ -367,6 +367,8 @@ export function makeProduct(
     indexGroupName: department === 'men' ? 'Menswear' : 'Ladieswear',
     colorName: colour.name,
     colorHex: colour.hex,
+    // Never came through the H&M import, so there is no perceived master behind the family.
+    colorMaster: '',
     colorFamily: family,
     colorValue: 'Dark',
     pattern: pattern?.slug ?? 'solid',

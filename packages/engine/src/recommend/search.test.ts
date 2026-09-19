@@ -41,8 +41,8 @@ describe('buildSearchQuery', () => {
     for (const statement of [query.page, query.total]) {
       const { sql, params } = statement.toSQL()
       expect(sql).toContain('"articles"."category_group" in (')
-      expect(sql).toContain('"articles"."perceived_colour_master_name" in (')
-      expect(sql).toContain('"articles"."perceived_colour_master_name" not in (')
+      expect(sql).toContain('"articles"."colour_family" in (')
+      expect(sql).toContain('"articles"."colour_family" not in (')
       expect(params).toEqual(
         expect.arrayContaining(['tops', 'outerwear', 'black', 'blue', 'red', 'footwear', 3000]),
       )

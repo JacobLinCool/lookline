@@ -62,6 +62,8 @@ export function makeProduct(spec: FixtureSpec): Article {
     productCode: String(spec.id).padStart(7, '0'),
     colorName: spec.colorName,
     colorHex: spec.colorHex,
+    // Never came through the H&M import, so there is no perceived master behind the family.
+    colorMaster: '',
     colorFamily: spec.colorFamily,
     colorValue: 'Dark',
     pattern: spec.pattern ?? 'Solid',
