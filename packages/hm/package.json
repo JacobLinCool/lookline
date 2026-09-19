@@ -13,9 +13,11 @@
     "seed": "tsx scripts/import.ts",
     "aggregate": "bash scripts/aggregate.sh",
     "images": "tsx scripts/images.ts",
-    "customers": "tsx scripts/customers.ts"
+    "customers": "tsx scripts/customers.ts",
+    "upload": "tsx scripts/upload.ts"
   },
   "dependencies": {
+    "@lookline/catalog": "workspace:*",
     "@lookline/db": "workspace:*"
   },
   "devDependencies": {

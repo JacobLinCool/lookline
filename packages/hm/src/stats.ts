@@ -89,3 +89,40 @@ export function loadAffinity(path: string): TypePair[] {
   }
   return out
 }
+
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter' | 'all-season'
+
+/**
+ * Which seasons an article actually sells in, from `article_seasons.csv`. Nothing in
+ * `articles.csv` states a season; the months a garment moves in over two years is the only
+ * evidence there is.
+ *
+ * A season counts when it takes at least 35% of the article's sales — an even spread across four
+ * seasons is 25% each, so 35% means it genuinely skews. Nothing clearing that bar is all-season.
+ */
+export function loadSeasons(path: string): Map<string, Season[]> {
+  const out = new Map<string, Season[]>()
+  const lines = readFileSync(path, 'utf8').split('\n')
+  for (let i = 1; i < lines.length; i += 1) {
+    const line = lines[i]
+    if (!line) continue
+    const [id, total, spring, summer, autumn, winter] = line.split(',')
+    if (!id || !total) continue
+    // Under twenty sales is noise, not seasonality.
+    if (Number(total) < 20) {
+      out.set(id, ['all-season'])
+      continue
+    }
+    const seasons: Season[] = []
+    for (const [name, share] of [
+      ['spring', spring],
+      ['summer', summer],
+      ['autumn', autumn],
+      ['winter', winter],
+    ] as const) {
+      if (Number(share ?? 0) >= 0.35) seasons.push(name)
+    }
+    out.set(id, seasons.length > 0 ? seasons : ['all-season'])
+  }
+  return out
+}

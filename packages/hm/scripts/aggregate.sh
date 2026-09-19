@@ -69,5 +69,30 @@ copy (
   order by c.together desc
 ) to '{hm}/type_affinity.csv' (header, delimiter ',')
 """)
-print('wrote article_stats.csv and type_affinity.csv')
+# Which seasons an article actually sells in. The dataset spans two full years, so the months a
+# garment moves in are a real seasonality signal — the only one available, since nothing in
+# articles.csv says whether something is for summer.
+duckdb.sql(f"""
+copy (
+  with monthly as (
+    select
+      lpad(cast(article_id as varchar), 10, '0') as article_id,
+      month(t_dat) as m,
+      count(*) as n
+    from {tx} group by 1, 2
+  ),
+  shares as (
+    select article_id,
+      sum(n) as total,
+      sum(n) filter (where m in (3, 4, 5)) / sum(n)::double as spring,
+      sum(n) filter (where m in (6, 7, 8)) / sum(n)::double as summer,
+      sum(n) filter (where m in (9, 10, 11)) / sum(n)::double as autumn,
+      sum(n) filter (where m in (12, 1, 2)) / sum(n)::double as winter
+    from monthly group by 1
+  )
+  select article_id, total, spring, summer, autumn, winter from shares
+) to '{hm}/article_seasons.csv' (header, delimiter ',')
+""")
+
+print('wrote article_stats.csv, type_affinity.csv and article_seasons.csv')
 PY

@@ -117,3 +117,135 @@ export function materialFrom(detailDesc: string | null): string {
   for (const [slug, pattern] of MATERIALS) if (pattern.test(text)) return slug
   return ''
 }
+
+/**
+ * Garment details named in `detail_desc`. Coverage is partial — a description mentions a neckline
+ * on about 20% of rows — but a stated detail is a fact about the garment, and the ranking already
+ * reads these columns.
+ */
+const NECKLINES: ReadonlyArray<readonly [string, RegExp]> = [
+  ['v-neck', /v-neck|v neckline/],
+  ['turtleneck', /turtleneck|polo neck|funnel neck/],
+  ['collared', /\bcollar\b|collared/],
+  ['hooded', /\bhood\b|hooded/],
+  ['crew', /round neck|crew neck|round neckline/],
+  ['scoop', /scoop neck|low-cut neckline/],
+  ['square', /square neckline/],
+  ['off-shoulder', /off-the-shoulder|off shoulder/],
+  ['halter', /halterneck|halter neck/],
+]
+
+const SLEEVES: ReadonlyArray<readonly [string, RegExp]> = [
+  ['sleeveless', /sleeveless|shoulder straps|strappy/],
+  ['long', /long sleeves|long-sleeved/],
+  ['short', /short sleeves|short-sleeved/],
+  ['three-quarter', /3\/4 sleeves|three-quarter sleeves/],
+  ['puff', /puff sleeves|balloon sleeves/],
+]
+
+const FITS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['oversized', /oversized|relaxed fit|loose fit/],
+  ['slim', /slim fit|skinny|fitted/],
+  ['regular', /regular fit|straight fit/],
+]
+
+const LENGTHS: ReadonlyArray<readonly [string, RegExp]> = [
+  ['cropped', /cropped|crop top/],
+  ['ankle', /ankle-length/],
+  ['knee', /knee-length|above the knee/],
+  ['midi', /calf-length|midi/],
+  ['maxi', /ankle length|floor-length|maxi/],
+]
+
+const first = (text: string, table: ReadonlyArray<readonly [string, RegExp]>): string => {
+  for (const [slug, pattern] of table) if (pattern.test(text)) return slug
+  return ''
+}
+
+export interface GarmentDetails {
+  neckline: string
+  sleeve: string
+  fit: string
+  length: string
+  /** Practical features a shopper filters on; the only use of `attributes` on an article. */
+  attributes: Record<string, boolean>
+}
+
+export function garmentDetails(detailDesc: string | null): GarmentDetails {
+  if (!detailDesc) return { neckline: '', sleeve: '', fit: '', length: '', attributes: {} }
+  const text = detailDesc.toLowerCase()
+  const attributes: Record<string, boolean> = {}
+  if (/pockets?\b/.test(text)) attributes.pockets = true
+  if (/\bhood\b|hooded/.test(text)) attributes.hood = true
+  if (/\bzip\b|zipper/.test(text)) attributes.zip = true
+  if (/elasticated waist|elastic waist|drawstring/.test(text)) attributes.elasticWaist = true
+  if (/lined\b|lining/.test(text)) attributes.lined = true
+  return {
+    neckline: first(text, NECKLINES),
+    sleeve: first(text, SLEEVES),
+    fit: first(text, FITS),
+    length: first(text, LENGTHS),
+    attributes,
+  }
+}
+
+/**
+ * H&M's 20 `perceived_colour_master_name` values mapped onto the 12 colour families the style
+ * vector and the intent parser share. `Khaki green` and `Bluish Green` are greens; `Metal` is the
+ * metallic family; `Mole` is a grey-brown that reads as a neutral. `Unknown` and `undefined` have
+ * no colour to map.
+ */
+const COLOUR_FAMILIES: Record<string, string> = {
+  Black: 'black',
+  White: 'white',
+  Grey: 'grey',
+  Beige: 'neutral',
+  Mole: 'neutral',
+  Brown: 'brown',
+  Red: 'red',
+  Pink: 'pink',
+  Yellow: 'yellow-orange',
+  Orange: 'yellow-orange',
+  Green: 'green',
+  'Khaki green': 'green',
+  'Yellowish Green': 'green',
+  'Bluish Green': 'green',
+  Blue: 'blue',
+  Turquoise: 'blue',
+  'Lilac Purple': 'purple',
+  Metal: 'multi-metallic',
+}
+
+/** `''` for the 790 rows whose colour is Unknown or undefined. */
+export function colorFamilyOf(perceivedColourMaster: string): string {
+  return COLOUR_FAMILIES[perceivedColourMaster] ?? ''
+}
+
+/**
+ * The style-space axes, derived from what the dataset does say.
+ *
+ * `aesthetics` stays empty — nothing in the file names a style, and guessing one is exactly the
+ * semantic pass this import does not do. The remaining axes are evidence: the shelf sets
+ * formality, the fabric and the selling season set warmth, the price sets the tier, and how
+ * recently an article still sold sets trendiness.
+ */
+export function styleAxes(input: {
+  formality: number
+  material: string
+  seasons: readonly string[]
+  price: number
+  trendScore: number
+}): Record<string, number> {
+  const warmFabric = /wool|cashmere|fleece|corduroy|velvet/.test(input.material) ? 0.8 : 0.4
+  const coolFabric = /linen|silk|lace/.test(input.material) ? 0.15 : warmFabric
+  const winter = input.seasons.includes('winter') || input.seasons.includes('autumn')
+  const summer = input.seasons.includes('summer')
+  return {
+    formality: input.formality,
+    warmth: winter ? Math.max(0.65, coolFabric) : summer ? Math.min(0.3, coolFabric) : coolFabric,
+    // H&M prices span NT$8 to NT$8970; log scale, because the mass sits under NT$1000.
+    'price-tier': Math.min(1, Math.log1p(input.price) / Math.log1p(9000)),
+    trendiness: input.trendScore,
+    structure: input.formality * 0.8,
+  }
+}

@@ -1,6 +1,7 @@
 import { renderProductSvg } from '@lookline/catalog'
 import { brands, eq, articles } from '@lookline/db'
 import { getDb } from '@/server/db'
+import { getStorage, isSafeKey } from '@/server/storage'
 import { escapeXml, svgResponse } from '@/server/svg'
 
 const IMMUTABLE = 'public, max-age=31536000, immutable'
@@ -33,6 +34,22 @@ export async function GET(
   if (!row) return new Response('Not found', { status: 404 })
 
   const { product, brandName } = row
+
+  // The real photograph when the catalogue has one (105 100 of 105 542 articles do); the drawn
+  // silhouette is the fallback for the rest.
+  if (product.imagePath && isSafeKey(product.imagePath)) {
+    const object = await getStorage().get(product.imagePath)
+    if (object) {
+      return new Response(object.body, {
+        headers: {
+          'content-type': object.contentType || 'image/webp',
+          'cache-control': IMMUTABLE,
+          etag: object.etag,
+        },
+      })
+    }
+  }
+
   try {
     const svg = renderProductSvg({
       silhouetteId: product.silhouetteId,
@@ -47,7 +64,7 @@ export async function GET(
     })
     return svgResponse(svg, { cacheControl: IMMUTABLE })
   } catch (error) {
-    console.warn(`[lookline] renderProductSvg failed for product ${articleId}`, error)
+    console.warn(`[lookline] renderProductSvg failed for article ${id}`, error)
     return svgResponse(placeholderSvg(product.name, brandName), {
       status: 500,
       cacheControl: 'no-store',

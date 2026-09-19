@@ -192,6 +192,9 @@ importers:
 
   packages/hm:
     dependencies:
+      '@lookline/catalog':
+        specifier: workspace:*
+        version: link:../catalog
       '@lookline/db':
         specifier: workspace:*
         version: link:../db

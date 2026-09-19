@@ -9,7 +9,10 @@
  *   HM_DIR            directory holding the Kaggle csv files (default <repo>/data/hm)
  *   LOOKLINE_SQLITE   local database file (default data/lookline.sqlite)
  */
+import { existsSync, readdirSync } from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { type ColorFamily, toStyleVector } from '@lookline/catalog'
 import {
   FTS_REBUILD_SQL,
   type NewArticle,
@@ -24,8 +27,11 @@ import {
 import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
 import {
   categoryGroupFor,
+  colorFamilyOf,
+  garmentDetails,
   loadAffinity,
   loadArticles,
+  loadSeasons,
   loadStats,
   materialFrom,
   momentumOf,
@@ -34,6 +40,7 @@ import {
   sectionMeaning,
   sizeSystemFor,
   slugFor,
+  styleAxes,
   tierFor,
 } from '../src/index'
 
@@ -43,8 +50,6 @@ const dir = process.env.HM_DIR ?? fileURLToPath(new URL('../../../data/hm', impo
 /** SQLite's bound-parameter ceiling. */
 const SQLITE_MAX_PARAMS = 32_766
 const HM_BRAND_ID = 1
-/** Nothing encodes the style space yet, so every article starts at the origin. */
-const ZERO_VECTOR: number[] = Array.from({ length: 64 }, () => 0)
 
 const secs = (from: number): string => ((performance.now() - from) / 1000).toFixed(1)
 const started = performance.now()
@@ -72,7 +77,23 @@ await insertAll(db, brandsTable, [
   },
 ])
 
+// 442 articles ship without a photo. Scanning the folder once beats an existsSync per row, and
+// a key that points at a missing object would render as a broken image.
+const webpDir = process.env.IMG_OUT ?? path.join(dir, 'webp')
+const haveImage = new Set<string>()
+if (existsSync(webpDir)) {
+  for (const bucket of readdirSync(webpDir)) {
+    const bucketDir = path.join(webpDir, bucket)
+    if (!existsSync(bucketDir) || !bucket.match(/^\d{3}$/)) continue
+    for (const file of readdirSync(bucketDir)) {
+      if (file.endsWith('.webp')) haveImage.add(file.slice(0, -5))
+    }
+  }
+}
+console.log(`${haveImage.size} articles have an image`)
+
 const stats = loadStats(`${dir}/article_stats.csv`)
+const seasons = loadSeasons(`${dir}/article_seasons.csv`)
 const maxSales = Math.max(...[...stats.values()].map((s) => s.salesCount))
 console.log(`read ${stats.size} article aggregates, top seller ${maxSales} units`)
 
@@ -88,6 +109,9 @@ for (const a of source) {
   const stat = stats.get(a.articleId)
   const price = stat?.price ?? placeholderPrice(categoryGroup, a.articleId)
   const section = sectionMeaning(a.section ?? '')
+  const detail = garmentDetails(a.description)
+  const material = materialFrom(a.description)
+  const articleSeasons = seasons.get(a.articleId) ?? ['all-season']
   rows.push({
     id: a.articleId,
     brandId: HM_BRAND_ID,
@@ -119,13 +143,33 @@ for (const a of source) {
     colorHex: a.colourHex ?? '#9E9E9E',
     sizeSystem: sizeSystemFor(a.outfitRole),
     sizes: [],
-    // Filled when the images are uploaded to R2 — not every article ships with a photo, and the
-    // key must not point at an object that is not there.
-    imagePath: null,
+    imagePath: haveImage.has(a.articleId)
+      ? `images/${a.articleId.slice(0, 3)}/${a.articleId}.webp`
+      : null,
     occasions: [...section.occasions],
+    seasons: articleSeasons,
+    neckline: detail.neckline,
+    sleeve: detail.sleeve,
+    fit: detail.fit,
+    length: detail.length,
+    attributes: detail.attributes,
     aesthetics: [],
-    material: materialFrom(a.description),
-    styleVector: ZERO_VECTOR,
+    material,
+    styleVector: toStyleVector({
+      // No aesthetic is stated anywhere in the dataset, and inferring one is the semantic pass
+      // this import deliberately does not do. Every other axis below is evidence.
+      aesthetics: {},
+      colorFamily: colorFamilyOf(a.colourFamily ?? '') as ColorFamily,
+      secondaryColorFamily: null,
+      axes: styleAxes({
+        formality: section.formality,
+        material,
+        seasons: articleSeasons,
+        price,
+        trendScore: stat ? momentumOf(stat.sales30d, stat.sales90d) : 0,
+      }),
+      categoryGroup,
+    }),
   })
 }
 
