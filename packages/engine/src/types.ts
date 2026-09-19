@@ -192,7 +192,7 @@ export interface RecommendRequest {
   limit?: number
   outfits?: boolean
   outfitCount?: number
-  exclude?: number[]
+  exclude?: string[]
   intentSessionId?: string
   /** Override blend weights (used by the bandit and by evaluation). */
   weights?: Partial<Record<FactorName, number>>
@@ -413,19 +413,7 @@ export interface LookPosterInput {
   title: string
   ownerName: string
   stylePreset: string
-  articles: Array<
-    Pick<
-      Article,
-      | 'name'
-      | 'colorHex'
-      | 'silhouetteId'
-      | 'pattern'
-      | 'aesthetics'
-      | 'imageSeed'
-      | 'categoryGroup'
-      | 'secondaryColorHex'
-    >
-  >
+  articles: Array<Pick<Article, 'name' | 'colorHex' | 'subcategory' | 'pattern' | 'categoryGroup'>>
   palette: string[]
   aesthetics: string[]
   seed: number

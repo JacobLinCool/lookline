@@ -91,14 +91,13 @@ async function retrieveSlot(
   departments: Department[],
   group: string,
   priceMax: number | null,
-  excludeIds: number[],
+  excludeIds: string[],
 ): Promise<RemixProduct[]> {
   const cos = cosineExpr(vector)
   const run = async (cap: number | null): Promise<RemixProduct[]> => {
     const conditions = [
-      gt(articles.stock, 0),
       inArray(articles.department, departments),
-      eq(articles.categoryGroup, group),
+      eq(articles.categoryGroup, group as CategoryGroup),
     ]
     if (cap !== null) conditions.push(lte(articles.price, cap))
     if (excludeIds.length > 0) conditions.push(notInArray(articles.id, excludeIds))

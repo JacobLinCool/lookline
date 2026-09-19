@@ -19,38 +19,29 @@ const RELATIVE_FLOOR = 0.35
 
 /**
  * Aesthetics: top tags of the mean aesthetic block (dims 0–31), at most 5, keeping only tags
- * with ≥ 35 % of the strongest weight; falls back to a vote over `product.aesthetics` when the
- * vectors carry no aesthetic mass. Palette: distinct product hexes ordered dark → light.
+ * with ≥ 35 % of the strongest weight. Empty while the catalogue tags nothing — the articles
+ * carry no aesthetic column and those dimensions of the style vector stay zero, so there is
+ * nothing to average and nothing to fall back on. Palette: distinct product hexes, dark → light.
  * Style vector: L2-normalised mean of the product vectors.
  */
 export function deriveLookStyle(
-  articles: ReadonlyArray<Pick<Article, 'styleVector' | 'aesthetics' | 'colorHex'>>,
+  articles: ReadonlyArray<Pick<Article, 'styleVector' | 'colorHex'>>,
 ): LookStyle {
   const vectors = articles.map((p) => sanitizeVector(p.styleVector))
   const blend = vectors.length > 0 ? blendVectors(vectors) : zeroVector()
 
   const weights = AESTHETICS.map((a) => ({ slug: a.slug, weight: blend[a.index] ?? 0 }))
   const strongest = weights.reduce((m, a) => Math.max(m, a.weight), 0)
-  let aesthetics: string[]
-  if (strongest > 0) {
-    aesthetics = weights
-      .filter((a) => a.weight >= strongest * RELATIVE_FLOOR)
-      .toSorted((x, y) => y.weight - x.weight || aestheticIndex(x.slug) - aestheticIndex(y.slug))
-      .slice(0, MAX_AESTHETICS)
-      .map((a) => a.slug)
-  } else {
-    const votes = new Map<string, number>()
-    for (const p of articles) {
-      p.aesthetics.forEach((slug, i) => {
-        if (aestheticIndex(slug) < 0) return
-        votes.set(slug, (votes.get(slug) ?? 0) + (i === 0 ? 1 : 0.5))
-      })
-    }
-    aesthetics = [...votes.entries()]
-      .toSorted((x, y) => y[1] - x[1] || aestheticIndex(x[0]) - aestheticIndex(y[0]))
-      .slice(0, MAX_AESTHETICS)
-      .map(([slug]) => slug)
-  }
+  const aesthetics =
+    strongest > 0
+      ? weights
+          .filter((a) => a.weight >= strongest * RELATIVE_FLOOR)
+          .toSorted(
+            (x, y) => y.weight - x.weight || aestheticIndex(x.slug) - aestheticIndex(y.slug),
+          )
+          .slice(0, MAX_AESTHETICS)
+          .map((a) => a.slug)
+      : []
 
   const seen = new Set<string>()
   const palette: string[] = []

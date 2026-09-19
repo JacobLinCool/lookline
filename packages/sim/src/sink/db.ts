@@ -47,8 +47,6 @@ const POOL_COLUMNS = {
   price: articles.price,
   colorFamily: articles.colorFamily,
   colorHex: articles.colorHex,
-  secondaryColorHex: articles.secondaryColorHex,
-  aesthetics: articles.aesthetics,
   sizeSystem: articles.sizeSystem,
   sizes: articles.sizes,
   popularity: articles.popularity,

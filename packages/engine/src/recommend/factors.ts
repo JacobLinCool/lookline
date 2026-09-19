@@ -173,12 +173,8 @@ export function attributeMatch(c: Candidate, ctx: RankContext): FactorResult {
     .filter(([, w]) => (w ?? 0) >= 0.5)
     .map(([f]) => f as ColorFamily)
   if (wanted.length > 0) {
-    let v = 0
-    if (wanted.includes(p.colorFamily as ColorFamily)) v = 1
-    else {
-      const secondary = familyOfHex(p.secondaryColorHex)
-      if (secondary && wanted.includes(secondary)) v = 0.6
-    }
+    // H&M files each colourway as its own article, so there is no second colour to fall back on.
+    const v = wanted.includes(p.colorFamily as ColorFamily) ? 1 : 0
     checks.push({ w: 0.25, v, label: v > 0 ? colorFamilyLabel(p.colorFamily, locale) : null })
   }
 
@@ -199,7 +195,7 @@ export function attributeMatch(c: Candidate, ctx: RankContext): FactorResult {
     checks.push({ w: 0.1, v, label: v === 1 ? label : null })
   }
   if (intent.fits.length > 0) {
-    const fit = p.fit ?? p.silhouette ?? ''
+    const fit = p.fit
     let v = 0
     if (intent.fits.includes(fit)) v = 1
     else if (intent.fits.some((f) => fitsAdjacent(f, fit))) v = 0.5
@@ -521,7 +517,9 @@ export function trendMomentum(c: Candidate, ctx: RankContext): FactorResult {
     const stat = ctx.trend.get(key)
     if (stat && (!best || stat.momentum > best.stat.momentum)) best = { key, label, stat }
   }
-  for (const tag of p.aesthetics) {
+  // The trend index keys its finest dimension on the product type, the catalogue having no
+  // aesthetic tags of its own.
+  for (const tag of [p.subcategory]) {
     consider(
       `aesthetic_category:${tag}|${p.categoryGroup}`,
       `${aestheticLabel(tag, locale)}${locale === 'zh' ? '×' : ' '}${p.categoryGroup}`,

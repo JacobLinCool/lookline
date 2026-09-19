@@ -268,29 +268,24 @@ export async function loadProductsLite(
     const rows = await db
       .select({
         id: articles.id,
-        aesthetics: articles.aesthetics,
         categoryGroup: articles.categoryGroup,
         subcategory: articles.subcategory,
         colorFamily: articles.colorFamily,
-        silhouette: articles.silhouette,
-        silhouetteId: articles.silhouetteId,
-        stock: articles.stock,
         price: articles.price,
       })
       .from(articles)
       .where(inArray(articles.id, part))
-    for (const r of rows) out.set(r.id, { ...r, aesthetics: asStringArray(r.aesthetics) })
+    for (const r of rows) out.set(r.id, r)
   }
   return out
 }
 
-/** In-stock counts per (aesthetic, group, colour) and per (aesthetic, group). */
+/** Article counts per (group, colour). Was per aesthetic too, until that column went away. */
 export async function loadSupply(db: Database): Promise<Map<string, SupplyCell>> {
   const result = await db.all(sql`
-    select a.value as aesthetic, category_group as "group", color_family as color,
-           count(*) as supply, count(*) filter (where stock < 5) as low
-    from articles, json_each(articles.aesthetics) as a
-    where stock > 0
+    select '' as aesthetic, category_group as "group", color_family as color,
+           count(*) as supply, 0 as low
+    from articles
     group by 1, 2, 3
   `)
   const out = new Map<string, SupplyCell>()

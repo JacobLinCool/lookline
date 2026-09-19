@@ -200,7 +200,8 @@ export function recommendManufacturing(
     for (const pid of e.articleIds) {
       const p = input.articles.get(pid)
       if (!p) continue
-      for (const a of p.aesthetics) {
+      // Was one cell per aesthetic; the product type stands in for it now.
+      for (const a of [p.subcategory]) {
         for (const color of [p.colorFamily, null]) {
           const cell = cellFor(a, p.categoryGroup, color)
           if (seen.has(cell)) continue
@@ -274,7 +275,7 @@ export function recommendManufacturing(
     const dominantSilhouette = dominantSubcategory
       ? ([...cell.articles.keys()]
           .map((id) => input.articles.get(id))
-          .find((p) => p?.subcategory === dominantSubcategory)?.silhouette ?? null)
+          .find((p) => p?.subcategory === dominantSubcategory)?.subcategory ?? null)
       : null
     const clusterIds = Object.keys(pairRow?.evidence.byCluster ?? {})
       .map(Number)

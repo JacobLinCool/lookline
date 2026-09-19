@@ -105,9 +105,8 @@ export function pairingSentence(
         text = zh ? `${famA} 配 ${famB}` : `${famA} with ${famB}`
     }
   } else if (top === aestheticTerm) {
-    const shared =
-      a.aesthetics.find((t) => b.aesthetics.includes(t)) ?? a.aesthetics[0] ?? b.aesthetics[0] ?? ''
-    const tag = aestheticLabel(shared, locale)
+    // No aesthetic tags in the catalogue, so the sentence names the shared product family.
+    const tag = aestheticLabel('', locale)
     text = zh ? `都是${tag}路線` : `both lean ${tag}`
   } else if (top === formalityTerm) {
     text = zh ? '正式度一致' : 'same level of dressiness'

@@ -213,7 +213,7 @@ export function solvePlan(plan: SolverPlan, opts: SolveOptions): OutfitState[] {
     for (const s of next) {
       const sig = s.items
         .map((it) => it.item.product.id)
-        .toSorted((a, b) => a - b)
+        .toSorted((a, b) => a.localeCompare(b))
         .join(',')
       if (seen.has(sig)) continue
       seen.add(sig)
@@ -265,7 +265,7 @@ export function dominantAesthetic(state: OutfitState): number {
   return best
 }
 
-export function coreItemId(state: OutfitState): number {
+export function coreItemId(state: OutfitState): string {
   const core = state.items.find(
     (it) => ['dress', 'top', 'tailoring', 'activewear', 'swimwear'].includes(it.role) && !it.pinned,
   )
@@ -296,7 +296,7 @@ export function diversify(pool: readonly OutfitState[], k: number): OutfitState[
       if (accepted.length >= k) break
       const sig = s.items
         .map((it) => it.item.product.id)
-        .toSorted((a, b) => a - b)
+        .toSorted((a, b) => a.localeCompare(b))
         .join(',')
       if (ids.has(sig)) continue
       const ok = accepted.every((acc) => {

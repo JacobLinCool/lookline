@@ -129,7 +129,6 @@ export function emptyParams(
 
 /** The SQL prefilter, evaluated in-process (used by MemoryRetriever and by the channels). */
 export function matchesParams(p: Article, params: RetrieveParams): boolean {
-  if (p.stock <= 0) return false
   if (!params.departments.includes(p.department)) return false
   if (params.categoryGroups && !params.categoryGroups.includes(p.categoryGroup as CategoryGroup))
     return false
@@ -206,8 +205,9 @@ export function socialStrength(evidence: readonly SocialEvidence[]): number {
 export function trendMatches(p: Article, trend: ChannelParams['trend']): TrendEvidence | null {
   if (!trend) return null
   let best: TrendEvidence | null = null
+  // The aesthetic dimension of the trend index is keyed on product type now.
   for (const t of trend.aesthetics) {
-    if (p.aesthetics.includes(t.key) && (!best || t.momentum > best.momentum)) best = t
+    if (p.subcategory === t.key && (!best || t.momentum > best.momentum)) best = t
   }
   for (const t of trend.categories) {
     if (p.categoryGroup === t.key && (!best || t.momentum > best.momentum)) best = t
@@ -308,7 +308,7 @@ type SqlChunk = ReturnType<typeof sql>
 
 /** WHERE conditions shared by the vector query and the channels. */
 export function prefilterConditions(p: RetrieveParams): SqlChunk[] {
-  const conds: SqlChunk[] = [gt(articles.stock, 0), inArray(articles.department, p.departments)]
+  const conds: SqlChunk[] = [inArray(articles.department, p.departments)]
   if (p.categoryGroups && p.categoryGroups.length > 0)
     conds.push(inArray(articles.categoryGroup, p.categoryGroups))
   if (p.excludeGroups.length > 0) conds.push(notInArray(articles.categoryGroup, p.excludeGroups))
@@ -426,7 +426,7 @@ export class SqlRetriever implements Retriever {
     for (const r of saveRows) push(r.articleId, r.userId, 'save', r.lookId, r.at)
     if (byProduct.size === 0) return []
     const top = [...byProduct.entries()]
-      .toSorted((a, b) => socialStrength(b[1]) - socialStrength(a[1]) || a[0] - b[0])
+      .toSorted((a, b) => socialStrength(b[1]) - socialStrength(a[1]) || a[0].localeCompare(b[0]))
       .slice(0, SOCIAL_CHANNEL_LIMIT * 2)
     const rows = await this.db
       .select(PRODUCT_SELECT)
@@ -461,8 +461,8 @@ export class SqlRetriever implements Retriever {
     const cKeys = trend.categories.map((t) => t.key)
     if (aKeys.length === 0 && cKeys.length === 0) return []
     const match: SqlChunk[] = []
-    if (aKeys.length > 0) match.push(jsonArrayOverlaps(articles.aesthetics, aKeys))
-    if (cKeys.length > 0) match.push(inArray(articles.categoryGroup, cKeys))
+    if (cKeys.length > 0) match.push(inArray(articles.categoryGroup, cKeys as CategoryGroup[]))
+    if (aKeys.length > 0) match.push(inArray(articles.subcategory, aKeys))
     const rows = await this.db
       .select(PRODUCT_SELECT)
       .from(articles)

@@ -61,15 +61,18 @@ export function splitTrendKey(composite: string): { dimension: TrendDimension; k
   return { dimension: composite.slice(0, i) as TrendDimension, key: composite.slice(i + 2) }
 }
 
+/**
+ * The dimensions a purchase or a remix moves. The `aesthetic` dimension used to come from the
+ * article's own tags; the catalogue has none, so the finest signal available is the product type
+ * — which is H&M's own, and 131 values deep.
+ */
 export function productKeys(p: ProductLite): string[] {
   const keys = new Set<string>()
-  for (const a of p.aesthetics) {
-    keys.add(trendKey('aesthetic', a))
-    keys.add(trendKey('aesthetic_category', `${a}|${p.categoryGroup}`))
-  }
   keys.add(trendKey('category', p.categoryGroup))
   keys.add(trendKey('color', p.colorFamily))
-  keys.add(trendKey('silhouette', p.silhouette || p.silhouetteId))
+  keys.add(trendKey('silhouette', p.subcategory))
+  keys.add(trendKey('aesthetic', p.subcategory))
+  keys.add(trendKey('aesthetic_category', `${p.subcategory}|${p.categoryGroup}`))
   return [...keys]
 }
 

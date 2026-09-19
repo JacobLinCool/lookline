@@ -280,10 +280,9 @@ export function pseudoIntent(
   opts: { budget?: { min?: number; max?: number } } = {},
 ): EngineIntent {
   const ladder = [1, 0.6, 0.4]
+  // Was the article's own aesthetic tags; the catalogue has none, so an intent built from a
+  // product carries its measurable axes and no style label.
   const aestheticWeights: Record<string, number> = {}
-  p.aesthetics.slice(0, 3).forEach((slug, i) => {
-    aestheticWeights[slug] = ladder[i] ?? 0.3
-  })
   const axisTargets: Record<string, number> = {}
   const axes: Axis[] = [
     'formality',
@@ -305,7 +304,7 @@ export function pseudoIntent(
     subcategories: [],
     colors: [p.colorName],
     colorFamilies: [p.colorFamily as ColorFamily],
-    aesthetics: p.aesthetics.slice(0, 3),
+    aesthetics: [],
     materials: [],
     patterns: [],
     fits: [],
@@ -332,9 +331,10 @@ export function pseudoIntent(
   return intent
 }
 
-/** Vector of a pseudo-intent: the product's aesthetic ladder, colour and axes, group one-hot when single. */
+/** Vector of a pseudo-intent: the product's colour and axes, group one-hot when single. */
 export function pseudoVector(p: Article, intent: EngineIntent): number[] {
-  const secondary = p.secondaryColorHex ? (findColor(p.secondaryColorHex)?.family ?? null) : null
+  // One colour per article — H&M files each colourway separately.
+  const secondary = null
   const axes = Object.fromEntries(Object.entries(intent.axisTargets ?? {})) as Partial<
     Record<Axis, number>
   >

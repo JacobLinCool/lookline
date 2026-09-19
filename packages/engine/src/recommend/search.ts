@@ -195,7 +195,7 @@ export interface SearchPlan {
 
 export function planSearch(query: ProductSearch, opts: { withText?: boolean } = {}): SearchPlan {
   const scan = scanQuery(query.q ?? '')
-  const where: SqlChunk[] = [gt(articles.stock, 0)]
+  const where: SqlChunk[] = []
   let lexiconFilters = false
   if (query.department) where.push(eq(articles.department, query.department))
   if (query.categoryGroups?.length)
@@ -215,17 +215,12 @@ export function planSearch(query: ProductSearch, opts: { withText?: boolean } = 
     where.push(inArray(articles.colorFamily, scan.colorFamilies))
     lexiconFilters = true
   }
-  const aesthetics = [...new Set([...(query.aesthetics ?? []), ...scan.aesthetics])]
-  if (aesthetics.length > 0) {
-    where.push(jsonArrayOverlaps(articles.aesthetics, aesthetics))
-    if (scan.aesthetics.length > 0) lexiconFilters = true
-  }
+  // The catalogue carries no aesthetic, so an aesthetic in the query cannot narrow the SQL. It
+  // still steers the style vector, which is where it has an effect until a semantic pass runs.
   if (query.excludedCategoryGroups?.length)
     where.push(notInArray(articles.categoryGroup, query.excludedCategoryGroups))
   if (query.excludedColorFamilies?.length)
     where.push(notInArray(articles.colorFamily, query.excludedColorFamilies))
-  if (query.excludedAesthetics?.length)
-    where.push(sql`not ${jsonArrayOverlaps(articles.aesthetics, query.excludedAesthetics)}`)
   if (scan.materials.length > 0) {
     where.push(inArray(articles.material, scan.materials))
     lexiconFilters = true
@@ -336,12 +331,11 @@ export function buildSearchQuery(
   // Re-measure this query when a semantic pass fills that column.
   const facets = sql`
     with sample as (
-      select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family, ${articles.aesthetics} as aesthetics
+      select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family
       from ${articles} where ${where}
     )
     select 'group' as dim, category_group as key, count(*) as n from sample group by 2
     union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2
-    union all select 'aesthetic' as dim, a.value as key, count(*) as n from sample, json_each(sample.aesthetics) as a group by 2
   `
   return { plan, page, total, facets }
 }

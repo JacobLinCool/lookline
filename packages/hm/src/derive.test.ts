@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { categoryGroupFor, sizeSystemFor, slugFor } from './derive'
+import { categoryGroupFor, slugFor } from './derive'
 
 describe('categoryGroupFor', () => {
   it('recovers the two groups H&M files under a body part', () => {
@@ -26,12 +26,6 @@ describe('categoryGroupFor', () => {
 })
 
 describe('derived columns', () => {
-  it('picks the size chart from the slot the article occupies', () => {
-    expect(sizeSystemFor('shoes')).toBe('eu-shoe')
-    expect(sizeSystemFor('jewelry')).toBe('one-size')
-    expect(sizeSystemFor('top')).toBe('alpha')
-  })
-
   it('builds a slug that is unique because the article id is', () => {
     expect(slugFor('Strap top', '0108775015')).toBe('strap-top-0108775015')
     expect(slugFor('V. 5 LINEN T-SHIRT', '0515189003')).toBe('v-5-linen-t-shirt-0515189003')

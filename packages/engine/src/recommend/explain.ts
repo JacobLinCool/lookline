@@ -146,7 +146,7 @@ export function assertGrounded(text: string, evidence: readonly string[]): boole
 }
 
 const PolishSchema = z.object({
-  sentences: z.array(z.object({ articleId: z.number(), text: z.string() })),
+  sentences: z.array(z.object({ articleId: z.string(), text: z.string() })),
 })
 
 export interface PolishOptions {

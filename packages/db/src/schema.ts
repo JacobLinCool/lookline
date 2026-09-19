@@ -199,9 +199,13 @@ export const brands = sqliteTable(
  * signal: H&M's own `product_group_name` cannot tell a jacket from the t-shirt underneath.
  *
  * Derived columns follow the raw ones: `outfit_role` and `department` are table lookups over
- * columns the dataset ships (see @lookline/hm), never inferred by a model. `occasions`,
- * `aesthetics` and `style_vector` have no source column at all and stay empty until a semantic
- * pass fills them.
+ * columns the dataset ships (see @lookline/hm), never inferred by a model. `occasions`, `seasons`,
+ * `material` and the garment details are recovered from `section_name`, the selling months and
+ * `detail_desc`.
+ *
+ * Columns the dataset cannot fill are not declared: it ships no inventory, no reviews, no sizes
+ * and no aesthetic, and a column holding one constant on every row is noise that ranking and
+ * retrieval would have to step around. They go back in when something can fill them.
  *
  * The sales columns are aggregated offline from `transactions_train.csv`; those 31.8M rows stay in
  * the local database and never reach D1.
@@ -242,8 +246,6 @@ export const articles = sqliteTable(
     slug: text('slug').notNull(),
     /** The dataset ships colour names only, and a swatch needs a colour. */
     colorHex: text('colour_hex').notNull().default('#9E9E9E'),
-    sizeSystem: text('size_system', { enum: SIZE_SYSTEM_VALUES }).notNull(),
-    sizes: stringList('sizes'),
     /** R2 object key. Null for the articles that ship without a photo. */
     imagePath: text('image_path'),
     // --- aggregated from transactions_train.csv ---
@@ -258,38 +260,23 @@ export const articles = sqliteTable(
     popularity: real('popularity').notNull().default(0),
     trendScore: real('trend_score').notNull().default(0),
     // --- no source column in the dataset ---
-    // H&M ships none of these. The garment ones are recoverable from `detail_desc` ("in soft
-    // cotton jersey with a round neckline"), `seasons` from the months an article actually sells
-    // in, and `occasions` / `aesthetics` / `style_vector` need a semantic pass. They are declared
-    // so the ranking and the product page keep working while each is still empty — and they are
-    // not null but empty, because to every ranking factor "no value" and "empty" are the same
-    // thing, and a nullable column would put a null check in each one for nothing.
+    // Recovered from `detail_desc` ("in soft cotton jersey with a round neckline") and, for
+    // `seasons`, from the months an article actually sells in. Empty rather than null: to every
+    // ranking factor "no value" and "empty" are the same thing, and a nullable column would put a
+    // null check in each one for nothing.
     material: text('material').notNull().default(''),
     fit: text('fit').notNull().default(''),
-    silhouette: text('silhouette').notNull().default(''),
-    silhouetteId: text('silhouette_id').notNull().default(''),
     length: text('length').notNull().default(''),
     neckline: text('neckline').notNull().default(''),
     sleeve: text('sleeve').notNull().default(''),
     closure: text('closure').notNull().default(''),
-    secondaryColorHex: text('secondary_color_hex'),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
-    aesthetics: stringList('aesthetics'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
       .notNull()
       .default(sql`'{}'`),
     /** All zeroes until a semantic pass encodes the 64 dimensions. */
     styleVector: vector('style_vector').notNull(),
-    /**
-     * The dataset has no inventory. Everything is in stock so the "can I actually buy this"
-     * filter keeps its shape; swap in a real feed if one ever arrives.
-     */
-    stock: integer('stock').notNull().default(1),
-    /** No review data in the dataset either. */
-    rating: real('rating').notNull().default(0),
-    reviewCount: integer('review_count').notNull().default(0),
-    imageSeed: integer('image_seed').notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [

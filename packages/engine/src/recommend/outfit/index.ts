@@ -105,9 +105,9 @@ function slotBudgetMax(input: BuildOutfitsInput, slot: SlotSpec): number | null 
   return null
 }
 
-function sha1Id(ids: readonly number[]): string {
+function sha1Id(ids: readonly string[]): string {
   return createHash('sha1')
-    .update(ids.toSorted((a, b) => a - b).join(','))
+    .update(ids.toSorted((a, b) => a.localeCompare(b)).join(','))
     .digest('hex')
     .slice(0, 12)
 }

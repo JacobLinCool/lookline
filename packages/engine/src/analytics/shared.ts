@@ -136,13 +136,9 @@ export interface LookProductLite {
 
 export interface ProductLite {
   id: string
-  aesthetics: string[]
   categoryGroup: string
   subcategory: string
   colorFamily: string
-  silhouette: string | null
-  silhouetteId: string
-  stock: number
   price: number
 }
 

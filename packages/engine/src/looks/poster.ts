@@ -115,7 +115,7 @@ function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] 
   const areaRight = POSTER_WIDTH - 90
   const placed: Placed[] = []
   const withShape = items
-    .map((p, i) => ({ p, i, shape: SHAPES[shapeFamilyFor(p.silhouetteId, p.categoryGroup)] }))
+    .map((p, i) => ({ p, i, shape: SHAPES[shapeFamilyFor(p.subcategory, p.categoryGroup)] }))
     .toSorted((a, b) => b.shape.weight - a.shape.weight || a.i - b.i)
   const n = withShape.length
   const cols = n <= 1 ? 1 : n <= 4 ? 2 : 3
@@ -132,7 +132,8 @@ function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] 
     const cx = areaLeft + cellW * (col + 0.5) + jitterX
     const cy = areaTop + cellH * (row + 0.5) + jitterY
     const fill = normalizeHex(p.colorHex) ?? ink
-    const secondary = p.secondaryColorHex ? normalizeHex(p.secondaryColorHex) : null
+    // The catalogue has no second colour; H&M files each colourway as its own article.
+    const secondary = null
     placed.push({
       d: shape.d,
       fill,

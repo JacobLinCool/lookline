@@ -38,7 +38,6 @@ import {
   placeholderPrice,
   popularityOf,
   sectionMeaning,
-  sizeSystemFor,
   slugFor,
   styleAxes,
   tierFor,
@@ -141,8 +140,6 @@ for (const a of source) {
     department: a.department,
     slug: slugFor(a.name, a.articleId),
     colorHex: a.colourHex ?? '#9E9E9E',
-    sizeSystem: sizeSystemFor(a.outfitRole),
-    sizes: [],
     imagePath: haveImage.has(a.articleId)
       ? `images/${a.articleId.slice(0, 3)}/${a.articleId}.webp`
       : null,
@@ -153,7 +150,6 @@ for (const a of source) {
     fit: detail.fit,
     length: detail.length,
     attributes: detail.attributes,
-    aesthetics: [],
     material,
     styleVector: toStyleVector({
       // No aesthetic is stated anywhere in the dataset, and inferring one is the semantic pass

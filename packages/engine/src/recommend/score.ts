@@ -45,12 +45,7 @@ export function hardFilters(cands: readonly Candidate[], ctx: RankContext): Cand
       if (avoid.text.some((t) => hay.includes(t))) return false
     }
     if (avoid.patterns.length > 0 && avoid.patterns.includes(p.pattern)) return false
-    if (avoid.aesthetics.length > 0 && avoid.aesthetics.some((a) => p.aesthetics[0] === a))
-      return false
-    for (const [system, value] of sizeEntries) {
-      if (p.sizeSystem !== system) continue
-      if (!p.sizes.includes(value)) return false
-    }
+    // No size column in the catalogue, so a stated size cannot rule anything out.
     if (wantsKids !== (p.department === 'kids')) {
       if (wantsKids || p.department === 'kids') return false
     }

@@ -96,11 +96,12 @@ function familyGuess(hex: string): string {
   return 'chromatic'
 }
 
-/** cosine over dims 0–31, +0.10 when a tag is shared, capped at 1. */
+/**
+ * Cosine over dims 0–31. There used to be a bonus for a shared aesthetic tag; the catalogue has
+ * none, and those dimensions are zero until a semantic pass fills them, so this reads 0 today.
+ */
 export function aestheticCompat(a: Article, b: Article): number {
-  let v = cosineRange(a.styleVector, b.styleVector, 0, 32)
-  if (a.aesthetics.some((t) => b.aesthetics.includes(t))) v += 0.1
-  return clamp01(v)
+  return clamp01(cosineRange(a.styleVector, b.styleVector, 0, 32))
 }
 
 const FORMALITY = axisIndex('formality')
