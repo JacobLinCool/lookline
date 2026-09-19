@@ -15,11 +15,9 @@
       "database_name": "lookline",
       "database_id": "28602478-a8bc-49fc-a7f2-c295e2c40939",
       "migrations_dir": "../../packages/db/drizzle",
-      // Reachable from `pnpm dev` too — see `remoteBindings` in vite.config.ts.
-      "remote": true,
     },
   ],
-  "r2_buckets": [{ "binding": "STORAGE", "bucket_name": "lookline-media", "remote": true }],
+  "r2_buckets": [{ "binding": "STORAGE", "bucket_name": "lookline-media" }],
   // Non-secret defaults. Secrets (SESSION_SECRET, GEMINI_API_KEY, OPENAI_API_KEY, TYPESAFE_API_KEY)
   // live in `.dev.vars` locally and in `wrangler secret put <NAME>` for production.
   "vars": {
