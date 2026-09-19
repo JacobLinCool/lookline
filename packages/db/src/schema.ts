@@ -238,9 +238,16 @@ export const articles = sqliteTable(
     indexGroupName: text('index_group_name').notNull(),
     pattern: text('graphical_appearance_name').notNull().default(''),
     colorName: text('colour_group_name').notNull().default(''),
-    colorFamily: text('perceived_colour_master_name').notNull().default(''),
+    colorMaster: text('perceived_colour_master_name').notNull().default(''),
     colorValue: text('perceived_colour_value_name').notNull().default(''),
     // --- derived by @lookline/hm ---
+    /**
+     * The catalog's twelve families, derived from `perceived_colour_master_name` by
+     * @lookline/hm. H&M's nineteen masters are its own vocabulary (`Black`, `Khaki green`);
+     * every filter, facet and intent constraint speaks the catalog's (`black`, `green`), and
+     * a column named for one holding the other matches nothing at all.
+     */
+    colorFamily: text('colour_family').notNull().default(''),
     categoryGroup: text('category_group', { enum: CATEGORY_GROUP_VALUES }).notNull(),
     /** The finer split: `outerwear` and `tops` both answer "upper body", this answers which layer. */
     outfitRole: text('outfit_role', { enum: OUTFIT_ROLE_VALUES }).notNull(),
@@ -289,6 +296,7 @@ export const articles = sqliteTable(
     index('articles_product_code_idx').on(t.productCode),
     index('articles_department_idx').on(t.department),
     index('articles_category_group_idx').on(t.categoryGroup),
+    index('articles_colour_family_idx').on(t.colorFamily),
     index('articles_outfit_role_idx').on(t.outfitRole),
     index('articles_product_type_idx').on(t.subcategory),
     index('articles_price_idx').on(t.price),

@@ -196,7 +196,7 @@ describe('SqlRetriever.buildQuery', () => {
     expect(sql).toContain('"articles"."category_group" in (')
     expect(sql).toContain('"articles"."product_type_name" in (')
     expect(sql).toContain('"articles"."price" <=')
-    expect(sql).toContain('"articles"."perceived_colour_master_name" not in (')
+    expect(sql).toContain('"articles"."colour_family" not in (')
     expect(sql).toContain('"articles"."brand_id" not in (')
     expect(sql).toContain('"articles"."article_id" not in (')
     expect(sql).toContain('json_type("articles"."attributes", ?) = \'true\'')
