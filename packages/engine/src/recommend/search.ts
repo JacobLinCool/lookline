@@ -328,10 +328,14 @@ export function buildSearchQuery(
   // category groups. 105k rows group in ~50 ms on the indexed columns.
   // ponytail: `aesthetics` is empty for every article today, so its json_each costs nothing.
   // Re-measure this query when a semantic pass fills that column.
+  // `and()` of nothing is `undefined`. The query builders above drop it, but this raw template
+  // would render a bare `where` and fail to parse — which is every unfiltered search, now that no
+  // predicate is unconditional.
+  const filter = where ? sql`where ${where}` : sql``
   const facets = sql`
     with sample as (
       select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family
-      from ${articles} where ${where}
+      from ${articles} ${filter}
     )
     select 'group' as dim, category_group as key, count(*) as n from sample group by 2
     union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2

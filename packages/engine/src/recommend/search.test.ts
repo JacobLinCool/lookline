@@ -61,6 +61,18 @@ describe('buildSearchQuery', () => {
     expect(rendered.toLowerCase()).not.toContain('limit')
   })
 
+  it('omits the filter clause when a search carries no filters at all', () => {
+    // `and()` of nothing is `undefined`. The page and total builders drop it, but a raw
+    // `where ${undefined}` renders as a bare `where` that SQLite cannot parse. Every predicate is
+    // conditional, so `/shop` with no facets chosen is exactly that search.
+    const { facets } = buildSearchQuery(handle.db, {})
+    const rendered = (
+      handle.db as unknown as { dialect: { sqlToQuery: (q: typeof facets) => { sql: string } } }
+    ).dialect.sqlToQuery(facets).sql
+    expect(rendered).not.toMatch(/\bwhere\b/i)
+    expect(rendered).toContain('group by')
+  })
+
   it('renders filters, the FTS5 text predicate, sort and pagination', () => {
     const { page, total, plan } = buildSearchQuery(handle.db, {
       q: 'nike hoodie',
