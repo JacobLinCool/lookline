@@ -122,7 +122,10 @@ export function FilterRail({ search, facets }: { search: ProductSearch; facets?:
                   subcategory: undefined,
                 })}
                 active={search.categoryGroups?.includes(group) ?? false}
-                count={facetCount(facets?.categoryGroups, group)}
+                // A group missing from the facets holds nothing under the current filters, which
+                // is worth saying — but only once the facets are here. While they are stale the
+                // count is unknown, not zero, and `RailLink` renders nothing for `undefined`.
+                count={facets ? (facetCount(facets.categoryGroups, group) ?? 0) : undefined}
               >
                 {categoryGroupLabel(locale, group)}
               </RailLink>
