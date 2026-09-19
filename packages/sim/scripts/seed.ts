@@ -46,10 +46,8 @@ async function cleanup(): Promise<void> {
   const statements = [
     sql`delete from feedback_events where user_id ${SIM}`,
     sql`delete from preference_snapshots where user_id ${SIM}`,
-    sql`delete from ask_responses where responder_user_id ${SIM} or ask_id in (select id from asks where asker_id ${SIM} or target_user_id ${SIM})`,
     sql`delete from interactions where actor_user_id ${SIM} or target_user_id ${SIM}`,
     sql`delete from purchases where user_id ${SIM} or for_user_id ${SIM}`,
-    sql`delete from asks where asker_id ${SIM} or target_user_id ${SIM}`,
     sql`delete from look_participants where user_id ${SIM}`,
     sql`delete from lineage_stats where root_look_id in (select id from looks where owner_id ${SIM})`,
     sql`delete from looks where owner_id ${SIM}`,
@@ -87,10 +85,6 @@ async function summary(): Promise<void> {
                count(*) filter (where depth >= 4) as deep
         from lineage_stats`,
   )
-  const asksTotal = await count(sql`select count(*) as n from asks where asker_id ${SIM}`)
-  const asksAnswered = await count(
-    sql`select count(*) as n from asks where asker_id ${SIM} and status = 'answered'`,
-  )
   const interactions = await db.all<{ type: string; n: number | string }>(
     sql`select type, count(*) as n from interactions where actor_user_id ${SIM} group by type order by count(*) desc`,
   )
@@ -113,7 +107,6 @@ async function summary(): Promise<void> {
   console.log(
     `lineages         max depth ${lineage[0]?.max_depth ?? 0}, ${lineage[0]?.deep ?? 0} with depth ≥ 4, ${lineage[0]?.cross ?? 0} reaching ≥ 3 taste clusters`,
   )
-  console.log(`asks             ${asksAnswered}/${asksTotal} answered`)
   console.log(`interactions     ${interactions.map((r) => `${r.type}=${r.n}`).join(', ')}`)
   console.log(`feedback events  ${feedback} (${snapshots} users with preference snapshots)`)
   console.log(`intent sessions  ${intents}`)
@@ -144,7 +137,7 @@ async function main(): Promise<void> {
     log: (m) => console.log(`[sim ${elapsed()}] ${m}`),
   })
   console.log(
-    `simulated: ${result.purchases} purchases, looks ${JSON.stringify(result.looks)}, ${result.asks} asks, ${result.answers} answers, ${result.interactions} direct interactions, ${result.feedback} direct feedback events (${(result.durationMs / 1000).toFixed(1)} s)`,
+    `simulated: ${result.purchases} purchases, looks ${JSON.stringify(result.looks)}, ${result.interactions} direct interactions, ${result.feedback} direct feedback events (${(result.durationMs / 1000).toFixed(1)} s)`,
   )
   for (const s of result.trendSeeds)
     console.log(`  trend seed ${s.slug}: root ${s.rootLookId} by ${s.carrierId}, ${s.looks} Looks`)

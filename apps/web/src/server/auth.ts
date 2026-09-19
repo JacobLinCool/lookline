@@ -139,7 +139,7 @@ function isUniqueViolation(error: unknown): boolean {
 
 /**
  * Create a guest `users` row (`isGuest = true`, handle `guest-xxxx`, avatar seed from the id)
- * and sign them in. Used by shared Look/Ask cards and the login page.
+ * and sign them in. Used by shared Look cards and the login page.
  */
 export async function createGuest(displayName: string): Promise<User> {
   const name = displayName.trim().slice(0, 40) || 'Guest'

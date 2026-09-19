@@ -5,8 +5,6 @@
  */
 import {
   and,
-  asks,
-  askResponses,
   brands,
   desc,
   eq,
@@ -45,8 +43,6 @@ import type { UserSummary } from '../types'
 import type { RelationshipRow } from './graph/relationships'
 import { DAY_MS } from './shared'
 import type {
-  AskLite,
-  AskResponseLite,
   IntentSessionLite,
   InteractionLite,
   LookLite,
@@ -118,8 +114,6 @@ export interface AnalyticsRaw {
   users: UserLite[]
   interactions: InteractionLite[]
   purchases: PurchaseLite[]
-  asks: AskLite[]
-  askResponses: AskResponseLite[]
   looks: LookLite[]
   lookArticles: LookProductLite[]
   participants: ParticipantLite[]
@@ -166,7 +160,6 @@ export async function loadInteractionsLite(
       targetUserId: interactions.targetUserId,
       lookId: interactions.lookId,
       articleId: interactions.articleId,
-      askId: interactions.askId,
       type: interactions.type,
       sourceInteractionId: interactions.sourceInteractionId,
       createdAt: interactions.createdAt,
@@ -187,7 +180,6 @@ export async function loadPurchasesLite(db: Database, until: Date): Promise<Purc
       forKind: purchases.forKind,
       forUserId: purchases.forUserId,
       sourceLookId: purchases.sourceLookId,
-      sourceAskId: purchases.sourceAskId,
       sourceInteractionId: purchases.sourceInteractionId,
       intentSessionId: purchases.intentSessionId,
       createdAt: purchases.createdAt,
@@ -322,35 +314,16 @@ export async function loadAnalyticsRaw(
 ): Promise<AnalyticsRaw> {
   const interactionSince = new Date(now.getTime() - (opts.interactionDays ?? 180) * DAY_MS)
   const intentSince = new Date(now.getTime() - (opts.intentDays ?? 14) * DAY_MS)
-  const [usersLite, ixs, pus, askRows, responses, lookRows, lps, participants, intents, supply] =
-    await Promise.all([
-      loadUsersLite(db),
-      loadInteractionsLite(db, interactionSince, now),
-      loadPurchasesLite(db, now),
-      db
-        .select({
-          id: asks.id,
-          askerId: asks.askerId,
-          targetUserId: asks.targetUserId,
-          lookId: asks.lookId,
-          createdAt: asks.createdAt,
-        })
-        .from(asks),
-      db
-        .select({
-          askId: askResponses.askId,
-          responderUserId: askResponses.responderUserId,
-          choiceArticleId: askResponses.choiceArticleId,
-          styledLookId: askResponses.styledLookId,
-          createdAt: askResponses.createdAt,
-        })
-        .from(askResponses),
-      loadLooksLite(db, now),
-      loadLookProductsLite(db),
-      loadParticipants(db),
-      loadIntentsLite(db, intentSince, now),
-      loadSupply(db),
-    ])
+  const [usersLite, ixs, pus, lookRows, lps, participants, intents, supply] = await Promise.all([
+    loadUsersLite(db),
+    loadInteractionsLite(db, interactionSince, now),
+    loadPurchasesLite(db, now),
+    loadLooksLite(db, now),
+    loadLookProductsLite(db),
+    loadParticipants(db),
+    loadIntentsLite(db, intentSince, now),
+    loadSupply(db),
+  ])
   const articleIds = new Set<string>()
   for (const ix of ixs) if (ix.articleId != null) articleIds.add(ix.articleId)
   for (const p of pus) articleIds.add(p.articleId)
@@ -360,8 +333,6 @@ export async function loadAnalyticsRaw(
     users: usersLite,
     interactions: ixs,
     purchases: pus,
-    asks: askRows,
-    askResponses: responses,
     looks: lookRows,
     lookArticles: lps,
     participants,
@@ -561,7 +532,6 @@ export interface HeadlineRaw {
   looks: number
   remixes: number
   togethers: number
-  asks: number
   shares: number
   purchases: number
   purchasesFromLooks: number
@@ -578,39 +548,34 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
   const toMs = to.getTime()
   const inWindow = <T extends { createdAt: typeof looks.createdAt }>(t: T) =>
     and(gte(t.createdAt, from), lte(t.createdAt, to))
-  const [lookCounts, askCount, shareCount, purchaseCounts, active, cross, depth] =
-    await Promise.all([
-      db
-        .select({
-          looks: sql<number>`count(*)`,
-          remixes: sql<number>`count(*) filter (where ${looks.kind} = 'remix')`,
-          togethers: sql<number>`count(*) filter (where ${looks.kind} = 'together')`,
-        })
-        .from(looks)
-        .where(inWindow(looks)),
-      db
-        .select({ n: sql<number>`count(*)` })
-        .from(asks)
-        .where(and(gte(asks.createdAt, from), lte(asks.createdAt, to))),
-      db
-        .select({ n: sql<number>`count(*)` })
-        .from(interactions)
-        .where(
-          and(
-            eq(interactions.type, 'SHARE'),
-            gte(interactions.createdAt, from),
-            lte(interactions.createdAt, to),
-          ),
+  const [lookCounts, shareCount, purchaseCounts, active, cross, depth] = await Promise.all([
+    db
+      .select({
+        looks: sql<number>`count(*)`,
+        remixes: sql<number>`count(*) filter (where ${looks.kind} = 'remix')`,
+        togethers: sql<number>`count(*) filter (where ${looks.kind} = 'together')`,
+      })
+      .from(looks)
+      .where(inWindow(looks)),
+    db
+      .select({ n: sql<number>`count(*)` })
+      .from(interactions)
+      .where(
+        and(
+          eq(interactions.type, 'SHARE'),
+          gte(interactions.createdAt, from),
+          lte(interactions.createdAt, to),
         ),
-      db
-        .select({
-          purchases: sql<number>`count(*)`,
-          fromLooks: sql<number>`count(*) filter (where ${purchases.sourceLookId} is not null)`,
-          gmvFromLooks: sql<number>`coalesce(sum(${purchases.price} * ${purchases.quantity}) filter (where ${purchases.sourceLookId} is not null), 0)`,
-        })
-        .from(purchases)
-        .where(and(gte(purchases.createdAt, from), lte(purchases.createdAt, to))),
-      db.all(sql`
+      ),
+    db
+      .select({
+        purchases: sql<number>`count(*)`,
+        fromLooks: sql<number>`count(*) filter (where ${purchases.sourceLookId} is not null)`,
+        gmvFromLooks: sql<number>`coalesce(sum(${purchases.price} * ${purchases.quantity}) filter (where ${purchases.sourceLookId} is not null), 0)`,
+      })
+      .from(purchases)
+      .where(and(gte(purchases.createdAt, from), lte(purchases.createdAt, to))),
+    db.all(sql`
       select count(distinct id) as n from (
         select actor_user_id as id from interactions
           where created_at >= ${fromMs} and created_at <= ${toMs}
@@ -619,7 +584,7 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
           where created_at >= ${fromMs} and created_at <= ${toMs}
       ) t
     `),
-      db.all(sql`
+    db.all(sql`
       select count(*) filter (where uo.taste_cluster <> up.taste_cluster) as crossed, count(*) as total
       from looks l
       join looks p on p.id = l.parent_look_id
@@ -629,12 +594,12 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
         and l.created_at >= ${fromMs} and l.created_at <= ${toMs}
         and uo.taste_cluster is not null and up.taste_cluster is not null
     `),
-      db
-        .select({ avg: sql<number | null>`avg(${lineageStats.depth})` })
-        .from(lineageStats)
-        .innerJoin(looks, eq(looks.id, lineageStats.rootLookId))
-        .where(inWindow(looks)),
-    ])
+    db
+      .select({ avg: sql<number | null>`avg(${lineageStats.depth})` })
+      .from(lineageStats)
+      .innerJoin(looks, eq(looks.id, lineageStats.rootLookId))
+      .where(inWindow(looks)),
+  ])
   const lc = lookCounts[0]
   const pc = purchaseCounts[0]
   const activeRow = rowsOf<{ n: number }>(active)[0]
@@ -643,7 +608,6 @@ export async function loadHeadline(db: Database, from: Date, to: Date): Promise<
     looks: Number(lc?.looks ?? 0),
     remixes: Number(lc?.remixes ?? 0),
     togethers: Number(lc?.togethers ?? 0),
-    asks: Number(askCount[0]?.n ?? 0),
     shares: Number(shareCount[0]?.n ?? 0),
     purchases: Number(pc?.purchases ?? 0),
     purchasesFromLooks: Number(pc?.fromLooks ?? 0),
@@ -791,7 +755,6 @@ export async function loadPurchasesFromLooks(db: Database): Promise<PurchaseLite
       forKind: purchases.forKind,
       forUserId: purchases.forUserId,
       sourceLookId: purchases.sourceLookId,
-      sourceAskId: purchases.sourceAskId,
       sourceInteractionId: purchases.sourceInteractionId,
       intentSessionId: purchases.intentSessionId,
       createdAt: purchases.createdAt,
@@ -875,7 +838,6 @@ export async function loadInteractionsForLooks(
       targetUserId: interactions.targetUserId,
       lookId: interactions.lookId,
       articleId: interactions.articleId,
-      askId: interactions.askId,
       type: interactions.type,
       sourceInteractionId: interactions.sourceInteractionId,
       createdAt: interactions.createdAt,
@@ -899,7 +861,6 @@ export async function loadPurchasesForLooks(
       forKind: purchases.forKind,
       forUserId: purchases.forUserId,
       sourceLookId: purchases.sourceLookId,
-      sourceAskId: purchases.sourceAskId,
       sourceInteractionId: purchases.sourceInteractionId,
       intentSessionId: purchases.intentSessionId,
       createdAt: purchases.createdAt,

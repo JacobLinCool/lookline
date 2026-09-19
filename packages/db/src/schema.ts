@@ -84,8 +84,6 @@ export const LOOK_KIND_VALUES = ['edition', 'remix', 'together'] as const
 export const IMAGE_STATUS_VALUES = ['pending', 'ready', 'failed'] as const
 export const VISIBILITY_VALUES = ['private', 'link', 'public'] as const
 export const PURCHASE_FOR_VALUES = ['self', 'other', 'undisclosed'] as const
-export const ASK_KIND_VALUES = ['choose', 'style_me'] as const
-export const ASK_STATUS_VALUES = ['open', 'answered', 'closed'] as const
 export const INTERACTION_TYPE_VALUES = [
   'VIEW',
   'SEARCH',
@@ -93,8 +91,6 @@ export const INTERACTION_TYPE_VALUES = [
   'DISMISS',
   'SHARE',
   'REACT',
-  'ASK',
-  'ADVISE',
   'STYLE',
   'REMIX',
   'TOGETHER',
@@ -110,13 +106,10 @@ export const FEEDBACK_KIND_VALUES = [
   'dismiss',
   'add_to_bag',
   'purchase',
-  'ask_choice',
   'remix',
   'look_create',
 ] as const
 export const RELATIONSHIP_KIND_VALUES = [
-  'asks',
-  'trusts',
   'inspired_by',
   'styles',
   'buys_for',
@@ -525,7 +518,6 @@ export const purchases = sqliteTable(
     forUserId: text('for_user_id').references(() => users.id),
     forLabel: text('for_label'),
     sourceLookId: text('source_look_id'),
-    sourceAskId: text('source_ask_id'),
     sourceInteractionId: text('source_interaction_id'),
     intentSessionId: text('intent_session_id'),
     createdAt: createdAt(),
@@ -671,54 +663,6 @@ export const previewArticles = sqliteTable(
 // Social primitives
 // ---------------------------------------------------------------------------
 
-export const asks = sqliteTable(
-  'asks',
-  {
-    id: text('id').primaryKey(),
-    askerId: text('asker_id')
-      .notNull()
-      .references(() => users.id),
-    targetUserId: text('target_user_id').references(() => users.id),
-    kind: text('kind', { enum: ASK_KIND_VALUES }).notNull(),
-    question: text('question').notNull(),
-    optionArticleIds: text('option_article_ids', { mode: 'json' })
-      .$type<string[]>()
-      .notNull()
-      .default(sql`'[]'`),
-    lookId: text('look_id').references(() => looks.id),
-    budget: integer('budget'),
-    occasion: text('occasion'),
-    shareToken: text('share_token').notNull(),
-    status: text('status', { enum: ASK_STATUS_VALUES }).notNull().default('open'),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    index('asks_asker_idx').on(t.askerId),
-    index('asks_target_idx').on(t.targetUserId),
-    uniqueIndex('asks_share_token_idx').on(t.shareToken),
-  ],
-)
-
-export const askResponses = sqliteTable(
-  'ask_responses',
-  {
-    id: text('id').primaryKey(),
-    askId: text('ask_id')
-      .notNull()
-      .references(() => asks.id, { onDelete: 'cascade' }),
-    responderUserId: text('responder_user_id').references(() => users.id),
-    responderName: text('responder_name'),
-    choiceArticleId: text('choice_article_id').references(() => articles.id),
-    styledLookId: text('styled_look_id').references(() => looks.id),
-    comment: text('comment'),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    index('ask_responses_ask_idx').on(t.askId),
-    index('ask_responses_responder_idx').on(t.responderUserId),
-  ],
-)
-
 export const interactions = sqliteTable(
   'interactions',
   {
@@ -729,7 +673,6 @@ export const interactions = sqliteTable(
     targetUserId: text('target_user_id').references(() => users.id),
     lookId: text('look_id').references(() => looks.id, { onDelete: 'cascade' }),
     articleId: text('article_id').references(() => articles.id),
-    askId: text('ask_id').references(() => asks.id, { onDelete: 'cascade' }),
     type: text('type', { enum: INTERACTION_TYPE_VALUES }).notNull(),
     payload: json<Record<string, unknown>>('payload')
       .notNull()
@@ -869,7 +812,6 @@ export const lineageStats = sqliteTable('lineage_stats', {
   uniquePeople: integer('unique_people').notNull().default(1),
   clustersReached: integer('clusters_reached').notNull().default(1),
   shares: integer('shares').notNull().default(0),
-  asks: integer('asks').notNull().default(0),
   remixes: integer('remixes').notNull().default(0),
   purchases: integer('purchases').notNull().default(0),
   gmv: integer('gmv').notNull().default(0),
@@ -1364,9 +1306,6 @@ export type LookParticipant = typeof lookParticipants.$inferSelect
 export type Preview = typeof previews.$inferSelect
 export type NewPreview = typeof previews.$inferInsert
 export type PreviewArticle = typeof previewArticles.$inferSelect
-export type Ask = typeof asks.$inferSelect
-export type NewAsk = typeof asks.$inferInsert
-export type AskResponse = typeof askResponses.$inferSelect
 export type Interaction = typeof interactions.$inferSelect
 export type NewInteraction = typeof interactions.$inferInsert
 export type Relationship = typeof relationships.$inferSelect
@@ -1424,7 +1363,6 @@ export type BrandTier = (typeof BRAND_TIER_VALUES)[number]
 export type LookKind = (typeof LOOK_KIND_VALUES)[number]
 export type Visibility = (typeof VISIBILITY_VALUES)[number]
 export type PurchaseFor = (typeof PURCHASE_FOR_VALUES)[number]
-export type AskKind = (typeof ASK_KIND_VALUES)[number]
 export type InteractionType = (typeof INTERACTION_TYPE_VALUES)[number]
 export type FeedbackKind = (typeof FEEDBACK_KIND_VALUES)[number]
 export type RelationshipKind = (typeof RELATIONSHIP_KIND_VALUES)[number]

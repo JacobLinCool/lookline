@@ -1,7 +1,7 @@
 import { formatNumber } from '@/server/format'
 
 /**
- * The surfaces two people share: an Ask and its answers, a Look opened from a chat, Together, and
+ * The surfaces two people share: a Look opened from a chat, Together, and
  * the prototype tour. Product nouns stay as they are — Lookline, Look, Look Card, Circle — and
  * catalog nouns come from `@/i18n/taxonomy`, never from here.
  */
@@ -30,120 +30,6 @@ export const social = {
     confirmation: 'Added to your bag',
   },
 
-  /** Words an Ask carries wherever it is read. */
-  ask: {
-    whichOne: 'Which one?',
-    styleMe: 'Style me',
-    sending: 'Sending',
-    styledBy: (name: string) => `Styled by ${name}`,
-    styledFor: (stylist: string, wearer: string) => `Styled by ${stylist} for ${wearer}`,
-    defaultQuestion: 'Which one fits me better?',
-    defaultBrief: 'Style me for the occasion below.',
-    status: {
-      open: 'Open',
-      answered: 'Answered',
-      closed: 'Closed',
-    },
-  },
-
-  askNew: {
-    title: 'Ask a friend',
-    fromLook: (title: string, owner: string) => `From “${title}” by ${owner}`,
-    guestDescription: 'Answers come back to this name. No account needed.',
-    pieces: 'Pieces',
-    piecesHint: 'Two to four',
-    noPieces: 'No pieces to ask about yet.',
-    browseShop: 'Browse the Shop',
-    question: 'Question',
-    need: 'What you need',
-    needPlaceholder: "A friend's wedding in Tainan, light, not too formal",
-    budget: 'Budget (optional)',
-    budgetPlaceholder: 'NT$3,000',
-    occasion: 'Occasion (optional)',
-    occasionAny: 'Any',
-    sendTo: 'Send to',
-    choosePerson: 'Choose a person',
-    noPeople: 'No one yet',
-    orHandle: 'or a handle',
-    handleHint: 'Leave both empty to share by link.',
-    yourAsks: 'Your asks',
-    errors: {
-      options: 'Choose two to four pieces.',
-      handle: 'No one has that handle. Leave it empty to share by link.',
-      engine: 'The Ask could not be sent. Check the pieces and send again.',
-      people: 'Your people could not be loaded. Send by handle or by link.',
-      signIn: 'Sign in to send this question.',
-      pieceCount: 'Choose between two and four available pieces.',
-      noPerson: 'That person could not be found.',
-      notSaved: 'Your question could not be saved. Please retry.',
-    },
-  },
-
-  askOwner: {
-    metaTitle: 'Your Ask',
-    sentTo: (name: string) => `Sent to ${name}`,
-    anyoneWithLink: 'Anyone with the link',
-    newAsk: 'New Ask',
-    budget: 'Budget',
-    budgetOpen: 'Open',
-    occasion: 'Occasion',
-    occasionAny: 'Any',
-    noPicks: 'No picks',
-    picked: (n: number) => `${formatNumber(n)} picked`,
-    previewCard: 'Preview the card',
-    answers: 'Answers',
-    noAnswers: 'No answers yet.',
-    noAnswersHint: 'Anyone with the link can answer, no account needed.',
-    guest: 'Guest',
-  },
-
-  askCard: {
-    metaTitle: 'Ask',
-    asksLine: (asker: string, target: string | null) =>
-      target ? `${asker} asks ${target}` : `${asker} asks`,
-    brief: (occasion: string | null, budget: string | null) =>
-      occasion && budget
-        ? `For ${occasion}, under ${budget}`
-        : occasion
-          ? `For ${occasion}`
-          : budget
-            ? `Under ${budget}`
-            : '',
-    sentTo: (name: string) => `Sent to ${name}.`,
-    lookFailed: 'Your picks were sent as a message; the Look could not be made.',
-    you: 'You',
-    pick: 'Pick',
-    askYourself: 'Ask a friend yourself',
-    seeLook: 'See the Look',
-    searchCatalog: 'Search the catalog',
-    search: 'Search',
-    searchPlaceholder: 'linen shirt, 黑色寬褲, quiet luxury…',
-    maxPrice: 'Max price',
-    anyPrice: 'Any',
-    searchFailed: 'Products could not be loaded. Search again.',
-    noMatch: (query: string) => `Nothing matched “${query}”. Try another word or a higher price.`,
-    pickUpTo: 'Pick up to 4',
-    stylePreset: 'Style of the Look',
-    comment: 'A word for them (optional)',
-    commentPlaceholderStyle: 'Why these pieces…',
-    commentPlaceholder: 'The cut suits you better…',
-    sendLook: 'Send this Look',
-    sendPick: 'Send my pick',
-    noPieces: 'This Ask has no pieces attached.',
-    picks: (summary: string) => `Picks: ${summary}`,
-    errors: {
-      choice: 'Pick one option, then send.',
-      picks: 'Pick at least one piece, then send.',
-      name: 'Add your name so they know who answered.',
-      engine: 'The answer could not be sent. Send it again.',
-      unavailable: 'This question is unavailable.',
-      wrongKind: 'Choose a styling response for this question.',
-      noChoice: 'Choose one of the available pieces.',
-      noName: 'Enter your name to answer.',
-      notSaved: 'Your answer could not be saved. Please retry.',
-    },
-  },
-
   sharedLook: {
     metaTitle: 'Shared Look',
     nameError: 'Add your name first.',
@@ -151,7 +37,6 @@ export const social = {
     likeSaved: (name: string) => `${name} will see you liked it.`,
     openLook: 'Open Look',
     makeItMine: 'Make it mine',
-    askAboutPiece: 'Ask about a piece',
     stylePerson: (name: string) => `Style ${name}`,
     like: 'Like',
     liked: 'Liked',

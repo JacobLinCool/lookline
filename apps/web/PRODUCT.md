@@ -27,7 +27,7 @@ real catalog SKUs and their actual variants.
 
 ## Operating Context
 
-The public product includes natural-language search, catalog browsing, Looks, social asks, personal
+The public product includes natural-language search, catalog browsing, Looks, remixes, personal
 wardrobes and trend analysis. The hackathon team uses a no-authentication admin playground to inspect
 attributes, probe the intent compiler and generate image experiments.
 

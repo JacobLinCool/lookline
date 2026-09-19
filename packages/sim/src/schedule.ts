@@ -1,8 +1,7 @@
 /**
  * The day scheduler: a pure function of (personas, graph, seed, days, now) that lays out every
  * simulated event over the window — browsing, purchases (20 % gifts), editions, shares (with
- * the friend's remix decision rising with taste similarity), Asks and their answers, Together
- * editions — plus the four planted trend seeds (remix chains of depth ≥ 4 crossing ≥ 3 clusters
+ * the friend's remix decision rising with taste similarity), Together editions — plus the four planted trend seeds (remix chains of depth ≥ 4 crossing ≥ 3 clusters
  * in the last two weeks, so their velocity is still rising on the last day). Ids are assigned here so the executor can run events in parallel.
  */
 import { aestheticIndex, createRng, hashSeed } from '@lookline/catalog'
@@ -71,8 +70,6 @@ const KINDS: readonly PlannedEventKind[] = [
   'purchase',
   'edition',
   'share',
-  'ask',
-  'answer',
   'together',
   'remix',
   'engage',
@@ -120,9 +117,8 @@ interface PersonaState {
 class Counters {
   purchase = 0
   look = 0
-  ask = 0
-  next(prefix: 'pu' | 'lk' | 'ask'): string {
-    const n = prefix === 'pu' ? ++this.purchase : prefix === 'lk' ? ++this.look : ++this.ask
+  next(prefix: 'pu' | 'lk'): string {
+    const n = prefix === 'pu' ? ++this.purchase : ++this.look
     return `${prefix}_${String(n).padStart(6, '0')}`
   }
 }
@@ -313,54 +309,6 @@ export function planSimulation(
           )
           state.get(friend.id)!.seen.push([lookId, p.id, day])
           if (remix) registerLook(friend.id, remixLookId)
-        }
-      }
-
-      // ask a friend
-      if (friendsOf(p.id).length > 0 && rng.chance(p.params.askPropensity * 0.12)) {
-        const friend = byId.get(rng.pick(closeFriends(p)).id)
-        if (friend) {
-          const askId = counters.next('ask')
-          const askKind: 'choose' | 'style_me' = rng.chance(0.65) ? 'choose' : 'style_me'
-          const occasion = pickOccasion(rng, p.archetype)
-          push(
-            day,
-            nextT(),
-            {
-              kind: 'ask',
-              userId: p.id,
-              friendId: friend.id,
-              askId,
-              askKind,
-              occasion,
-              budget: p.budgetHint,
-              lookId: null,
-            },
-            [p.id, friend.id],
-          )
-          if (rng.chance(0.85)) {
-            const delay = rng.weighted([
-              [0, 5],
-              [1, 3.5],
-              [2, 1.5],
-            ] as const)
-            const styled = askKind === 'style_me' && rng.chance(0.8) ? newLook(friend.id) : null
-            push(
-              day + delay,
-              delay === 0 ? nextT() : rng.float(0.3, 0.95),
-              {
-                kind: 'answer',
-                askId,
-                userId: friend.id,
-                askerId: p.id,
-                purchaseId: askKind === 'choose' && rng.chance(0.4) ? counters.next('pu') : null,
-                styledLookId: styled,
-                styledPreset: pickPreset(rng, friend.archetype),
-              },
-              [p.id, friend.id],
-            )
-            if (styled && day + delay < days) registerLook(friend.id, styled)
-          }
         }
       }
 
@@ -556,42 +504,6 @@ export function planSimulation(
         if (j === 0 && k < 2) branchParent = { lookId: bLook, ownerId: mate.id, day: bDay }
       })
 
-      // an Ask about the hop's Look at hop 2
-      if (k === 1 && friendsOf(remixer.id).length > 0) {
-        const friend = byId.get(rng.pick(friendsOf(remixer.id)).id)
-        if (friend) {
-          const askId = counters.next('ask')
-          push(
-            day,
-            0.7,
-            {
-              kind: 'ask',
-              userId: remixer.id,
-              friendId: friend.id,
-              askId,
-              askKind: 'choose',
-              occasion: pickOccasion(rng, remixer.archetype),
-              budget: remixer.budgetHint,
-              lookId: remixLookId,
-            },
-            [remixer.id, friend.id],
-          )
-          push(
-            day + 1,
-            0.4,
-            {
-              kind: 'answer',
-              askId,
-              userId: friend.id,
-              askerId: remixer.id,
-              purchaseId: counters.next('pu'),
-              styledLookId: null,
-              styledPreset: 'studio-minimal',
-            },
-            [remixer.id, friend.id],
-          )
-        }
-      }
       prev = { lookId: remixLookId, ownerId: remixer.id, day }
     })
     seedResults.push({ seed, rootLookId, carrierId: carrier.id, lookIds })

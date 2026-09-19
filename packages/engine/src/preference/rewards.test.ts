@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { REWARDS, REWARD_VARIANTS, rewardFor } from './rewards'
 
 describe('REWARDS', () => {
-  it('has exactly the nine contract kinds with the §4.1 values', () => {
+  it('has exactly the eight contract kinds with the §4.1 values', () => {
     expect(REWARDS).toEqual({
       impression: 0,
       click: 0.1,
@@ -10,7 +10,6 @@ describe('REWARDS', () => {
       dismiss: -0.3,
       add_to_bag: 0.6,
       purchase: 1,
-      ask_choice: 0.35,
       remix: 0.6,
       look_create: 0.8,
     })
@@ -47,18 +46,6 @@ describe('REWARDS', () => {
     // without forKind the forOthers flag decides
     expect(rewardFor({ kind: 'purchase', forOthers: true }).targets[0]?.target).toBe('gift')
     expect(rewardFor({ kind: 'purchase' }).reward).toBe(1)
-  })
-
-  it('ask_choice: chosen / rejected / adviser variants', () => {
-    expect(rewardFor({ kind: 'ask_choice', context: { chosen: true, role: 'asker' } }).reward).toBe(
-      0.35,
-    )
-    expect(
-      rewardFor({ kind: 'ask_choice', context: { chosen: false, role: 'asker' } }).reward,
-    ).toBe(REWARD_VARIANTS.ask_choice_rejected)
-    const adviser = rewardFor({ kind: 'ask_choice', context: { chosen: true, role: 'adviser' } })
-    expect(adviser.reward).toBe(REWARD_VARIANTS.ask_choice_adviser)
-    expect(adviser.targets).toEqual([{ target: 'gift', scale: 1 }])
   })
 
   it('remix: kept vs swapped out; look_create is +0.80 on self', () => {

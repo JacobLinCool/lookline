@@ -21,7 +21,9 @@ import {
   relationships,
   users,
   type Database,
+  type RelationshipKind,
 } from '@lookline/db'
+import { TRUST_MIN, trustFromRows } from '../recommend/context'
 import type { FeedbackInput, PreferenceProfile } from '../types'
 import { collectSlates } from './bandit'
 import {
@@ -281,9 +283,9 @@ export async function getPreferenceProfile(
       .orderBy(desc(preferenceSnapshots.version))
       .limit(10),
     db
-      .select({ b: relationships.bUserId })
+      .select({ b: relationships.bUserId, kind: relationships.kind, weight: relationships.weight })
       .from(relationships)
-      .where(and(eq(relationships.aUserId, userId), eq(relationships.kind, 'trusts'))),
+      .where(eq(relationships.aUserId, userId)),
     loadBanditState(db, { now }),
   ])
   return buildProfile({
@@ -295,9 +297,20 @@ export async function getPreferenceProfile(
     events,
     snapshots,
     bandit,
-    trustedCount: trusted.length,
+    trustedCount: countTrusted(trusted),
     now,
   })
+}
+
+/** People `userId` trusts by the same rule the recommender's social channel uses. */
+function countTrusted(
+  rows: ReadonlyArray<{ b: string; kind: RelationshipKind; weight: number }>,
+): number {
+  const byPerson = new Map<string, Array<{ kind: RelationshipKind; weight: number }>>()
+  for (const r of rows) byPerson.set(r.b, [...(byPerson.get(r.b) ?? []), r])
+  let n = 0
+  for (const edges of byPerson.values()) if (trustFromRows(edges) >= TRUST_MIN) n++
+  return n
 }
 
 // Additions to the contract surface (distinctively named to avoid barrel collisions).

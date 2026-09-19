@@ -125,7 +125,6 @@ export const shop = {
     quantity: 'Qty',
     soldOut: 'Sold out',
     addToBag: 'Add to bag',
-    askFriend: 'Ask a friend which one',
   },
 
   /** Row names in the product's detail table; the values come from the catalog. */
@@ -195,7 +194,7 @@ export const shop = {
       shares: (styles: string) => `shares ${styles} with your top aesthetics`,
       sharesNothing: 'no overlap with your top aesthetics yet',
       colourOutside: 'colour outside your usual palette',
-      trend: (score: string) => `network trend score ${score} from Looks, remixes and asks`,
+      trend: (score: string) => `network trend score ${score} from Looks and remixes`,
       noTrend: 'no trend momentum recorded for this piece yet',
       join: (clauses: readonly string[]) => clauses.join('; '),
     },

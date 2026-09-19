@@ -1,7 +1,7 @@
 /**
  * Friendship graph: dense inside a social cluster (`INTRA_EDGE_P`), sparse across clusters
  * (`INTER_EDGE_P`, two orders of magnitude lower), every persona has at least `MIN_FRIENDS`,
- * and the demo personas form a small cross-cluster circle so their Asks and shares meet on
+ * and the demo personas form a small cross-cluster circle so their shares and remixes meet on
  * the demo pages. Pure in (personas, seed).
  */
 import { createRng, hashSeed } from '@lookline/catalog'
