@@ -38,6 +38,9 @@ export const bag: BagMessages = {
     backToShop: '回到選購',
     noOrder: '這個連結找不到訂單。',
     wardrobe: '衣櫥',
+    creditsEarned: (n: number) => `這筆訂單給了你 ${n} 次製卡額度`,
+    creditsNote: '每件滿 NT$320 的商品給 3 次。一次可以生成 4 張候選，選 1 張正式發行。',
+    makeCard: '去製卡',
   },
 
   errors: {

@@ -73,7 +73,13 @@ export function InstantForm({
       <fieldset disabled={state === 'saving'} className="contents">
         {children}
       </fieldset>
-      <p role={error ? 'alert' : 'status'} aria-live="polite" className="text-[13px] text-muted">
+      {/* The line is always there, empty or not: letting it appear grew the form and nudged
+          whatever sits beside it in a flex row the moment a confirmation arrived. */}
+      <p
+        role={error ? 'alert' : 'status'}
+        aria-live="polite"
+        className="min-h-5 text-[13px] leading-5 text-muted"
+      >
         {error ??
           (state !== 'idle'
             ? state === 'saving'

@@ -2,6 +2,7 @@
 export const nav = {
   find: 'Find',
   shop: 'Shop',
+  studio: 'Studio',
   wardrobe: 'Wardrobe',
   bag: 'Bag',
   primary: 'Primary',

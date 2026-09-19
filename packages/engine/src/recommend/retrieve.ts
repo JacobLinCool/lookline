@@ -14,6 +14,7 @@ import {
   eq,
   gte,
   inArray,
+  isNotNull,
   interactions,
   jsonKeyIsTrue,
   lookArticles,
@@ -67,7 +68,7 @@ export type Channel = 'vector' | 'social' | 'trend'
 export interface SocialEvidence {
   userId: string
   displayName: string
-  kind: 'look' | 'purchase' | 'save' | 'advise'
+  kind: 'look' | 'purchase' | 'save'
   lookId?: string | null
   /** Trust of the current user in `userId` (ENGINE_SPEC §5.1). */
   strength: number
@@ -212,7 +213,6 @@ export function mergeChannels(
 
 export const SOCIAL_KIND_WEIGHT: Readonly<Record<SocialEvidence['kind'], number>> = {
   look: 1,
-  advise: 0.9,
   purchase: 0.6,
   save: 0.3,
 }
@@ -329,7 +329,13 @@ type SqlChunk = ReturnType<typeof sql>
 
 /** WHERE conditions shared by the vector query and the channels. */
 export function prefilterConditions(p: RetrieveParams): SqlChunk[] {
-  const conds: SqlChunk[] = [inArray(articles.department, p.departments)]
+  const conds: SqlChunk[] = [
+    inArray(articles.department, p.departments),
+    // The 440 articles H&M never photographed. They render as an empty tonal ground, and the
+    // vision pass skips them too, so they carry no aesthetic, pattern or fit either — nothing
+    // to rank them by and nothing to show. 0.4% of the catalogue.
+    isNotNull(articles.imagePath),
+  ]
   if (p.categoryGroups && p.categoryGroups.length > 0)
     conds.push(inArray(articles.categoryGroup, p.categoryGroups))
   if (p.excludeGroups.length > 0) conds.push(notInArray(articles.categoryGroup, p.excludeGroups))

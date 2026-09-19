@@ -127,8 +127,6 @@ export async function runAnalytics(
     {
       interactions: raw.interactions,
       purchases: raw.purchases,
-      asks: raw.asks,
-      askResponses: raw.askResponses,
       looks: raw.looks,
       lookParticipants: raw.participants,
     },
@@ -420,7 +418,6 @@ export async function getTrendDashboard(
     headline: {
       looks: headline.looks,
       remixes: headline.remixes,
-      asks: headline.asks,
       togethers: headline.togethers,
       shares: headline.shares,
       purchases: headline.purchases,

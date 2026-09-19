@@ -12,12 +12,7 @@ import { requireUser } from '@/server/auth'
 import { getBag } from '@/server/bag'
 import { getDb } from '@/server/db'
 import { formatTwd } from '@/server/format'
-import {
-  INTENT_SESSION_COOKIE,
-  SOURCE_ASK_COOKIE,
-  SOURCE_LOOK_COOKIE,
-  sanitizeId,
-} from '@/server/looks'
+import { INTENT_SESSION_COOKIE, SOURCE_LOOK_COOKIE, sanitizeId } from '@/server/looks'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -38,11 +33,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     getI18n(),
   ])
 
-  // Attribution: explicit searchParams (?look= ?ask= ?from=) win over cookies set while browsing.
+  // Attribution: explicit searchParams (?look= ?from=) win over cookies set while browsing.
   const sourceLookId =
     sanitizeId(first(params.look)) ?? sanitizeId(store.get(SOURCE_LOOK_COOKIE)?.value)
-  const sourceAskId =
-    sanitizeId(first(params.ask)) ?? sanitizeId(store.get(SOURCE_ASK_COOKIE)?.value)
   const intentSessionId =
     sanitizeId(first(params.from)) ?? sanitizeId(store.get(INTENT_SESSION_COOKIE)?.value)
 
@@ -91,7 +84,6 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
 
       <form action={placeOrderAction} className="mt-8 flex flex-col gap-8">
         <input type="hidden" name="sourceLookId" value={sourceLookId ?? ''} />
-        <input type="hidden" name="sourceAskId" value={sourceAskId ?? ''} />
         <input type="hidden" name="intentSessionId" value={intentSessionId ?? ''} />
 
         <RecipientPicker defaultValue="self" />

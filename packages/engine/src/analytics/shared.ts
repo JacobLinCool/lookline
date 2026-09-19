@@ -93,7 +93,6 @@ export interface InteractionLite {
   targetUserId: string | null
   lookId: string | null
   articleId: string | null
-  askId: string | null
   type: InteractionType
   sourceInteractionId: string | null
   createdAt: Date
@@ -108,7 +107,6 @@ export interface PurchaseLite {
   forKind: PurchaseFor
   forUserId: string | null
   sourceLookId: string | null
-  sourceAskId: string | null
   sourceInteractionId: string | null
   intentSessionId: string | null
   createdAt: Date
@@ -146,22 +144,6 @@ export interface ProductLite {
   attributes: Record<string, string | number | boolean>
   /** Clustered print motif; `''` for an unprinted article or one the print pass has not read. */
   printMotif: string
-}
-
-export interface AskLite {
-  id: string
-  askerId: string
-  targetUserId: string | null
-  lookId: string | null
-  createdAt: Date
-}
-
-export interface AskResponseLite {
-  askId: string
-  responderUserId: string | null
-  choiceArticleId: string | null
-  styledLookId: string | null
-  createdAt: Date
 }
 
 export interface IntentSessionLite {

@@ -18,7 +18,6 @@ import { buildSocialGraph } from './graph'
 import { generatePersonas } from './personas'
 import {
   ProductPool,
-  chooseOptions,
   chooseOutfit,
   chooseProduct,
   compatibleDepartments,
@@ -39,7 +38,7 @@ import type {
   SimSink,
   SimSummary,
 } from './types'
-import { askComment, askQuestion, lookTitle, searchUtterance } from './vocab'
+import { lookTitle, searchUtterance } from './vocab'
 
 interface LookState {
   id: string
@@ -48,14 +47,6 @@ interface LookState {
   vector: number[]
   aesthetics: string[]
   depth: number
-}
-
-interface AskState {
-  askerId: string
-  kind: 'choose' | 'style_me'
-  options: string[]
-  occasion: string
-  lookId: string | null
 }
 
 interface UserState {
@@ -162,7 +153,6 @@ export async function simulateSocial(
     throw new Error('@lookline/sim: the product pool is empty (seed the catalog first)')
 
   const looks = new Map<string, LookState>()
-  const asks = new Map<string, AskState>()
   const usersState = new Map<string, UserState>()
   for (const p of personas) usersState.set(p.id, { purchases: [], looks: [], selfEvents: 0 })
   const executed = emptyCounts()
@@ -170,8 +160,6 @@ export async function simulateSocial(
   const totals = {
     purchases: 0,
     looks: { edition: 0, remix: 0, together: 0 },
-    asks: 0,
-    answers: 0,
     interactions: 0,
     feedback: 0,
   }
@@ -229,7 +217,6 @@ export async function simulateSocial(
       forKind: 'self' | 'other' | 'undisclosed'
       gift?: GiftTarget | null
       sourceLookId?: string | null
-      sourceAskId?: string | null
     },
   ): Promise<void> {
     await sink.recordPurchase({
@@ -242,7 +229,6 @@ export async function simulateSocial(
       forUserId: opts.gift?.forUserId ?? null,
       forLabel: opts.gift?.label ?? null,
       sourceLookId: opts.sourceLookId ?? null,
-      sourceAskId: opts.sourceAskId ?? null,
       createdAt: stamp(e, k),
     })
     totals.purchases++
@@ -625,125 +611,6 @@ export async function simulateSocial(
     await remix(e, 0, user, parent, e.lookId, e.preset, e.purchaseId)
   }
 
-  async function onAsk(e: PlannedEvent & { kind: 'ask' }): Promise<void> {
-    const p = byId.get(e.userId)!
-    const rng = eventRng(e)
-    const shortlist = pool.shortlist(selfProfile(p))
-    let options: string[] = []
-    if (e.askKind === 'choose') {
-      const look = e.lookId ? looks.get(e.lookId) : undefined
-      const pair = look
-        ? ((): [string, string] | null => {
-            const first = look.articleIds[0]
-            if (first === undefined) return null
-            const alt = chooseProduct(pool, shortlist, rng, {
-              group: (pool.get(first)?.categoryGroup as CategoryGroup | undefined) ?? null,
-              exclude: new Set(look.articleIds),
-            })
-            return alt ? ([first, alt.id] as [string, string]) : null
-          })()
-        : chooseOptions(pool, shortlist, rng)
-      if (!pair) {
-        skipped.ask++
-        return
-      }
-      options = [...pair]
-    }
-    await sink.createAsk({
-      id: e.askId,
-      askerId: p.id,
-      kind: e.askKind,
-      question: askQuestion(rng, e.askKind, e.occasion, e.budget),
-      optionArticleIds: options,
-      lookId: e.lookId && looks.has(e.lookId) ? e.lookId : null,
-      targetUserId: e.friendId,
-      budget: e.budget,
-      occasion: e.occasion,
-      shareToken: token(e.askId),
-      createdAt: stamp(e, 0),
-    })
-    totals.asks++
-    asks.set(e.askId, {
-      askerId: p.id,
-      kind: e.askKind,
-      options,
-      occasion: e.occasion,
-      lookId: e.lookId ?? null,
-    })
-  }
-
-  async function onAnswer(e: PlannedEvent & { kind: 'answer' }): Promise<void> {
-    const ask = asks.get(e.askId)
-    const responder = byId.get(e.userId)
-    const asker = byId.get(e.askerId)
-    if (!ask || !responder || !asker) {
-      skipped.answer++
-      return
-    }
-    const rng = eventRng(e)
-    let k = 0
-    if (ask.kind === 'choose') {
-      const [a, b] = ask.options
-      if (a === undefined || b === undefined) {
-        skipped.answer++
-        return
-      }
-      const pa = pool.get(a)
-      const pb = pool.get(b)
-      const simA = pa ? tasteSimilarity(pa.styleVector, asker.hiddenVector) : 0
-      const simB = pb ? tasteSimilarity(pb.styleVector, asker.hiddenVector) : 0
-      // friends know you: the better-fitting option wins 75 % of the time
-      const better = simA >= simB ? a : b
-      const choice = rng.chance(0.75) ? better : better === a ? b : a
-      await sink.answerAsk({
-        id: `ar_${e.askId}`,
-        askId: e.askId,
-        responderUserId: responder.id,
-        responderName: responder.displayName,
-        choiceArticleId: choice,
-        comment: askComment(rng, 'choose'),
-        createdAt: stamp(e, k++),
-      })
-      totals.answers++
-      if (e.purchaseId) {
-        const product = pool.get(choice)
-        if (product)
-          await purchase(e, k++, asker, product, {
-            purchaseId: e.purchaseId,
-            forKind: 'self',
-            sourceAskId: e.askId,
-            sourceLookId: ask.lookId,
-          })
-      }
-      return
-    }
-    let styledLookId: string | null = null
-    if (e.styledLookId) {
-      const shortlist = pool.shortlist({ ...selfProfile(asker), key: `${asker.id}:styled` })
-      const articles = chooseOutfit(pool, shortlist, rng, [], { occasion: ask.occasion })
-      const look = await makeLook(e, k++, responder, {
-        id: e.styledLookId,
-        articleIds: articles,
-        kind: 'edition',
-        preset: e.styledPreset,
-        occasion: ask.occasion,
-        participants: [{ userId: asker.id, sourceLookId: null }],
-        title: `${responder.displayName.split(' ')[0]} styled ${asker.displayName.split(' ')[0]} for ${ask.occasion}`,
-      })
-      styledLookId = look?.id ?? null
-    }
-    await sink.answerAsk({
-      id: `ar_${e.askId}`,
-      askId: e.askId,
-      responderUserId: responder.id,
-      responderName: responder.displayName,
-      styledLookId,
-      comment: askComment(rng, 'style_me'),
-      createdAt: stamp(e, k++),
-    })
-    totals.answers++
-  }
-
   async function onTogether(e: PlannedEvent & { kind: 'together' }): Promise<void> {
     const owner = byId.get(e.userId)!
     const rng = eventRng(e)
@@ -838,10 +705,6 @@ export async function simulateSocial(
         return onShare(e)
       case 'remix':
         return onRemix(e)
-      case 'ask':
-        return onAsk(e)
-      case 'answer':
-        return onAnswer(e)
       case 'together':
         return onTogether(e)
       case 'engage':
@@ -879,8 +742,6 @@ export async function simulateSocial(
     skipped,
     purchases: totals.purchases,
     looks: totals.looks,
-    asks: totals.asks,
-    answers: totals.answers,
     interactions: totals.interactions,
     feedback: totals.feedback,
     trendSeeds: plan.trendSeeds.map((s) => ({

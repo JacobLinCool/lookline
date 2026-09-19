@@ -83,7 +83,6 @@ export const home = {
     totalOfBudget: (total: string, budget: string) => `${total} of ${budget}`,
     addAll: 'Add all to bag',
     added: 'Added to your bag',
-    askFriend: 'Ask a friend',
     /** Engine outfit slots; singular and not catalog group slugs, so they live here. */
     roles: {
       outer: 'Outer',

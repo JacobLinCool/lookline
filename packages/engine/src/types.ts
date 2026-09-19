@@ -3,8 +3,6 @@
  * keep names and shapes stable; add optional fields, do not rename or remove.
  */
 import type {
-  Ask,
-  AskResponse,
   Department,
   EvaluationRun,
   FeedbackKind,
@@ -404,7 +402,6 @@ export interface PurchaseInput extends DeterministicOptions {
   forUserId?: string | null
   forLabel?: string | null
   sourceLookId?: string | null
-  sourceAskId?: string | null
   intentSessionId?: string | null
 }
 
@@ -435,33 +432,12 @@ export interface RemixSuggestion {
   palette: string[]
 }
 
-export interface CreateAskInput extends DeterministicOptions {
-  askerId: string
-  kind: 'choose' | 'style_me'
-  question: string
-  optionArticleIds?: string[]
-  lookId?: string | null
-  targetUserId?: string | null
-  budget?: number | null
-  occasion?: string | null
-}
-
-export interface AnswerAskInput extends DeterministicOptions {
-  askId: string
-  responderUserId?: string | null
-  responderName?: string | null
-  choiceArticleId?: string | null
-  styledLookId?: string | null
-  comment?: string | null
-}
-
 export interface InteractionInput extends DeterministicOptions {
   actorUserId: string
   type: import('@lookline/db').InteractionType
   targetUserId?: string | null
   lookId?: string | null
   articleId?: string | null
-  askId?: string | null
   payload?: Record<string, unknown>
   sourceInteractionId?: string | null
 }
@@ -481,6 +457,24 @@ export interface LookPosterInput {
   aesthetics: string[]
   seed: number
   editionNumber?: number
+  /** Edition size. With `editionNumber` the card reads 1/N; alone it reads "Edition of N". */
+  editionOf?: number
+  /**
+   * `artwork` draws the ground, the garments and the palette and leaves every word out. The
+   * share export needs that: its text is laid out around the picture, by something that can
+   * reach a font with Chinese in it, which the rasteriser cannot.
+   */
+  chrome?: 'full' | 'artwork'
+  /**
+   * A multi-person card: one band per subject, each holding that subject's own pieces. Without
+   * this the poster is a single flat lay and nothing says whose clothes are whose.
+   */
+  groups?: Array<{
+    name: string
+    articles: Array<
+      Pick<Article, 'name' | 'colorHex' | 'subcategory' | 'pattern' | 'categoryGroup'>
+    >
+  }>
 }
 
 export interface StylePreset {
@@ -552,7 +546,6 @@ export interface TrendDashboard {
   headline: {
     looks: number
     remixes: number
-    asks: number
     togethers: number
     shares: number
     purchases: number
@@ -593,8 +586,6 @@ export interface AnalyticsSummary {
 }
 
 export type {
-  Ask,
-  AskResponse,
   Look,
   Purchase,
   Article,

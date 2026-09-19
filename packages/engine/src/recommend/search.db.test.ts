@@ -13,7 +13,13 @@ import { fixtureBrands, makeProduct } from './testing/fixtures'
 import { countFacet, searchProducts } from './search'
 
 const SEED = 20260918
+const fixtureRows = (brandRecords: ReturnType<typeof fixtureBrands>) =>
+  [1, 2, 3, 4, 5]
+    .map((i) => makeProduct(i, SEED, brandRecords))
+    .map(({ brandName: _brandName, ...row }) => row)
+
 let handle: DbHandle
+let rows: ReturnType<typeof fixtureRows>
 
 beforeAll(async () => {
   handle = await createTestDb()
@@ -34,9 +40,7 @@ beforeAll(async () => {
     })),
     { maxParams: 30_000 },
   )
-  const rows = [1, 2, 3, 4, 5]
-    .map((i) => makeProduct(i, SEED, brandRecords))
-    .map(({ brandName: _brandName, ...row }) => row)
+  rows = fixtureRows(brandRecords)
   await insertAll(handle.db, articles, rows, { maxParams: 20_000 })
   // One article the vision pass has reached: a caption with a motif, a print subject, a design
   // detail and a silhouette. The other four stay as the import left them — unknown, not "no".
@@ -65,6 +69,23 @@ describe('searchProducts (SQLite integration)', () => {
     expect(result.facets?.categoryGroups.length).toBeGreaterThan(0)
     const counted = result.facets!.categoryGroups.reduce((n, g) => n + g.count, 0)
     expect(counted).toBe(5)
+  })
+
+  it('leaves out an article H&M never photographed, in the rows and in the counts', async () => {
+    // 440 of the real 105 220 have no `image_path`. `ProductImage` renders an empty tonal ground
+    // for them and the vision pass skips them, so they carry no aesthetic, pattern or fit either
+    // — a blank tile that nothing can rank.
+    const [first] = rows
+    await handle.db.update(articles).set({ imagePath: null }).where(eq(articles.id, first!.id))
+    const result = await searchProducts(handle.db, {})
+    expect(result.total).toBe(4)
+    expect(result.items.map((i) => i.id)).not.toContain(first!.id)
+    const counted = result.facets!.categoryGroups.reduce((n, g) => n + g.count, 0)
+    expect(counted).toBe(4)
+    await handle.db
+      .update(articles)
+      .set({ imagePath: first!.imagePath })
+      .where(eq(articles.id, first!.id))
   })
 
   it('runs with a filter and counts only what the filter matched', async () => {

@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./testing": "./src/recommend/testing/fixtures.ts",
+    "./cards/rules": "./src/cards/rules.ts",
     "./hints": "./src/decisions/hints.ts",
     "./occasions": "./src/constants/occasions.ts",
     "./keywords": "./src/decisions/keywords.ts",

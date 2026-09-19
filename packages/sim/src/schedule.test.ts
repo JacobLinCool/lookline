@@ -34,9 +34,7 @@ describe('planSimulation', () => {
           ? e.purchaseId
           : e.kind === 'edition' || e.kind === 'remix' || e.kind === 'together'
             ? e.lookId
-            : e.kind === 'ask'
-              ? e.askId
-              : null
+            : null
       if (id) {
         expect(ids.has(id)).toBe(false)
         ids.add(id)
@@ -46,30 +44,17 @@ describe('planSimulation', () => {
     expect([...ids].some((id) => id === 'lk_000001')).toBe(true)
   })
 
-  it('covers every event kind and answers most Asks after 0–2 days', () => {
+  it('covers every event kind', () => {
     for (const kind of [
       'browse',
       'purchase',
       'edition',
       'share',
-      'ask',
-      'answer',
       'together',
       'remix',
       'engage',
     ] as const)
       expect(plan.counts[kind]).toBeGreaterThan(0)
-    const asks = new Map(plan.events.filter((e) => e.kind === 'ask').map((e) => [e.askId, e.day]))
-    let answered = 0
-    for (const e of plan.events) {
-      if (e.kind !== 'answer') continue
-      const askDay = asks.get(e.askId)
-      expect(askDay).toBeDefined()
-      expect(e.day - askDay!).toBeGreaterThanOrEqual(0)
-      expect(e.day - askDay!).toBeLessThanOrEqual(2)
-      answered++
-    }
-    expect(answered / asks.size).toBeGreaterThan(0.7)
   })
 
   it('plants four trend seeds with remix chains of depth ≥ 4 across ≥ 3 clusters in the last 3 weeks', () => {

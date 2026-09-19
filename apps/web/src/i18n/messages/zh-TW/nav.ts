@@ -3,6 +3,7 @@ import type { NavMessages } from '../en/nav'
 export const nav: NavMessages = {
   find: '尋找',
   shop: '選購',
+  studio: '製卡',
   wardrobe: '衣櫥',
   bag: '購物袋',
   primary: '主要導覽',

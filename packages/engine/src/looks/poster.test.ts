@@ -97,3 +97,76 @@ describe('renderLookPosterSvg', () => {
     )
   })
 })
+
+describe('renderLookPosterSvg with groups', () => {
+  const tee = {
+    name: 'Tee',
+    colorHex: '#223344',
+    subcategory: 'tee',
+    pattern: 'solid',
+    categoryGroup: 'tops' as const,
+  }
+  const skirt = { ...tee, name: 'Skirt', subcategory: 'skirt', categoryGroup: 'bottoms' as const }
+  const base = {
+    title: '家族出遊',
+    ownerName: 'Alice',
+    stylePreset: 'studio',
+    palette: ['#223344'],
+    aesthetics: [],
+    seed: 7,
+  }
+
+  it('captions a band per subject and keeps each subject in their own band', () => {
+    // The whole point of a group card: whose clothes are whose. A flat union would draw the same
+    // shapes with nothing saying who wore them.
+    const svg = renderLookPosterSvg({
+      ...base,
+      articles: [tee, skirt],
+      groups: [
+        { name: '媽媽', articles: [tee] },
+        { name: '爸爸', articles: [skirt] },
+      ],
+    })
+    expect(svg).toContain('媽媽')
+    expect(svg).toContain('爸爸')
+    const y = (name: string) =>
+      Number(new RegExp(`<text [^>]*y="([\\d.]+)"[^>]*>${name}</text>`).exec(svg)![1])
+    expect(y('媽媽')).toBeLessThan(y('爸爸'))
+    // Two shapes, each drawn once — bands partition the pieces rather than repeating them.
+    expect(svg.split('<g transform="translate(').length - 1).toBe(2)
+  })
+
+  it('leaves a single-subject card as one flat lay', () => {
+    const svg = renderLookPosterSvg({ ...base, articles: [tee, skirt] })
+    expect(svg).not.toContain('媽媽')
+  })
+})
+
+describe('renderLookPosterSvg chrome', () => {
+  it('leaves every word out of the artwork-only variant, and keeps the picture', () => {
+    // The share export lays its own text out, with a font that has Chinese in it; the rasteriser
+    // behind it does not, so anything the poster writes here would come out as tofu.
+    const input: LookPosterInput = {
+      title: '媽媽',
+      ownerName: 'Alice',
+      stylePreset: 'studio',
+      articles: [
+        {
+          name: 'Tee',
+          colorHex: '#223344',
+          subcategory: 'tee',
+          pattern: 'solid',
+          categoryGroup: 'tops' as const,
+        },
+      ],
+      palette: ['#223344'],
+      aesthetics: [],
+      seed: 3,
+    }
+    const artwork = renderLookPosterSvg({ ...input, chrome: 'artwork' })
+    expect(artwork).not.toContain('<text')
+    expect(artwork).toContain('<g transform="translate(')
+    expect(artwork).toContain('#223344')
+    expect(renderLookPosterSvg(input)).toContain('媽媽')
+  })
+})

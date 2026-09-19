@@ -56,7 +56,6 @@ export const looks: LooksMessages = {
     inspiredBy: '靈感來自',
     madeWith: (names: readonly string[]) => `和 ${names.join('、')} 一起完成`,
     makeItMine: '做成我的',
-    askAFriend: '問朋友',
     together: '一起搭',
     liked: (n: number) => `${n} 個人喜歡`,
     visibility: '誰可以看到',

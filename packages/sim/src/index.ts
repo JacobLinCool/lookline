@@ -31,7 +31,6 @@ export {
   ProductPool,
   SHORTLIST_PER_GROUP,
   budgetFit,
-  chooseOptions,
   chooseOutfit,
   chooseProduct,
   compatibleDepartments,

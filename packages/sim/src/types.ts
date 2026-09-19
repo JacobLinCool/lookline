@@ -5,8 +5,6 @@
  */
 import type { Department, Article } from '@lookline/db'
 import type {
-  AnswerAskInput,
-  CreateAskInput,
   CreateLookInput,
   FeedbackInput,
   InteractionInput,
@@ -22,8 +20,6 @@ export interface PersonaParams {
   activity: number
   /** Base probability of remixing a Look a friend shared, in (0, 1). */
   remixPropensity: number
-  /** Base probability of sending an Ask on an active day, in (0, 1). */
-  askPropensity: number
   /** How many closest friends receive shares (1–6). */
   shareRadius: number
 }
@@ -150,28 +146,6 @@ export type PlannedEvent =
       remixPurchaseId: string | null
     })
   | (EventBase & {
-      kind: 'ask'
-      userId: string
-      friendId: string
-      askId: string
-      askKind: 'choose' | 'style_me'
-      occasion: string
-      budget: number
-      /** Look the Ask is about (trend-seed Looks), when any. */
-      lookId: string | null
-    })
-  | (EventBase & {
-      kind: 'answer'
-      askId: string
-      userId: string
-      askerId: string
-      /** The asker buys the chosen option afterwards (choose Asks only). */
-      purchaseId: string | null
-      /** The responder's styled Look for style_me Asks. */
-      styledLookId: string | null
-      styledPreset: string
-    })
-  | (EventBase & {
       kind: 'together'
       userId: string
       lookId: string
@@ -273,8 +247,6 @@ export interface SimSink {
   ): Promise<{ depth: number; rootLookId: string }>
   /** Article ids of a "Make It Mine" suggestion (may be empty). */
   suggestRemix(sourceLookId: string, userId: string): Promise<string[]>
-  createAsk(input: Deterministic<CreateAskInput>): Promise<void>
-  answerAsk(input: Deterministic<AnswerAskInput>): Promise<void>
   /** Optional: called once after the run. */
   finish?(): Promise<void>
 }
@@ -309,8 +281,6 @@ export interface SimSummary {
   skipped: Record<PlannedEventKind, number>
   purchases: number
   looks: Record<'edition' | 'remix' | 'together', number>
-  asks: number
-  answers: number
   interactions: number
   feedback: number
   trendSeeds: Array<{ slug: string; rootLookId: string; carrierId: string; looks: number }>

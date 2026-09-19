@@ -136,7 +136,6 @@ export async function LineageStatsPanel({ stats }: { stats: LineageTree['stats']
     [s.people, String(stats.uniquePeople)],
     [s.clusters, String(stats.clustersReached)],
     [s.shares, String(stats.shares)],
-    [s.asks, String(stats.asks)],
     [s.remixes, String(stats.remixes)],
     [s.purchases, String(stats.purchases)],
     [s.gmv, formatTwd(stats.gmv)],

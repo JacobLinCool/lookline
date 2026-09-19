@@ -7,8 +7,6 @@ import { getI18n } from '@/i18n/server'
 type Edge = UserNetwork['edges'][number]
 
 const KIND_ORDER: RelationshipKind[] = [
-  'asks',
-  'trusts',
   'inspired_by',
   'styles',
   'buys_for',
@@ -24,10 +22,6 @@ export function describeEdge(edge: Edge, m: MeMessages['people']['edges']): stri
   const name = edge.other.displayName
   const out = edge.direction === 'out'
   switch (edge.relationship.kind) {
-    case 'asks':
-      return out ? m.asksOut(name) : m.asksIn(name)
-    case 'trusts':
-      return out ? m.trustsOut(name) : m.trustsIn(name)
     case 'inspired_by':
       return out ? m.inspiredOut(name) : m.inspiredIn(name)
     case 'styles':

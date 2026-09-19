@@ -142,7 +142,6 @@ export default async function ProductPage({
   const added = typeof query.added === 'string' ? query.added : null
   const attribution = {
     sourceLook: typeof query.look === 'string' ? query.look : null,
-    sourceAsk: typeof query.ask === 'string' ? query.ask : null,
     intentSession: from ?? null,
   }
 

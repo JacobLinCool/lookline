@@ -97,7 +97,7 @@ describe('buildSearchQuery', () => {
         handle.db as unknown as { dialect: { sqlToQuery: (q: unknown) => { sql: string } } }
       ).dialect.sqlToQuery(q).sql
     expect(render(aestheticFacets)).toBe(
-      'select "articles"."aesthetics" as key, count(*) as n from "articles" where "articles"."category_group" in (?) group by 1',
+      'select "articles"."aesthetics" as key, count(*) as n from "articles" where ("articles"."image_path" is not null and "articles"."category_group" in (?)) group by 1',
     )
     expect(render(facets)).not.toContain('aesthetic')
     expect(render(facets)).not.toContain('json_each')
