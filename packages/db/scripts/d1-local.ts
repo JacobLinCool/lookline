@@ -1,14 +1,15 @@
 /**
  * `pnpm --filter @lookline/db d1:local` — copy the seeded local SQLite database into the D1
- * database that `vinext dev` uses (Miniflare's `.wrangler/state` file). Stop the dev server
- * first; run `wrangler d1 migrations apply lookline --local` once before so the tables exist.
- * Every listed table is replaced wholesale, then the FTS index is rebuilt.
+ * database that `vinext dev` uses (Miniflare's `.wrangler/state` file). Applies the migrations
+ * with wrangler first (which also creates the file for the current `database_id`), then replaces
+ * every listed table wholesale and rebuilds the FTS index. Stop the dev server first.
  */
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@libsql/client'
 import { FTS_REBUILD_SQL } from '../src/fts'
-import { findLocalD1File, loadEnv, localDbPath, repoRoot } from '../src/node'
+import { listLocalD1Files, loadEnv, localDbPath, repoRoot } from '../src/node'
 import { TABLE_ORDER } from '../src/tables'
 
 loadEnv()
@@ -18,12 +19,23 @@ if (!fs.existsSync(source)) {
   console.error(`no local database at ${source} — run \`pnpm db:migrate && pnpm seed\` first`)
   process.exit(1)
 }
-const target = findLocalD1File(path.join(repoRoot(), 'apps/web'))
+const appDir = path.join(repoRoot(), 'apps/web')
+const wrangler = path.join(appDir, 'node_modules/.bin/wrangler')
+const migrate = spawnSync(wrangler, ['d1', 'migrations', 'apply', 'lookline', '--local'], {
+  cwd: appDir,
+  stdio: 'inherit',
+})
+if (migrate.status !== 0) process.exit(migrate.status ?? 1)
+const candidates = listLocalD1Files(appDir)
+const target = candidates[0]
 if (!target) {
-  console.error(
-    'no local D1 database yet — run `pnpm --filter @lookline/web exec wrangler d1 migrations apply lookline --local` first',
-  )
+  console.error('no local D1 database was created under apps/web/.wrangler/state')
   process.exit(1)
+}
+if (candidates.length > 1) {
+  console.warn(
+    `note: ${candidates.length} local D1 files exist (a changed database_id leaves the old one behind); using the most recently touched:\n  ${target}`,
+  )
 }
 
 const client = createClient({ url: `file:${target}` })

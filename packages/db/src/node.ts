@@ -116,12 +116,30 @@ export async function createTestDb(): Promise<DbHandle> {
  * server has never created it.
  */
 export function findLocalD1File(appDir: string = path.join(repoRoot(), 'apps/web')): string | null {
+  return listLocalD1Files(appDir)[0] ?? null
+}
+
+/**
+ * Every local D1 object file, most recently touched first. Miniflare creates one file per
+ * `database_id`, so an old id leaves a stale file behind; the active one is the file wrangler
+ * touched last (its `-wal` / `-shm` siblings count, they change on every open).
+ */
+export function listLocalD1Files(appDir: string = path.join(repoRoot(), 'apps/web')): string[] {
   const dir = path.join(appDir, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject')
-  if (!fs.existsSync(dir)) return null
-  const files = fs
+  if (!fs.existsSync(dir)) return []
+  const touched = (file: string): number =>
+    Math.max(
+      ...['', '-wal', '-shm'].map((suffix) => {
+        try {
+          return fs.statSync(file + suffix).mtimeMs
+        } catch {
+          return 0
+        }
+      }),
+    )
+  return fs
     .readdirSync(dir)
-    .filter((f) => f.endsWith('.sqlite'))
+    .filter((f) => f.endsWith('.sqlite') && f !== 'metadata.sqlite')
     .map((f) => path.join(dir, f))
-    .toSorted((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)
-  return files[0] ?? null
+    .toSorted((a, b) => touched(b) - touched(a))
 }
