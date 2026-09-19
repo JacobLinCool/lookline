@@ -71,14 +71,14 @@ describe('style_similarity', () => {
     expect(plain.applicable).toBe(true)
     expect(plain.value).toBeGreaterThan(0.5)
     expect(plain.value).toBeLessThanOrEqual(1)
-    expect(plain.evidence).toMatch(/matches streetwear \(0\.\d+\)/)
     expect(plain.evidence).toContain('colour black')
+    expect(plain.evidence).toMatch(/overall style similarity 0\.\d+/)
     expect(social.value).toBeCloseTo(Math.min(1, plain.value + 0.05), 9)
   })
   it('renders zh evidence for zh-TW intents', () => {
     const intent = makeIntent({ locale: 'zh-TW', aesthetics: ['streetwear'] })
     const r = styleSimilarity(candidate(hoodie), makeRankContext(intent))
-    expect(r.evidence).toContain('風格對到街頭')
+    expect(r.evidence).toContain('整體風格相似度')
   })
 })
 
@@ -102,7 +102,7 @@ describe('attribute_match', () => {
     expect(none.applicable).toBe(false)
     const intent = makeIntent({
       season: 'winter',
-      axisTargets: { formality: hoodie.styleVector[44]! },
+      axisTargets: { formality: hoodie.styleVector[12]! },
     })
     const r = attributeMatch(candidate(hoodie), makeRankContext(intent))
     expect(r.value).toBeCloseTo(1, 9)

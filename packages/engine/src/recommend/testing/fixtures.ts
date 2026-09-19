@@ -315,7 +315,6 @@ export function makeProduct(
       ? rng.pick(COLORS.filter((c) => c.family !== family))
       : null
   const styleVector = toStyleVector({
-    aesthetics: aestheticWeights,
     colorFamily: family,
     secondaryColorFamily: secondaryColour?.family ?? null,
     axes,
@@ -435,7 +434,6 @@ export function product(
       axes[k as Axis] = base.styleVector[idx] ?? 0.5
     }
     merged.styleVector = toStyleVector({
-      aesthetics,
       colorFamily: merged.colorFamily as ColorFamily,
       axes,
       categoryGroup: merged.categoryGroup as CategoryGroup,

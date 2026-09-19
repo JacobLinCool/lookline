@@ -274,6 +274,8 @@ export interface PreferenceProfile {
   topColorFamilies: Array<{ family: ColorFamily; weight: number }>
   axes: Record<Axis, number>
   giftTopAesthetics: PreferenceAesthetic[]
+  /** Colour families of the taste-for-others vector. */
+  giftTopColorFamilies: Array<{ family: string; weight: number }>
   snapshots: Array<{ version: number; createdAt: Date; metrics: Record<string, number> }>
   /** Current bandit state summary, for the profile card. */
   bandit?: {

@@ -30,7 +30,6 @@ export function makeProduct(spec: FixtureSpec): Article {
     aesthetics[slug] = i === 0 ? 1 : 0.5
   })
   const styleVector = toStyleVector({
-    aesthetics,
     colorFamily: spec.colorFamily,
     axes: {
       formality: spec.formality ?? 0.5,

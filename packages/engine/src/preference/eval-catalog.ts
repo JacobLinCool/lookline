@@ -215,7 +215,6 @@ export function syntheticProduct(
   }
 
   const vector = toStyleVector({
-    aesthetics,
     colorFamily: colour.family,
     secondaryColorFamily: hasSecondaryColour ? secondaryColour.family : null,
     axes,

@@ -3,7 +3,7 @@
  * `completeTheLook`, `searchProducts`). `recommend` never writes feedback events or interactions:
  * the web layer logs impressions.
  */
-import { axisIndex, toStyleVector } from '@lookline/catalog'
+import { STYLE_BLOCKS, axisIndex, toStyleVector } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
 import { brands, eq, lookArticles, looks, articles, users } from '@lookline/db'
 import type { Database, Department, Article } from '@lookline/db'
@@ -226,7 +226,7 @@ async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLoo
   if (!styleVector && items.length > 0) {
     styleVector = Array.from({ length: 64 }, () => 0)
     for (const p of items) {
-      for (let i = 0; i < 52; i++)
+      for (let i = 0; i < STYLE_BLOCKS.groups[0]; i++)
         styleVector[i] = (styleVector[i] ?? 0) + (p.styleVector[i] ?? 0) / items.length
     }
   }
@@ -338,7 +338,6 @@ export function pseudoVector(p: Article, intent: EngineIntent): number[] {
     Record<Axis, number>
   >
   return toStyleVector({
-    aesthetics: intent.aestheticWeights ?? {},
     colorFamily: p.colorFamily as ColorFamily,
     secondaryColorFamily: secondary,
     axes,

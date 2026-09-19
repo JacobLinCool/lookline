@@ -3,19 +3,9 @@
  * its articles (docs/CONTRACTS.md "createLook … computes aesthetics, palette, styleVector").
  */
 import type { Article } from '@lookline/db'
-import {
-  AESTHETICS,
-  aestheticIndex,
-  blendVectors,
-  normalizeVector,
-  zeroVector,
-} from '@lookline/catalog'
+import { blendVectors, normalizeVector, zeroVector } from '@lookline/catalog'
 import type { LookStyle } from '../types'
 import { luminance, normalizeHex } from './color'
-
-const MAX_AESTHETICS = 5
-/** Aesthetics below this fraction of the strongest one are dropped. */
-const RELATIVE_FLOOR = 0.35
 
 /**
  * Aesthetics: top tags of the mean aesthetic block (dims 0–31), at most 5, keeping only tags
@@ -30,18 +20,9 @@ export function deriveLookStyle(
   const vectors = articles.map((p) => sanitizeVector(p.styleVector))
   const blend = vectors.length > 0 ? blendVectors(vectors) : zeroVector()
 
-  const weights = AESTHETICS.map((a) => ({ slug: a.slug, weight: blend[a.index] ?? 0 }))
-  const strongest = weights.reduce((m, a) => Math.max(m, a.weight), 0)
-  const aesthetics =
-    strongest > 0
-      ? weights
-          .filter((a) => a.weight >= strongest * RELATIVE_FLOOR)
-          .toSorted(
-            (x, y) => y.weight - x.weight || aestheticIndex(x.slug) - aestheticIndex(y.slug),
-          )
-          .slice(0, MAX_AESTHETICS)
-          .map((a) => a.slug)
-      : []
+  // The aesthetic dimensions are gone, so a Look reports no aesthetics. Reading them off the
+  // first 32 dimensions would name colours as styles, which is what it did until this changed.
+  const aesthetics: string[] = []
 
   const seen = new Set<string>()
   const palette: string[] = []

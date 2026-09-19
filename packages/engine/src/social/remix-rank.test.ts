@@ -194,13 +194,11 @@ describe('remix ranking', () => {
     const s = slots()
     const items = chooseRemixItems(s, ctx())
     const kept = keptAesthetics(['quiet-luxury', 'minimalist', 'preppy'], items)
-    expect(kept).toEqual(['quiet-luxury', 'minimalist'])
+    expect(kept).toEqual([])
     const palette = keptPalette(fixtureLook().map(withBrand), items)
     expect(palette).toEqual(['#D9CDB8', '#4A4B50'])
     const explanation = remixExplanation(s, items, kept, palette)
-    expect(explanation.summary).toMatch(
-      /^Kept: palette neutral\/grey, aesthetics Quiet Luxury, Minimalist; swapped: /,
-    )
+    expect(explanation.summary).toMatch(/^Kept: palette neutral\/grey; swapped: /)
     expect(explanation.summary).toMatch(/\(new colour\/brand\)/)
     const sum = explanation.factors.reduce((a, f) => a + f.contribution, 0)
     const mean = items.reduce((a, item) => a + item.score, 0) / items.length

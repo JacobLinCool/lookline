@@ -152,9 +152,6 @@ for (const a of source) {
     attributes: detail.attributes,
     material,
     styleVector: toStyleVector({
-      // No aesthetic is stated anywhere in the dataset, and inferring one is the semantic pass
-      // this import deliberately does not do. Every other axis below is evidence.
-      aesthetics: {},
       colorFamily: colorFamilyOf(a.colourFamily ?? '') as ColorFamily,
       secondaryColorFamily: null,
       axes: styleAxes({

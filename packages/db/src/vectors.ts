@@ -1,6 +1,6 @@
 /**
  * Cosine ranking in SQL without an extension. `article_vectors` keeps a unit-normalised copy of
- * every `articles.style_vector` spread over 64 REAL columns (`v0` … `v63`; created by
+ * every `articles.style_vector` spread over 32 REAL columns (`v0` … `v31`; created by
  * `drizzle/0001_vectors_fts.sql`). The query vector is normalised in-process and inlined as
  * literals, so `cosineExpr(q)` is a plain dot product the SQLite engine evaluates per row —
  * 100k rows in ~100 ms, far less once the WHERE prefilter narrows the scan. Statements stay well

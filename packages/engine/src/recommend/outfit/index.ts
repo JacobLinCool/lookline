@@ -3,7 +3,12 @@
  * mapping of solver states to the contract `Outfit`.
  */
 import { createHash } from 'node:crypto'
-import { categoryGroupIndex, colorFamilyIndex } from '@lookline/catalog'
+import {
+  STYLE_BLOCKS,
+  STYLE_DIMENSIONS,
+  categoryGroupIndex,
+  colorFamilyIndex,
+} from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
 import type { Department, Article } from '@lookline/db'
 import type { Explanation, ExplanationFactor, Outfit, RankedItem } from '../../types'
@@ -68,8 +73,8 @@ const NEUTRAL_PRIOR: ReadonlyArray<ColorFamily> = ['black', 'white', 'neutral', 
 /** Intent vector with the slot's category one-hot; accessories blend the colour block with neutrals. */
 export function slotVector(intentVector: readonly number[], slot: SlotSpec): number[] {
   const v = intentVector.slice(0, 64)
-  while (v.length < 64) v.push(0)
-  for (let i = 52; i < 64; i++) v[i] = 0
+  while (v.length < STYLE_DIMENSIONS) v.push(0)
+  for (let i = STYLE_BLOCKS.groups[0]; i < STYLE_BLOCKS.groups[1]; i++) v[i] = 0
   for (const g of slot.groups) v[categoryGroupIndex(g)] = 1
   if (slot.groups.every((g) => ACCESSORY_GROUPS.has(g))) {
     for (let i = 32; i < 44; i++) v[i] = 0.5 * (v[i] ?? 0)
@@ -114,14 +119,16 @@ function sha1Id(ids: readonly string[]): string {
 
 /** Mean of the items' A/C/X blocks (clamped) with the category groups unioned (private deriveLookStyle). */
 export function outfitStyleVector(articles: readonly Article[]): number[] {
-  const v = Array.from({ length: 64 }, () => 0)
+  const v = Array.from({ length: STYLE_DIMENSIONS }, () => 0)
   if (articles.length === 0) return v
+  const groupsFrom = STYLE_BLOCKS.groups[0]
   for (const p of articles) {
-    for (let i = 0; i < 52; i++) v[i] = (v[i] ?? 0) + (p.styleVector[i] ?? 0) / articles.length
+    for (let i = 0; i < groupsFrom; i++)
+      v[i] = (v[i] ?? 0) + (p.styleVector[i] ?? 0) / articles.length
     const g = categoryGroupIndex(p.categoryGroup as CategoryGroup)
-    if (g >= 52) v[g] = 1
+    if (g >= groupsFrom) v[g] = 1
   }
-  for (let i = 0; i < 52; i++) v[i] = clamp01(v[i] ?? 0)
+  for (let i = 0; i < groupsFrom; i++) v[i] = clamp01(v[i] ?? 0)
   return v
 }
 

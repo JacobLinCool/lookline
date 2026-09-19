@@ -7,15 +7,11 @@
  * (52–63) is an exponential moving average that only positive events update.
  */
 import {
-  AESTHETICS,
-  AESTHETIC_PRIOR,
   CATEGORY_GROUPS,
   COLOR_FAMILIES,
   STYLE_DIMENSIONS,
-  aestheticDeptMult,
   colorFamilyIndex,
   colorFamilyWeight,
-  type AestheticSlug,
 } from '@lookline/catalog'
 import type { Department } from '@lookline/db'
 import { BLOCK, clamp01, zero64 } from './vector'
@@ -41,8 +37,6 @@ export const GROUP_EMA = 0.5
 
 const DAY_MS = 86_400_000
 
-/** Total aesthetic mass of a typical product vector (primary ≥ .85 + secondary ≥ .55 + tail). */
-const PRIOR_AESTHETIC_MASS = 1.6
 /** Total colour mass of a typical product vector (primary 1.0 + 40% chance of a .4 secondary). */
 const PRIOR_COLOR_MASS = 1.16
 
@@ -81,21 +75,8 @@ export function departmentPrior(department: Department): number[] {
   const cached = priorCache.get(department)
   if (cached) return cached.slice()
   const p = zero64()
-  // A block
-  let total = 0
-  const weights = AESTHETICS.map((a) => {
-    const w =
-      (AESTHETIC_PRIOR[a.slug as AestheticSlug] ?? 1 / 32) * aestheticDeptMult(a.slug, department)
-    total += w
-    return w
-  })
-  if (total <= 0) {
-    total = AESTHETICS.length
-    weights.fill(1)
-  }
-  AESTHETICS.forEach((a, i) => {
-    p[a.index] = (PRIOR_AESTHETIC_MASS * (weights[i] ?? 0)) / total
-  })
+  // The aesthetic block is gone, and with it the per-department aesthetic prior; its mass moves
+  // to colour, which is the only taste dimension the catalogue can still express.
   // C block: mean over groups of the normalised per-group family prior
   const colour = Array.from({ length: COLOR_FAMILIES.length }, () => 0)
   for (const group of CATEGORY_GROUPS) {
@@ -148,7 +129,7 @@ export function applyEvent(
   const eta = learningRate(state.n, scale)
   const g = r > 0 ? r : NEGATIVE_STEP * r
   const p = state.p
-  for (let i = BLOCK.A[0]; i < BLOCK.X[1]; i++) {
+  for (let i = BLOCK.C[0]; i < BLOCK.X[1]; i++) {
     const cur = p[i] ?? 0
     p[i] = clamp01(cur + eta * g * ((v[i] ?? 0) - cur))
   }

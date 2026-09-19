@@ -1,3 +1,4 @@
+import { STYLE_DIMENSIONS } from '@lookline/catalog'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { LlmClient } from '../types'
 import { setLlm } from '../llm'
@@ -126,7 +127,7 @@ describe('parseIntent', () => {
     const r = await parseIntent('黑色帽T', { ...FIXTURE_CTX, offline: true })
     expect(r.provider).toBe('offline')
     expect(r.intent.parser).toBe('lexicon')
-    expect(r.vector).toHaveLength(64)
+    expect(r.vector).toHaveLength(STYLE_DIMENSIONS)
     expect(r.latencyMs).toBeGreaterThanOrEqual(0)
   })
 

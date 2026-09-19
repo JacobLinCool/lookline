@@ -7,26 +7,24 @@
  */
 import { STYLE_DIMENSIONS } from '@lookline/catalog'
 
-export const BLOCK = { A: [0, 32], C: [32, 44], X: [44, 52], G: [52, 64] } as const
+export const BLOCK = { C: [0, 12], X: [12, 20], G: [20, 32] } as const
 
 export interface BlockWeights {
-  A: number
   C: number
   X: number
   G: number
 }
 
 /** Cosine weights used for preference ↔ product similarity (§0.8). */
-export const PREFERENCE_BLOCK_WEIGHTS: BlockWeights = { A: 1, C: 0.7, X: 0.5, G: 0 }
+export const PREFERENCE_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0.5, G: 0 }
 /** Cosine weights used for intent ↔ product style similarity (§0.8). */
-export const SIMILARITY_BLOCK_WEIGHTS: BlockWeights = { A: 1, C: 0.7, X: 0, G: 0 }
+export const SIMILARITY_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0, G: 0 }
 
 export const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x)
 
 /** Per-dimension weight vector for a block-weight spec. */
 export function blockWeightsPerDim(w: BlockWeights): Float64Array {
   const out = new Float64Array(STYLE_DIMENSIONS)
-  out.fill(w.A, BLOCK.A[0], BLOCK.A[1])
   out.fill(w.C, BLOCK.C[0], BLOCK.C[1])
   out.fill(w.X, BLOCK.X[0], BLOCK.X[1])
   out.fill(w.G, BLOCK.G[0], BLOCK.G[1])

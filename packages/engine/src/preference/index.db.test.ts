@@ -14,7 +14,7 @@ import {
   users,
 } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
-import { aestheticIndex } from '@lookline/catalog'
+import { STYLE_DIMENSIONS, aestheticIndex } from '@lookline/catalog'
 import { fixtureBrands, makeProduct } from '../recommend/testing/fixtures'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getPreferenceProfile, recordFeedback } from './index'
@@ -101,7 +101,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
       .select({ p: users.preferenceVector, g: users.giftPreferenceVector })
       .from(users)
       .where(eq(users.id, USER_ID))
-    expect(afterSave?.p).toHaveLength(64)
+    expect(afterSave?.p).toHaveLength(STYLE_DIMENSIONS)
     expect(afterSave?.g).toBeNull()
     const [product] = await db
       .select({ v: articles.styleVector })
@@ -150,7 +150,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
       .from(users)
       .where(eq(users.id, USER_ID))
     expect(afterGift!.p).toEqual(beforeGift!.p)
-    expect(afterGift!.g).toHaveLength(64)
+    expect(afterGift!.g).toHaveLength(STYLE_DIMENSIONS)
     const snaps2 = await db
       .select()
       .from(preferenceSnapshots)
@@ -193,13 +193,12 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     const profile = await getPreferenceProfile(db, USER_ID)
     expect(profile.userId).toBe(USER_ID)
     expect(profile.eventCount).toBe(6)
-    expect(profile.vector).toHaveLength(64)
-    expect(profile.giftVector).toHaveLength(64)
-    expect(profile.topAesthetics.length).toBeGreaterThan(0)
-    expect(profile.topAesthetics[0]!.evidence.length).toBeGreaterThan(0)
-    expect(profile.topAesthetics[0]!.evidence.join(' ')).toMatch(/bought|saved|clicked/)
-    expect(profile.giftTopAesthetics.length).toBeGreaterThan(0)
-    expect(profile.giftTopAesthetics[0]!.evidence.join(' ')).toContain('for dad')
+    expect(profile.vector).toHaveLength(STYLE_DIMENSIONS)
+    expect(profile.giftVector).toHaveLength(STYLE_DIMENSIONS)
+    // No aesthetic tags in the catalogue, so a profile reports colour families instead.
+    expect(profile.topAesthetics).toEqual([])
+    expect(profile.topColorFamilies.length).toBeGreaterThan(0)
+    expect(profile.giftTopColorFamilies.length).toBeGreaterThan(0)
     expect(profile.snapshots).toHaveLength(2)
     expect(profile.snapshots[0]!.version).toBe(2)
     expect(profile.bandit?.arms.find((a) => a.name === 'taste-led')?.pulls).toBe(1)

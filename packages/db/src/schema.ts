@@ -6,9 +6,9 @@
  * - `articles` is keyed by H&M's own zero-padded `article_id`; `brands` keeps an integer key.
  * - App entities use text primary keys (deterministic ids from the simulation, nanoid at runtime).
  * - Enums are `text` columns constrained by the `*_VALUES` tuples below.
- * - Arrays and objects are JSON text (`mode: 'json'`); every 64-d vector is a JSON array following
+ * - Arrays and objects are JSON text (`mode: 'json'`); every 32-d vector is a JSON array following
  *   the style-space layout in docs/ARCHITECTURE.md (`product_vectors` keeps a normalised copy of
- *   `articles.style_vector` spread over 64 REAL columns for cosine ranking in SQL — see
+ *   `articles.style_vector` spread over 32 REAL columns for cosine ranking in SQL — see
  *   `vectors.ts` and `drizzle/0001_vectors_fts.sql`).
  * - Timestamps are integer milliseconds since the epoch (`mode: 'timestamp_ms'`, JS `Date`).
  * - Prices are integer TWD.
@@ -25,7 +25,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
-export const STYLE_DIMENSIONS = 64
+export const STYLE_DIMENSIONS = 32
 
 // ---------------------------------------------------------------------------
 // Enum values
@@ -149,7 +149,7 @@ const stringList = (name: string) =>
     .default(sql`'[]'`)
 const json = <T>(name: string) => text(name, { mode: 'json' }).$type<T>()
 
-/** 64-d style vector stored as a JSON array with 6 decimals (`null` stays `null`). */
+/** 32-d style vector stored as a JSON array with 6 decimals (`null` stays `null`). */
 export const vector = customType<{ data: number[]; driverData: string }>({
   dataType() {
     return 'text'

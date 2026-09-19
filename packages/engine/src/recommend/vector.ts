@@ -5,26 +5,25 @@
 import { COLOR_FAMILIES, cosineSimilarity, weightStyleVector } from '@lookline/catalog'
 import type { ColorFamily } from '@lookline/catalog'
 
-export const BLOCK = { A: [0, 32], C: [32, 44], X: [44, 52], G: [52, 64] } as const
+export const BLOCK = { C: [0, 12], X: [12, 20], G: [20, 32] } as const
 
 export interface BlockWeights {
-  A: number
   C: number
   X: number
   G: number
 }
 
 /** Query-side scaling for the SQL cosine (axes zeroed: scored in `attribute_match`). */
-export const RETRIEVAL_BLOCK_WEIGHTS: BlockWeights = { A: 1, C: 0.7, X: 0, G: 1 }
+export const RETRIEVAL_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0, G: 1 }
 /** `style_similarity` factor. */
-export const SIMILARITY_BLOCK_WEIGHTS: BlockWeights = { A: 1, C: 0.7, X: 0, G: 0 }
+export const SIMILARITY_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0, G: 0 }
 /** `user_preference` factor. */
-export const PREFERENCE_BLOCK_WEIGHTS: BlockWeights = { A: 1, C: 0.7, X: 0.5, G: 0 }
+export const PREFERENCE_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0.5, G: 0 }
 
 export const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x)
 
 export function blockScale(v: readonly number[], w: BlockWeights): number[] {
-  return weightStyleVector(v, { aesthetics: w.A, colors: w.C, axes: w.X, groups: w.G })
+  return weightStyleVector(v, { colors: w.C, axes: w.X, groups: w.G })
 }
 
 /** Cosine of the two block-scaled vectors; 0 when either scaled vector is zero. */

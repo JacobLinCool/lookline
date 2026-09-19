@@ -5,23 +5,22 @@
 import { STYLE_DIMENSIONS, cosineRange as catalogCosineRange } from '@lookline/catalog'
 
 /** Half-open `[start, end)` block ranges: aesthetics, colours, axes, groups. */
-export const BLOCK = { A: [0, 32], C: [32, 44], X: [44, 52], G: [52, 64] } as const
+export const BLOCK = { C: [0, 12], X: [12, 20], G: [20, 32] } as const
 
 export type BlockKey = keyof typeof BLOCK
 
 export interface BlockWeights {
-  A: number
   C: number
   X: number
   G: number
 }
 
 /** Query-side weights for pgvector retrieval (axes zeroed; scored in `attribute_match`). */
-export const RETRIEVAL_BLOCK_WEIGHTS: BlockWeights = { A: 1.0, C: 0.7, X: 0, G: 1.0 }
+export const RETRIEVAL_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0, G: 1.0 }
 /** Weights for product ↔ product similarity scoring. */
-export const SIMILARITY_BLOCK_WEIGHTS: BlockWeights = { A: 1.0, C: 0.7, X: 0, G: 0 }
+export const SIMILARITY_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0, G: 0 }
 /** Weights for user-preference cosine. */
-export const PREFERENCE_BLOCK_WEIGHTS: BlockWeights = { A: 1.0, C: 0.7, X: 0.5, G: 0 }
+export const PREFERENCE_BLOCK_WEIGHTS: BlockWeights = { C: 0.7, X: 0.5, G: 0 }
 
 /** Cosine over `[from, to)`; 0 when either sub-norm is 0. */
 export function cosineRange(

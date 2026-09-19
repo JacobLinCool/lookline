@@ -34,7 +34,6 @@ describe('renderLookPosterSvg', () => {
     expect(svg).toContain('Paris Editorial')
     expect(svg).toContain('#f4efe6')
     for (const hex of input().palette) expect(svg).toContain(hex)
-    expect(svg).toContain('Quiet Luxury')
     // three composition paths per product (shadow, body, outline)
     const paths = svg.match(/<path /g) ?? []
     expect(paths.length).toBeGreaterThanOrEqual(input().articles.length * 3)

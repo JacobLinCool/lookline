@@ -1,3 +1,4 @@
+import { STYLE_DIMENSIONS } from '@lookline/catalog'
 import { describe, expect, it } from 'vitest'
 import { sumContributions } from './explain'
 import { completeTheLookWith, runRecommend, similarProductsWith } from './index'
@@ -27,7 +28,7 @@ describe('runRecommend (MemoryRetriever)', () => {
     expect(res.items.length).toBeLessThanOrEqual(8)
     expect(res.candidates).toBeGreaterThan(0)
     expect(res.outfits).toEqual([])
-    expect(res.intentVector.length).toBe(64)
+    expect(res.intentVector.length).toBe(STYLE_DIMENSIONS)
     expect(res.timings.retrieve).toBeGreaterThanOrEqual(0)
     for (const x of res.items) {
       expect(x.product.price).toBeLessThanOrEqual(3000)
@@ -110,7 +111,7 @@ describe('runRecommend (MemoryRetriever)', () => {
       expect(o.budget).toBe(5000)
       expect(o.total).toBe(o.items.reduce((s, x) => s + x.product.price, 0))
       expect(o.compatibility).toBeGreaterThan(0)
-      expect(o.styleVector.length).toBe(64)
+      expect(o.styleVector.length).toBe(STYLE_DIMENSIONS)
       const roles = new Set(o.items.map((x) => x.role))
       expect(roles.has('shoes')).toBe(true)
       expect(roles.has('dress') || (roles.has('top') && roles.has('bottom'))).toBe(true)

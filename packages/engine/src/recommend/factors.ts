@@ -2,7 +2,13 @@
  * The ten scoring factors (ENGINE_SPEC §2.3): one function per `FactorName`, each returning a
  * value in [0, 1] (diversity in [−1, 0]), an `applicable` flag and a bilingual evidence string.
  */
-import { AESTHETICS, SUBCATEGORIES, axisIndex, colorFamilyIndex } from '@lookline/catalog'
+import {
+  AESTHETICS,
+  STYLE_BLOCKS,
+  SUBCATEGORIES,
+  axisIndex,
+  colorFamilyIndex,
+} from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily } from '@lookline/catalog'
 import type { Department, Article } from '@lookline/db'
 import type { FactorName } from '../types'
@@ -108,33 +114,24 @@ export function styleSimilarity(c: Candidate, ctx: RankContext): FactorResult {
   const raw = blockCosine(ctx.intentVector, c.product.styleVector, SIMILARITY_BLOCK_WEIGHTS)
   const bonus = c.channels.has('social') || c.channels.has('trend') ? 0.05 : 0
   const value = clamp01(raw + bonus)
-  const pairs: Array<{ slug: string; score: number; w: number }> = []
-  for (const a of AESTHETICS) {
-    const iw = ctx.intentVector[a.index] ?? 0
-    const pw = c.product.styleVector[a.index] ?? 0
-    if (iw > 0 && pw > 0) pairs.push({ slug: a.slug, score: iw * pw, w: pw })
-  }
-  const top = pairs.toSorted((x, y) => y.score - x.score).slice(0, 2)
+  // The aesthetic block is gone, so the evidence names the colour it matched on, or the overall
+  // similarity when nothing lines up. It named the shared style tags until the catalogue had none.
   const family = c.product.colorFamily as ColorFamily
   const intentColour = ctx.intentVector[colorFamilyIndex(family)] ?? 0
   const colourNamed = intentColour >= 0.4
-  let evidence: string
-  if (top.length === 0) {
-    evidence =
-      locale === 'zh' ? `整體風格相似度 ${round(raw)}` : `overall style similarity ${round(raw)}`
-  } else if (locale === 'zh') {
-    evidence = `風格對到${top.map((t) => `${aestheticLabel(t.slug, 'zh')} (${round(t.w)})`).join('、')}`
-    if (colourNamed) evidence += `；${colorFamilyLabel(family, 'zh')}色也符合`
-  } else {
-    evidence = `matches ${top.map((t) => `${t.slug} (${round(t.w)})`).join(', ')}`
-    if (colourNamed) evidence += `; colour ${colorFamilyLabel(family, 'en')}`
-  }
+  const evidence = colourNamed
+    ? locale === 'zh'
+      ? `${colorFamilyLabel(family, 'zh')}色符合，整體風格相似度 ${round(raw)}`
+      : `colour ${colorFamilyLabel(family, 'en')}; overall style similarity ${round(raw)}`
+    : locale === 'zh'
+      ? `整體風格相似度 ${round(raw)}`
+      : `overall style similarity ${round(raw)}`
   return {
     factor: 'style_similarity',
     value,
     applicable: true,
     evidence,
-    details: { raw, bonus, top },
+    details: { raw, bonus },
   }
 }
 
@@ -271,7 +268,8 @@ const SUB_GROUP: ReadonlyMap<string, string> = new Map(SUBCATEGORIES.map((s) => 
 const subcategoryGroup = (slug: string): string | undefined => SUB_GROUP.get(slug)
 const axisIndexOf = (axis: string): number => {
   const i = axisIndex(axis as Axis)
-  return i >= 44 && i < 52 ? i : -1
+  const [from, to] = STYLE_BLOCKS.axes
+  return i >= from && i < to ? i : -1
 }
 
 export function budgetFit(c: Candidate, ctx: RankContext): FactorResult {

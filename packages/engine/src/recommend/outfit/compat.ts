@@ -2,7 +2,7 @@
  * Pairwise compatibility (ENGINE_SPEC §3.2): colour harmony from hex → HSL, aesthetic overlap,
  * formality distance and season match.
  */
-import { axisIndex, cosineRange, findColor } from '@lookline/catalog'
+import { STYLE_DIMENSIONS, axisIndex, cosineRange, findColor } from '@lookline/catalog'
 import type { Season } from '@lookline/catalog'
 import type { Article } from '@lookline/db'
 import { NEUTRAL_FAMILIES, clamp01, colorHsl } from '../vector'
@@ -97,11 +97,12 @@ function familyGuess(hex: string): string {
 }
 
 /**
- * Cosine over dims 0–31. There used to be a bonus for a shared aesthetic tag; the catalogue has
- * none, and those dimensions are zero until a semantic pass fills them, so this reads 0 today.
+ * Cosine over the whole style vector — colour, axes and category group. It was over the aesthetic
+ * block, plus a bonus for a shared tag; the catalogue names no aesthetic, so this is what is left
+ * to measure two pieces against each other with.
  */
 export function aestheticCompat(a: Article, b: Article): number {
-  return clamp01(cosineRange(a.styleVector, b.styleVector, 0, 32))
+  return clamp01(cosineRange(a.styleVector, b.styleVector, 0, STYLE_DIMENSIONS))
 }
 
 const FORMALITY = axisIndex('formality')
@@ -185,7 +186,7 @@ export function referenceCompat(
   ref: { styleVector: readonly number[]; colorHex: string; colorFamily: string },
 ): number {
   const colour = colourHarmony(item, { colorHex: ref.colorHex, colorFamily: ref.colorFamily }).score
-  const aesthetic = clamp01(cosineRange(item.styleVector, ref.styleVector, 0, 32))
+  const aesthetic = clamp01(cosineRange(item.styleVector, ref.styleVector, 0, STYLE_DIMENSIONS))
   const fa = item.styleVector[FORMALITY] ?? 0.5
   const fb = ref.styleVector[FORMALITY] ?? 0.5
   const formality = clamp01(1 - Math.abs(fa - fb))
