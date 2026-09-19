@@ -54,6 +54,8 @@ export const home = {
     understood: 'Understood',
     budgetUnder: (amount: string) => `Under ${amount}`,
     budgetFrom: (amount: string) => `From ${amount}`,
+    /** The budget question's opt-out, whose value on the wire is `none`. */
+    noLimit: 'No limit',
     forRecipient: (who: string) => `For ${who}`,
     forSomeoneElse: 'For someone else',
     avoid: (thing: string) => `No ${thing.toLowerCase()}`,

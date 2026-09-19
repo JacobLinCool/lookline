@@ -440,3 +440,15 @@ describe('parser behaviour', () => {
     expect((performance.now() - t0) / 200).toBeLessThan(15)
   })
 })
+
+describe('sleeves', () => {
+  it('carries a stated sleeve as a constraint token, in either polarity', () => {
+    // `fits` is matched against `articles.fit`; the sleeve lives in its own column, so it travels
+    // as a mustHave token and reaches retrieval as a requirement.
+    expect(parseIntentOffline('我想穿休閒風要長袖').mustHave).toContain('sleeve:long')
+    expect(parseIntentOffline('long sleeve top').mustHave).toContain('sleeve:long')
+    expect(parseIntentOffline('我要短袖').mustHave).toContain('sleeve:short')
+    expect(parseIntentOffline('不要長袖').mustAvoid).toContain('sleeve:long')
+    expect(parseIntentOffline('不要長袖').mustHave).not.toContain('sleeve:long')
+  })
+})

@@ -287,6 +287,12 @@ export function parseIntentOffline(utterance: string, ctx: IntentContextExt = {}
       }
     }
   }
+  // A sleeve is not a fit: the catalogue keeps it in `articles.sleeve`, while `intent.fits` is
+  // matched against `articles.fit`. It travels as a constraint token, so "要長袖" reaches
+  // retrieval as a requirement rather than as a preference the ranker may trade away.
+  for (const h of by('sleeve')) have(`sleeve:${h.value}`)
+  for (const h of negatedBy('sleeve')) avoid(`sleeve:${h.value}`)
+
   for (const h of hits.filter((x) => x.section === 'attribute')) {
     const polarity = (h.meta as { polarity: 'have' | 'avoid' }).polarity
     if (polarity === 'avoid' || h.negated) avoid(`attribute:${h.value}`)

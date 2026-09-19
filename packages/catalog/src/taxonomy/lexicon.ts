@@ -7,7 +7,7 @@ import type { Axis, Department, LexEntry, Lexicon } from '../types'
 import { AESTHETICS } from './aesthetics'
 import { CATEGORY_GROUP_DEFS, SUBCATEGORIES } from './categories'
 import { COLOR_FAMILY_DEFS, COLORS } from './colors'
-import { FITS, SILHOUETTE_VALUES } from './fits'
+import { FITS, SILHOUETTE_VALUES, SLEEVES } from './fits'
 import { MATERIALS } from './materials'
 import { OCCASIONS, SEASON_DEFS } from './occasions'
 import { PATTERNS } from './patterns'
@@ -85,6 +85,9 @@ export const LEXICON: Lexicon = {
   occasions: entries(OCCASIONS),
   seasons: entries(SEASON_DEFS),
   fits: entries([...FITS, ...SILHOUETTE_VALUES]),
+  // Kept out of `fits`: `short` and `regular` are a sleeve and a length, and merging the two
+  // tables would make one term answer for both.
+  sleeves: entries(SLEEVES),
 }
 
 export type LexiconSection = keyof Lexicon
@@ -101,6 +104,7 @@ export const LEXICON_SECTIONS: readonly LexiconSection[] = [
   'occasions',
   'seasons',
   'fits',
+  'sleeves',
 ]
 
 /** Entries of a section whose terms contain `term` (matched lower-cased, exact). */

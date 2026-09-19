@@ -17,6 +17,7 @@ import {
   SLEEVES,
   SUBCATEGORIES,
 } from '@lookline/catalog'
+import { findEngineOccasion } from '@lookline/engine/occasions'
 import { humanize } from '@/server/format'
 import type { Locale } from './config'
 
@@ -80,8 +81,19 @@ export const colorNameLabel = (locale: Locale, colorName: string) =>
 
 export const aestheticLabel = (locale: Locale, slug: string) =>
   label(locale, aesthetics.get(slug), slug)
-export const occasionLabel = (locale: Locale, slug: string) =>
-  label(locale, occasions.get(slug), slug)
+/**
+ * Two vocabularies reach this one helper. An article's `occasions` are catalog slugs
+ * (`everyday`, `work`); `intent.occasion` is the engine's own (`casual-daily`, `office`), which
+ * the catalog table does not know — and `humanize()` then printed an English word into a
+ * Traditional Chinese sentence. The engine names its own occasions, so it answers for them.
+ */
+export const occasionLabel = (locale: Locale, slug: string): string => {
+  const def = occasions.get(slug)
+  if (def) return label(locale, def, slug)
+  const engine = findEngineOccasion(slug)
+  if (engine) return locale === 'zh-TW' ? engine.labelZh : engine.labelEn
+  return humanize(slug)
+}
 export const seasonLabel = (locale: Locale, slug: string) => label(locale, seasons.get(slug), slug)
 
 /** Every table in one lookup, for slugs whose facet is not known at the call site. */

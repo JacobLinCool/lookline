@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./testing": "./src/recommend/testing/fixtures.ts",
-    "./hints": "./src/decisions/hints.ts"
+    "./hints": "./src/decisions/hints.ts",
+    "./occasions": "./src/constants/occasions.ts"
   },
   "scripts": {
     "analytics": "tsx scripts/analytics.ts",

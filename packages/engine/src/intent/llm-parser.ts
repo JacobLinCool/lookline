@@ -9,6 +9,7 @@ import {
   CATEGORY_GROUPS,
   COLOR_FAMILIES,
   FITS,
+  SLEEVES,
   LEXICON,
   MATERIALS,
   PATTERNS,
@@ -177,7 +178,7 @@ const FEW_SHOT_UTTERANCES = [
 const list = (xs: readonly string[]): string => xs.join(', ')
 
 const validToken = (x: string): boolean =>
-  /^(color|material|subcategory|group|brand|pattern|attribute|text|aesthetic):[a-z0-9\-' ]+$/i.test(
+  /^(color|material|subcategory|group|brand|pattern|attribute|sleeve|text|aesthetic):[a-z0-9\-' ]+$/i.test(
     x,
   )
 
@@ -196,7 +197,8 @@ function buildPrompt(): string {
     `occasions: ${OCCASIONS.map((o) => `${o.slug} (${o.labelZh})`).join(', ')}`,
     `relations: ${list(RELATIONS)}`,
     'seasons: spring, summer, autumn, winter, all-season · departments: women, men, unisex, kids · size systems: alpha, numeric-waist, eu-shoe',
-    'mustHave / mustAvoid tokens are "<slot>:<value>" with slot ∈ color, material, subcategory, group, brand, pattern, attribute, text.',
+    `sleeves: ${list(SLEEVES.map((s) => s.slug))} — as a "sleeve:<slug>" mustHave/mustAvoid token, never as a fit`,
+    'mustHave / mustAvoid tokens are "<slot>:<value>" with slot ∈ color, material, subcategory, group, brand, pattern, attribute, sleeve, text.',
     '',
     'Rules:',
     '- Use only the listed slugs. Anything you cannot map goes into rawMentions.',
