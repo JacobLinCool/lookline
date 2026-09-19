@@ -1,11 +1,14 @@
+'use client'
+
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { Check } from 'lucide-react'
 import { AESTHETICS, CATEGORY_GROUPS, COLOR_FAMILIES } from '@lookline/catalog'
 import type { ProductSearch, ProductSearchResult } from '@lookline/engine'
+import { useI18n } from '@/i18n/client'
+import { aestheticLabel, categoryGroupLabel, colorFamilyLabel } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
-import { humanize } from '@/server/format'
-import { COLOR_FAMILY_HEX, COLOR_FAMILY_LABELS, PRICE_PRESETS } from './constants'
+import { COLOR_FAMILY_HEX, PRICE_PRESETS } from './constants'
 import { shopHref } from './query'
 import styles from './filters.module.css'
 
@@ -26,9 +29,11 @@ function StyleLink({
   facets?: Facets
   selected: Set<string>
 }) {
+  const { t, locale } = useI18n()
   const active = selected.has(a.slug)
   const next = active ? [...selected].filter((s) => s !== a.slug) : [...selected, a.slug]
   const count = facetCount(facets?.aesthetics, a.slug)
+  const label = aestheticLabel(locale, a.slug)
   return (
     <Link
       href={shopHref(search, {
@@ -38,11 +43,11 @@ function StyleLink({
       aria-current={active ? 'true' : undefined}
       data-selected={active}
       data-aesthetic={a.slug}
-      title={count === undefined ? a.name : `${a.name} · ${count.toLocaleString('en-US')} pieces`}
+      title={count === undefined ? label : t.shop.filters.withCount(label, count)}
       className={cn(styles.choice, styles.style)}
     >
       <Check aria-hidden className={styles.check} />
-      <span>{a.name}</span>
+      <span>{label}</span>
     </Link>
   )
 }
@@ -82,12 +87,15 @@ function RailLink({
 
 /** Category, colour, style, price. Selection never changes geometry. */
 export function FilterRail({ search, facets }: { search: ProductSearch; facets?: Facets }) {
+  const { t, locale } = useI18n()
   const selectedAesthetics = new Set(search.aesthetics ?? [])
-  const colourSummary =
-    search.colorFamilies?.map((v) => COLOR_FAMILY_LABELS[v]).join(', ') || 'Any colour'
+  const selectedColours = search.colorFamilies ?? []
+  const colourSummary = selectedColours.length
+    ? t.shop.list(selectedColours.map((v) => colorFamilyLabel(locale, v)))
+    : t.shop.filters.anyColour
   return (
     <div className={styles.rail} data-filter-rail>
-      <RailGroup title="Category">
+      <RailGroup title={t.shop.filters.category}>
         <ul className={styles.rows}>
           <li>
             <RailLink
@@ -99,7 +107,7 @@ export function FilterRail({ search, facets }: { search: ProductSearch; facets?:
               })}
               active={!search.categoryGroups?.length && !search.excludedCategoryGroups?.length}
             >
-              All
+              {t.common.all}
             </RailLink>
           </li>
           {CATEGORY_GROUPS.map((group) => (
@@ -116,18 +124,18 @@ export function FilterRail({ search, facets }: { search: ProductSearch; facets?:
                 active={search.categoryGroups?.includes(group) ?? false}
                 count={facetCount(facets?.categoryGroups, group)}
               >
-                {humanize(group)}
+                {categoryGroupLabel(locale, group)}
               </RailLink>
             </li>
           ))}
         </ul>
       </RailGroup>
-      <RailGroup title="Colour">
+      <RailGroup title={t.shop.filters.colour}>
         <ul className={styles.swatches}>
           {COLOR_FAMILIES.map((family) => {
             const active = search.colorFamilies?.includes(family) ?? false
             const count = facetCount(facets?.colorFamilies, family)
-            const label = COLOR_FAMILY_LABELS[family]
+            const label = colorFamilyLabel(locale, family)
             return (
               <li key={family}>
                 <Link
@@ -140,11 +148,7 @@ export function FilterRail({ search, facets }: { search: ProductSearch; facets?:
                     ),
                   })}
                   aria-label={label}
-                  title={
-                    count === undefined
-                      ? label
-                      : `${label} · ${count.toLocaleString('en-US')} pieces`
-                  }
+                  title={count === undefined ? label : t.shop.filters.withCount(label, count)}
                   aria-current={active ? 'true' : undefined}
                   data-selected={active}
                   className={cn(styles.choice, styles.swatch)}
@@ -165,7 +169,7 @@ export function FilterRail({ search, facets }: { search: ProductSearch; facets?:
           {colourSummary}
         </p>
       </RailGroup>
-      <RailGroup title="Style">
+      <RailGroup title={t.shop.filters.style}>
         <ul className={styles.styles}>
           {AESTHETICS.slice(0, STYLE_PREVIEW).map((a) => (
             <li key={a.slug}>
@@ -179,7 +183,7 @@ export function FilterRail({ search, facets }: { search: ProductSearch; facets?:
             open={AESTHETICS.slice(STYLE_PREVIEW).some((a) => selectedAesthetics.has(a.slug))}
           >
             <summary className={styles.moreSummary}>
-              {AESTHETICS.length - STYLE_PREVIEW} more styles
+              {t.shop.filters.moreStyles(AESTHETICS.length - STYLE_PREVIEW)}
             </summary>
             <ul className={styles.styles}>
               {AESTHETICS.slice(STYLE_PREVIEW).map((a) => (
@@ -191,23 +195,23 @@ export function FilterRail({ search, facets }: { search: ProductSearch; facets?:
           </details>
         ) : null}
       </RailGroup>
-      <RailGroup title="Price">
+      <RailGroup title={t.shop.filters.price}>
         <ul className={styles.rows}>
           <li>
             <RailLink
               href={shopHref(search, { priceMin: undefined, priceMax: undefined })}
               active={search.priceMin === undefined && search.priceMax === undefined}
             >
-              Any
+              {t.shop.filters.any}
             </RailLink>
           </li>
           {PRICE_PRESETS.map((preset) => (
-            <li key={preset.label}>
+            <li key={preset.key}>
               <RailLink
                 href={shopHref(search, { priceMin: preset.priceMin, priceMax: preset.priceMax })}
                 active={preset.priceMin === search.priceMin && preset.priceMax === search.priceMax}
               >
-                {preset.label}
+                {t.shop.filters.pricePresets[preset.key]}
               </RailLink>
             </li>
           ))}

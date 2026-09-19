@@ -121,6 +121,9 @@ Guarantees:
   result uses the tested deterministic parser/ranker; refinement is explicitly applied by the user.
   Disconnects abort model enrichment. Impression logging runs after the response and is not a
   condition for rendering results.
+- Interface copy is owned by `apps/web/src/i18n/messages/<locale>/<surface>.ts`, one module per
+  surface, typed against the English catalog. Catalog nouns are not copied there: they come from
+  `@lookline/catalog` through `apps/web/src/i18n/taxonomy.ts`. See [two languages](specs/I18N_SPEC.md).
 - `POST /api/filters/resolve` accepts `{ utterance, base, revision }` and returns validated
   `{ filters, unresolved, hints, revision, model, contractVersion, latencyMs }` from TypeSafe Jev;
   `hints` lists what the sentence leaves unsaid (`occasion`, `budget`, …) for Shop to ask about.

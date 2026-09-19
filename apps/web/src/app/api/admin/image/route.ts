@@ -1,5 +1,6 @@
 import { getLlm } from '@lookline/engine'
 import { z } from 'zod'
+import { getMessages } from '@/i18n/server'
 
 const inputSchema = z
   .object({
@@ -10,15 +11,13 @@ const inputSchema = z
 const headers = { 'Cache-Control': 'no-store' }
 
 export async function POST(request: Request) {
+  const { errors } = (await getMessages()).ui
   try {
     if (Number(request.headers.get('content-length')) > 8_000)
-      return Response.json({ error: 'Request too large.' }, { status: 413, headers })
+      return Response.json({ error: errors.tooLarge }, { status: 413, headers })
     const parsed = inputSchema.safeParse(await request.json().catch(() => null))
     if (!parsed.success)
-      return Response.json(
-        { error: 'Enter a prompt between 1 and 2,000 characters and choose a valid ratio.' },
-        { status: 400, headers },
-      )
+      return Response.json({ error: errors.imagePrompt }, { status: 400, headers })
     const start = performance.now()
     const result = await getLlm().generateImage({
       prompt: parsed.data.prompt,
@@ -28,12 +27,7 @@ export async function POST(request: Request) {
       timeoutMs: 25_000,
     })
     if (!result?.data.length)
-      return Response.json(
-        {
-          error: 'Image generation is unavailable. Check the configured image provider and retry.',
-        },
-        { status: 503, headers },
-      )
+      return Response.json({ error: errors.imageUnavailable }, { status: 503, headers })
     return Response.json(
       {
         image: `data:${result.mimeType};base64,${result.data.toString('base64')}`,
@@ -44,9 +38,6 @@ export async function POST(request: Request) {
     )
   } catch (error) {
     console.warn('[admin/image] generation failed', error)
-    return Response.json(
-      { error: 'The image could not be generated. Review the prompt and try again.' },
-      { status: 503, headers },
-    )
+    return Response.json({ error: errors.imageFailed }, { status: 503, headers })
   }
 }

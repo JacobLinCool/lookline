@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { useI18n } from '@/i18n/client'
 import { afterPaint, startInteraction } from '@/lib/latency'
 
 export type ActionResult = { ok: true; next?: string } | { ok: false; message: string }
@@ -20,6 +21,7 @@ export function InstantForm({
   name: string
   className?: string
 }) {
+  const { t } = useI18n()
   const router = useRouter()
   const [state, setState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -53,7 +55,7 @@ export function InstantForm({
           else router.refresh()
         } catch {
           setState('idle')
-          setError('This change could not be saved. Please retry.')
+          setError(t.ui.instantForm.failed)
           trace.mark('failed')
         } finally {
           busy.current = false
@@ -68,7 +70,11 @@ export function InstantForm({
       </fieldset>
       <p role={error ? 'alert' : 'status'} aria-live="polite" className="text-[13px] text-muted">
         {error ??
-          (state !== 'idle' ? `${confirmation}${state === 'saving' ? ' · syncing' : ''}` : '')}
+          (state !== 'idle'
+            ? state === 'saving'
+              ? t.ui.instantForm.syncing(confirmation)
+              : confirmation
+            : '')}
       </p>
     </form>
   )

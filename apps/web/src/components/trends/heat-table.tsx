@@ -1,6 +1,7 @@
 import type { TrendSeries } from '@lookline/engine'
+import { getI18n } from '@/i18n/server'
+import { aestheticLabel, categoryGroupLabel } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
-import { humanize } from '@/server/format'
 import { splitPairKey } from './format'
 import { STICKY_COL, TABLE, THEAD_ROW } from './momentum-table'
 
@@ -8,13 +9,14 @@ import { STICKY_COL, TABLE, THEAD_ROW } from './momentum-table'
  * Aesthetic × category momentum matrix. Sequential encoding: one hue (tag red) whose alpha
  * follows momentum 0–100, with the number always printed so colour is never the only channel.
  */
-export function HeatTable({
+export async function HeatTable({
   rows,
   maxAesthetics = 12,
 }: {
   rows: TrendSeries[]
   maxAesthetics?: number
 }) {
+  const { t, locale } = await getI18n()
   const byAesthetic = new Map<string, Map<string, TrendSeries>>()
   const groups = new Set<string>()
   for (const row of rows) {
@@ -36,7 +38,7 @@ export function HeatTable({
   const columns = [...groups].toSorted()
 
   if (aesthetics.length === 0 || columns.length === 0) {
-    return <p className="text-[13px] text-muted">No aesthetic × category signals in this window.</p>
+    return <p className="text-[13px] text-muted">{t.trends.heat.empty}</p>
   }
 
   return (
@@ -44,10 +46,10 @@ export function HeatTable({
       <table className={cn(TABLE, 'min-w-[40rem] text-[12px]')}>
         <thead>
           <tr className={THEAD_ROW}>
-            <th className={STICKY_COL}>Aesthetic</th>
+            <th className={STICKY_COL}>{t.trends.heat.aesthetic}</th>
             {columns.map((g) => (
               <th key={g} className="text-center font-medium">
-                {humanize(g)}
+                {categoryGroupLabel(locale, g)}
               </th>
             ))}
           </tr>
@@ -59,19 +61,20 @@ export function HeatTable({
                 scope="row"
                 className={cn(STICKY_COL, 'py-1.5 text-left font-medium whitespace-nowrap')}
               >
-                {humanize(slug)}
+                {aestheticLabel(locale, slug)}
               </th>
               {columns.map((g) => {
                 const cell = cells.get(g)
                 const m = cell?.momentum ?? 0
                 const alpha = Math.min(1, Math.max(0, m / 100))
+                const pair = `${aestheticLabel(locale, slug)} × ${categoryGroupLabel(locale, g)}`
                 return (
                   <td key={g} className="p-0.5">
                     <div
                       title={
                         cell
-                          ? `${humanize(slug)} × ${humanize(g)}: momentum ${Math.round(m)}, volume ${cell.volume}${cell.emerging ? ', emerging' : ''}`
-                          : `${humanize(slug)} × ${humanize(g)}: no signal`
+                          ? t.trends.heat.cell(pair, Math.round(m), cell.volume, cell.emerging)
+                          : t.trends.heat.noSignal(pair)
                       }
                       className="tabular flex h-8 items-center justify-center rounded-xs"
                       style={{
@@ -91,7 +94,7 @@ export function HeatTable({
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-[12px] text-muted">Darker = stronger momentum · * emerging</p>
+      <p className="mt-2 text-[12px] text-muted">{t.trends.heat.legend}</p>
     </div>
   )
 }

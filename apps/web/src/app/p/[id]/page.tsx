@@ -7,15 +7,22 @@ import { recordInteraction } from '@lookline/engine'
 import { AddToBagForm } from '@/components/shop/add-to-bag-form'
 import { AttributeList } from '@/components/shop/attribute-list'
 import { CompleteTheLook } from '@/components/shop/complete-the-look'
-import { COLOR_FAMILY_LABELS, DEPARTMENT_LABELS } from '@/components/shop/constants'
 import { SimilarPieces } from '@/components/shop/similar-pieces'
 import { WhyThisSuitsYou } from '@/components/shop/why-this-suits-you'
 import { Button, Container, Notice, Price, ProductImage, Tag } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
+import {
+  aestheticLabel,
+  categoryGroupLabel,
+  colorFamilyLabel,
+  colorNameLabel,
+  departmentLabel,
+  subcategoryLabel,
+} from '@/i18n/taxonomy'
 import { recordFeedbackFor } from '@/server/actions/feedback'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { isEngineView } from '@/server/engine-view'
-import { humanize } from '@/server/format'
 import { displayName } from '@/lib/product-name'
 
 type Params = Promise<{ id: string }>
@@ -41,17 +48,18 @@ const loadProduct = cache(
 )
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { t } = await getI18n()
   const id = parseId((await params).id)
-  if (id === null) return { title: 'Product not found' }
+  if (id === null) return { title: t.shop.product.notFound }
   try {
     const row = await loadProduct(id)
-    if (!row) return { title: 'Product not found' }
+    if (!row) return { title: t.shop.product.notFound }
     return {
       title: `${row.product.name} · ${row.brand.name}`,
       description: row.product.description,
     }
   } catch {
-    return { title: 'Product' }
+    return { title: t.shop.product.fallbackTitle }
   }
 }
 
@@ -120,6 +128,7 @@ export default async function ProductPage({
   params: Params
   searchParams: SearchParams
 }) {
+  const { t, locale } = await getI18n()
   const [{ id: rawId }, query] = await Promise.all([params, searchParams])
   const id = parseId(rawId)
   if (id === null) notFound()
@@ -143,48 +152,48 @@ export default async function ProductPage({
     await Promise.all([recordView(user.id, id, from, pos), recordArrival(user.id, id, from, pos)])
   }
 
-  const colourLabel =
-    COLOR_FAMILY_LABELS[product.colorFamily as keyof typeof COLOR_FAMILY_LABELS] ??
-    humanize(product.colorFamily)
+  const colourLabel = colorFamilyLabel(locale, product.colorFamily)
   const lowStock = product.stock > 0 && product.stock <= 5
 
   return (
     <Container className="pb-24">
       <nav
-        aria-label="Breadcrumb"
+        aria-label={t.shop.product.breadcrumb}
         className="flex flex-wrap items-center gap-1.5 pt-5 text-[13px] text-muted"
       >
         <Link href="/shop" className={crumb}>
-          Shop
+          {t.shop.title}
         </Link>
         <span aria-hidden>/</span>
         <Link href={`/shop?department=${product.department}`} className={crumb}>
-          {DEPARTMENT_LABELS[product.department]}
+          {departmentLabel(locale, product.department)}
         </Link>
         <span aria-hidden>/</span>
         <Link
           href={`/shop?department=${product.department}&categoryGroups=${product.categoryGroup}`}
           className={crumb}
         >
-          {humanize(product.categoryGroup)}
+          {categoryGroupLabel(locale, product.categoryGroup)}
         </Link>
         <span aria-hidden>/</span>
         <Link
           href={`/shop?department=${product.department}&categoryGroups=${product.categoryGroup}&subcategory=${product.subcategory}`}
           className={crumb}
         >
-          {humanize(product.subcategory)}
+          {subcategoryLabel(locale, product.subcategory)}
         </Link>
       </nav>
 
       {added ? (
         <Notice
           tone="success"
-          title={added === '1' ? 'Added to your bag' : `${added} pieces added to your bag`}
+          title={
+            added === '1' ? t.shop.product.added : t.shop.product.addedCount(Number(added) || 0)
+          }
           className="mt-4"
           action={
             <Button href="/bag" size="sm" variant="secondary">
-              Open bag
+              {t.shop.product.openBag}
             </Button>
           }
         />
@@ -208,7 +217,7 @@ export default async function ProductPage({
             </h1>
             <div className="flex flex-wrap items-center gap-3">
               <Price amount={product.price} size="lg" />
-              {lowStock ? <Tag tone="accent">Low stock</Tag> : null}
+              {lowStock ? <Tag tone="accent">{t.shop.product.lowStock}</Tag> : null}
             </div>
             <div className="flex items-center gap-2 text-[13px]">
               <span
@@ -216,7 +225,7 @@ export default async function ProductPage({
                 className="size-4 rounded-full border border-line"
                 style={{ background: product.colorHex }}
               />
-              <span>{product.colorName}</span>
+              <span>{colorNameLabel(locale, product.colorName)}</span>
               <span className="text-muted">·</span>
               <Link
                 href={`/shop?colorFamilies=${product.colorFamily}`}
@@ -226,7 +235,7 @@ export default async function ProductPage({
               </Link>
               {product.secondaryColorHex ? (
                 <span
-                  aria-label="Second colour"
+                  aria-label={t.shop.product.secondColour}
                   className="size-4 rounded-full border border-line"
                   style={{ background: product.secondaryColorHex }}
                 />
@@ -234,8 +243,7 @@ export default async function ProductPage({
             </div>
             {product.reviewCount > 0 ? (
               <p className="tabular text-[13px] text-muted">
-                {product.rating.toFixed(1)} / 5 · {product.reviewCount.toLocaleString('en-US')}{' '}
-                {product.reviewCount === 1 ? 'review' : 'reviews'}
+                {t.shop.product.rating(product.rating.toFixed(1), product.reviewCount)}
               </p>
             ) : null}
             <WhyThisSuitsYou product={product} userId={user?.id ?? null} engineView={engineView} />
@@ -249,7 +257,7 @@ export default async function ProductPage({
 
           <details className="group hairline pt-3">
             <summary className="flex cursor-pointer list-none items-center justify-between text-[14px] font-medium [&::-webkit-details-marker]:hidden">
-              Details
+              {t.shop.product.details}
               <span aria-hidden className="text-muted transition-transform group-open:rotate-45">
                 +
               </span>
@@ -267,7 +275,7 @@ export default async function ProductPage({
                   tone="outline"
                   href={`/shop?aesthetics=${encodeURIComponent(slug)}`}
                 >
-                  {humanize(slug)}
+                  {aestheticLabel(locale, slug)}
                 </Tag>
               ))}
             </div>

@@ -17,6 +17,9 @@ import type { ReactNode } from 'react'
 import { SiteFooter } from '@/components/shell/site-footer'
 import { SiteNav } from '@/components/shell/site-nav'
 import { TabBar } from '@/components/shell/nav-links'
+import { LOCALE_TAGS } from '@/i18n'
+import { LocaleProvider } from '@/i18n/client'
+import { getI18n } from '@/i18n/server'
 import { bagCount } from '@/server/bag'
 import './globals.css'
 
@@ -33,11 +36,13 @@ const bricolage = Bricolage_Grotesque({
   axes: ['opsz'],
 })
 
-export const metadata: Metadata = {
-  title: { default: 'Lookline', template: '%s · Lookline' },
-  description:
-    'Say what you are dressing for. Buy real pieces. Turn them into a Look your friends can pick up.',
-  applicationName: 'Lookline',
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return {
+    title: { default: 'Lookline', template: '%s · Lookline' },
+    description: t.ui.siteDescription,
+    applicationName: 'Lookline',
+  }
 }
 
 export const viewport: Viewport = {
@@ -46,14 +51,16 @@ export const viewport: Viewport = {
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const count = await bagCount()
+  const [count, { locale }] = await Promise.all([bagCount(), getI18n()])
   return (
-    <html lang="en" className={`${inter.variable} ${bricolage.variable}`}>
+    <html lang={LOCALE_TAGS[locale]} className={`${inter.variable} ${bricolage.variable}`}>
       <body className="flex min-h-dvh flex-col bg-paper font-sans text-ink">
-        <SiteNav />
-        <main className="flex-1 pb-20 md:pb-0">{children}</main>
-        <SiteFooter />
-        <TabBar bagCount={count} />
+        <LocaleProvider locale={locale}>
+          <SiteNav />
+          <main className="flex-1 pb-20 md:pb-0">{children}</main>
+          <SiteFooter />
+          <TabBar bagCount={count} />
+        </LocaleProvider>
       </body>
     </html>
   )

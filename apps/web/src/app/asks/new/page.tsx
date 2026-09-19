@@ -19,26 +19,25 @@ import {
   loadNetworkPeople,
   loadProductsByIds,
   loadUserAsks,
-  OCCASION_OPTIONS,
+  occasionOptions,
   parseIdList,
   type ShopProduct,
 } from '@/components/social/data'
 
 import { GuestGate } from '@/components/social/guest-gate'
 import { ProductOption } from '@/components/social/product-option'
+import { getI18n } from '@/i18n/server'
 import { createAskAction } from '@/server/actions/asks'
 import { getSessionUser } from '@/server/auth'
 import { getBag } from '@/server/bag'
 import { formatRelative } from '@/server/format'
 
-export const metadata: Metadata = { title: 'Ask a friend' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.social.askNew.title }
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
-
-const ERRORS: Record<string, string> = {
-  options: 'Choose two to four pieces.',
-  handle: 'No one has that handle. Leave it empty to share by link.',
-}
 
 function buildPath(query: Record<string, string | string[] | undefined>, kind: string): string {
   const params = new URLSearchParams()
@@ -56,7 +55,8 @@ function buildPath(query: Record<string, string | string[] | undefined>, kind: s
  * "Style me" brief (no options, a budget and an occasion).
  */
 export default async function NewAskPage({ searchParams }: { searchParams: SearchParams }) {
-  const query = await searchParams
+  const [query, { t, locale }] = await Promise.all([searchParams, getI18n()])
+  const copy = t.social.askNew
   const kind = first(query.kind) === 'style_me' ? 'style_me' : 'choose'
   const lookId = first(query.look)
   const currentPath = buildPath(query, kind)
@@ -65,12 +65,11 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
   if (!viewer) {
     return (
       <Container size="narrow" className="pb-24">
-        <PageHeader title="Ask a friend" />
+        <PageHeader title={copy.title} />
         <GuestGate
           next={currentPath}
-          title="Your name"
-          description="Answers come back to this name. No account needed."
-          cta="Continue"
+          title={t.social.guest.name}
+          description={copy.guestDescription}
         />
       </Container>
     )
@@ -98,6 +97,10 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
   let defaultChecked = 0
 
   const error = first(query.error)
+  const errors: Record<string, string | undefined> = {
+    options: copy.errors.options,
+    handle: copy.errors.handle,
+  }
   const peopleOptions = network.people.map((p) => ({
     value: p.id,
     label: `${p.displayName} · @${p.handle}`,
@@ -106,8 +109,8 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
   return (
     <Container className="pb-24">
       <PageHeader
-        title="Ask a friend"
-        description={look ? `From “${look.look.title}” by ${look.owner.displayName}` : undefined}
+        title={copy.title}
+        description={look ? copy.fromLook(look.look.title, look.owner.displayName) : undefined}
         actions={
           <>
             <Button
@@ -115,33 +118,33 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
               variant={kind === 'choose' ? 'primary' : 'secondary'}
               size="sm"
             >
-              Which one?
+              {t.social.ask.whichOne}
             </Button>
             <Button
               href={buildPath(query, 'style_me')}
               variant={kind === 'style_me' ? 'primary' : 'secondary'}
               size="sm"
             >
-              Style me
+              {t.social.ask.styleMe}
             </Button>
           </>
         }
       />
 
-      {error && ERRORS[error] ? (
+      {error && errors[error] ? (
         <Notice tone="error" className="mb-6">
-          {ERRORS[error]}
+          {errors[error]}
         </Notice>
       ) : null}
       {error === 'engine' ? (
         <Notice tone="warning" className="mb-6">
-          The Ask could not be sent. Check the pieces and send again.
+          {copy.errors.engine}
         </Notice>
       ) : null}
 
       <InstantForm
         name="ask"
-        confirmation="Sending"
+        confirmation={t.social.ask.sending}
         action={createAskAction}
         className="flex flex-col gap-8"
       >
@@ -149,13 +152,18 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
         {lookId ? <input type="hidden" name="lookId" value={lookId} /> : null}
 
         {kind === 'choose' ? (
-          <Section title="Pieces" description="Two to four" rule={false} className="py-0 md:py-0">
+          <Section
+            title={copy.pieces}
+            description={copy.piecesHint}
+            rule={false}
+            className="py-0 md:py-0"
+          >
             {options.length === 0 ? (
               <EmptyState
-                title="No pieces to ask about yet."
+                title={copy.noPieces}
                 action={
                   <Button href="/shop" variant="secondary">
-                    Browse the Shop
+                    {copy.browseShop}
                   </Button>
                 }
               />
@@ -178,32 +186,42 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
 
         <div className="grid grid-cols-1 gap-5 md:max-w-3xl md:grid-cols-2">
           {kind === 'choose' ? (
-            <Field label="Question" htmlFor="question" className="md:col-span-2">
-              <Input id="question" name="question" defaultValue="Which one?" maxLength={280} />
+            <Field label={copy.question} htmlFor="question" className="md:col-span-2">
+              <Input
+                id="question"
+                name="question"
+                defaultValue={t.social.ask.whichOne}
+                maxLength={280}
+              />
             </Field>
           ) : (
             <>
-              <Field label="What you need" htmlFor="question" className="md:col-span-2">
+              <Field label={copy.need} htmlFor="question" className="md:col-span-2">
                 <Textarea
                   id="question"
                   name="question"
                   rows={3}
                   maxLength={280}
-                  placeholder="A friend's wedding in Tainan, light, not too formal / 幫我配一套去墾丁的穿搭"
+                  placeholder={copy.needPlaceholder}
                   required
                 />
               </Field>
-              <Field label="Budget (optional)" htmlFor="budget">
-                <Input id="budget" name="budget" inputMode="numeric" placeholder="NT$3,000" />
+              <Field label={copy.budget} htmlFor="budget">
+                <Input
+                  id="budget"
+                  name="budget"
+                  inputMode="numeric"
+                  placeholder={copy.budgetPlaceholder}
+                />
               </Field>
-              <Field label="Occasion (optional)" htmlFor="occasion">
-                <Select id="occasion" name="occasion" placeholder="Any" defaultValue="">
-                  {OCCASION_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </Select>
+              <Field label={copy.occasion} htmlFor="occasion">
+                <Select
+                  id="occasion"
+                  name="occasion"
+                  placeholder={copy.occasionAny}
+                  defaultValue=""
+                  options={occasionOptions(locale, t.social.occasions)}
+                />
               </Field>
             </>
           )}
@@ -212,20 +230,20 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
         <div className="hairline grid grid-cols-1 gap-5 pt-6 md:max-w-3xl md:grid-cols-2">
           {network.error ? (
             <Notice tone="warning" className="md:col-span-2">
-              Your people could not be loaded. Send by handle or by link.
+              {copy.errors.people}
             </Notice>
           ) : null}
-          <Field label="Send to" htmlFor="toUserId">
+          <Field label={copy.sendTo} htmlFor="toUserId">
             <Select
               id="toUserId"
               name="toUserId"
               defaultValue=""
               options={peopleOptions}
-              placeholder={peopleOptions.length ? 'Choose a person' : 'No one yet'}
+              placeholder={peopleOptions.length ? copy.choosePerson : copy.noPeople}
               disabled={peopleOptions.length === 0}
             />
           </Field>
-          <Field label="or a handle" htmlFor="toHandle" hint="Leave both empty to share by link.">
+          <Field label={copy.orHandle} htmlFor="toHandle" hint={copy.handleHint}>
             <Input
               id="toHandle"
               name="toHandle"
@@ -238,33 +256,33 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
 
         <div>
           <Button type="submit" size="lg" disabled={kind === 'choose' && options.length === 0}>
-            Send
+            {t.common.send}
           </Button>
         </div>
       </InstantForm>
 
       {recentAsks.length > 0 ? (
-        <Section title="Your asks">
+        <Section title={copy.yourAsks}>
           <ul className="flex flex-col divide-y divide-line">
             {recentAsks.map((ask) => (
               <li key={ask.id} className="flex items-center justify-between gap-4 py-3">
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-medium">{ask.question}</p>
                   <p className="text-[12px] text-muted">
-                    {ask.kind === 'choose' ? 'Which one?' : 'Style me'} ·{' '}
-                    {formatRelative(ask.createdAt)}
+                    {ask.kind === 'choose' ? t.social.ask.whichOne : t.social.ask.styleMe} ·{' '}
+                    {formatRelative(ask.createdAt, locale)}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <Tag tone={ask.status === 'answered' ? 'ink' : 'outline'}>
                     {ask.status === 'answered'
-                      ? 'Answered'
+                      ? t.social.ask.status.answered
                       : ask.status === 'open'
-                        ? 'Open'
-                        : 'Closed'}
+                        ? t.social.ask.status.open
+                        : t.social.ask.status.closed}
                   </Tag>
                   <Button href={`/asks/${ask.id}`} variant="link">
-                    Open
+                    {t.common.open}
                   </Button>
                 </div>
               </li>

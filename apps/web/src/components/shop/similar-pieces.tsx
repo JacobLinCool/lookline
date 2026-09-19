@@ -1,5 +1,6 @@
 import { similarProducts } from '@lookline/engine'
 import { ProductCard, Rail, RailItem } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
 import { displayName } from '@/lib/product-name'
 import { reasonLine } from '@/lib/reason'
 import { getDb } from '@/server/db'
@@ -15,12 +16,13 @@ export async function SimilarPieces({
   userId: string | null
   engineView?: boolean
 }) {
+  const { t, locale } = await getI18n()
   const result = await callEngine('similarProducts', () =>
     similarProducts(getDb().db, productId, { limit: 6, userId: userId ?? undefined }),
   )
   if (!result.ok || result.value.length === 0) return null
   return (
-    <Rail title="Similar" rule itemWidth="md">
+    <Rail title={t.shop.similar} rule itemWidth="md">
       {result.value.map((item) => (
         <RailItem key={item.product.id} width="md">
           <ProductCard
@@ -32,7 +34,9 @@ export async function SimilarPieces({
               colorName: item.product.colorName,
             }}
             reason={
-              engineView ? `${reasonLine(item.explanation)} · ${item.score.toFixed(2)}` : undefined
+              engineView
+                ? `${reasonLine(item.explanation, locale)} · ${item.score.toFixed(2)}`
+                : undefined
             }
           />
         </RailItem>

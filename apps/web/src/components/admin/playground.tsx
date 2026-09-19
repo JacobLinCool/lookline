@@ -14,6 +14,8 @@ import {
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import type { SearchIntent } from '@lookline/engine'
 import { Button, Field, Input, Notice, Select, Textarea } from '@/components/ui'
+import { useI18n, useLocale } from '@/i18n/client'
+import { facetLabel } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
 import styles from './playground.module.css'
 
@@ -73,6 +75,7 @@ function ProbabilityRows({
   probabilities: Record<string, number>
   limit?: number
 }) {
+  const locale = useLocale()
   return (
     <div className="flex flex-col gap-2.5">
       {sortedProbabilities(probabilities, limit).map(([label, value]) => (
@@ -81,7 +84,7 @@ function ProbabilityRows({
           className="grid grid-cols-[minmax(0,1fr)_3rem] items-center gap-x-3 gap-y-1"
         >
           <span className="truncate text-[12px] text-ink" title={label}>
-            {titleCase(label)}
+            {facetLabel(locale, label)}
           </span>
           <span className="tabular text-right text-[11px] text-muted">{percent(value)}</span>
           <div className={cn(styles.probabilityTrack, 'col-span-2')} aria-hidden="true">
@@ -105,22 +108,33 @@ function Relevance({ value }: { value: number }) {
 }
 
 function OntologyRail({ ontology }: { ontology: Ontology }) {
+  const { t } = useI18n()
   const groups = useMemo<OntologyGroup[]>(() => {
     const predicateGroups = Object.entries(ontology.predicateValues)
       .filter(([key]) => key.startsWith('attributes.'))
       .map(([id, values]) => ({ id, label: titleCase(id), kind: 'predicate' as const, values }))
     return [
-      { id: 'garmentTypes', label: 'Garment types', kind: 'types', values: ontology.garmentTypes },
+      {
+        id: 'garmentTypes',
+        label: t.admin.ontology.garmentTypes,
+        kind: 'types',
+        values: ontology.garmentTypes,
+      },
       ...Object.entries(ontology.categorical).map(([id, values]) => ({
         id,
         label: titleCase(id),
         kind: 'categorical' as const,
         values,
       })),
-      { id: 'ordinal', label: 'Ordinal axes', kind: 'ordinal', values: ontology.ordinal },
+      {
+        id: 'ordinal',
+        label: t.admin.ontology.ordinalAxes,
+        kind: 'ordinal',
+        values: ontology.ordinal,
+      },
       ...predicateGroups,
     ]
-  }, [ontology])
+  }, [ontology, t])
   const [active, setActive] = useState('garmentTypes')
   const [query, setQuery] = useState('')
   const search = query.trim().toLowerCase()
@@ -142,9 +156,9 @@ function OntologyRail({ ontology }: { ontology: Ontology }) {
       <div className="border-b border-line p-5">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-[15px]">Ontology</h2>
+            <h2 className="text-[15px]">{t.admin.ontology.title}</h2>
             <p className="tabular mt-0.5 text-[11px] text-muted">
-              {groups.length} dimensions · {totalValues} values
+              {t.admin.ontology.summary(groups.length, totalValues)}
             </p>
           </div>
           <Database className="mt-0.5 size-4 text-muted" aria-hidden="true" />
@@ -157,8 +171,8 @@ function OntologyRail({ ontology }: { ontology: Ontology }) {
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Find an attribute"
-            aria-label="Search ontology"
+            placeholder={t.admin.ontology.searchPlaceholder}
+            aria-label={t.admin.ontology.searchLabel}
             className="h-9 pl-9 text-[12px]"
           />
         </div>
@@ -168,7 +182,7 @@ function OntologyRail({ ontology }: { ontology: Ontology }) {
         {!search ? (
           <nav
             className="max-h-48 overflow-y-auto border-b border-line py-2"
-            aria-label="Ontology dimensions"
+            aria-label={t.admin.ontology.dimensionsLabel}
           >
             {groups.map((group) => (
               <button
@@ -212,7 +226,7 @@ function OntologyRail({ ontology }: { ontology: Ontology }) {
               ))}
             </div>
           ) : (
-            <p className="text-[12px] text-muted">No ontology value matches “{query}”.</p>
+            <p className="text-[12px] text-muted">{t.admin.ontology.noMatch(query)}</p>
           )}
         </div>
       </div>
@@ -221,6 +235,7 @@ function OntologyRail({ ontology }: { ontology: Ontology }) {
 }
 
 function IntentResults({ result, query }: { result: SearchIntent; query: string }) {
+  const { t } = useI18n()
   const categoricals = Object.entries(result.categorical).toSorted(
     (a, b) => b[1].relevance - a[1].relevance,
   )
@@ -228,15 +243,15 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
   return (
     <div className="border-t border-line">
       <div className="border-b border-line bg-card px-4 py-3">
-        <p className="text-[12px] font-medium text-muted">Compiled input</p>
+        <p className="text-[12px] font-medium text-muted">{t.admin.result.compiledInput}</p>
         <p className="mt-1 text-[12px] leading-relaxed text-ink">“{query}”</p>
       </div>
       <div className="grid grid-cols-2 border-b border-line bg-mist/40 sm:grid-cols-4">
         {[
-          ['Latency', `${Math.round(result.latencyMs)} ms`],
-          ['Questions', String(result.questionCount)],
-          ['Candidates', String(result.candidateCount)],
-          ['Unresolved', String(result.unresolved.length)],
+          [t.admin.result.latency, `${Math.round(result.latencyMs)} ms`],
+          [t.admin.result.questions, String(result.questionCount)],
+          [t.admin.result.candidates, String(result.candidateCount)],
+          [t.admin.result.unresolved, String(result.unresolved.length)],
         ].map(([label, value], index) => (
           <div key={label} className={cn('px-4 py-3', index > 0 && 'border-l border-line')}>
             <p className="text-[12px] font-medium text-muted">{label}</p>
@@ -249,9 +264,11 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
         <section className="border-b border-line p-5 lg:border-r lg:border-b-0">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-[14px]">Garment type prior</h3>
+              <h3 className="text-[14px]">{t.admin.result.typePrior}</h3>
               <p className="mt-0.5 text-[11px] text-muted">
-                {result.typeExplicitness ? 'Explicit type signal' : 'Purpose-based prior'}
+                {result.typeExplicitness
+                  ? t.admin.result.explicitTypeSignal
+                  : t.admin.result.purposePrior}
               </p>
             </div>
             <Relevance value={result.typeRelevance} />
@@ -262,8 +279,8 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
         <section className="min-w-0 p-5">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-[14px]">Categorical constraints</h3>
-              <p className="mt-0.5 text-[11px] text-muted">Ordered by relevance to this query</p>
+              <h3 className="text-[14px]">{t.admin.result.categorical}</h3>
+              <p className="mt-0.5 text-[11px] text-muted">{t.admin.result.categoricalHint}</p>
             </div>
             <SlidersHorizontal className="size-4 text-muted" aria-hidden="true" />
           </div>
@@ -281,10 +298,10 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
                     <h4 className="font-sans text-[12px] font-semibold">{titleCase(name)}</h4>
                     <p className="mt-0.5 text-[10px] text-muted">
                       {constraint.combination !== 'unspecified'
-                        ? titleCase(constraint.combination)
+                        ? t.admin.result.combination[constraint.combination]
                         : constraint.explicitness
-                          ? 'Explicit'
-                          : 'Inferred'}
+                          ? t.admin.result.explicit
+                          : t.admin.result.inferred}
                     </p>
                   </div>
                   <Relevance value={constraint.relevance} />
@@ -299,8 +316,8 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
       <section className="border-t border-line p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-[14px]">Ordinal axes</h3>
-            <p className="mt-0.5 text-[11px] text-muted">Target position, operator and relevance</p>
+            <h3 className="text-[14px]">{t.admin.ontology.ordinalAxes}</h3>
+            <p className="mt-0.5 text-[11px] text-muted">{t.admin.result.ordinalHint}</p>
           </div>
           <Atom className="size-4 text-muted" aria-hidden="true" />
         </div>
@@ -308,11 +325,11 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
           <table className="w-full min-w-[46rem] border-collapse text-left">
             <thead>
               <tr className="border-b border-line text-[12px] text-muted">
-                <th className="pb-2 font-medium">Axis</th>
-                <th className="pb-2 font-medium">Target</th>
-                <th className="pb-2 font-medium">Relation</th>
-                <th className="pb-2 font-medium">Relevance</th>
-                <th className="pb-2 text-right font-medium">Source</th>
+                <th className="pb-2 font-medium">{t.admin.result.axis}</th>
+                <th className="pb-2 font-medium">{t.admin.result.target}</th>
+                <th className="pb-2 font-medium">{t.admin.result.relation}</th>
+                <th className="pb-2 font-medium">{t.admin.result.relevance}</th>
+                <th className="pb-2 text-right font-medium">{t.admin.result.source}</th>
               </tr>
             </thead>
             <tbody>
@@ -337,7 +354,9 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
                     <Relevance value={constraint.relevance} />
                   </td>
                   <td className="py-3 text-right text-[11px] text-muted">
-                    {constraint.explicitness ? 'explicit' : 'inferred'}
+                    {constraint.explicitness
+                      ? t.admin.result.sourceExplicit
+                      : t.admin.result.sourceInferred}
                   </td>
                 </tr>
               ))}
@@ -349,10 +368,8 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
       <section className="border-t border-line p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-[14px]">Sparse predicates</h3>
-            <p className="mt-0.5 text-[11px] text-muted">
-              Only explicit long-tail candidates survive
-            </p>
+            <h3 className="text-[14px]">{t.admin.result.predicates}</h3>
+            <p className="mt-0.5 text-[11px] text-muted">{t.admin.result.predicatesHint}</p>
           </div>
           <span className="tabular text-[11px] text-muted">{result.predicates.length}</span>
         </div>
@@ -377,14 +394,14 @@ function IntentResults({ result, query }: { result: SearchIntent; query: string 
             ))}
           </div>
         ) : (
-          <p className="text-[12px] text-muted">No long-tail predicate was activated.</p>
+          <p className="text-[12px] text-muted">{t.admin.result.noPredicates}</p>
         )}
       </section>
 
       <details className="border-t border-line p-5">
         <summary className="flex cursor-pointer list-none items-center gap-2 text-[12px] font-medium">
           <Braces className="size-4" aria-hidden="true" />
-          Raw SearchIntent JSON
+          {t.admin.result.rawJson}
         </summary>
         <pre className="mt-4 max-h-[34rem] overflow-auto rounded-md bg-ink p-4 font-mono text-[11px] leading-relaxed text-paper">
           {JSON.stringify(result, null, 2)}
@@ -401,6 +418,7 @@ function IntentCompiler({
   configured: boolean
   activePanel: boolean
 }) {
+  const { t } = useI18n()
   const [query, setQuery] = useState(INTENT_EXAMPLES[0]!)
   const [result, setResult] = useState<SearchIntent | null>(null)
   const [submittedQuery, setSubmittedQuery] = useState<string | null>(null)
@@ -449,12 +467,12 @@ function IntentCompiler({
         signal: controller.signal,
       })
       const body = (await response.json()) as SearchIntent | { error: string }
-      if (!response.ok) throw new Error('error' in body ? body.error : 'Intent compilation failed.')
+      if (!response.ok) throw new Error('error' in body ? body.error : t.admin.intent.error)
       if ('error' in body) throw new Error(body.error)
       if (active.current === controller) setResult(body)
     } catch (caught) {
       if (!controller.signal.aborted)
-        setError(caught instanceof Error ? caught.message : 'Intent compilation failed.')
+        setError(caught instanceof Error ? caught.message : t.admin.intent.error)
     } finally {
       if (active.current === controller) {
         active.current = null
@@ -468,10 +486,8 @@ function IntentCompiler({
       <form onSubmit={run} className="border-b border-line p-5 md:p-7">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h2 className="text-[18px]">Compile a search phrase</h2>
-            <p className="mt-1 text-[13px] text-muted">
-              One phrase becomes a complete, relevance-gated search space.
-            </p>
+            <h2 className="text-[18px]">{t.admin.intent.title}</h2>
+            <p className="mt-1 text-[13px] text-muted">{t.admin.intent.description}</p>
           </div>
           <Button
             type="button"
@@ -483,17 +499,17 @@ function IntentCompiler({
               setQuery(INTENT_EXAMPLES[0]!)
             }}
           >
-            Reset
+            {t.admin.intent.reset}
           </Button>
         </div>
 
         {!configured ? (
-          <Notice tone="warning" title="Intent compiler is not configured" className="mb-4">
-            Add a TypeSafe API key to run live probability probes.
+          <Notice tone="warning" title={t.admin.intent.notConfigured} className="mb-4">
+            {t.admin.intent.notConfiguredBody}
           </Notice>
         ) : null}
         {error ? (
-          <Notice tone="error" title="Compilation failed" className="mb-4">
+          <Notice tone="error" title={t.admin.intent.failed} className="mb-4">
             {error}
           </Notice>
         ) : null}
@@ -504,7 +520,7 @@ function IntentCompiler({
             onChange={(event) => updateQuery(event.target.value)}
             rows={3}
             maxLength={500}
-            aria-label="Search phrase"
+            aria-label={t.admin.intent.queryLabel}
             className="min-h-24 flex-1 resize-none text-[16px] leading-relaxed"
           />
           <Button
@@ -514,7 +530,7 @@ function IntentCompiler({
             disabled={!configured || busy || !query.trim()}
             className="md:w-36"
           >
-            {busy ? 'Compiling…' : 'Compile'}
+            {busy ? t.admin.intent.compiling : t.admin.intent.compile}
           </Button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -525,7 +541,7 @@ function IntentCompiler({
               onClick={() => updateQuery(example)}
               className="rounded-sm border border-line bg-card px-2.5 py-1.5 text-left text-[12px] text-muted transition-colors hover:border-ink hover:text-ink"
             >
-              Example {index + 1}
+              {t.admin.intent.example(index + 1)}
             </button>
           ))}
           <span className="tabular ml-auto self-center text-[11px] text-muted">
@@ -538,7 +554,7 @@ function IntentCompiler({
         <div
           className="grid gap-px bg-line md:grid-cols-2"
           aria-live="polite"
-          aria-label="Compiling intent"
+          aria-label={t.admin.intent.runningLabel}
         >
           <div className="h-72 animate-pulse bg-mist/60" />
           <div className="h-72 animate-pulse bg-mist/40" />
@@ -548,10 +564,8 @@ function IntentCompiler({
       ) : (
         <div className="flex min-h-80 flex-col items-center justify-center px-6 text-center">
           <Atom className="mb-4 size-7 text-muted" aria-hidden="true" />
-          <h3 className="text-[15px]">Ready for a probability trace</h3>
-          <p className="mt-1 max-w-md text-[12px] text-muted">
-            Run an example to see which dimensions become constraints and which stay open.
-          </p>
+          <h3 className="text-[15px]">{t.admin.intent.emptyTitle}</h3>
+          <p className="mt-1 max-w-md text-[12px] text-muted">{t.admin.intent.emptyBody}</p>
         </div>
       )}
     </div>
@@ -559,6 +573,7 @@ function IntentCompiler({
 }
 
 function ImageStudio({ configured, activePanel }: { configured: boolean; activePanel: boolean }) {
+  const { t } = useI18n()
   const [prompt, setPrompt] = useState(IMAGE_EXAMPLES[0]!)
   const [aspectRatio, setAspectRatio] = useState<'3:4' | '1:1' | '4:5' | '9:16'>('3:4')
   const [result, setResult] = useState<ImageResult | null>(null)
@@ -616,12 +631,12 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
         signal: controller.signal,
       })
       const body = (await response.json()) as ImageResult | { error: string }
-      if (!response.ok) throw new Error('error' in body ? body.error : 'Image generation failed.')
+      if (!response.ok) throw new Error('error' in body ? body.error : t.admin.image.error)
       if ('error' in body) throw new Error(body.error)
       if (active.current === controller) setResult(body)
     } catch (caught) {
       if (!controller.signal.aborted)
-        setError(caught instanceof Error ? caught.message : 'Image generation failed.')
+        setError(caught instanceof Error ? caught.message : t.admin.image.error)
     } finally {
       if (active.current === controller) {
         active.current = null
@@ -638,23 +653,25 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
           className="border-b border-line p-5 md:p-7 xl:border-r xl:border-b-0"
         >
           <div className="mb-6">
-            <h2 className="text-[18px]">Generate a fashion image</h2>
-            <p className="mt-1 text-[13px] text-muted">
-              Test prompts against the configured image renderer.
-            </p>
+            <h2 className="text-[18px]">{t.admin.image.title}</h2>
+            <p className="mt-1 text-[13px] text-muted">{t.admin.image.description}</p>
           </div>
           {!configured ? (
-            <Notice tone="warning" title="Image generation is not configured" className="mb-5">
-              Add an OpenAI or Gemini key to enable this playground.
+            <Notice tone="warning" title={t.admin.image.notConfigured} className="mb-5">
+              {t.admin.image.notConfiguredBody}
             </Notice>
           ) : null}
           {error ? (
-            <Notice tone="error" title="Generation failed" className="mb-5">
+            <Notice tone="error" title={t.admin.image.failed} className="mb-5">
               {error}
             </Notice>
           ) : null}
           <div className="flex flex-col gap-5">
-            <Field label="Prompt" htmlFor="image-prompt" hint={`${prompt.length}/2,000 characters`}>
+            <Field
+              label={t.admin.image.promptLabel}
+              htmlFor="image-prompt"
+              hint={t.admin.image.promptHint(prompt.length)}
+            >
               <Textarea
                 id="image-prompt"
                 value={prompt}
@@ -664,7 +681,7 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
                 className="resize-none"
               />
             </Field>
-            <Field label="Aspect ratio" htmlFor="image-ratio">
+            <Field label={t.admin.image.ratioLabel} htmlFor="image-ratio">
               <Select
                 id="image-ratio"
                 value={aspectRatio}
@@ -672,10 +689,10 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
                   updateAspectRatio(event.target.value as '3:4' | '1:1' | '4:5' | '9:16')
                 }
                 options={[
-                  { value: '3:4', label: '3:4 · Editorial portrait' },
-                  { value: '4:5', label: '4:5 · Campaign portrait' },
-                  { value: '1:1', label: '1:1 · Square' },
-                  { value: '9:16', label: '9:16 · Story' },
+                  { value: '3:4', label: t.admin.image.ratios['3:4'] },
+                  { value: '4:5', label: t.admin.image.ratios['4:5'] },
+                  { value: '1:1', label: t.admin.image.ratios['1:1'] },
+                  { value: '9:16', label: t.admin.image.ratios['9:16'] },
                 ]}
               />
             </Field>
@@ -686,11 +703,11 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
               disabled={!configured || busy || !prompt.trim()}
               full
             >
-              {busy ? 'Generating…' : 'Generate image'}
+              {busy ? t.admin.image.generating : t.admin.image.generate}
             </Button>
           </div>
           <div className="mt-7 border-t border-line pt-5">
-            <p className="mb-3 text-[12px] font-medium text-muted">Prompt starters</p>
+            <p className="mb-3 text-[12px] font-medium text-muted">{t.admin.image.starters}</p>
             <div className="flex flex-col gap-2">
               {IMAGE_EXAMPLES.map((example, index) => (
                 <button
@@ -712,19 +729,15 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
           {busy ? (
             <div className="flex flex-col items-center gap-4 text-center" aria-live="polite">
               <div className="h-72 w-56 animate-pulse rounded-md bg-card shadow-lift" />
-              <p className="text-[12px] text-muted">Rendering the prompt…</p>
+              <p className="text-[12px] text-muted">{t.admin.image.rendering}</p>
             </div>
           ) : result && submittedInput ? (
             <div className="flex w-full flex-col items-center gap-5">
               {/* A data URL is intentionally rendered directly; generated playground images are not persisted. */}
-              <img
-                src={result.image}
-                alt="Generated fashion experiment"
-                className={styles.generatedImage}
-              />
+              <img src={result.image} alt={t.admin.image.alt} className={styles.generatedImage} />
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <span className="tabular text-[11px] text-muted">
-                  Generated in {(result.latencyMs / 1_000).toFixed(1)}s
+                  {t.admin.image.generatedIn((result.latencyMs / 1_000).toFixed(1))}
                 </span>
                 <a
                   href={result.image}
@@ -732,12 +745,12 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
                   className="inline-flex h-9 items-center gap-2 rounded-sm border border-line bg-card px-3 text-[13px] font-medium transition-colors hover:border-ink"
                 >
                   <Download className="size-4" aria-hidden="true" />
-                  Download
+                  {t.admin.image.download}
                 </a>
               </div>
               <div className="max-w-xl rounded-sm bg-card px-4 py-3 text-center">
                 <p className="text-[12px] font-medium text-muted">
-                  {submittedInput.aspectRatio} submitted prompt
+                  {t.admin.image.submittedPrompt(submittedInput.aspectRatio)}
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-ink">
                   “{submittedInput.prompt}”
@@ -747,11 +760,8 @@ function ImageStudio({ configured, activePanel }: { configured: boolean; activeP
           ) : (
             <div className="max-w-sm rounded-md bg-card p-7 text-center shadow-lift">
               <ImageIcon className="mx-auto mb-4 size-7 text-muted" aria-hidden="true" />
-              <h3 className="text-[15px]">The generated frame appears here</h3>
-              <p className="mt-1 text-[12px] text-muted">
-                Choose a prompt and ratio, then generate a real image without saving it to the
-                catalog.
-              </p>
+              <h3 className="text-[15px]">{t.admin.image.emptyTitle}</h3>
+              <p className="mt-1 text-[12px] text-muted">{t.admin.image.emptyBody}</p>
             </div>
           )}
         </div>
@@ -769,6 +779,7 @@ export function AdminPlayground({
   intentConfigured: boolean
   imageConfigured: boolean
 }) {
+  const { t } = useI18n()
   const [tab, setTab] = useState<'intent' | 'image'>('intent')
   return (
     <div className={styles.layout}>
@@ -777,23 +788,21 @@ export function AdminPlayground({
         <header className="border-b border-line px-5 pt-7 md:px-7 md:pt-9">
           <div className="mb-7 flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <h1 className="display text-[28px] md:text-[34px]">Engine lab</h1>
-              <p className="mt-1.5 text-[13px] text-muted">
-                Ontology, intent probabilities and image generation, live.
-              </p>
+              <h1 className="display text-[28px] md:text-[34px]">{t.admin.title}</h1>
+              <p className="mt-1.5 text-[13px] text-muted">{t.admin.subtitle}</p>
             </div>
             <div className="flex items-center gap-2 text-[12px] text-muted">
               <span
                 className={cn('size-1.5 rounded-full', intentConfigured ? 'bg-ink' : 'bg-line')}
               />
-              Intent
+              {t.admin.status.intent}
               <span
                 className={cn('ml-2 size-1.5 rounded-full', imageConfigured ? 'bg-ink' : 'bg-line')}
               />
-              Image
+              {t.admin.status.image}
             </div>
           </div>
-          <div className="flex gap-6" role="tablist" aria-label="Playground mode">
+          <div className="flex gap-6" role="tablist" aria-label={t.admin.tabs.label}>
             <button
               id="intent-tab"
               type="button"
@@ -809,7 +818,7 @@ export function AdminPlayground({
               )}
             >
               <Atom className="size-4" aria-hidden="true" />
-              Intent compiler
+              {t.admin.tabs.intent}
             </button>
             <button
               id="image-tab"
@@ -826,7 +835,7 @@ export function AdminPlayground({
               )}
             >
               <ImageIcon className="size-4" aria-hidden="true" />
-              Image studio
+              {t.admin.tabs.image}
             </button>
           </div>
         </header>

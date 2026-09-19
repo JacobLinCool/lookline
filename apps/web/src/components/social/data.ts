@@ -25,6 +25,8 @@ import {
   type InteractionInput,
   type UserSummary,
 } from '@lookline/engine'
+import type { Locale } from '@/i18n/config'
+import { facetLabel } from '@/i18n/taxonomy'
 import { getDb } from '@/server/db'
 
 /**
@@ -277,25 +279,55 @@ export async function loadNetworkPeople(userId: string): Promise<NetworkPeople> 
 }
 
 /** `{ value, label }` options for a preset `<Select>`; empty while the engine ships no presets. */
-export function presetOptions(): Array<{ value: string; label: string }> {
-  return STYLE_PRESETS.map((p) => ({ value: p.slug, label: `${p.name} · ${p.labelZh}` }))
+export function presetOptions(locale: Locale = 'en'): Array<{ value: string; label: string }> {
+  return STYLE_PRESETS.map((p) => ({
+    value: p.slug,
+    label: locale === 'zh-TW' ? p.labelZh : p.name,
+  }))
 }
 
-/** Human label for a preset slug. */
-export function presetLabel(slug: string): string {
-  return STYLE_PRESETS.find((p) => p.slug === slug)?.name ?? slug.replace(/[-_]+/g, ' ')
+/** The preset's own label in the reader's language. */
+export function presetLabel(slug: string, locale: Locale = 'en'): string {
+  const preset = STYLE_PRESETS.find((p) => p.slug === slug)
+  if (!preset) return slug.replace(/[-_]+/g, ' ')
+  return locale === 'zh-TW' ? preset.labelZh : preset.name
 }
 
-/** Together / style_me occasions offered in the UI (product language from ref/). */
+/**
+ * Together / style_me occasions offered in the UI (product language from ref/). `facet` names the
+ * catalog occasion whose label the option shows; `graduation` and `seasonal` are not catalog
+ * occasions, so those two read from the `social` messages instead.
+ */
 export const OCCASION_OPTIONS = [
-  { value: 'travel', label: 'Travel' },
-  { value: 'wedding', label: 'Wedding' },
-  { value: 'festival', label: 'Festival' },
-  { value: 'date', label: 'Date' },
-  { value: 'graduation', label: 'Graduation' },
-  { label: 'Party', value: 'party' },
-  { value: 'seasonal', label: 'Seasonal' },
+  { value: 'travel', facet: 'travel' },
+  { value: 'wedding', facet: 'wedding-guest' },
+  { value: 'festival', facet: 'festival' },
+  { value: 'date', facet: 'date-night' },
+  { value: 'graduation', facet: null },
+  { value: 'party', facet: 'party' },
+  { value: 'seasonal', facet: null },
 ] as const
+
+type OwnOccasions = Record<'graduation' | 'seasonal', string>
+
+/** The occasion `<Select>` options in the reader's language, in offered order. */
+export function occasionOptions(
+  locale: Locale,
+  own: OwnOccasions,
+): Array<{ value: string; label: string }> {
+  return OCCASION_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.facet ? facetLabel(locale, option.facet) : own[option.value],
+  }))
+}
+
+/** The label of a stored occasion value, whether or not it is one we offer. */
+export function occasionOptionLabel(locale: Locale, value: string, own: OwnOccasions): string {
+  return (
+    occasionOptions(locale, own).find((option) => option.value === value)?.label ??
+    facetLabel(locale, value)
+  )
+}
 
 /** Parse `products=1,2,3` (or repeated params) into positive integer ids. */
 export function parseIdList(value: string | string[] | undefined): number[] {

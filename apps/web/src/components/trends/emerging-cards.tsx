@@ -1,16 +1,9 @@
 import type { TrendSeries } from '@lookline/engine'
 import { Card, Tag } from '@/components/ui'
-import { humanize } from '@/server/format'
+import { getI18n } from '@/i18n/server'
 import { num, pct } from './format'
+import { seriesLabel } from './momentum-table'
 import { CHART } from './palette'
-
-const DIMENSION_LABEL: Record<TrendSeries['dimension'], string> = {
-  aesthetic: 'Aesthetic',
-  category: 'Category',
-  color: 'Colour',
-  silhouette: 'Silhouette',
-  aesthetic_category: 'Aesthetic × category',
-}
 
 /** Inline sparkline of the last days of volume; the last point is marked. */
 function Sparkline({ points }: { points: Array<{ day: string; volume: number }> }) {
@@ -33,10 +26,11 @@ function Sparkline({ points }: { points: Array<{ day: string; volume: number }> 
 }
 
 /** "Emerging now": low base volume, sharp velocity, spread across at least two clusters. */
-export function EmergingCards({ rows, limit = 6 }: { rows: TrendSeries[]; limit?: number }) {
+export async function EmergingCards({ rows, limit = 6 }: { rows: TrendSeries[]; limit?: number }) {
+  const { t, locale } = await getI18n()
   const shown = rows.toSorted((a, b) => b.momentum - a.momentum).slice(0, limit)
   if (shown.length === 0) {
-    return <p className="text-[13px] text-muted">No emerging trends in this period.</p>
+    return <p className="text-[13px] text-muted">{t.trends.emerging.empty}</p>
   }
   return (
     <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -44,24 +38,22 @@ export function EmergingCards({ rows, limit = 6 }: { rows: TrendSeries[]; limit?
         <Card as="li" key={`${row.dimension}:${row.key}`} surface="panel" padding="sm">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <h3 className="truncate text-[17px] leading-tight">
-                {row.label || humanize(row.key)}
-              </h3>
-              <p className="text-[12px] text-muted">{DIMENSION_LABEL[row.dimension]}</p>
+              <h3 className="truncate text-[17px] leading-tight">{seriesLabel(locale, row)}</h3>
+              <p className="text-[12px] text-muted">{t.trends.dimension[row.dimension]}</p>
             </div>
-            <Tag tone="accent">Emerging</Tag>
+            <Tag tone="accent">{t.trends.status.emerging}</Tag>
           </div>
           <div className="mt-3 flex items-end justify-between gap-3">
             <Sparkline points={row.series} />
             <dl className="tabular grid shrink-0 grid-cols-[auto_auto] gap-x-3 gap-y-0.5 text-right text-[12px]">
-              <dt className="text-muted">Momentum</dt>
+              <dt className="text-muted">{t.trends.metric.momentum}</dt>
               <dd className="font-medium">{Math.round(row.momentum)}</dd>
-              <dt className="text-muted">Velocity</dt>
+              <dt className="text-muted">{t.trends.metric.velocity}</dt>
               <dd>
                 {row.velocity >= 0 ? '+' : '−'}
                 {pct(Math.abs(row.velocity))}
               </dd>
-              <dt className="text-muted">Cross-cluster</dt>
+              <dt className="text-muted">{t.trends.metric.crossCluster}</dt>
               <dd>{num(row.crossCluster)}</dd>
             </dl>
           </div>

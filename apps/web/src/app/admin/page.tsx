@@ -6,8 +6,12 @@
 import type { Metadata } from 'next'
 import { SEARCH_INTENT_ONTOLOGY } from '@lookline/engine'
 import { AdminPlayground } from '@/components/admin/playground'
+import { getI18n } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Engine lab' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.admin.title }
+}
 
 export default function AdminPage() {
   const ontology = {

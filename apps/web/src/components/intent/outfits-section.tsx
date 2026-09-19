@@ -1,4 +1,7 @@
+'use client'
+
 import { EmptyState, Notice, Section } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
 import type { Recommendation, Understanding } from '@/server/intent'
 import { OutfitRail } from './outfit-card'
 import type { IntentQuery } from './urls'
@@ -17,18 +20,19 @@ export function OutfitsSection({
   query,
   engineView = false,
 }: OutfitsSectionProps) {
+  const { t } = useI18n()
   const { result } = recommendation
   const intent = understanding.parse.ok ? understanding.parse.intent : null
   const budgetMax = intent?.budget?.max ?? null
 
   return (
-    <Section title="Outfits">
+    <Section title={t.home.outfits.title}>
       {!result.ok ? (
-        <Notice tone="warning" title="Outfits could not be loaded." />
+        <Notice tone="warning" title={t.home.outfits.failed} />
       ) : result.outfits.length === 0 ? (
         <EmptyState
-          title="No complete outfit within this budget."
-          description="The pieces below still match on their own."
+          title={t.home.outfits.emptyTitle}
+          description={t.home.outfits.emptyDescription}
         />
       ) : (
         <div className="flex flex-col gap-10">

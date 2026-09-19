@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Look } from '@lookline/db'
 import { cn } from '@/lib/cn'
 import { Avatar } from './avatar'
+import { LineageText } from './lineage-text'
 
 export type LookCardLook = Pick<Look, 'id' | 'title' | 'stylePreset'> &
   Partial<Pick<Look, 'kind' | 'createdAt' | 'depth' | 'imagePath'>>
@@ -32,18 +33,6 @@ export interface LookCardProps {
   hideOwner?: boolean
   priority?: boolean
   className?: string
-}
-
-function lineageText(hint: LookLineageHint): string {
-  if (typeof hint === 'string') return hint
-  switch (hint.kind) {
-    case 'remix':
-      return `Inspired by @${hint.handle}`
-    case 'together':
-      return `With @${hint.handle}`
-    case 'inspired':
-      return `Inspired by @${hint.handle}`
-  }
 }
 
 /** A Look on the rail: the image, its name, who made it. */
@@ -98,7 +87,7 @@ export function LookCard({
             {lineage ? (
               <span className="truncate">
                 {!hideOwner ? '· ' : ''}
-                {lineageText(lineage)}
+                <LineageText hint={lineage} />
               </span>
             ) : null}
           </div>

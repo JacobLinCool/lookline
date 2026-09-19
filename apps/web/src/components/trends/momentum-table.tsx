@@ -1,8 +1,11 @@
 import type { TrendSeries } from '@lookline/engine'
 import { Tag } from '@/components/ui'
+import type { Locale } from '@/i18n/config'
+import { getI18n } from '@/i18n/server'
+import { aestheticLabel, categoryGroupLabel, colorFamilyLabel, facetLabel } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
-import { formatTwd, humanize } from '@/server/format'
-import { num, pct } from './format'
+import { formatTwd } from '@/server/format'
+import { num, pct, splitPairKey } from './format'
 
 export interface MomentumTableProps {
   rows: TrendSeries[]
@@ -11,6 +14,28 @@ export interface MomentumTableProps {
   /** Cap the number of rows shown. */
   limit?: number
   className?: string
+}
+
+/** A signal's name in the reader's language: the catalog's noun for the dimension it belongs to. */
+export function seriesLabel(
+  locale: Locale,
+  series: { dimension: TrendSeries['dimension']; key: string },
+): string {
+  switch (series.dimension) {
+    case 'aesthetic':
+      return aestheticLabel(locale, series.key)
+    case 'category':
+      return categoryGroupLabel(locale, series.key)
+    case 'color':
+      return colorFamilyLabel(locale, series.key)
+    case 'silhouette':
+      return facetLabel(locale, series.key)
+    case 'aesthetic_category': {
+      const [aesthetic, group] = splitPairKey(series.key)
+      if (!group) return facetLabel(locale, aesthetic)
+      return `${aestheticLabel(locale, aesthetic)} × ${categoryGroupLabel(locale, group)}`
+    }
+  }
 }
 
 function MomentumBar({ value }: { value: number }) {
@@ -36,31 +61,39 @@ export const STICKY_COL = 'sticky left-0 z-10 bg-paper pr-3'
  * Momentum table for one trend dimension. Momentum is the engine's 0–100 composite (velocity,
  * cross-cluster spread, conversion, lineage reach, volume); the bar is a plain magnitude.
  */
-export function MomentumTable({ rows, compact = false, limit, className }: MomentumTableProps) {
+export async function MomentumTable({
+  rows,
+  compact = false,
+  limit,
+  className,
+}: MomentumTableProps) {
+  const { t, locale } = await getI18n()
   const shown = (limit ? rows.slice(0, limit) : rows).toSorted((a, b) => b.momentum - a.momentum)
   if (shown.length === 0) {
-    return <p className="text-[13px] text-muted">No signals in this window.</p>
+    return <p className="text-[13px] text-muted">{t.trends.table.empty}</p>
   }
   return (
     <div className={cn('overflow-x-auto', className)}>
       <table className={cn(TABLE, compact ? 'min-w-[22rem]' : 'min-w-[40rem]')}>
         <thead>
           <tr className={THEAD_ROW}>
-            <th className={STICKY_COL}>{compact ? 'Name' : 'Aesthetic'}</th>
-            <th className="text-right">Momentum</th>
-            {!compact ? <th className="text-right">Volume</th> : null}
-            <th className="text-right">Velocity</th>
-            {!compact ? <th className="text-right">Cross-cluster</th> : null}
-            {!compact ? <th className="text-right">Conversion</th> : null}
-            {!compact ? <th className="text-right">GMV</th> : null}
-            <th className="text-right">Status</th>
+            <th className={STICKY_COL}>
+              {compact ? t.trends.table.name : t.trends.table.aesthetic}
+            </th>
+            <th className="text-right">{t.trends.metric.momentum}</th>
+            {!compact ? <th className="text-right">{t.trends.metric.volume}</th> : null}
+            <th className="text-right">{t.trends.metric.velocity}</th>
+            {!compact ? <th className="text-right">{t.trends.metric.crossCluster}</th> : null}
+            {!compact ? <th className="text-right">{t.trends.metric.conversion}</th> : null}
+            {!compact ? <th className="text-right">{t.trends.metric.gmv}</th> : null}
+            <th className="text-right">{t.trends.table.status}</th>
           </tr>
         </thead>
         <tbody>
           {shown.map((row) => (
             <tr key={`${row.dimension}:${row.key}`} className={BODY_ROW}>
               <th scope="row" className={cn(STICKY_COL, 'text-left font-medium whitespace-nowrap')}>
-                {row.label || humanize(row.key)}
+                {seriesLabel(locale, row)}
               </th>
               <td className="text-right">
                 <MomentumBar value={row.momentum} />
@@ -77,13 +110,13 @@ export function MomentumTable({ rows, compact = false, limit, className }: Momen
               {!compact ? <td className="tabular text-right">{formatTwd(row.gmv)}</td> : null}
               <td className="text-right">
                 {row.emerging ? (
-                  <Tag tone="accent">Emerging</Tag>
+                  <Tag tone="accent">{t.trends.status.emerging}</Tag>
                 ) : row.velocity >= 0.25 ? (
-                  <Tag tone="outline">Rising</Tag>
+                  <Tag tone="outline">{t.trends.status.rising}</Tag>
                 ) : row.velocity <= -0.3 ? (
-                  <Tag tone="outline">Fading</Tag>
+                  <Tag tone="outline">{t.trends.status.fading}</Tag>
                 ) : (
-                  <span className="text-[12px] text-muted">Stable</span>
+                  <span className="text-[12px] text-muted">{t.trends.status.stable}</span>
                 )}
               </td>
             </tr>

@@ -1,33 +1,32 @@
 import { InstantForm } from '@/components/latency/instant-form'
 import { completeTheLook, type Outfit, type RankedItem } from '@lookline/engine'
 import { Button, FactorBreakdown, ProductCard, Rail, RailItem, Tag } from '@/components/ui'
+import type { Locale } from '@/i18n/config'
+import type { Messages } from '@/i18n/messages'
+import { getI18n } from '@/i18n/server'
+import { facetLabel, subcategoryLabel } from '@/i18n/taxonomy'
 import { addOutfitToBagAction } from '@/server/actions/bag'
 import { getDb } from '@/server/db'
 import { displayName } from '@/lib/product-name'
-import { formatTwd, humanize } from '@/server/format'
-import { OUTFIT_ROLE_LABELS } from './constants'
+import { formatTwd } from '@/server/format'
 import { callEngine } from './engine'
 
-function roleLabel(item: RankedItem): string {
+function roleLabel(item: RankedItem, t: Messages, locale: Locale): string {
+  const roles: Record<string, string> = t.shop.outfitRoles
   return item.role
-    ? (OUTFIT_ROLE_LABELS[item.role] ?? humanize(item.role))
-    : humanize(item.product.subcategory)
+    ? (roles[item.role] ?? facetLabel(locale, item.role))
+    : subcategoryLabel(locale, item.product.subcategory)
 }
 
 /** "With sweater and boots" — the other pieces in the outfit, by kind. */
-function withLine(outfit: Outfit, anchorId: number): string {
+function withLine(outfit: Outfit, anchorId: number, t: Messages, locale: Locale): string {
   const others = outfit.items
     .filter((item) => item.product.id !== anchorId)
-    .map((item) => humanize(item.product.subcategory).toLowerCase())
-  if (others.length === 0) return 'On its own'
-  const list =
-    others.length === 1
-      ? others[0]!
-      : `${others.slice(0, -1).join(', ')} and ${others[others.length - 1]}`
-  return `With ${list}`
+    .map((item) => subcategoryLabel(locale, item.product.subcategory))
+  return others.length === 0 ? t.shop.look.alone : t.shop.look.withPieces(others)
 }
 
-function OutfitRail({
+async function OutfitRail({
   outfit,
   anchorId,
   engineView,
@@ -36,9 +35,10 @@ function OutfitRail({
   anchorId: number
   engineView: boolean
 }) {
+  const { t, locale } = await getI18n()
   return (
     <div className="flex flex-col gap-3">
-      <Rail title={withLine(outfit, anchorId)} itemWidth="sm">
+      <Rail title={withLine(outfit, anchorId, t, locale)} itemWidth="sm">
         {outfit.items.map((item) => (
           <RailItem key={item.product.id} width="sm">
             <ProductCard
@@ -49,7 +49,9 @@ function OutfitRail({
                 brandName: item.brandName,
               }}
               href={`/p/${item.product.id}`}
-              tag={item.product.id === anchorId ? 'This piece' : roleLabel(item)}
+              tag={
+                item.product.id === anchorId ? t.shop.look.thisPiece : roleLabel(item, t, locale)
+              }
             />
           </RailItem>
         ))}
@@ -57,21 +59,25 @@ function OutfitRail({
       <InstantForm
         action={addOutfitToBagAction}
         name="add-outfit"
-        confirmation="Outfit added to your bag"
+        confirmation={t.shop.look.added}
         className="flex flex-wrap items-center gap-3"
       >
         {outfit.items.map((item) => (
           <input key={item.product.id} type="hidden" name="productId" value={item.product.id} />
         ))}
         <input type="hidden" name="redirect" value={`/p/${anchorId}`} />
-        <Tag size="md">Total {formatTwd(outfit.total)}</Tag>
+        <Tag size="md">{t.shop.look.total(formatTwd(outfit.total))}</Tag>
         <Button type="submit" variant="secondary" size="sm">
-          Add all {outfit.items.length} to bag
+          {t.shop.look.addAll(outfit.items.length)}
         </Button>
       </InstantForm>
       {engineView ? (
         <div className="rounded-md bg-mist p-4">
-          <FactorBreakdown explanation={outfit.explanation} scoreLabel="Outfit" />
+          <FactorBreakdown
+            explanation={outfit.explanation}
+            scoreLabel={t.shop.look.score}
+            locale={locale}
+          />
         </div>
       ) : null}
     </div>
@@ -88,16 +94,17 @@ export async function CompleteTheLook({
   userId: string | null
   engineView?: boolean
 }) {
+  const { t } = await getI18n()
   const result = await callEngine('completeTheLook', () =>
     completeTheLook(getDb().db, productId, { userId: userId ?? undefined, count: 2 }),
   )
   return (
     <section className="hairline flex flex-col gap-8 pt-8">
-      <h2 className="text-[20px] md:text-[22px]">Wear it with</h2>
+      <h2 className="text-[20px] md:text-[22px]">{t.shop.look.title}</h2>
       {!result.ok ? (
-        <p className="text-[13px] text-muted">Outfit suggestions are unavailable right now.</p>
+        <p className="text-[13px] text-muted">{t.shop.look.unavailable}</p>
       ) : result.value.length === 0 ? (
-        <p className="text-[13px] text-muted">No outfit found for this piece yet.</p>
+        <p className="text-[13px] text-muted">{t.shop.look.none}</p>
       ) : (
         result.value.map((outfit) => (
           <OutfitRail

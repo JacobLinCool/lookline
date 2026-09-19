@@ -13,29 +13,32 @@ import {
   Rail,
   RailItem,
 } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { displayName } from '@/lib/product-name'
-import { pluralize } from '@/server/format'
 import { sanitizeId } from '@/server/looks'
 
-export const metadata: Metadata = { title: 'Order confirmed' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.bag.done.metaTitle }
+}
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
-function recipientTag(forKind: string, forLabel: string | null): string | undefined {
-  if (forKind === 'other') return forLabel ? `For ${forLabel}` : 'For someone else'
-  return undefined
-}
-
 export default async function CheckoutDonePage({ searchParams }: { searchParams: SearchParams }) {
   const user = await requireUser('/checkout/done')
-  const params = await searchParams
+  const [params, { t }] = await Promise.all([searchParams, getI18n()])
   const raw = Array.isArray(params.orders) ? params.orders.join(',') : (params.orders ?? '')
   const ids = raw
     .split(',')
     .map((id) => sanitizeId(id))
     .filter((id): id is string => id !== null)
+
+  const recipientTag = (forKind: string, forLabel: string | null): string | undefined => {
+    if (forKind !== 'other') return undefined
+    return forLabel ? t.bag.done.forSomeone(forLabel) : t.bag.done.forSomeoneElse
+  }
 
   const rows =
     ids.length > 0
@@ -62,11 +65,11 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
   return (
     <Container className="pb-24">
       <PageHeader
-        title="Order confirmed"
+        title={t.bag.done.title}
         description={
           count > 0 ? (
             <span className="inline-flex items-baseline gap-2">
-              {pluralize(count, 'piece')} · <Price amount={orderSubtotal(lines)} size="sm" />
+              {t.common.count.pieces(count)} · <Price amount={orderSubtotal(lines)} size="sm" />
             </span>
           ) : undefined
         }
@@ -76,7 +79,7 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
       {rows.length > 0 ? (
         <div className="grid gap-10 md:grid-cols-12">
           <div className="md:col-span-7">
-            <Rail title="Yours now" itemWidth="sm">
+            <Rail title={t.bag.done.yoursNow} itemWidth="sm">
               {rows.map(({ purchase, product, brandName }) => (
                 <RailItem key={purchase.id} width="sm">
                   <ProductCard
@@ -88,16 +91,14 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
             </Rail>
           </div>
           <div className="flex flex-col gap-4 rounded-md bg-mist p-6 md:col-span-5">
-            <h2 className="text-[20px]">Make it a Look</h2>
-            <p className="text-[13px] text-muted">
-              Your photo or avatar, a style, the pieces you just bought.
-            </p>
+            <h2 className="text-[20px]">{t.bag.done.makeLook}</h2>
+            <p className="text-[13px] text-muted">{t.bag.done.makeLookNote}</p>
             <div className="flex flex-wrap gap-2 pt-1">
               <Button href={createHref} size="lg" icon={<Sparkles />}>
-                Create a Look
+                {t.bag.done.createLook}
               </Button>
               <Button href="/shop" variant="ghost" size="lg">
-                Back to Shop
+                {t.bag.done.backToShop}
               </Button>
             </div>
           </div>
@@ -105,10 +106,10 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
       ) : (
         <Notice
           tone="info"
-          title="No order found for this link."
+          title={t.bag.done.noOrder}
           action={
             <Button href="/me" size="sm" variant="secondary">
-              Wardrobe
+              {t.bag.done.wardrobe}
             </Button>
           }
         />

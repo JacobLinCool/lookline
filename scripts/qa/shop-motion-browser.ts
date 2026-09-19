@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
+import { createHmac, randomUUID } from 'node:crypto'
 import { mkdir, writeFile } from 'node:fs/promises'
+import { sessions, users } from '@lookline/db'
+import { createLocalDb, findLocalD1File, loadEnv, localDbPath } from '@lookline/db/node'
 import { launchBrowser } from './browser'
+
+loadEnv()
 
 const luminance = (color: string) => {
   const rgb = color
@@ -16,12 +21,32 @@ const browser = await launchBrowser()
 const base = process.env.QA_BASE_URL ?? 'http://localhost:3000'
 const report: unknown[] = []
 await mkdir('output/playwright', { recursive: true })
+
+// Filtering by sentence, and therefore the voice controls, need a signed-in reader.
+const handle = createLocalDb(findLocalD1File() ?? localDbPath())
+const [user] = await handle.db.select().from(users).limit(1)
+assert.ok(user)
+const sessionId = `qa_motion_${randomUUID()}`
+await handle.db
+  .insert(sessions)
+  .values({ id: sessionId, userId: user.id, expiresAt: new Date(Date.now() + 900_000) })
+const signature = createHmac(
+  'sha256',
+  process.env.SESSION_SECRET ?? 'lookline-dev-secret-change-me',
+)
+  .update(sessionId)
+  .digest('hex')
 try {
   for (const device of [
     { name: 'desktop', width: 1440, height: 1000 },
     { name: 'mobile', width: 390, height: 844 },
   ]) {
     const page = await browser.newPage({ viewport: device })
+    // These checks select by English accessible name; pin the language so they cannot drift.
+    await page.context().addCookies([
+      { name: 'll_session', value: `${sessionId}.${signature}`, url: base },
+      { name: 'll_locale', value: 'en', url: base },
+    ])
     const errors: string[] = []
     page.on('pageerror', (error) => errors.push(error.message))
     await page.addInitScript(() => {
@@ -33,15 +58,17 @@ try {
       }
     })
     await page.goto(`${base}/shop`, { waitUntil: 'networkidle' })
-    const languages = page.getByRole('button', { name: /Voice languages/ })
+    const languages = page.getByLabel(/Voice languages/)
+    // A native <details> disclosure: expansion is its `open` property, not an aria attribute.
+    const expanded = () => languages.evaluate((node) => node.closest('details')!.open)
     await languages.focus()
     await page.keyboard.press('Enter')
-    assert.equal(await languages.getAttribute('aria-expanded'), 'true')
+    assert.equal(await expanded(), true)
     assert.ok(
       await page.getByRole('checkbox', { name: '繁體中文（台灣）', exact: true }).isVisible(),
     )
     await languages.click()
-    assert.equal(await languages.getAttribute('aria-expanded'), 'false')
+    assert.equal(await expanded(), false)
     if (device.name === 'mobile')
       await page.getByRole('button', { name: 'Filters', exact: true }).click()
     const rail = page.locator('[data-filter-rail]:visible')
@@ -148,20 +175,34 @@ try {
     const outerwear = rail.getByRole('link', { name: /^Outerwear/ })
     await changeAndSettle(() => outerwear.click())
     await outerwear.hover()
-    const selectedColors = await outerwear.evaluate((node) => ({
-      foreground: getComputedStyle(node).color,
-      background: getComputedStyle(node).backgroundColor,
-    }))
-    assert.deepEqual(selectedColors, {
-      foreground: 'rgb(248, 246, 241)',
-      background: 'rgb(20, 19, 17)',
+    // A selected filter is paper on ink. Compare against the tokens themselves, so a palette
+    // revision in DESIGN.md moves the expectation with it.
+    const selectedColors = await outerwear.evaluate((node) => {
+      const swatches: Record<string, string> = {}
+      for (const token of ['--color-paper', '--color-ink']) {
+        const probe = document.createElement('span')
+        probe.style.color = `var(${token})`
+        document.body.append(probe)
+        swatches[token] = getComputedStyle(probe).color
+        probe.remove()
+      }
+      const style = getComputedStyle(node)
+      return {
+        foreground: style.color,
+        background: style.backgroundColor,
+        paper: swatches['--color-paper'],
+        ink: swatches['--color-ink'],
+      }
     })
+    assert.equal(selectedColors.foreground, selectedColors.paper)
+    assert.equal(selectedColors.background, selectedColors.ink)
     // Colour changes must not move the style grid either.
     const colourBefore = await boxes()
     await changeAndSettle(() => rail.getByRole('link', { name: 'Blue', exact: true }).click())
     assert.deepEqual(await boxes(), colourBefore)
-    const departments = await rail
-      .getByRole('region', { name: 'Department' })
+    // The department pills sit above the results, not inside the filter rail.
+    const departments = await page
+      .getByRole('navigation', { name: 'Department' })
       .getByRole('link')
       .evaluateAll((nodes) => nodes.map((n) => n.getBoundingClientRect().y))
     assert.equal(new Set(departments).size, 1, 'Department options stay in one row')
@@ -199,7 +240,7 @@ try {
     await page.emulateMedia({ reducedMotion: 'no-preference' })
     await changeAndSettle(() => rail.getByRole('link', { name: 'Blue', exact: true }).click())
     if (device.name === 'desktop') await page.evaluate(() => scrollTo(0, 430))
-    else await rail.getByRole('region', { name: 'Aesthetic' }).scrollIntoViewIfNeeded()
+    else await rail.getByRole('region', { name: 'Style' }).scrollIntoViewIfNeeded()
     await page.screenshot({ path: `output/playwright/shop-motion-${device.name}.png` })
     assert.deepEqual(errors, [])
     report.push({

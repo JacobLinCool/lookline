@@ -9,7 +9,9 @@ import {
   loadUser,
   loadUserLooks,
   OCCASION_OPTIONS,
+  occasionOptionLabel,
 } from '@/components/social/data'
+import { getI18n } from '@/i18n/server'
 import { getSessionUser, safeNextPath } from '@/server/auth'
 import { createLookDraft } from '@/server/look-generation'
 
@@ -44,6 +46,7 @@ function parseToken(value: string): string {
 }
 
 export async function createTogetherAction(formData: FormData): Promise<void> {
+  const { t, locale } = await getI18n()
   const sourceLookId = text(formData.get('sourceLookId'), 64)
   if (!sourceLookId) redirect('/')
   const page = `/looks/${encodeURIComponent(sourceLookId)}/together`
@@ -127,7 +130,10 @@ export async function createTogetherAction(formData: FormData): Promise<void> {
   const names = contributions.map((c) => c.displayName)
   const title =
     text(formData.get('title'), 120) ||
-    `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]} · ${occasion.label}`
+    t.social.together.lookTitle(
+      names,
+      occasionOptionLabel(locale, occasion.value, t.social.occasions),
+    )
 
   const created = await attempt(() =>
     createLookDraft({

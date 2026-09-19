@@ -1,287 +1,201 @@
 import type { FilterHintId } from '@lookline/engine/hints'
 
 /**
- * Question copy and answer phrases for every filter hint. A choice is inserted into the sentence
- * as the words a person would have said, in the sentence's language; the engine's questions decide
- * which hint is open (see `@lookline/engine/hints`).
+ * Answer phrases for every filter hint. A choice is inserted into the sentence as the words a
+ * person would have said, in the sentence's language — so these phrases follow the sentence, not
+ * the interface locale. The question and the chip label are interface copy and live in
+ * `shop.hints` under the same keys; the engine's questions decide which hint is open
+ * (see `@lookline/engine/hints`).
  */
 
 export interface HintChoice {
-  label: string
+  /** Key into `shop.hints[id].choices` for the chip label. */
+  key: string
   en: string
   zh: string
 }
 
-export interface HintCopy {
-  question: string
-  choices: readonly HintChoice[]
-}
+const c = (key: string, en: string, zh: string): HintChoice => ({ key, en, zh })
 
-const c = (label: string, en: string, zh: string): HintChoice => ({ label, en, zh })
-
-export const HINT_COPY: Record<FilterHintId, HintCopy> = {
-  recipient: {
-    question: 'Who is it for?',
-    choices: [
-      c('Myself', 'for myself', '自己穿'),
-      c('My partner', 'for my partner', '送另一半'),
-      c('My mum', 'for my mum', '送媽媽'),
-      c('My dad', 'for my dad', '送爸爸'),
-      c('A kid', 'for a kid', '給小孩穿'),
-    ],
-  },
-  occasion: {
-    question: 'What is the occasion?',
-    choices: [
-      c('Work', 'for work', '上班穿'),
-      c('Wedding', 'for a wedding', '參加婚禮'),
-      c('Date night', 'for a date night', '約會穿'),
-      c('Weekend', 'for the weekend', '週末穿'),
-      c('Travel', 'for a trip', '旅行穿'),
-    ],
-  },
-  formality: {
-    question: 'How dressed-up?',
-    choices: [
-      c('Casual', 'casual', '休閒'),
-      c('Smart casual', 'smart casual', '半正式'),
-      c('Business', 'business wear', '商務'),
-      c('Formal', 'formal wear', '正式'),
-    ],
-  },
-  'wedding-role': {
-    question: 'Your role at the wedding?',
-    choices: [
-      c('Guest', 'as a wedding guest', '當賓客'),
-      c('Bridesmaid', 'as a bridesmaid', '當伴娘'),
-      c('Groomsman', 'as a groomsman', '當伴郎'),
-      c('Family', 'as family of the couple', '是新人的家人'),
-    ],
-  },
-  'office-type': {
-    question: 'What kind of office?',
-    choices: [
-      c('Corporate', 'in a corporate office', '傳統辦公室'),
-      c('Creative', 'in a creative office', '創意產業'),
-      c('Client-facing', 'meeting clients', '要見客戶'),
-      c('Hybrid', 'for hybrid office days', '混合辦公'),
-    ],
-  },
-  'trip-type': {
-    question: 'Where to?',
-    choices: [
-      c('City break', 'a city trip', '城市旅行'),
-      c('Beach', 'a beach trip', '海島旅行'),
-      c('Mountains', 'a mountain trip', '上山'),
-      c('Somewhere cold', 'somewhere cold', '去很冷的地方'),
-      c('Long flight', 'a long flight', '長途飛行'),
-    ],
-  },
-  activity: {
-    question: 'Which activity?',
-    choices: [
-      c('Gym', 'for the gym', '健身房'),
-      c('Running', 'for running', '跑步'),
-      c('Yoga', 'for yoga', '瑜珈'),
-      c('Hiking', 'for hiking', '登山'),
-      c('Swimming', 'for swimming', '游泳'),
-    ],
-  },
-  category: {
-    question: 'What kind of piece?',
-    choices: [
-      c('Outerwear', 'outerwear', '外套'),
-      c('Tops', 'a top', '上衣'),
-      c('Dresses', 'a dress', '洋裝'),
-      c('Bottoms', 'bottoms', '褲子或裙子'),
-      c('Shoes', 'shoes', '鞋子'),
-      c('Bags', 'a bag', '包包'),
-    ],
-  },
-  budget: {
-    question: 'Budget?',
-    choices: [
-      c('Under NT$1,000', 'under NT$1000', '一千以內'),
-      c('Under NT$3,000', 'under NT$3000', '三千以內'),
-      c('Under NT$8,000', 'under NT$8000', '八千以內'),
-      c('No limit', 'no budget limit', '預算不限'),
-    ],
-  },
-  colour: {
-    question: 'Any colour in mind?',
-    choices: [
-      c('Black', 'in black', '黑色'),
-      c('White', 'in white', '白色'),
-      c('Navy', 'in navy', '海軍藍'),
-      c('Beige', 'in beige', '米色'),
-      c('Red', 'in red', '紅色'),
-      c('Green', 'in green', '綠色'),
-    ],
-  },
-  warmth: {
-    question: 'How warm?',
-    choices: [
-      c('Light layer', 'a light layer', '薄的'),
-      c('Mid-weight', 'mid-weight', '中等厚度'),
-      c('Heavy coat', 'a heavy coat', '厚外套'),
-      c('Rainproof', 'rainproof', '防風防水'),
-    ],
-  },
-  length: {
-    question: 'Which length?',
-    choices: [
-      c('Mini', 'mini length', '短版'),
-      c('Midi', 'midi length', '中長版'),
-      c('Maxi', 'maxi length', '長版'),
-    ],
-  },
-  sleeve: {
-    question: 'Sleeve length?',
-    choices: [
-      c('Sleeveless', 'sleeveless', '無袖'),
-      c('Short', 'short sleeves', '短袖'),
-      c('Long', 'long sleeves', '長袖'),
-    ],
-  },
-  'trouser-cut': {
-    question: 'Trouser cut?',
-    choices: [
-      c('Straight', 'straight leg', '直筒'),
-      c('Wide-leg', 'wide leg', '寬褲'),
-      c('Tapered', 'tapered', '錐形'),
-      c('Cropped', 'cropped', '九分'),
-    ],
-  },
-  heel: {
-    question: 'Heel or flat?',
-    choices: [
-      c('Flats', 'flats', '平底'),
-      c('Low heel', 'a low heel', '低跟'),
-      c('High heel', 'a high heel', '高跟'),
-      c('Sneakers', 'sneakers', '球鞋'),
-      c('Boots', 'boots', '靴子'),
-    ],
-  },
-  'bag-size': {
-    question: 'Bag size?',
-    choices: [
-      c('Mini', 'a mini bag', '迷你包'),
-      c('Everyday', 'an everyday bag', '日常包'),
-      c('Tote', 'a tote', '托特包'),
-      c('Weekender', 'a weekender', '旅行包'),
-    ],
-  },
-  neckline: {
-    question: 'Neckline?',
-    choices: [
-      c('Crew', 'crew neck', '圓領'),
-      c('V-neck', 'v-neck', 'V領'),
-      c('Collared', 'collared', '有領子'),
-      c('Off-shoulder', 'off the shoulder', '露肩'),
-    ],
-  },
-  mood: {
-    question: 'Which mood?',
-    choices: [
-      c('Minimalist', 'minimalist style', '極簡風'),
-      c('Streetwear', 'streetwear style', '街頭風'),
-      c('Preppy', 'preppy style', '學院風'),
-      c('Romantic', 'romantic style', '浪漫風'),
-      c('Quiet luxury', 'quiet luxury style', '低調奢華風'),
-      c('Athleisure', 'athleisure style', '運動休閒風'),
-    ],
-  },
-  fit: {
-    question: 'How should it fit?',
-    choices: [
-      c('Slim', 'slim fit', '合身'),
-      c('Regular', 'regular fit', '正常版型'),
-      c('Relaxed', 'relaxed fit', '寬鬆'),
-      c('Oversized', 'oversized', 'oversize'),
-    ],
-  },
-  season: {
-    question: 'Which season?',
-    choices: [
-      c('Spring', 'for spring', '春天穿'),
-      c('Summer', 'for summer', '夏天穿'),
-      c('Autumn', 'for autumn', '秋天穿'),
-      c('Winter', 'for winter', '冬天穿'),
-    ],
-  },
-  'avoid-colour': {
-    question: 'Any colour to avoid?',
-    choices: [
-      c('No red', 'no red', '不要紅色'),
-      c('No black', 'no black', '不要黑色'),
-      c('No white', 'no white', '不要白色'),
-      c('No pink', 'no pink', '不要粉色'),
-      c('No yellow', 'no yellow', '不要黃色'),
-    ],
-  },
-  fabric: {
-    question: 'Fabric?',
-    choices: [
-      c('Cotton', 'in cotton', '棉質'),
-      c('Linen', 'in linen', '亞麻'),
-      c('Wool', 'in wool', '羊毛'),
-      c('Silk', 'in silk', '絲質'),
-      c('Denim', 'in denim', '丹寧'),
-      c('Leather', 'in leather', '皮革'),
-    ],
-  },
-  pattern: {
-    question: 'Solid or pattern?',
-    choices: [
-      c('Solid', 'solid colour', '素色'),
-      c('Stripes', 'with stripes', '條紋'),
-      c('Checks', 'checked', '格紋'),
-      c('Floral', 'floral', '碎花'),
-      c('Prints', 'printed', '有印花'),
-    ],
-  },
-  order: {
-    question: 'What first?',
-    choices: [
-      c('Newest', 'newest first', '最新的優先'),
-      c('Most popular', 'most popular first', '最熱門的優先'),
-      c('Trending', 'trending first', '最近流行的優先'),
-      c('Cheapest', 'cheapest first', '便宜的優先'),
-    ],
-  },
-  time: {
-    question: 'Day or night?',
-    choices: [
-      c('Daytime', 'for daytime', '白天穿'),
-      c('Evening', 'for the evening', '晚上穿'),
-      c('Both', 'day to night', '白天到晚上都能穿'),
-    ],
-  },
-  pair: {
-    question: 'Pair with something you own?',
-    choices: [
-      c('Jeans', 'to go with jeans', '搭牛仔褲'),
-      c('A suit', 'to go with a suit', '搭西裝'),
-      c('A skirt', 'to go with a skirt', '搭裙子'),
-      c('Sneakers', 'to go with sneakers', '搭球鞋'),
-      c('Boots', 'to go with boots', '搭靴子'),
-    ],
-  },
-  care: {
-    question: 'Easy care?',
-    choices: [
-      c('Machine washable', 'machine washable', '可機洗'),
-      c('Wrinkle-free', 'wrinkle-free', '不易皺'),
-      c('Quick-dry', 'quick-dry', '快乾'),
-    ],
-  },
-  statement: {
-    question: 'Statement or basic?',
-    choices: [
-      c('A statement piece', 'a statement piece', '亮眼的單品'),
-      c('An everyday basic', 'an everyday basic', '百搭基本款'),
-    ],
-  },
+export const HINT_CHOICES: Record<FilterHintId, readonly HintChoice[]> = {
+  recipient: [
+    c('myself', 'for myself', '自己穿'),
+    c('partner', 'for my partner', '送另一半'),
+    c('mum', 'for my mum', '送媽媽'),
+    c('dad', 'for my dad', '送爸爸'),
+    c('kid', 'for a kid', '給小孩穿'),
+  ],
+  occasion: [
+    c('work', 'for work', '上班穿'),
+    c('wedding', 'for a wedding', '參加婚禮'),
+    c('date', 'for a date night', '約會穿'),
+    c('weekend', 'for the weekend', '週末穿'),
+    c('travel', 'for a trip', '旅行穿'),
+  ],
+  formality: [
+    c('casual', 'casual', '休閒'),
+    c('smartCasual', 'smart casual', '半正式'),
+    c('business', 'business wear', '商務'),
+    c('formal', 'formal wear', '正式'),
+  ],
+  'wedding-role': [
+    c('guest', 'as a wedding guest', '當賓客'),
+    c('bridesmaid', 'as a bridesmaid', '當伴娘'),
+    c('groomsman', 'as a groomsman', '當伴郎'),
+    c('family', 'as family of the couple', '是新人的家人'),
+  ],
+  'office-type': [
+    c('corporate', 'in a corporate office', '傳統辦公室'),
+    c('creative', 'in a creative office', '創意產業'),
+    c('client', 'meeting clients', '要見客戶'),
+    c('hybrid', 'for hybrid office days', '混合辦公'),
+  ],
+  'trip-type': [
+    c('city', 'a city trip', '城市旅行'),
+    c('beach', 'a beach trip', '海島旅行'),
+    c('mountains', 'a mountain trip', '上山'),
+    c('cold', 'somewhere cold', '去很冷的地方'),
+    c('flight', 'a long flight', '長途飛行'),
+  ],
+  activity: [
+    c('gym', 'for the gym', '健身房'),
+    c('running', 'for running', '跑步'),
+    c('yoga', 'for yoga', '瑜珈'),
+    c('hiking', 'for hiking', '登山'),
+    c('swimming', 'for swimming', '游泳'),
+  ],
+  category: [
+    c('outerwear', 'outerwear', '外套'),
+    c('tops', 'a top', '上衣'),
+    c('dresses', 'a dress', '洋裝'),
+    c('bottoms', 'bottoms', '褲子或裙子'),
+    c('shoes', 'shoes', '鞋子'),
+    c('bags', 'a bag', '包包'),
+  ],
+  budget: [
+    c('under1000', 'under NT$1000', '一千以內'),
+    c('under3000', 'under NT$3000', '三千以內'),
+    c('under8000', 'under NT$8000', '八千以內'),
+    c('noLimit', 'no budget limit', '預算不限'),
+  ],
+  colour: [
+    c('black', 'in black', '黑色'),
+    c('white', 'in white', '白色'),
+    c('navy', 'in navy', '海軍藍'),
+    c('beige', 'in beige', '米色'),
+    c('red', 'in red', '紅色'),
+    c('green', 'in green', '綠色'),
+  ],
+  warmth: [
+    c('light', 'a light layer', '薄的'),
+    c('mid', 'mid-weight', '中等厚度'),
+    c('heavy', 'a heavy coat', '厚外套'),
+    c('rainproof', 'rainproof', '防風防水'),
+  ],
+  length: [
+    c('mini', 'mini length', '短版'),
+    c('midi', 'midi length', '中長版'),
+    c('maxi', 'maxi length', '長版'),
+  ],
+  sleeve: [
+    c('sleeveless', 'sleeveless', '無袖'),
+    c('short', 'short sleeves', '短袖'),
+    c('long', 'long sleeves', '長袖'),
+  ],
+  'trouser-cut': [
+    c('straight', 'straight leg', '直筒'),
+    c('wide', 'wide leg', '寬褲'),
+    c('tapered', 'tapered', '錐形'),
+    c('cropped', 'cropped', '九分'),
+  ],
+  heel: [
+    c('flats', 'flats', '平底'),
+    c('low', 'a low heel', '低跟'),
+    c('high', 'a high heel', '高跟'),
+    c('sneakers', 'sneakers', '球鞋'),
+    c('boots', 'boots', '靴子'),
+  ],
+  'bag-size': [
+    c('mini', 'a mini bag', '迷你包'),
+    c('everyday', 'an everyday bag', '日常包'),
+    c('tote', 'a tote', '托特包'),
+    c('weekender', 'a weekender', '旅行包'),
+  ],
+  neckline: [
+    c('crew', 'crew neck', '圓領'),
+    c('vNeck', 'v-neck', 'V領'),
+    c('collared', 'collared', '有領子'),
+    c('offShoulder', 'off the shoulder', '露肩'),
+  ],
+  mood: [
+    c('minimalist', 'minimalist style', '極簡風'),
+    c('streetwear', 'streetwear style', '街頭風'),
+    c('preppy', 'preppy style', '學院風'),
+    c('romantic', 'romantic style', '浪漫風'),
+    c('quietLuxury', 'quiet luxury style', '低調奢華風'),
+    c('athleisure', 'athleisure style', '運動休閒風'),
+  ],
+  fit: [
+    c('slim', 'slim fit', '合身'),
+    c('regular', 'regular fit', '正常版型'),
+    c('relaxed', 'relaxed fit', '寬鬆'),
+    c('oversized', 'oversized', 'oversize'),
+  ],
+  season: [
+    c('spring', 'for spring', '春天穿'),
+    c('summer', 'for summer', '夏天穿'),
+    c('autumn', 'for autumn', '秋天穿'),
+    c('winter', 'for winter', '冬天穿'),
+  ],
+  'avoid-colour': [
+    c('red', 'no red', '不要紅色'),
+    c('black', 'no black', '不要黑色'),
+    c('white', 'no white', '不要白色'),
+    c('pink', 'no pink', '不要粉色'),
+    c('yellow', 'no yellow', '不要黃色'),
+  ],
+  fabric: [
+    c('cotton', 'in cotton', '棉質'),
+    c('linen', 'in linen', '亞麻'),
+    c('wool', 'in wool', '羊毛'),
+    c('silk', 'in silk', '絲質'),
+    c('denim', 'in denim', '丹寧'),
+    c('leather', 'in leather', '皮革'),
+  ],
+  pattern: [
+    c('solid', 'solid colour', '素色'),
+    c('stripes', 'with stripes', '條紋'),
+    c('checks', 'checked', '格紋'),
+    c('floral', 'floral', '碎花'),
+    c('prints', 'printed', '有印花'),
+  ],
+  order: [
+    c('newest', 'newest first', '最新的優先'),
+    c('popular', 'most popular first', '最熱門的優先'),
+    c('trending', 'trending first', '最近流行的優先'),
+    c('cheapest', 'cheapest first', '便宜的優先'),
+  ],
+  time: [
+    c('day', 'for daytime', '白天穿'),
+    c('evening', 'for the evening', '晚上穿'),
+    c('both', 'day to night', '白天到晚上都能穿'),
+  ],
+  pair: [
+    c('jeans', 'to go with jeans', '搭牛仔褲'),
+    c('suit', 'to go with a suit', '搭西裝'),
+    c('skirt', 'to go with a skirt', '搭裙子'),
+    c('sneakers', 'to go with sneakers', '搭球鞋'),
+    c('boots', 'to go with boots', '搭靴子'),
+  ],
+  care: [
+    c('machineWash', 'machine washable', '可機洗'),
+    c('wrinkleFree', 'wrinkle-free', '不易皺'),
+    c('quickDry', 'quick-dry', '快乾'),
+  ],
+  statement: [
+    c('statement', 'a statement piece', '亮眼的單品'),
+    c('basic', 'an everyday basic', '百搭基本款'),
+  ],
 }
 
 const CJK = /[㐀-䶿一-鿿豈-﫿]/gu

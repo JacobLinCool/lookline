@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Heart } from 'lucide-react'
+import { useI18n } from '@/i18n/client'
 import { cn } from '@/lib/cn'
 import { reactToLookAction } from '@/server/actions/looks'
 import { afterPaint, startInteraction } from '@/lib/latency'
@@ -14,6 +15,7 @@ export function ReactionButton({
   lookId: string
   initiallyReacted: boolean
 }) {
+  const { t } = useI18n()
   const [reacted, setReacted] = useState(initiallyReacted)
   const [error, setError] = useState<string | null>(null)
   const busy = useRef(false)
@@ -22,7 +24,7 @@ export function ReactionButton({
       <button
         type="button"
         aria-pressed={reacted}
-        aria-label={reacted ? 'Liked' : 'Like this Look'}
+        aria-label={reacted ? t.looks.reaction.liked : t.looks.reaction.likeThis}
         disabled={reacted}
         className={cn(
           'inline-flex h-9 items-center gap-1.5 rounded-sm px-3 text-[13px] font-medium transition-colors',
@@ -47,7 +49,7 @@ export function ReactionButton({
             afterPaint(() => trace.mark('final'))
           } catch (cause) {
             setReacted(false)
-            setError(cause instanceof Error ? cause.message : 'Your like was not saved. Try again.')
+            setError(cause instanceof Error ? cause.message : t.looks.reaction.notSaved)
             trace.mark('failed')
           } finally {
             busy.current = false
@@ -55,7 +57,7 @@ export function ReactionButton({
         }}
       >
         <Heart className={cn('size-4', reacted && 'fill-current')} />
-        {reacted ? 'Liked' : 'Like'}
+        {reacted ? t.looks.reaction.liked : t.looks.reaction.like}
       </button>
       {error ? (
         <p role="alert" className="text-[12px] text-muted">

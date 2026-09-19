@@ -1,0 +1,14 @@
+import { admin } from './admin'
+import { auth } from './auth'
+import { bag } from './bag'
+import { common } from './common'
+import { home } from './home'
+import { looks } from './looks'
+import { me } from './me'
+import { nav } from './nav'
+import { shop } from './shop'
+import { social } from './social'
+import { trends } from './trends'
+import { ui } from './ui'
+
+export const zhTW = { admin, auth, bag, common, home, looks, me, nav, shop, social, trends, ui }

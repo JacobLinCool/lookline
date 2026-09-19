@@ -1,4 +1,6 @@
 import { STYLE_PRESETS, type StylePreset } from '@lookline/engine'
+import type { Locale } from '@/i18n/config'
+import { colorLabel } from '@/i18n/taxonomy'
 import { getStorage, isSafeKey } from './storage'
 
 export interface ReferencePhoto {
@@ -24,9 +26,19 @@ export function resolveStylePreset(slug: string): StylePreset {
   return preset
 }
 
-/** Human preset name for a slug (used by captions and cards). */
-export function presetName(slug: string): string {
-  return resolveStylePreset(slug).name
+/**
+ * A preset in the reader's language. The engine ships the Chinese label with the preset, so this
+ * picks one; it never translates.
+ */
+export function presetLabel(locale: Locale, slug: string): string {
+  const preset = STYLE_PRESETS.find((p) => p.slug === slug)
+  if (!preset) return slug
+  return locale === 'zh-TW' ? preset.labelZh : preset.name
+}
+
+/** `{ value, label }` options for a preset `<Select>` in the reader's language. */
+export function presetOptions(locale: Locale): Array<{ value: string; label: string }> {
+  return STYLE_PRESETS.map((p) => ({ value: p.slug, label: presetLabel(locale, p.slug) }))
 }
 
 /**
@@ -72,18 +84,4 @@ export function sanitizeId(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return /^[A-Za-z0-9_-]{1,64}$/.test(trimmed) ? trimmed : null
-}
-
-/** Keep service diagnostics in server logs and show a useful action failure. */
-export function describeEngineError(
-  action: 'look' | 'reaction' | 'purchase',
-  error: unknown,
-): string {
-  console.warn(`[looks] ${action} failed`, error)
-  const messages = {
-    look: 'Your Look could not be saved. Please try again.',
-    reaction: 'Your reaction could not be saved. Please try again.',
-    purchase: 'Your order could not be placed. Please try again.',
-  }
-  return messages[action]
 }

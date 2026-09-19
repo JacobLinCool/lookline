@@ -119,6 +119,15 @@ Layout, in order:
 `CATEGORY_GROUPS`) and the `toStyleVector()` function. Everything else imports them. Similarity is
 cosine.
 
+## Languages
+
+English and Traditional Chinese (Taiwan), chosen by the `ll_locale` cookie and otherwise by
+`Accept-Language`; URLs carry no locale prefix so a filtered `/shop` link is shareable between
+readers of either language. Interface copy lives in `apps/web/src/i18n/messages/<locale>/`, typed
+against the English catalog; catalog nouns are read from `@lookline/catalog`'s own `labelZh`
+through `apps/web/src/i18n/taxonomy.ts` and are never re-typed as translations. See
+[two languages](specs/I18N_SPEC.md).
+
 ## Money, departments, sizes
 
 - Prices are integer TWD (`price` column). The intent parser converts other currencies.

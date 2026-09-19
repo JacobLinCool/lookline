@@ -18,24 +18,27 @@ import {
   users,
   type Look,
 } from '@lookline/db'
-import { STYLE_PRESETS, recordInteraction } from '@lookline/engine'
+import { recordInteraction } from '@lookline/engine'
 import { Flash } from '@/components/looks/flash'
 import { LookProductStrip, type LookStripProduct } from '@/components/looks/look-product-strip'
 import { ShareButton } from '@/components/looks/share-button'
 import { ReactionButton } from '@/components/looks/reaction-button'
 import { Avatar, Button, Container, Field, Section, Select } from '@/components/ui'
+import { getI18n } from '@/i18n/server'
+import type { Messages } from '@/i18n'
 import { setLookVisibilityAction } from '@/server/actions/looks'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { formatRelative } from '@/server/format'
+import { presetOptions } from '@/server/looks'
 
 type Params = Promise<{ id: string }>
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
-const VISIBILITY_OPTIONS = [
-  { value: 'private', label: 'Only me' },
-  { value: 'link', label: 'Anyone with the link' },
-  { value: 'public', label: 'Everyone on Lookline' },
+const visibilityOptions = (t: Messages) => [
+  { value: 'private', label: t.looks.visibility.private },
+  { value: 'link', label: t.looks.visibility.link },
+  { value: 'public', label: t.looks.visibility.public },
 ]
 
 async function loadLook(id: string) {
@@ -55,10 +58,12 @@ function canView(look: Look, viewerId: string | null): boolean {
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { id } = await params
-  const row = await loadLook(id)
-  const viewer = await getSessionUser()
-  if (!row || !canView(row.look, viewer?.id ?? null)) return { title: 'Look' }
-  return { title: row.look.title, description: `A Look by ${row.owner.displayName}` }
+  const [{ t }, row, viewer] = await Promise.all([getI18n(), loadLook(id), getSessionUser()])
+  if (!row || !canView(row.look, viewer?.id ?? null)) return { title: t.looks.detail.metaTitle }
+  return {
+    title: row.look.title,
+    description: t.looks.detail.metaDescription(row.owner.displayName),
+  }
 }
 
 export default async function LookPage({
@@ -68,7 +73,12 @@ export default async function LookPage({
   params: Params
   searchParams: SearchParams
 }) {
-  const [{ id }, query, viewer] = await Promise.all([params, searchParams, getSessionUser()])
+  const [{ id }, query, viewer, { t, locale }] = await Promise.all([
+    params,
+    searchParams,
+    getSessionUser(),
+    getI18n(),
+  ])
   const row = await loadLook(id)
   if (!row) notFound()
   const { look, owner } = row
@@ -146,7 +156,7 @@ export default async function LookPage({
   const reactions = Number(reactionRows[0]?.n ?? 0)
   const hasReacted = myReaction.length > 0
   const travelled = parent !== null || Number(childRows[0]?.n ?? 0) > 0
-  const presetOptions = STYLE_PRESETS.map((p) => ({ value: p.slug, label: p.name }))
+  const presets = presetOptions(locale)
 
   return (
     <Container className="pb-16">
@@ -158,7 +168,7 @@ export default async function LookPage({
             title={look.title}
             isOwner={isOwner}
             stylePreset={look.stylePreset}
-            presets={presetOptions}
+            presets={presets}
             initial={{
               id: look.id,
               status: look.imageStatus,
@@ -179,13 +189,13 @@ export default async function LookPage({
               <div className="flex flex-col leading-tight">
                 <span className="text-[14px] font-medium">{owner.displayName}</span>
                 <span className="text-[12px] text-muted">
-                  @{owner.handle} · {formatRelative(look.createdAt)}
+                  @{owner.handle} · {formatRelative(look.createdAt, locale)}
                 </span>
               </div>
             </div>
             {parent ? (
               <p className="text-[13px] text-muted">
-                Inspired by{' '}
+                {t.looks.detail.inspiredBy}{' '}
                 <Link
                   href={`/looks/${parent.id}`}
                   className="text-ink underline underline-offset-4"
@@ -197,14 +207,14 @@ export default async function LookPage({
             ) : null}
             {participants.length > 0 ? (
               <p className="text-[13px] text-muted">
-                Made with {participants.map((p) => p.displayName).join(', ')}
+                {t.looks.detail.madeWith(participants.map((p) => p.displayName))}
               </p>
             ) : null}
           </div>
 
           <div className="flex flex-col gap-2">
             <Button href={`/looks/${look.id}/remix`} size="lg" full icon={<Sparkles />}>
-              Make it mine
+              {t.looks.detail.makeItMine}
             </Button>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -212,7 +222,7 @@ export default async function LookPage({
                 variant="secondary"
                 icon={<MessageCircle />}
               >
-                Ask a friend
+                {t.looks.detail.askAFriend}
               </Button>
               <ShareButton lookId={look.id} sharePath={`/l/${look.shareToken}`} full />
             </div>
@@ -223,14 +233,12 @@ export default async function LookPage({
                 size="sm"
                 icon={<Users />}
               >
-                Together
+                {t.looks.detail.together}
               </Button>
               {viewer && !isOwner ? (
                 <ReactionButton lookId={look.id} initiallyReacted={hasReacted} />
               ) : isOwner && reactions > 0 ? (
-                <span className="text-[12px] text-muted">
-                  {reactions === 1 ? '1 person liked this' : `${reactions} people liked this`}
-                </span>
+                <span className="text-[12px] text-muted">{t.looks.detail.liked(reactions)}</span>
               ) : null}
             </div>
           </div>
@@ -238,23 +246,23 @@ export default async function LookPage({
           {isOwner ? (
             <form action={setLookVisibilityAction} className="hairline flex items-end gap-2 pt-5">
               <input type="hidden" name="lookId" value={look.id} />
-              <Field label="Who can see this" htmlFor="visibility" className="flex-1">
+              <Field label={t.looks.detail.visibility} htmlFor="visibility" className="flex-1">
                 <Select
                   id="visibility"
                   name="visibility"
                   defaultValue={look.visibility}
-                  options={VISIBILITY_OPTIONS}
+                  options={visibilityOptions(t)}
                 />
               </Field>
               <Button type="submit" variant="ghost">
-                Update
+                {t.looks.update}
               </Button>
             </form>
           ) : null}
         </div>
       </div>
 
-      <Section title="In this Look">
+      <Section title={t.looks.detail.pieces}>
         <LookProductStrip lookId={look.id} items={strip} redirectTo={`/looks/${look.id}`} />
       </Section>
 
@@ -264,7 +272,7 @@ export default async function LookPage({
             href={`/looks/${look.id}/lineage`}
             className="text-muted underline decoration-line underline-offset-4 hover:text-ink"
           >
-            See where this Look travelled
+            {t.looks.detail.travelled}
           </Link>
         </p>
       ) : null}

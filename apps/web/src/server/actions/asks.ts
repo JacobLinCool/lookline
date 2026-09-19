@@ -12,6 +12,7 @@ import {
   loadUser,
   loadUserByHandle,
 } from '@/components/social/data'
+import { getI18n } from '@/i18n/server'
 import { createGuest, getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { createLookDraft } from '@/server/look-generation'
@@ -74,33 +75,34 @@ async function resolveActor(formData: FormData): Promise<{ id: string; displayNa
 }
 
 export async function createAskAction(formData: FormData): Promise<ActionResult> {
+  const { t } = await getI18n()
+  const errors = t.social.askNew.errors
   const kind = text(formData.get('kind'), 16) === 'style_me' ? 'style_me' : 'choose'
   const productIds = ints(formData.getAll('productId'))
   const lookId = text(formData.get('lookId'), 64) || null
 
   const user = await getSessionUser()
-  if (!user) return { ok: false, message: 'Sign in to send this question.' }
+  if (!user) return { ok: false, message: errors.signIn }
 
   const question =
     text(formData.get('question'), 280) ||
-    (kind === 'choose' ? 'Which one fits me better?' : 'Style me for the occasion below.')
+    (kind === 'choose' ? t.social.ask.defaultQuestion : t.social.ask.defaultBrief)
   const budget = optionalInt(formData.get('budget'))
   const occasion = text(formData.get('occasion'), 80) || null
 
   if (kind === 'choose') {
     if (productIds.length < 2 || productIds.length > 4) {
-      return { ok: false, message: 'Choose between two and four available pieces.' }
+      return { ok: false, message: errors.pieceCount }
     }
     const found = await loadProductsByIds(productIds)
-    if (found.length !== productIds.length)
-      return { ok: false, message: 'Choose between two and four available pieces.' }
+    if (found.length !== productIds.length) return { ok: false, message: errors.pieceCount }
   }
 
   let targetUserId: string | null = text(formData.get('toUserId'), 64) || null
   const toHandle = text(formData.get('toHandle'), 40)
   if (!targetUserId && toHandle) {
     const target = await loadUserByHandle(toHandle)
-    if (!target) return { ok: false, message: 'That person could not be found.' }
+    if (!target) return { ok: false, message: errors.noPerson }
     targetUserId = target.id
   } else if (targetUserId) {
     const target = await loadUser(targetUserId)
@@ -121,26 +123,27 @@ export async function createAskAction(formData: FormData): Promise<ActionResult>
     }),
   )
   if (!created.ok) {
-    return { ok: false, message: 'Your question could not be saved. Please retry.' }
+    return { ok: false, message: errors.notSaved }
   }
 
   return { ok: true, next: `/asks/${created.value.id}` }
 }
 
 export async function answerAskAction(formData: FormData): Promise<ActionResult> {
+  const { t } = await getI18n()
+  const errors = t.social.askCard.errors
   const token = text(formData.get('token'), 128)
-  if (!token) return { ok: false, message: 'This question is unavailable.' }
+  if (!token) return { ok: false, message: errors.unavailable }
   const back = `/a/${encodeURIComponent(token)}`
 
   const bundle = await loadAskByToken(token)
-  if (!bundle) return { ok: false, message: 'This question is unavailable.' }
+  if (!bundle) return { ok: false, message: errors.unavailable }
   const { ask, asker, options } = bundle
-  if (ask.kind !== 'choose')
-    return { ok: false, message: 'Choose a styling response for this question.' }
+  if (ask.kind !== 'choose') return { ok: false, message: errors.wrongKind }
 
   const choiceProductId = optionalInt(formData.get('choiceProductId'))
   if (!choiceProductId || !options.some((p) => p.id === choiceProductId)) {
-    return { ok: false, message: 'Choose one of the available pieces.' }
+    return { ok: false, message: errors.noChoice }
   }
   const comment = text(formData.get('comment'), 500) || null
 
@@ -148,7 +151,7 @@ export async function answerAskAction(formData: FormData): Promise<ActionResult>
   try {
     actor = await resolveActor(formData)
   } catch {
-    return { ok: false, message: 'Enter your name to answer.' }
+    return { ok: false, message: errors.noName }
   }
   if (actor.id === asker.id) return { ok: true, next: `/asks/${ask.id}` }
 
@@ -166,13 +169,14 @@ export async function answerAskAction(formData: FormData): Promise<ActionResult>
     ),
   )
   if (!answered.ok) {
-    return { ok: false, message: 'Your answer could not be saved. Please retry.' }
+    return { ok: false, message: errors.notSaved }
   }
 
   return { ok: true, next: withParams(back, { answered: answered.value.id }) }
 }
 
 export async function answerStyleMeAction(formData: FormData): Promise<void> {
+  const { t } = await getI18n()
   const token = text(formData.get('token'), 128)
   if (!token) redirect('/')
   const back = `/a/${encodeURIComponent(token)}`
@@ -207,7 +211,7 @@ export async function answerStyleMeAction(formData: FormData): Promise<void> {
       productIds: picks.map((p) => p.id),
       stylePreset,
       kind: 'edition',
-      title: `Styled by ${actor.displayName} for ${asker.displayName}`,
+      title: t.social.ask.styledFor(actor.displayName, asker.displayName),
       occasion: ask.occasion,
       prompt: ask.question,
       visibility: 'link',
@@ -217,7 +221,7 @@ export async function answerStyleMeAction(formData: FormData): Promise<void> {
   const pickSummary = picks.map((p) => `${p.brandName} ${p.name}`).join(' · ')
   const fullComment = styledLookId
     ? comment
-    : [comment, `Picks: ${pickSummary}`].filter(Boolean).join('\n')
+    : [comment, t.social.askCard.picks(pickSummary)].filter(Boolean).join('\n')
 
   const answered = await attempt(() =>
     answerAsk(getDb().db, {

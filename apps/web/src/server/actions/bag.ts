@@ -3,11 +3,19 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
+import { getI18n } from '@/i18n/server'
 import { getSessionUser, safeNextPath } from '@/server/auth'
 import { after } from 'next/server'
 import { recordFeedbackFor } from './feedback'
 import type { ActionResult } from '@/components/latency/instant-form'
-import { addManyToBag, addToBag, clearBag, removeFromBag, setBagQty } from '@/server/bag'
+import {
+  addManyToBag,
+  addToBag,
+  BAG_MAX_LINES,
+  clearBag,
+  removeFromBag,
+  setBagQty,
+} from '@/server/bag'
 import {
   INTENT_SESSION_COOKIE,
   SOURCE_ASK_COOKIE,
@@ -16,6 +24,7 @@ import {
 } from '@/server/looks'
 
 const ATTRIBUTION_MAX_AGE = 60 * 60 * 24 * 7
+const OUTFIT_MAX_PIECES = 12
 
 /**
  * Remembers where a bag line came from (Look / Ask / intent turn) so `/checkout` can attribute the
@@ -62,8 +71,10 @@ function finish(formData: FormData): void {
  * `/checkout`).
  */
 export async function addToBagAction(formData: FormData): Promise<ActionResult> {
+  const { t } = await getI18n()
   const productId = readInt(formData.get('productId'))
-  if (productId === null || productId <= 0) return { ok: false, message: 'Choose a product.' }
+  if (productId === null || productId <= 0)
+    return { ok: false, message: t.bag.errors.chooseProduct }
   const result = await addToBag({
     productId,
     size: readSize(formData.get('size')),
@@ -73,9 +84,7 @@ export async function addToBagAction(formData: FormData): Promise<ActionResult> 
     return {
       ok: false,
       message:
-        result.reason === 'full'
-          ? 'Your bag is full (20 pieces). Remove a piece and retry.'
-          : 'Choose a valid size and quantity.',
+        result.reason === 'full' ? t.bag.errors.full(BAG_MAX_LINES) : t.bag.errors.invalidLine,
     }
   await rememberAttribution(formData)
   const user = await getSessionUser()
@@ -118,12 +127,16 @@ export async function clearBagAction(formData: FormData): Promise<void> {
 
 /** Outfit additions share one cookie commit and the same attribution path as single pieces. */
 export async function addOutfitToBagAction(formData: FormData): Promise<ActionResult> {
+  const { t } = await getI18n()
   const ids = [...new Set(formData.getAll('productId').map(Number))]
-  if (!ids.length || ids.length > 12 || ids.some((id) => !Number.isInteger(id) || id <= 0))
-    return { ok: false, message: 'Choose up to 12 available pieces.' }
+  if (
+    !ids.length ||
+    ids.length > OUTFIT_MAX_PIECES ||
+    ids.some((id) => !Number.isInteger(id) || id <= 0)
+  )
+    return { ok: false, message: t.bag.errors.outfitTooMany(OUTFIT_MAX_PIECES) }
   const result = await addManyToBag(ids.map((productId) => ({ productId })))
-  if (!result.ok)
-    return { ok: false, message: 'Your bag has no room for this outfit. Remove a piece and retry.' }
+  if (!result.ok) return { ok: false, message: t.bag.errors.outfitNoRoom }
   await rememberAttribution(formData)
   const user = await getSessionUser()
   const intentSessionId = sanitizeId(formData.get('intentSession'))

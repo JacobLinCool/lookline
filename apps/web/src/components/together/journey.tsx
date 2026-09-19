@@ -25,7 +25,10 @@ import {
   Tag,
   Textarea,
 } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
+import { facetLabel } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
+import { formatTwd } from '@/server/format'
 
 export interface JourneyProduct {
   id: number
@@ -51,160 +54,22 @@ export interface JourneyLook {
 
 type ScenarioKey = 'ready' | 'custom' | 'borrow'
 
-interface Scenario {
-  key: ScenarioKey
-  name: string
-  short: string
-  description: string
-  steps: Array<{ label: string; title: string; description: string }>
-  actions: string[]
-}
-
-const SCENARIOS: Scenario[] = [
-  {
-    key: 'ready',
-    name: 'Ready Now',
-    short: 'Find it. Try it. Own it.',
-    description: 'A real piece, previewed, bought, then a card.',
-    steps: [
-      {
-        label: 'Ask',
-        title: 'Say what you want',
-        description: 'Natural language starts the search.',
-      },
-      {
-        label: 'Choose',
-        title: 'Pick an exact product',
-        description: 'Every option is a real catalog item.',
-      },
-      {
-        label: 'Preview',
-        title: 'See it on your terms',
-        description: 'The image is useful, but not owned yet.',
-      },
-      {
-        label: 'Buy',
-        title: 'Confirm the real variant',
-        description: 'Size, price and availability stay attached.',
-      },
-      {
-        label: 'Collect',
-        title: 'Unlock your Look Card',
-        description: 'Ownership creates the collectible.',
-      },
-    ],
-    actions: [
-      'Find exact products',
-      'Open virtual preview',
-      'Continue to checkout',
-      'Confirm sample order',
-      'Restart this path',
-    ],
-  },
-  {
-    key: 'custom',
-    name: 'Made for You',
-    short: 'Turn unmet intent into a product.',
-    description: 'Orderable only after a base pattern and a review.',
-    steps: [
-      {
-        label: 'Brief',
-        title: 'Describe the difference',
-        description: 'Text and references capture intent.',
-      },
-      {
-        label: 'Ground',
-        title: 'Choose a real base pattern',
-        description: 'The request starts from something manufacturable.',
-      },
-      {
-        label: 'Confirm',
-        title: 'Review feasibility and quote',
-        description: 'Approved details replace guesswork.',
-      },
-      {
-        label: 'Order',
-        title: 'Approve the custom SKU',
-        description: 'The specification is fixed before payment.',
-      },
-      {
-        label: 'Edition',
-        title: 'Receive a distinct card',
-        description: 'The card reflects the real production promise.',
-      },
-    ],
-    actions: [
-      'Create the brief',
-      'Review the base pattern',
-      'Accept the sample quote',
-      'Confirm custom order',
-      'Restart this path',
-    ],
-  },
-  {
-    key: 'borrow',
-    name: 'Borrow a Look',
-    short: 'Try what your Circle already loves.',
-    description: 'Borrow a friend’s purchased piece digitally, then buy your own.',
-    steps: [
-      {
-        label: 'Wardrobe',
-        title: 'Enter the Circle Wardrobe',
-        description: 'Only owner-shared purchases appear.',
-      },
-      {
-        label: 'Borrow',
-        title: 'Wear it digitally',
-        description: 'The exact product enters your preview.',
-      },
-      {
-        label: 'Offer',
-        title: 'Get a Circle opportunity',
-        description: 'A clear saving follows a useful try-on.',
-      },
-      {
-        label: 'Own',
-        title: 'Buy your own piece',
-        description: 'Your order never changes your friend’s ownership.',
-      },
-      {
-        label: 'Continue',
-        title: 'Make the trend yours',
-        description: 'Your card can move through another Circle.',
-      },
-    ],
-    actions: [
-      'Borrow this item',
-      'Open digital try-on',
-      'Use the Circle offer',
-      'Confirm sample purchase',
-      'Restart this path',
-    ],
-  },
-]
-
-const EXAMPLES = [
-  'A sharp black layer for a gallery opening',
-  'Something relaxed for a late flight',
-  'A coordinated look for a seaside wedding',
-] as const
-
-function scenarioByKey(key: ScenarioKey): Scenario {
-  return SCENARIOS.find((scenario) => scenario.key === key) ?? SCENARIOS[0]!
-}
+const SCENARIO_KEYS: readonly ScenarioKey[] = ['ready', 'custom', 'borrow']
 
 function productAt(products: JourneyProduct[], index: number): JourneyProduct | null {
   return products[index] ?? products[0] ?? null
 }
 
 function ProductFacts({ product }: { product: JourneyProduct }) {
+  const { t, locale } = useI18n()
+  const facts = t.social.tour.facts
   return (
     <dl className="grid grid-cols-2 border-y border-line text-[13px] sm:grid-cols-4">
       {[
-        ['Color', product.colorName],
-        ['Material', product.material],
-        ['Pattern', product.pattern],
-        ['Available', `${product.stock} pieces`],
+        [facts.color, product.colorName],
+        [facts.material, facetLabel(locale, product.material)],
+        [facts.pattern, facetLabel(locale, product.pattern)],
+        [facts.available, t.common.count.pieces(product.stock)],
       ].map(([term, value]) => (
         <div key={term} className="border-r border-line px-3 py-3 last:border-r-0">
           <dt className="text-[11px] text-muted">{term}</dt>
@@ -224,6 +89,7 @@ function ProductChooser({
   selectedId: number | null
   onSelect: (id: number) => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
       {products.slice(0, 3).map((product) => {
@@ -246,7 +112,7 @@ function ProductChooser({
               <Price amount={product.price} size="sm" />
               {selected ? (
                 <span className="flex items-center gap-1 text-[11px] font-medium">
-                  <Check className="size-3" /> Selected
+                  <Check className="size-3" /> {t.social.tour.selected}
                 </span>
               ) : null}
             </div>
@@ -260,22 +126,24 @@ function ProductChooser({
 function PreviewFrame({
   product,
   look,
-  owner = 'You',
+  owner,
 }: {
   product: JourneyProduct
   look: JourneyLook | null
   owner?: string
 }) {
+  const { t } = useI18n()
+  const copy = t.social.tour.preview
   return (
     <figure className="relative overflow-hidden rounded-md bg-mist">
       <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 rounded-xs border border-line bg-card px-2 py-1 text-[12px] font-medium">
-        <LockKeyhole className="size-3" /> Preview · not owned
+        <LockKeyhole className="size-3" /> {copy.notOwned}
       </div>
       <div className="grid min-h-[26rem] grid-cols-[minmax(0,1.25fr)_minmax(8rem,.75fr)]">
         {look ? (
           <img
             src={`/api/looks/${look.id}/image`}
-            alt={`${look.title} styled preview`}
+            alt={copy.alt(look.title)}
             width={720}
             height={960}
             className="size-full object-cover"
@@ -287,8 +155,8 @@ function PreviewFrame({
         )}
         <figcaption className="flex flex-col justify-between border-l border-line bg-card p-5">
           <div>
-            <p className="text-[12px] text-muted">Styled for</p>
-            <p className="mt-1 font-display text-xl">{owner}</p>
+            <p className="text-[12px] text-muted">{copy.styledFor}</p>
+            <p className="mt-1 font-display text-xl">{owner ?? copy.you}</p>
           </div>
           <div>
             <span
@@ -298,7 +166,7 @@ function PreviewFrame({
             />
             <p className="text-[12px] text-muted">{product.brandName}</p>
             <p className="mt-1 font-display text-xl leading-tight">{product.name}</p>
-            <p className="mt-2 text-[12px] text-muted">Catalog colour · {product.colorName}</p>
+            <p className="mt-2 text-[12px] text-muted">{copy.catalogColour(product.colorName)}</p>
           </div>
         </figcaption>
       </div>
@@ -317,6 +185,8 @@ function LookCardArtifact({
   edition: string
   variant: string
 }) {
+  const { t } = useI18n()
+  const copy = t.social.tour.card
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'exported'>('idle')
   const [consent, setConsent] = useState(false)
   const exportHref = look ? `/api/looks/${look.id}/image` : `/api/products/${product.id}/image`
@@ -328,7 +198,7 @@ function LookCardArtifact({
           {look ? (
             <img
               src={`/api/looks/${look.id}/image`}
-              alt={`Look Card for ${product.name}`}
+              alt={copy.alt(product.name)}
               width={720}
               height={960}
               className="size-full object-cover"
@@ -337,12 +207,12 @@ function LookCardArtifact({
             <ProductImage productId={product.id} alt={product.name} className="size-full" />
           )}
           <span className="absolute top-3 left-3 rounded-xs bg-card px-2 py-1 text-[12px] font-medium text-ink">
-            Owned
+            {copy.owned}
           </span>
         </div>
         <figcaption className="flex items-end justify-between gap-4 p-3">
           <div>
-            <p className="text-[11px] text-paper/70">Look Card</p>
+            <p className="text-[11px] text-paper/70">{copy.lookCard}</p>
             <p className="mt-1 font-display text-2xl leading-none">{product.name}</p>
           </div>
           <span className="text-right text-[10px] text-paper/65">
@@ -359,8 +229,8 @@ function LookCardArtifact({
             <Check className="size-4" />
           </span>
           <div className="flex items-center gap-2">
-            <p className="font-medium">Order confirmed</p>
-            <Tag tone="outline">Sample</Tag>
+            <p className="font-medium">{copy.orderConfirmed}</p>
+            <Tag tone="outline">{t.social.tour.sample}</Tag>
           </div>
         </div>
         <label className="flex items-start gap-3 border-y border-line py-3 text-[13px]">
@@ -370,7 +240,7 @@ function LookCardArtifact({
             onChange={(event) => setConsent(event.target.checked)}
             className="mt-0.5 size-4 accent-ink"
           />
-          Share this card with my Circle
+          {copy.shareWithCircle}
         </label>
         <div className="grid gap-2 sm:grid-cols-2">
           <Button
@@ -380,7 +250,7 @@ function LookCardArtifact({
             disabled={!consent}
             onClick={() => setShareStatus('shared')}
           >
-            Share to Circle
+            {copy.shareToCircle}
           </Button>
           <Button
             href={exportHref}
@@ -389,22 +259,24 @@ function LookCardArtifact({
             full
             onClick={() => setShareStatus('exported')}
           >
-            Export image
+            {copy.exportImage}
           </Button>
         </div>
-        {shareStatus === 'shared' ? <Notice tone="success">Shared with your Circle.</Notice> : null}
-        {shareStatus === 'exported' ? <Notice tone="success">Download started.</Notice> : null}
+        {shareStatus === 'shared' ? <Notice tone="success">{copy.shared}</Notice> : null}
+        {shareStatus === 'exported' ? <Notice tone="success">{copy.downloadStarted}</Notice> : null}
       </div>
     </div>
   )
 }
 
 function CustomCardIssuing({ product }: { product: JourneyProduct }) {
+  const { t } = useI18n()
+  const copy = t.social.tour.custom
   return (
     <div className="grid gap-7 md:grid-cols-[12rem_minmax(0,1fr)]">
       <div className="rounded-md bg-mist p-3">
-        <ProductImage productId={product.id} alt={`${product.name} base pattern`} priority />
-        <p className="mt-3 text-[12px] text-muted">Confirmed base pattern</p>
+        <ProductImage productId={product.id} alt={copy.baseAlt(product.name)} priority />
+        <p className="mt-3 text-[12px] text-muted">{copy.confirmedBase}</p>
       </div>
       <div className="flex flex-col justify-center">
         <div className="flex items-center gap-3">
@@ -412,19 +284,17 @@ function CustomCardIssuing({ product }: { product: JourneyProduct }) {
             <Sparkles className="size-4" />
           </span>
           <div className="flex items-center gap-2">
-            <p className="font-medium">Custom order confirmed · card issuing</p>
-            <Tag tone="outline">Sample</Tag>
+            <p className="font-medium">{copy.issuing}</p>
+            <Tag tone="outline">{t.social.tour.sample}</Tag>
           </div>
         </div>
-        <h3 className="mt-6 font-display text-2xl">
-          The card follows the confirmed specification.
-        </h3>
+        <h3 className="mt-6 font-display text-2xl">{copy.cardFollows}</h3>
         <dl className="mt-6 divide-y divide-line border-y border-line text-[13px]">
           {[
-            ['Base', product.name],
-            ['Finish', 'Atelier-confirmed deep red treatment'],
-            ['Graphic', 'Original one-color back embroidery'],
-            ['Edition', 'Single-order custom production'],
+            [copy.cardSpec.base, product.name],
+            [copy.spec.finish, copy.spec.finishValue],
+            [copy.spec.graphic, copy.cardSpec.graphicValue],
+            [copy.spec.edition, copy.spec.editionValue],
           ].map(([term, value]) => (
             <div key={term} className="grid grid-cols-[5rem_1fr] gap-3 py-3">
               <dt className="text-muted">{term}</dt>
@@ -460,22 +330,26 @@ function ReadyStage({
   selectedSize: string
   onSelectedSize: (value: string) => void
 }) {
+  const { t } = useI18n()
+  const tour = t.social.tour
+  const copy = tour.ready
+
   if (step === 0) {
     return (
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(16rem,.8fr)]">
-        <Field label="What are you dressing for?" htmlFor="ready-query">
+        <Field label={copy.queryLabel} htmlFor="ready-query">
           <Textarea
             id="ready-query"
             value={query}
             onChange={(event) => onQuery(event.target.value)}
             rows={5}
-            placeholder="Occasion, mood, colour, budget"
+            placeholder={copy.queryPlaceholder}
           />
         </Field>
         <div className="border-l border-line pl-5">
-          <p className="text-[13px] font-medium">Examples</p>
+          <p className="text-[13px] font-medium">{copy.examples}</p>
           <div className="mt-4 flex flex-col divide-y divide-line border-y border-line">
-            {EXAMPLES.map((example) => (
+            {tour.examples.map((example) => (
               <button
                 key={example}
                 type="button"
@@ -496,9 +370,9 @@ function ReadyStage({
       <div className="space-y-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[13px] text-muted">
-            Live catalog results for “{query || EXAMPLES[0]}”
+            {copy.results(query || (tour.examples[0] ?? ''))}
           </p>
-          <Tag tone="outline">Live catalog</Tag>
+          <Tag tone="outline">{copy.liveCatalog}</Tag>
         </div>
         <ProductChooser products={products} selectedId={selectedId} onSelect={onSelect} />
       </div>
@@ -515,7 +389,7 @@ function ReadyStage({
   }
 
   if (step === 3) {
-    const sizes = product.sizes.length > 0 ? product.sizes : ['One size']
+    const sizes = product.sizes.length > 0 ? product.sizes : [copy.oneSize]
     return (
       <div className="grid gap-8 lg:grid-cols-[10rem_minmax(0,1fr)]">
         <ProductImage productId={product.id} alt={product.name} priority />
@@ -525,7 +399,7 @@ function ReadyStage({
             <h3 className="mt-1 font-display text-2xl">{product.name}</h3>
             <Price amount={product.price} size="lg" className="mt-2" />
           </div>
-          <Field label="Size" htmlFor="ready-size">
+          <Field label={copy.size} htmlFor="ready-size">
             <Select
               id="ready-size"
               value={selectedSize}
@@ -540,7 +414,7 @@ function ReadyStage({
           </Field>
           <label className="flex items-start gap-3 border-y border-line py-3 text-[13px]">
             <input type="checkbox" defaultChecked className="mt-0.5 size-4 accent-ink" />
-            Keep private until I share it
+            {copy.keepPrivate}
           </label>
         </div>
       </div>
@@ -551,7 +425,7 @@ function ReadyStage({
     <LookCardArtifact
       product={product}
       look={look}
-      edition="Ready Now · owned SKU"
+      edition={copy.edition}
       variant={`${product.colorName} · ${selectedSize}`}
     />
   )
@@ -572,19 +446,22 @@ function CustomStage({
   referenceName: string | null
   onReference: (name: string | null) => void
 }) {
+  const { t, locale } = useI18n()
+  const tour = t.social.tour
+  const copy = tour.custom
   const customPrice = product.price + 2800
 
   if (step === 0) {
     return (
       <div className="grid gap-7 lg:grid-cols-[minmax(0,1.15fr)_minmax(16rem,.85fr)]">
         <div className="space-y-5">
-          <Field label="What is missing from the catalog?" htmlFor="custom-brief">
+          <Field label={copy.briefLabel} htmlFor="custom-brief">
             <Textarea
               id="custom-brief"
               value={brief}
               onChange={(event) => onBrief(event.target.value)}
               rows={5}
-              placeholder="Keep the relaxed shape, but explore an embroidered back graphic and a deeper red finish."
+              placeholder={copy.briefPlaceholder}
             />
           </Field>
           <label className="flex cursor-pointer items-center justify-between gap-4 rounded-md border border-dashed border-line p-4 hover:bg-mist/50">
@@ -592,9 +469,9 @@ function CustomStage({
               <Upload className="size-5" />
               <span>
                 <span className="block text-[13px] font-medium">
-                  {referenceName ?? 'Add an inspiration image'}
+                  {referenceName ?? copy.addImage}
                 </span>
-                <span className="block text-[11px] text-muted">JPG or PNG · inspiration only</span>
+                <span className="block text-[11px] text-muted">{copy.imageHint}</span>
               </span>
             </span>
             <input
@@ -603,15 +480,15 @@ function CustomStage({
               className="sr-only"
               onChange={(event) => onReference(event.target.files?.[0]?.name ?? null)}
             />
-            <span className="text-[12px] underline underline-offset-4">Choose</span>
+            <span className="text-[12px] underline underline-offset-4">{copy.choose}</span>
           </label>
         </div>
         <div className="rounded-md bg-mist p-5">
-          <h3 className="text-[15px]">What happens next</h3>
+          <h3 className="text-[15px]">{copy.nextTitle}</h3>
           <ol className="mt-3 space-y-2 text-[13px] text-muted">
-            <li>1. Match to a real base pattern</li>
-            <li>2. Review material, finish, graphic</li>
-            <li>3. Confirm rights, price, lead time</li>
+            {copy.nextSteps.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
           </ol>
         </div>
       </div>
@@ -624,27 +501,23 @@ function CustomStage({
         <ProductImage productId={product.id} alt={product.name} priority />
         <div className="space-y-5">
           <div>
-            <Tag tone="outline">Base pattern · live catalog</Tag>
+            <Tag tone="outline">{copy.basePattern}</Tag>
             <h3 className="mt-3 font-display text-3xl">{product.name}</h3>
             <p className="mt-2 text-[13px] text-muted">
-              {product.brandName} · {product.subcategory} · {product.material}
+              {product.brandName} · {facetLabel(locale, product.subcategory)} ·{' '}
+              {facetLabel(locale, product.material)}
             </p>
           </div>
           <div className="divide-y divide-line border-y border-line">
-            {[
-              ['Shape', 'Keep the existing base pattern'],
-              ['Finish', 'Request an atelier palette review'],
-              ['Graphic', 'Back placement · embroidery review'],
-              ['Sizing', 'Use the base product size system'],
-            ].map(([label, value]) => (
-              <label key={label} className="flex items-center gap-3 py-3 text-[13px]">
+            {copy.adjustments.map((row) => (
+              <label key={row.label} className="flex items-center gap-3 py-3 text-[13px]">
                 <input type="checkbox" defaultChecked className="size-4 accent-ink" />
-                <span className="w-20 text-muted">{label}</span>
-                <span className="font-medium">{value}</span>
+                <span className="w-20 text-muted">{row.label}</span>
+                <span className="font-medium">{row.value}</span>
               </label>
             ))}
           </div>
-          <Notice tone="info">Review requests · confirmed by the atelier before purchase.</Notice>
+          <Notice tone="info">{copy.reviewNotice}</Notice>
         </div>
       </div>
     )
@@ -659,17 +532,17 @@ function CustomStage({
               <Check className="size-4" />
             </span>
             <div>
-              <p className="font-medium">Feasible with confirmed details</p>
-              <Tag tone="outline">Sample</Tag>
+              <p className="font-medium">{copy.feasible}</p>
+              <Tag tone="outline">{tour.sample}</Tag>
             </div>
           </div>
           <dl className="mt-6 divide-y divide-line border-y border-line text-[13px]">
             {[
-              ['Base pattern', product.name],
-              ['Finish', 'Atelier-confirmed deep red treatment'],
-              ['Graphic', 'One-color back embroidery · original artwork only'],
-              ['Production', '6–8 weeks after final artwork approval'],
-              ['Edition', 'Single-order custom production'],
+              [copy.spec.base, product.name],
+              [copy.spec.finish, copy.spec.finishValue],
+              [copy.spec.graphic, copy.spec.graphicValue],
+              [copy.spec.production, copy.spec.productionValue],
+              [copy.spec.edition, copy.spec.editionValue],
             ].map(([term, value]) => (
               <div key={term} className="grid grid-cols-[7rem_1fr] gap-4 py-3">
                 <dt className="text-muted">{term}</dt>
@@ -680,10 +553,10 @@ function CustomStage({
         </div>
         <div className="rounded-md bg-mist p-5">
           <div className="flex items-center gap-2 text-[12px] text-muted">
-            Quote <Tag tone="outline">Sample</Tag>
+            {copy.quote} <Tag tone="outline">{tour.sample}</Tag>
           </div>
           <Price amount={customPrice} size="lg" className="mt-2" />
-          <p className="mt-3 text-[12px] text-muted">Base garment, finish and embroidery</p>
+          <p className="mt-3 text-[12px] text-muted">{copy.quoteNote}</p>
         </div>
       </div>
     )
@@ -693,17 +566,17 @@ function CustomStage({
     return (
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div>
-          <h3 className="font-display text-2xl">Specification fixed.</h3>
-          <p className="mt-2 text-[13px] text-muted">Changing a detail starts a new review.</p>
+          <h3 className="font-display text-2xl">{copy.fixed}</h3>
+          <p className="mt-2 text-[13px] text-muted">{copy.fixedNote}</p>
           <label className="mt-6 flex items-start gap-3 border-y border-line py-4 text-[13px]">
             <input type="checkbox" defaultChecked className="mt-0.5 size-4 accent-ink" />
-            I own or may use the supplied graphic and references
+            {copy.rights}
           </label>
         </div>
         <div className="rounded-md bg-mist p-5">
-          <p className="text-[12px] text-muted">Total</p>
+          <p className="text-[12px] text-muted">{copy.total}</p>
           <Price amount={customPrice} size="lg" className="mt-2" />
-          <p className="mt-5 text-[12px] text-muted">Estimated delivery · 6–8 weeks</p>
+          <p className="mt-5 text-[12px] text-muted">{copy.delivery}</p>
         </div>
       </div>
     )
@@ -725,9 +598,12 @@ function BorrowStage({
   selectedSize: string
   onSelectedSize: (value: string) => void
 }) {
+  const { t } = useI18n()
+  const tour = t.social.tour
+  const copy = tour.borrow
   const discounted = Math.round(product.price * 0.9)
   const saved = product.price - discounted
-  const friendName = look?.ownerName ?? 'A Circle member'
+  const friendName = look?.ownerName ?? copy.member
   const friendHandle = look?.ownerHandle ?? 'circle'
 
   if (step === 0) {
@@ -739,7 +615,7 @@ function BorrowStage({
             <Avatar seed={look?.ownerAvatarSeed ?? 4107} name={friendName} size="md" />
             <div>
               <p className="font-medium">{friendName}</p>
-              <p className="text-[12px] text-muted">@{friendHandle} shared this with your Circle</p>
+              <p className="text-[12px] text-muted">{copy.sharedWithCircle(friendHandle)}</p>
             </div>
           </div>
           <div>
@@ -747,38 +623,35 @@ function BorrowStage({
             <h3 className="mt-1 font-display text-2xl">{product.name}</h3>
             <div className="mt-2 flex items-center gap-3">
               <Price amount={product.price} size="md" />
-              <span className="text-[12px] text-muted">{product.colorName} · purchased item</span>
+              <span className="text-[12px] text-muted">
+                {copy.purchasedItem(product.colorName)}
+              </span>
             </div>
           </div>
-          <Notice tone="info">Digital borrow · {friendName} keeps the item.</Notice>
+          <Notice tone="info">{copy.digitalBorrow(friendName)}</Notice>
         </div>
       </div>
     )
   }
 
-  if (step === 1)
-    return <PreviewFrame product={product} look={look} owner="You · borrowed digitally" />
+  if (step === 1) return <PreviewFrame product={product} look={look} owner={copy.borrowedPreview} />
 
   if (step === 2) {
     return (
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div>
           <CircleDollarSign className="size-7" />
-          <h3 className="mt-4 font-display text-3xl">Make it yours for 10% less.</h3>
-          <p className="mt-2 text-[13px] text-muted">
-            The exact product, its available variants only.
-          </p>
+          <h3 className="mt-4 font-display text-3xl">{copy.offerTitle}</h3>
+          <p className="mt-2 text-[13px] text-muted">{copy.offerNote}</p>
         </div>
         <div className="rounded-md bg-mist p-5">
           <div className="flex items-center gap-2 text-[12px] text-muted">
-            Circle price <Tag tone="outline">Sample</Tag>
+            {copy.circlePrice} <Tag tone="outline">{tour.sample}</Tag>
           </div>
           <Price amount={discounted} size="lg" className="mt-2" />
-          <p className="mt-2 text-[12px] text-muted line-through">
-            NT${product.price.toLocaleString('en-US')}
-          </p>
+          <p className="mt-2 text-[12px] text-muted line-through">{formatTwd(product.price)}</p>
           <p className="mt-5 border-t border-line pt-4 text-[12px]">
-            Save NT${saved.toLocaleString('en-US')} · expires in 48 hours
+            {copy.save(formatTwd(saved))}
           </p>
         </div>
       </div>
@@ -786,17 +659,17 @@ function BorrowStage({
   }
 
   if (step === 3) {
-    const sizes = product.sizes.length > 0 ? product.sizes : ['One size']
+    const sizes = product.sizes.length > 0 ? product.sizes : [tour.ready.oneSize]
     return (
       <div className="grid gap-8 md:grid-cols-[10rem_minmax(0,1fr)]">
         <ProductImage productId={product.id} alt={product.name} />
         <div className="space-y-5">
           <div>
-            <p className="text-[12px] text-muted">Your own order</p>
+            <p className="text-[12px] text-muted">{copy.yourOrder}</p>
             <h3 className="mt-1 font-display text-2xl">{product.name}</h3>
             <Price amount={discounted} size="lg" className="mt-2" />
           </div>
-          <Field label="Size" htmlFor="borrow-size">
+          <Field label={tour.ready.size} htmlFor="borrow-size">
             <Select
               id="borrow-size"
               value={selectedSize}
@@ -810,7 +683,7 @@ function BorrowStage({
             </Select>
           </Field>
           <p className="border-t border-line pt-4 text-[12px] text-muted">
-            {friendName} keeps theirs; this is your own order.
+            {copy.friendKeeps(friendName)}
           </p>
         </div>
       </div>
@@ -821,28 +694,34 @@ function BorrowStage({
     <LookCardArtifact
       product={product}
       look={look}
-      edition="Circle path · owned SKU"
+      edition={copy.edition}
       variant={`${product.colorName} · ${selectedSize}`}
     />
   )
 }
 
 function OutcomeStrip({ scenario, step }: { scenario: ScenarioKey; step: number }) {
+  const { t } = useI18n()
+  const labels = t.social.tour.milestones
   const milestones = [
-    { label: 'Physical product', active: scenario === 'custom' ? step >= 2 : true },
-    { label: 'Preview', active: scenario === 'custom' ? step >= 2 : step >= 1 },
-    { label: 'Order', active: step >= 3 },
-    { label: 'Look Card', active: step >= 4 },
-    { label: 'Circle', active: scenario === 'borrow' || step >= 4 },
+    { key: 'product', label: labels.product, active: scenario === 'custom' ? step >= 2 : true },
+    {
+      key: 'preview',
+      label: labels.preview,
+      active: scenario === 'custom' ? step >= 2 : step >= 1,
+    },
+    { key: 'order', label: labels.order, active: step >= 3 },
+    { key: 'card', label: labels.card, active: step >= 4 },
+    { key: 'circle', label: labels.circle, active: scenario === 'borrow' || step >= 4 },
   ]
   return (
     <ol
       className="grid grid-cols-5 overflow-hidden rounded-sm border border-line"
-      aria-label="Physical-to-social milestones"
+      aria-label={t.social.tour.milestonesLabel}
     >
       {milestones.map((milestone, index) => (
         <li
-          key={milestone.label}
+          key={milestone.key}
           className={cn(
             'relative border-r border-line px-2 py-3 text-center text-[10px] sm:text-[11px]',
             index === milestones.length - 1 && 'border-r-0',
@@ -865,17 +744,17 @@ export function JourneyPrototype({
   sampleLook: JourneyLook | null
   error: string | null
 }) {
+  const { t } = useI18n()
+  const tour = t.social.tour
   const [scenarioKey, setScenarioKey] = useState<ScenarioKey>('ready')
   const [step, setStep] = useState(0)
-  const [query, setQuery] = useState<string>(EXAMPLES[0])
-  const [brief, setBrief] = useState(
-    'Keep the relaxed shape, but explore an original embroidered back graphic and a deeper red finish.',
-  )
+  const [query, setQuery] = useState<string>(tour.examples[0] ?? '')
+  const [brief, setBrief] = useState(tour.custom.briefDefault)
   const [referenceName, setReferenceName] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(products[0]?.id ?? null)
-  const [readySize, setReadySize] = useState(products[0]?.sizes[0] ?? 'One size')
+  const [readySize, setReadySize] = useState(products[0]?.sizes[0] ?? tour.ready.oneSize)
   const [borrowSize, setBorrowSize] = useState(
-    products[1]?.sizes[0] ?? products[0]?.sizes[0] ?? 'One size',
+    products[1]?.sizes[0] ?? products[0]?.sizes[0] ?? tour.ready.oneSize,
   )
   const [unlocked, setUnlocked] = useState<Record<ScenarioKey, number>>({
     ready: 0,
@@ -883,7 +762,7 @@ export function JourneyPrototype({
     borrow: 0,
   })
 
-  const scenario = scenarioByKey(scenarioKey)
+  const scenario = tour.scenarios[scenarioKey]
   const readyProduct = useMemo(
     () => products.find((product) => product.id === selectedId) ?? productAt(products, 0),
     [products, selectedId],
@@ -914,7 +793,7 @@ export function JourneyPrototype({
   function selectReadyProduct(id: number) {
     const next = products.find((product) => product.id === id)
     setSelectedId(id)
-    setReadySize(next?.sizes[0] ?? 'One size')
+    setReadySize(next?.sizes[0] ?? tour.ready.oneSize)
     setUnlocked((current) => ({ ...current, ready: Math.min(current.ready, 1) }))
     if (scenarioKey === 'ready' && step > 1) setStep(1)
   }
@@ -922,8 +801,8 @@ export function JourneyPrototype({
   if (!hasCatalog) {
     return (
       <Container className="py-16">
-        <Notice tone="error" title="The journey prototype needs the live catalog.">
-          {error ?? 'No purchasable catalog products were found. Seed the catalog and reload.'}
+        <Notice tone="error" title={tour.needsCatalog}>
+          {error ?? tour.noProducts}
         </Notice>
       </Container>
     )
@@ -933,11 +812,11 @@ export function JourneyPrototype({
     <div className="pb-24">
       <Container>
         <PageHeader
-          title="Prototype tour"
-          description="Ready Now · Made for You · Borrow a Look, on live catalog data"
+          title={tour.title}
+          description={tour.description}
           actions={
             <Tag tone="outline" size="md">
-              Sample states
+              {tour.sampleStates}
             </Tag>
           }
         />
@@ -948,16 +827,16 @@ export function JourneyPrototype({
           </Notice>
         ) : null}
 
-        <div role="tablist" aria-label="Journey paths" className="flex flex-wrap gap-1.5">
-          {SCENARIOS.map((item) => {
-            const active = item.key === scenarioKey
+        <div role="tablist" aria-label={tour.paths} className="flex flex-wrap gap-1.5">
+          {SCENARIO_KEYS.map((key) => {
+            const active = key === scenarioKey
             return (
               <button
-                key={item.key}
+                key={key}
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => chooseScenario(item.key)}
+                onClick={() => chooseScenario(key)}
                 className={cn(
                   'inline-flex h-9 items-center rounded-sm border px-3 text-[13px] font-medium transition-colors',
                   active
@@ -965,7 +844,7 @@ export function JourneyPrototype({
                     : 'border-line bg-card text-ink hover:border-ink',
                 )}
               >
-                {item.name}
+                {tour.scenarios[key].name}
               </button>
             )
           })}
@@ -975,7 +854,7 @@ export function JourneyPrototype({
         <section className="mt-6">
           <ol
             className="hairline flex items-center gap-1 overflow-x-auto pt-4"
-            aria-label={`${scenario.name} steps`}
+            aria-label={tour.stepsLabel(scenario.name)}
           >
             {scenario.steps.map((item, index) => {
               const locked = index > unlocked[scenarioKey]
@@ -1058,7 +937,7 @@ export function JourneyPrototype({
               onClick={() => setStep((current) => Math.max(0, current - 1))}
               disabled={step === 0}
             >
-              Back
+              {t.common.back}
             </Button>
             <Button iconEnd={<ArrowRight />} onClick={advance}>
               {scenario.actions[step]}
@@ -1070,21 +949,17 @@ export function JourneyPrototype({
         </section>
 
         <div className="hairline mt-10 grid gap-4 pt-6 md:grid-cols-3">
-          {[
-            ['Before purchase', 'Preview only. Nothing is owned yet.'],
-            ['After purchase', 'The confirmed order issues a Look Card.'],
-            ['With a Circle', 'Owners share; friends borrow, then buy their own.'],
-          ].map(([title, copy]) => (
-            <div key={title}>
-              <p className="text-[14px] font-medium">{title}</p>
-              <p className="text-[13px] text-muted">{copy}</p>
+          {tour.outcomes.map((outcome) => (
+            <div key={outcome.title}>
+              <p className="text-[14px] font-medium">{outcome.title}</p>
+              <p className="text-[13px] text-muted">{outcome.copy}</p>
             </div>
           ))}
         </div>
 
         <div className="mt-8">
           <Button href="/me" variant="secondary">
-            Open your wardrobe
+            {tour.wardrobe}
           </Button>
         </div>
       </Container>

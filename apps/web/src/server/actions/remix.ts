@@ -11,6 +11,7 @@ import {
   loadProductsByIds,
   loadUser,
 } from '@/components/social/data'
+import { getI18n } from '@/i18n/server'
 import { recordFeedbackFor } from '@/server/actions/feedback'
 import { createGuest, getSessionUser, safeNextPath } from '@/server/auth'
 import { getDb } from '@/server/db'
@@ -118,10 +119,11 @@ export async function createRemixAction(formData: FormData): Promise<void> {
   const recipient = forUserId ? await loadUser(forUserId) : null
   if (forUserId && !recipient) redirect(withParams(page, { error: 'recipient' }))
 
+  const { t } = await getI18n()
   const customTitle = text(formData.get('title'), 120)
   const title = recipient
-    ? customTitle || `Styled by ${user.displayName} for ${recipient.displayName}`
-    : customTitle || `${user.displayName} remix of ${source.look.title}`
+    ? customTitle || t.looks.titles.styledFor(user.displayName, recipient.displayName)
+    : customTitle || t.looks.titles.remixOf(user.displayName, source.look.title)
 
   const created = await attempt(() =>
     createLookDraft({

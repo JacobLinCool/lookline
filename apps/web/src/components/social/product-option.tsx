@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { displayName } from '@/lib/product-name'
-import { Price, ProductImage, Tag } from '@/components/ui'
+import { ColorName, Price, ProductImage, Tag } from '@/components/ui'
 import type { ShopProduct } from './data'
 
 export interface ProductOptionProps {
@@ -73,7 +73,9 @@ export function ProductOption({
         </p>
         <div className="flex items-baseline justify-between gap-3">
           <Price amount={product.price} size="sm" />
-          <span className="truncate text-[12px] text-muted">{product.colorName}</span>
+          <span className="truncate text-[12px] text-muted">
+            <ColorName value={product.colorName} />
+          </span>
         </div>
       </div>
       {footer ? <div className="px-0.5">{footer}</div> : null}
