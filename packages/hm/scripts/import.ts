@@ -100,9 +100,7 @@ const source = loadArticles(`${dir}/articles.csv`)
 console.log(`read ${source.length} articles in ${secs(started)}s`)
 
 // The 322 non-apparel rows — furniture, stationery, cosmetics — never enter the catalogue.
-// Every row below sets a vector, and `articleVectorsInsertSql` requires one; saying so here is
-// what lets the vector write typecheck without an assertion at the call site.
-const rows: Array<NewArticle & { styleVector: number[] }> = []
+const rows: NewArticle[] = []
 for (const a of source) {
   const categoryGroup = categoryGroupFor(a.outfitRole, a.indexGroupName, a.productType)
   if (categoryGroup === null) continue
@@ -127,7 +125,8 @@ for (const a of source) {
     indexGroupName: a.indexGroupName,
     pattern: a.pattern ?? '',
     colorName: a.colourName ?? '',
-    colorFamily: a.colourFamily ?? '',
+    colorMaster: a.colourFamily ?? '',
+    colorFamily: colorFamilyOf(a.colourFamily ?? ''),
     colorValue: a.colourValue ?? '',
     categoryGroup,
     outfitRole: a.outfitRole,

@@ -42,7 +42,7 @@ const full = {
 }
 
 const row: ImportedArticle = {
-  perceivedColorMaster: 'Beige',
+  colorFamily: 'neutral',
   categoryGroup: 'tops',
   section: 'Womens Everyday Collection',
   seasons: ['winter'],
@@ -164,9 +164,9 @@ describe('parseVision', () => {
 describe('materializeVision', () => {
   const out = materializeVision(row, full as VisionResult)
 
-  it("maps H&M's colour name to a family instead of writing an empty colour block", () => {
-    // `articles.colour_family` holds "Beige", not `neutral`; handing the raw value to
-    // `toStyleVector` matches no family and leaves all twelve dimensions at zero.
+  it('writes the colour family the row already carries', () => {
+    // `articles.colour_family` is the derived slug beside H&M's own master, so the vector gets
+    // `neutral` rather than a raw "Beige" that matches no family and leaves the block at zero.
     expect(out.styleVector[colorFamilyIndex('neutral')]).toBe(1)
     const [from, to] = STYLE_BLOCKS.colors
     expect(out.styleVector.slice(from, to).filter((x) => x > 0)).toHaveLength(1)

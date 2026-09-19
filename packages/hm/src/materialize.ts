@@ -13,7 +13,7 @@
  */
 import { toStyleVector } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily } from '@lookline/catalog'
-import { colorFamilyOf, sectionMeaning, styleAxes } from './enrich'
+import { sectionMeaning, styleAxes } from './enrich'
 import type { VisionResult } from './vision'
 
 /** The article columns a vision reading overwrites or fills in. */
@@ -36,12 +36,8 @@ export interface MaterializedArticle {
 
 /** The row as the import left it — what the dataset and the `detail_desc` regexes established. */
 export interface ImportedArticle {
-  /**
-   * H&M's own `perceived_colour_master_name` ("Black", "Light Blue"), which is what the column
-   * stores — not a catalog slug. Mapped here rather than by the caller, because passing the raw
-   * column to a function that wanted the slug leaves the colour block silently empty.
-   */
-  perceivedColorMaster: string
+  /** The catalog family slug, `articles.colour_family` — `black`, not H&M's `Black`. */
+  colorFamily: string
   categoryGroup: string
   section: string
   seasons: readonly string[]
@@ -77,7 +73,7 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
 
   const styleVector = toStyleVector({
     aesthetics,
-    colorFamily: colorFamilyOf(row.perceivedColorMaster) as ColorFamily,
+    colorFamily: row.colorFamily as ColorFamily,
     secondaryColorFamily: null,
     axes: {
       formality: vision.axes.formality,
