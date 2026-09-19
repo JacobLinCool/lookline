@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useI18n } from '@/i18n/client'
-import { flyProductsToBag } from '@/lib/fly-to-bag'
+import { flyArticlesToBag } from '@/lib/fly-to-bag'
 import { afterPaint, startInteraction } from '@/lib/latency'
 
 export type ActionResult = { ok: true; next?: string } | { ok: false; message: string }
@@ -22,8 +22,8 @@ export function InstantForm({
   confirmation: string
   name: string
   className?: string
-  /** Products this form puts in the bag; they fly there as the submit is acknowledged. */
-  flyToBag?: readonly number[]
+  /** Articles this form puts in the bag; they fly there as the submit is acknowledged. */
+  flyToBag?: readonly string[]
 }) {
   const { t } = useI18n()
   const router = useRouter()
@@ -41,7 +41,7 @@ export function InstantForm({
         const trace = startInteraction('instant', name)
         setState('saving')
         setError(null)
-        if (flyToBag?.length) flyProductsToBag(flyToBag)
+        if (flyToBag?.length) flyArticlesToBag(flyToBag)
         afterPaint(() => {
           trace.mark('acknowledged')
           trace.mark('usable')

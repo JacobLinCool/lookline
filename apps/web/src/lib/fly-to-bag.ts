@@ -34,9 +34,9 @@ function visibleBagTarget(): { el: Element; rect: DOMRect } | null {
   return null
 }
 
-export function flyProductToBag(productId: number, delay = 0): void {
+export function flyArticleToBag(articleId: string, delay = 0): void {
   if (typeof window === 'undefined' || prefersReducedMotion()) return
-  const origin = document.querySelector(`[data-product-image="${productId}"]`)
+  const origin = document.querySelector(`[data-article-image="${articleId}"]`)
   const target = visibleBagTarget()
   if (!origin || !target) return
   const from = origin.getBoundingClientRect()
@@ -58,7 +58,7 @@ export function flyProductToBag(productId: number, delay = 0): void {
     willChange: 'transform, opacity',
   })
   const img = document.createElement('img')
-  img.src = `/api/products/${productId}/image`
+  img.src = `/api/articles/${articleId}/image`
   img.alt = ''
   Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'cover' })
   node.append(img)
@@ -93,6 +93,6 @@ export function flyProductToBag(productId: number, delay = 0): void {
 }
 
 /** Several pieces at once (an outfit): staggered so they read as a handful, not a single blur. */
-export function flyProductsToBag(productIds: readonly number[]): void {
-  productIds.slice(0, 6).forEach((id, i) => flyProductToBag(id, i * 90))
+export function flyArticlesToBag(articleIds: readonly string[]): void {
+  articleIds.slice(0, 6).forEach((id, i) => flyArticleToBag(id, i * 90))
 }

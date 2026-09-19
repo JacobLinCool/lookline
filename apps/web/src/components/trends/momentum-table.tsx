@@ -30,6 +30,9 @@ export function seriesLabel(
       return colorFamilyLabel(locale, series.key)
     case 'silhouette':
       return facetLabel(locale, series.key)
+    // A detail's key is an attribute slug, the same vocabulary a silhouette uses.
+    case 'detail':
+      return facetLabel(locale, series.key)
     case 'aesthetic_category': {
       const [aesthetic, group] = splitPairKey(series.key)
       if (!group) return facetLabel(locale, aesthetic)

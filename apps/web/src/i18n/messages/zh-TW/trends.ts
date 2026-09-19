@@ -63,6 +63,7 @@ export const trends: TrendsMessages = {
     color: '顏色',
     silhouette: '輪廓',
     aesthetic_category: '風格 × 品類',
+    detail: '細節',
   },
 
   status: {

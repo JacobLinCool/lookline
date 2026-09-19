@@ -18,7 +18,7 @@
     "db:migrate": "pnpm --filter @lookline/db migrate",
     "db:reset": "pnpm --filter @lookline/db reset",
     "seed": "pnpm seed:catalog && pnpm seed:social && pnpm analytics",
-    "seed:catalog": "pnpm --filter @lookline/catalog seed",
+    "seed:catalog": "pnpm --filter @lookline/hm seed",
     "seed:social": "pnpm --filter @lookline/sim seed",
     "analytics": "pnpm --filter @lookline/engine analytics",
     "evaluate": "pnpm --filter @lookline/sim evaluate",
