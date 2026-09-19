@@ -1,8 +1,8 @@
 /**
- * Simplified garment silhouettes for the Look poster. The catalog's `renderProductSvg` (65
- * detailed 600×800 silhouettes) is not exported piecewise, so the poster draws its own abstract
- * shapes: each is an absolute-command path inside a 200×260 box, keyed by a family that is
- * resolved from the product's `silhouetteId` (prefix match) or, failing that, its category group.
+ * Simplified garment silhouettes for the Look poster, which is the artwork of a Look that has no
+ * generated image yet — not a stand-in for a photograph the catalogue holds. Each is an
+ * absolute-command path inside a 200×260 box, keyed by a family resolved from the product's
+ * `silhouetteId` (prefix match) or, failing that, its category group.
  */
 
 export type ShapeFamily =

@@ -61,6 +61,7 @@ async function loadJourneyData(unavailable: string): Promise<JourneyData> {
       if (deduped.has(row.product.id)) continue
       deduped.set(row.product.id, {
         id: row.product.id,
+        imagePath: row.product.imagePath,
         name: row.product.name,
         brandName: row.brandName,
         price: row.product.price,

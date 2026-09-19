@@ -35,6 +35,7 @@ export function ItemsSection({
               <RankedItemCard
                 product={{
                   id: item.product.id,
+                  imagePath: item.product.imagePath,
                   name: item.product.name,
                   price: item.product.price,
                   brandName: item.brandName,

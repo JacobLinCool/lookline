@@ -201,7 +201,12 @@ export default async function ProductPage({
 
       <div className="mt-5 grid gap-8 md:grid-cols-12 md:gap-12">
         <div className="md:col-span-7">
-          <ProductImage articleId={product.id} alt={product.name} priority />
+          <ProductImage
+            articleId={product.id}
+            imagePath={product.imagePath}
+            alt={product.name}
+            priority
+          />
         </div>
 
         <div className="flex flex-col gap-6 md:col-span-5">
