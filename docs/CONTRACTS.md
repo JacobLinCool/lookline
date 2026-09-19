@@ -122,7 +122,8 @@ Guarantees:
   Disconnects abort model enrichment. Impression logging runs after the response and is not a
   condition for rendering results.
 - `POST /api/filters/resolve` accepts `{ utterance, base, revision }` and returns validated
-  `{ filters, unresolved, revision, model, contractVersion, latencyMs }` from TypeSafe Jev.
+  `{ filters, unresolved, hints, revision, model, contractVersion, latencyMs }` from TypeSafe Jev;
+  `hints` lists what the sentence leaves unsaid (`occasion`, `budget`, …) for Shop to ask about.
   `POST /api/voice/token` returns a short-lived, single-use, model-constrained Gemini token.
   Both require authenticated same-origin requests. See [live filters](specs/REALTIME_FILTER_SPEC.md).
   Shop uses repeated `categoryGroups`, `colorFamilies`, `aesthetics` and corresponding

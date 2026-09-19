@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Languages, Mic, Square, X } from 'lucide-react'
 import type { FilterDecision, ProductSearch, ProductSearchResult } from '@lookline/engine'
+import { isFilterHintId, openingHints, type FilterHintId } from '@lookline/engine/hints'
 import { Button, EmptyState, Input, Notice, Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { afterPaint } from '@/lib/latency'
@@ -20,6 +21,8 @@ import { ActiveFilters, DepartmentPills } from './active-filters'
 import { FilterDisclosure } from './disclosure'
 import styles from './filters.module.css'
 import { FilterRail } from './filter-rail'
+import { HintRow } from './hint-row'
+import { nextHint, withChoice, type HintChoice } from './hints'
 import { Pagination } from './pagination'
 import { ProductGrid } from './product-grid'
 import { searchFromParams, searchToParams, shopHref, SORT_OPTIONS } from './query'
@@ -50,7 +53,9 @@ export function ShopWorkspace({
   const [resultKey, setResultKey] = useState(keyOf(initialSearch))
   const [draft, setDraft] = useState('')
   const [preview, setPreview] = useState(false)
-  const [unresolved, setUnresolved] = useState<string[]>([])
+  const [hints, setHints] = useState<FilterHintId[]>(() => openingHints(initialSearch))
+  const [skipped, setSkipped] = useState<ReadonlySet<FilterHintId>>(() => new Set())
+  const [focused, setFocused] = useState(false)
   const [deciding, setDeciding] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(initialError)
@@ -81,6 +86,7 @@ export function ShopWorkspace({
   const committed = useRef(initialSearch)
   const base = useRef(initialSearch)
   const productsRequest = useRef<AbortController | null>(null)
+  const field = useRef<HTMLInputElement>(null)
   const voice = useRef<VoiceCapture | null>(null)
   const mounted = useRef(true)
   const handler = useRef<(job: Job, revision: number, signal: AbortSignal) => Promise<void>>(
@@ -99,6 +105,22 @@ export function ShopWorkspace({
     voice.current = null
     current?.cancel()
     setVoicePhase('idle')
+  }
+
+  function resetHints(next: ProductSearch) {
+    setHints(openingHints(next))
+    setSkipped(new Set())
+  }
+
+  /** An answer becomes the sentence's next clause; Jev reads the whole sentence again. */
+  function choose(choice: HintChoice) {
+    if (voicePhase !== 'idle') stopVoice()
+    const next = withChoice(draftValue.current, choice)
+    input(next)
+    const element = field.current
+    if (!element) return
+    element.focus()
+    afterPaint(() => element.setSelectionRange(next.length, next.length))
   }
 
   async function loadProducts(
@@ -163,7 +185,7 @@ export function ShopWorkspace({
         throw new Error('The filter response could not be verified.')
       const next = applyLiveFilters(job.base, data.filters)
       setSearch(next)
-      setUnresolved(data.unresolved)
+      setHints(Array.isArray(data.hints) ? data.hints.filter(isFilterHintId) : [])
       setPreview(true)
       setError(null)
       if (job.final && data.unresolved.length === 0) commit(next)
@@ -218,7 +240,7 @@ export function ShopWorkspace({
     draftValue.current = ''
     setDraft('')
     setDeciding(false)
-    setUnresolved([])
+    resetHints(committed.current)
     setPreview(false)
     setError(null)
     base.current = committed.current
@@ -232,7 +254,7 @@ export function ShopWorkspace({
     base.current = next
     draftValue.current = ''
     setDraft('')
-    setUnresolved([])
+    resetHints(next)
     setDeciding(false)
     setSearch(next)
     setError(null)
@@ -262,7 +284,7 @@ export function ShopWorkspace({
   function startVoice() {
     queue.cancel()
     setDeciding(false)
-    setUnresolved([])
+    resetHints(committed.current)
     void loadProducts(committed.current)
     base.current = committed.current
     setSearch(committed.current)
@@ -311,6 +333,7 @@ export function ShopWorkspace({
 
   const stale = resultKey !== keyOf(search)
   const editing = draft.length > 0 || voicePhase !== 'idle'
+  const hint = available && (editing || focused) ? nextHint(hints, skipped) : undefined
   const languageLabel = VOICE_LANGUAGES.filter((language) => voiceLanguages.includes(language.code))
     .map((language) => language.label)
     .join(' + ')
@@ -345,6 +368,9 @@ export function ShopWorkspace({
               autoComplete="off"
               placeholder="黑色或海軍藍外套，三千以內，不要紅色…"
               className={cn(styles.liveInput, 'pr-24')}
+              ref={field}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               onChange={(event) => {
                 if (voicePhase !== 'idle') stopVoice()
                 if (composing.current) {
@@ -464,8 +490,12 @@ export function ShopWorkspace({
         ) : null}
       </form>
 
-      {unresolved.length > 0 ? (
-        <p className="text-[13px] text-muted">Not understood: {unresolved.join(', ')}.</p>
+      {hint ? (
+        <HintRow
+          id={hint}
+          onChoose={choose}
+          onSkip={() => setSkipped((previous) => new Set(previous).add(hint))}
+        />
       ) : null}
       {preview && !deciding ? (
         <div className="flex items-center gap-2">

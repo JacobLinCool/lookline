@@ -170,8 +170,9 @@ try {
         revision: request.revision,
         filters,
         unresolved: [],
+        hints: [],
         model: 'qa-mock',
-        contractVersion: 'filters-v1',
+        contractVersion: 'filters-v2',
         latencyMs: 25,
       },
     })

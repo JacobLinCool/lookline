@@ -24,9 +24,9 @@ from generative provider routing; a failed partial never silently invokes a gene
 
 `POST /api/filters/resolve` accepts `{ utterance, base, revision }`. The utterance is limited to
 500 characters. `base` contains only allowed filter fields and catalog values. The response is
-`{ filters, unresolved, revision, model, contractVersion, latencyMs }`; `filters-v1` identifies
-this question/reduction contract. The model sees the utterance as data, with any existing facet
-values embedded in its relevant operation question.
+`{ filters, unresolved, hints, revision, model, contractVersion, latencyMs }`; `filters-v2`
+identifies this question/reduction contract (`v2` added `hints`). The model sees the utterance as
+data, with any existing facet values embedded in its relevant operation question.
 
 The catalog supplies all candidate categories, colours and aesthetics, including bilingual
 labels and named colours within each family. Navy maps to the blue family; this is a family-level
@@ -52,6 +52,31 @@ A well-typed answer is not proof of semantic correctness.
 
 Noul and Score are available future primitives for independent binary judgments and graded
 compatibility. The current filter adapter uses Choice only.
+
+## Hints
+
+The line under the sentence field is a question, not a diagnosis: "What is the occasion?",
+"Who is it for?", "Budget?", each with a row of answers. `packages/engine/src/decisions/hints.ts`
+holds 28 hints in priority order — recipient, occasion, formality, four occasion follow-ups
+(wedding role, office type, destination, activity), category, budget, colour, seven garment
+follow-ups (warmth, length, sleeve, trouser cut, heel, bag size, neckline), mood, fit, season,
+avoided colour, fabric, pattern, ordering, time of day, pairing, care, statement. Each hint is one
+Choice question batched into the same Jev request as the filter questions: `stated` or `missing`,
+plus `inapplicable` for follow-ups that only apply in context (a wedding, a dress). A hint whose
+answer the current filters already carry (department, category, colour, budget, aesthetics, sort)
+is not asked. The reduction keeps hints Jev judged `missing` with confidence ≥ 0.5, in priority
+order; an absent answer or an unexpected choice drops the hint. Hints never mutate filter state and
+never raise an error. The internal `unresolved` list still gates the commit but is not shown.
+
+The browser shows one question at a time: the first open hint the shopper has not skipped. Before
+the first decision (an empty or just-started sentence) it shows the context-free hints the filters
+leave open, starting with "Who is it for?". Choosing an answer appends it as the sentence's next
+clause — English by default, Chinese once the sentence is mostly CJK ("黑色洋裝，參加婚禮") — and
+the ordinary 200 ms decision loop reads the whole sentence again, so the next question follows
+from Jev's answer, not from a script. Question copy and answer phrases live in
+`apps/web/src/components/shop/hints.ts`. Occasion and recipient answers do not yet move a filter
+(the resolver only acts on explicitly named options); they enrich the sentence for a later
+purpose-aware compiler.
 
 ## Streaming interaction
 

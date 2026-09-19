@@ -14,4 +14,18 @@ export * from './social'
 export * from './looks'
 export * from './analytics'
 export * from './decisions/filters'
+export {
+  FILTER_HINTS,
+  MIN_HINT_CONFIDENCE,
+  hintKey,
+  hintQuestion,
+  hintQuestions,
+  isFilterHintId,
+  openingHints,
+  reduceHints,
+  type ChoiceAnswer,
+  type FilterHint,
+  type FilterHintId,
+  type HintBase,
+} from './decisions/hints'
 export * from './decisions/search-intent'

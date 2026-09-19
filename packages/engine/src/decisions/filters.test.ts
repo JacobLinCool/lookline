@@ -30,6 +30,12 @@ function responseFor(
   }
 }
 const utterance = 'black or navy outerwear under TWD 3000, no red'
+const hint = (choice: string, confidence = 1) => ({
+  type: 'choice',
+  choice,
+  confidence,
+  probabilities: { stated: 0, missing: 0, inapplicable: 0, [choice]: 1 },
+})
 
 describe('bounded filter decisions', () => {
   it('preserves OR selections, exclusions and exact numeric candidates through the HTTP contract', async () => {
@@ -58,6 +64,30 @@ describe('bounded filter decisions', () => {
       priceMax: 3000,
     })
     expect(result.unresolved).toEqual([])
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+  it('batches hint questions into the same request and returns the missing hints by priority', async () => {
+    const fetcher = vi.fn(async (_url, init) => {
+      const request = JSON.parse(String(init?.body))
+      expect(request.questions['hint:occasion'].type).toBe('choice')
+      expect(request.questions['hint:budget']).toBeUndefined()
+      const response = responseFor(utterance, {}, { priceMax: 3000 })
+      Object.assign(response.answers, {
+        'hint:recipient': hint('stated'),
+        'hint:colour': hint('missing'),
+        'hint:occasion': hint('missing'),
+        'hint:length': hint('inapplicable'),
+        'hint:fit': hint('missing', 0.2),
+      })
+      return Response.json(response)
+    }) satisfies typeof fetch
+    const result = await resolveFilters(
+      utterance,
+      { priceMax: 3000 },
+      { apiKey: 'test', fetch: fetcher },
+    )
+    expect(result.hints).toEqual(['occasion', 'colour'])
+    expect(result.contractVersion).toBe('filters-v2')
     expect(fetcher).toHaveBeenCalledOnce()
   })
   it('retains a whole uncertain facet instead of applying an arbitrary partial decision', async () => {
