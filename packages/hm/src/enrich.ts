@@ -217,8 +217,27 @@ const COLOUR_FAMILIES: Record<string, string> = {
 }
 
 /** `''` for the 790 rows whose colour is Unknown or undefined. */
-export function colorFamilyOf(perceivedColourMaster: string): string {
-  return COLOUR_FAMILIES[perceivedColourMaster] ?? ''
+/**
+ * `perceived_colour_master_name` is blank on 789 articles, and those rows ended up with an
+ * all-zero colour block: invisible to every colour swatch on the shop and to colour similarity.
+ * H&M did record a colour for 657 of them, one column over in `colour_group_name`, which is the
+ * finer name `COLOUR_HEX` already reads to pick a swatch.
+ *
+ * `Other` is not a colour and neither is a blank; those 132 stay empty, because a filter that
+ * matches nothing is better than one that matches the wrong thing.
+ */
+const GROUP_FAMILIES: Record<string, string> = {
+  Black: 'black',
+  White: 'white',
+  'Off White': 'white',
+  Grey: 'grey',
+  'Dark Grey': 'grey',
+  'Light Grey': 'grey',
+  'Dark Blue': 'blue',
+}
+
+export function colorFamilyOf(perceivedColourMaster: string, colourGroupName = ''): string {
+  return COLOUR_FAMILIES[perceivedColourMaster] ?? GROUP_FAMILIES[colourGroupName] ?? ''
 }
 
 /**

@@ -300,8 +300,14 @@ export const articles = sqliteTable(
     pattern: text('pattern').notNull().default(''),
     /** One sentence on how it looks; indexed by FTS so a vibe query has prose to match. */
     styleCaption: text('style_caption').notNull().default(''),
-    /** The same sentence in Traditional Chinese, indexed too — the product is bilingual. */
+    /** The same sentence in Traditional Chinese. Searched through `searchZh`, not directly. */
     styleCaptionZh: text('style_caption_zh').notNull().default(''),
+    /**
+     * Every Chinese field with a space between each character, which is the only way `unicode61`
+     * can tokenise it: a run of Han characters has nothing for it to split on, so the whole run
+     * becomes one token and `麻花` finds none of the 679 captions that say it.
+     */
+    searchZh: text('search_zh').notNull().default(''),
     /** What the print depicts, in two to four words — clustered for trends, not filtered on. */
     printMotif: text('print_motif').notNull().default(''),
     /** The words printed on the garment, verbatim; `''` when it carries none. */

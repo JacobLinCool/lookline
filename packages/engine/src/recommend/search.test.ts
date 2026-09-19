@@ -23,6 +23,25 @@ describe('scanQuery', () => {
   })
 })
 
+describe('scanQuery in Chinese', () => {
+  it('does not read a one-character term out of the middle of a word', () => {
+    // `麻` is linen and `麻花` is a cable knit. Matching the one inside the other turned a search
+    // for cable knits into a search for linen, and consumed the query so nothing else ran.
+    const cable = scanQuery('麻花')
+    expect(cable.materials).toEqual([])
+    expect(cable.residual).toBe('麻花')
+    // Standing on its own it is still linen, and a longer term still wins.
+    expect(scanQuery('麻').materials).toEqual(['linen'])
+    expect(scanQuery('亞麻襯衫').subcategories).toEqual(['linen-shirt'])
+  })
+
+  it('keeps a Chinese residual, which the ASCII-only check threw away', () => {
+    // With no residual there is no text predicate, so `荷葉邊` filtered on nothing at all.
+    expect(scanQuery('荷葉邊').residual).toBe('荷葉邊')
+    expect(scanQuery('落肩').residual).toBe('落肩')
+  })
+})
+
 describe('buildSearchQuery', () => {
   const handle = createLocalDb(':memory:')
   afterAll(async () => {

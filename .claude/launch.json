@@ -6,6 +6,22 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@lookline/web", "dev"],
       "port": 3000
+    },
+    {
+      "name": "lookline-remote",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "LOOKLINE_REMOTE=1",
+        "pnpm",
+        "--filter",
+        "@lookline/web",
+        "exec",
+        "vinext",
+        "dev",
+        "--port",
+        "3100"
+      ],
+      "port": 3100
     }
   ]
 }
