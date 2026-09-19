@@ -122,7 +122,7 @@ export default async function TogetherPage({
                       name={`look-${person.id}`}
                       aria-label={copy.personLook(person.displayName)}
                       options={theirLooks.map((l) => ({ value: l.id, label: l.title }))}
-                      className="h-9 text-[13px]"
+                      size="sm"
                     />
                   )
                 }}

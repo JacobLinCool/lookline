@@ -6,9 +6,24 @@ import { home } from './home'
 import { looks } from './looks'
 import { me } from './me'
 import { nav } from './nav'
+import { previews } from './previews'
 import { shop } from './shop'
 import { social } from './social'
 import { trends } from './trends'
 import { ui } from './ui'
 
-export const zhTW = { admin, auth, bag, common, home, looks, me, nav, shop, social, trends, ui }
+export const zhTW = {
+  admin,
+  auth,
+  bag,
+  common,
+  home,
+  looks,
+  me,
+  nav,
+  previews,
+  shop,
+  social,
+  trends,
+  ui,
+}

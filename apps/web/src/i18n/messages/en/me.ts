@@ -1,4 +1,4 @@
-/** `/me`: the viewer's Looks, Wardrobe, taste, People and Asks. */
+/** `/me`: the viewer's Looks, temporary previews, Wardrobe, taste, People and Asks. */
 export const me = {
   metaTitle: 'Wardrobe',
   profileMeta: (handle: string, since: string) => `@${handle} · member since ${since}`,
@@ -6,10 +6,40 @@ export const me = {
   allCount: (n: number) => `All ${n}`,
   sectionUnavailable: 'This part could not be loaded.',
 
+  photo: {
+    title: 'Reference photo',
+    currentAlt: 'Your saved reference photo',
+    nextRender: 'Your current saved photo will guide the next render.',
+    empty: 'No saved photo',
+    hint: 'Private. Used only when you choose to generate a Look or outfit preview on yourself.',
+    add: 'Add photo',
+    replace: 'Replace photo',
+    saving: 'Saving photo…',
+    updated: 'Your reference photo was updated.',
+    errors: {
+      required: 'Choose a photo first.',
+      type: 'Use a PNG, JPEG, or WebP image.',
+      size: 'Keep the photo under 15 MB.',
+      save: 'The photo could not be saved. Try again.',
+    } as Record<string, string>,
+  },
+
   looks: {
     title: 'Looks',
     empty: 'No Looks yet',
     madeTogether: 'Made together',
+  },
+
+  previews: {
+    title: 'Temporary previews',
+    empty: 'No active previews',
+    emptyDescription: 'Preview an outfit before checkout and it will stay here for 24 hours.',
+    expires: (value: string) => `Expires ${value}`,
+    status: {
+      preparing: 'Preparing',
+      ready: 'Ready',
+      failed: 'Needs retry',
+    },
   },
 
   wardrobe: {

@@ -35,6 +35,13 @@ Indexes support the retrieval paths: department/group/price prefilter, aesthetic
 | `look_products`     | Products in a Look, with a role such as `top`, `bottom`, `shoes`, `outer`, `bag`, `accessory`.                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `look_participants` | People in a Together edition and the source Look each contributed.                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
+Temporary previews are deliberately outside the social Look graph:
+
+| Table              | Meaning                                                                                                                                    |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `previews`         | Owner-only, non-ownable generated images with a reference-photo asset, optional source Look, generation lease and 24-hour expiry.          |
+| `preview_products` | Exact catalog products in a temporary preview. These rows do not create ownership, lineage, Look interactions or preference-training data. |
+
 ### Image generation lifecycle
 
 Image generation state lives on `looks`: `image_generation_id` is the current worker's write

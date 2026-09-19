@@ -511,6 +511,55 @@ export const lookParticipants = sqliteTable(
 )
 
 // ---------------------------------------------------------------------------
+// Temporary previews — private, non-ownable images that expire before purchase
+// ---------------------------------------------------------------------------
+
+export const previews = sqliteTable(
+  'previews',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    sourceLookId: text('source_look_id').references(() => looks.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    stylePreset: text('style_preset').notNull(),
+    occasion: text('occasion'),
+    referencePath: text('reference_path').notNull(),
+    imagePath: text('image_path'),
+    imageStatus: text('image_status', { enum: IMAGE_STATUS_VALUES }).notNull().default('pending'),
+    imageProvider: text('image_provider', { enum: LLM_PROVIDER_VALUES }),
+    imageGenerationId: text('image_generation_id'),
+    imageStartedAt: timestamp('image_started_at'),
+    imageError: text('image_error'),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('previews_owner_idx').on(t.ownerId),
+    index('previews_source_look_idx').on(t.sourceLookId),
+    index('previews_expires_idx').on(t.expiresAt),
+  ],
+)
+
+export const previewProducts = sqliteTable(
+  'preview_products',
+  {
+    previewId: text('preview_id')
+      .notNull()
+      .references(() => previews.id, { onDelete: 'cascade' }),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id),
+    position: integer('position').notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.previewId, t.productId] }),
+    index('preview_products_product_idx').on(t.productId),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Social primitives
 // ---------------------------------------------------------------------------
 
@@ -828,6 +877,9 @@ export type Look = typeof looks.$inferSelect
 export type NewLook = typeof looks.$inferInsert
 export type LookArticle = typeof lookArticles.$inferSelect
 export type LookParticipant = typeof lookParticipants.$inferSelect
+export type Preview = typeof previews.$inferSelect
+export type NewPreview = typeof previews.$inferInsert
+export type PreviewProduct = typeof previewProducts.$inferSelect
 export type Ask = typeof asks.$inferSelect
 export type NewAsk = typeof asks.$inferInsert
 export type AskResponse = typeof askResponses.$inferSelect

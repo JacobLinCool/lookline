@@ -1,0 +1,63 @@
+import type { PreviewMessages } from '../en/previews'
+
+export const previews: PreviewMessages = {
+  metaTitle: '預覽穿搭',
+  new: {
+    title: '在你身上預覽這套穿搭',
+    description: '購買前先看看整套效果。這是只供你查看的 24 小時預覽，不會加入衣櫥成為 Look。',
+    pieces: '預覽中的單品',
+    photo: '你的參考照片',
+    photoHint: '必填。新照片會優先於已儲存的照片。',
+    photoPreviewAlt: '這次預覽使用的參考照片',
+    noPhotoSelected: '選一張照片，預覽這套穿搭在你身上的效果',
+    savedPhotoSelected: '正在使用你儲存的照片',
+    photoRequired: '請選擇照片，或使用已儲存的照片。',
+    occasion: '場合（選填）',
+    occasionPlaceholder: '晚餐、工作、週末旅行…',
+    titleField: '預覽名稱',
+    defaultTitle: '我的穿搭預覽',
+    submit: '產生預覽',
+    creating: '正在準備預覽…',
+    emptyTitle: '請先選擇單品',
+    emptyDescription: '開啟一套推薦穿搭，或把單品加入購物袋，再一起預覽。',
+  },
+  borrowed: {
+    description: (title: string) =>
+      `用你自己的參考照片，試穿「${title}」完全相同的單品與圖片風格。`,
+    exact: '原樣借用穿搭',
+    exactNote: '單品與風格不會替換；「變成我的」則是另一個可改搭的選項。',
+    defaultTitle: (title: string) => `預覽「${title}」`,
+  },
+  detail: {
+    imageUnavailable: '圖片暫時無法顯示，請在預覽到期前重試。',
+    temporary: '私人 · 限時預覽',
+    explanation: '這張圖片只供你在結帳前參考，不是你擁有的 Look，也不會出現在衣櫥中。',
+    expires: (value: string) => `可查看至 ${value}`,
+    pieces: '預覽中的單品',
+    addAvailable: '將有庫存的單品加入購物袋',
+    added: '有庫存的單品已加入購物袋',
+    soldOut: '售罄',
+    unavailableCount: (n: number) => `已略過 ${n} 件售罄單品。`,
+  },
+  expired: {
+    title: '這個預覽已過期',
+    description: '限時預覽會在 24 小時後刪除。請重新選擇單品，再建立一次。',
+  },
+  actions: {
+    previewLook: '預覽穿搭',
+    previewBag: '在我身上預覽購物袋',
+    previewOnMe: '在我身上預覽',
+  },
+  errors: {
+    pickPiece: '請至少選擇一件單品。',
+    unknownProducts: '一件或多件單品已無法使用。',
+    photoType: '參考照片請使用 PNG、JPEG 或 WebP 圖片。',
+    photoSize: '參考照片請小於 15 MB。',
+    photoRequired: '請選擇參考照片，或使用你已儲存的照片。',
+    notCreated: '無法建立預覽。請確認圖片生成功能設定後再試一次。',
+    sourceUnavailable: '這個 Look 是私人的，或已無法使用。',
+    unavailable: '這個預覽已無法使用。',
+    noneAvailable: '這個預覽中的單品都已售罄。',
+    bagFull: '購物袋放不下這些單品，請先移除一件再試。',
+  },
+}

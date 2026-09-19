@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { and, brands, desc, eq, inArray, articles, purchases } from '@lookline/db'
 import { STYLE_PRESETS } from '@lookline/engine'
 import { Flash } from '@/components/looks/flash'
+import { PieceToggle } from '@/components/looks/piece-toggle'
+import { ReferencePhotoField } from '@/components/looks/reference-photo-field'
 import { SubmitButton } from '@/components/looks/submit-button'
 import {
   Button,
@@ -126,7 +128,25 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
       <form action={createLookAction} className="block min-w-0">
         <input type="hidden" name="return" value={returnPath} />
 
-        <Section title={t.looks.new.pieces} rule={false} className="pt-6">
+        <Section
+          title={t.looks.new.pieces}
+          rule={false}
+          className="pt-6"
+          actions={
+            ordered.length > 1 ? (
+              <PieceToggle
+                name="productId"
+                max={MAX_PRODUCTS}
+                selectAllLabel={
+                  ordered.length > MAX_PRODUCTS
+                    ? t.looks.new.selectFirst(MAX_PRODUCTS)
+                    : t.looks.new.selectAll
+                }
+                clearLabel={t.looks.new.selectNone}
+              />
+            ) : null
+          }
+        >
           <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {ordered.map(({ product, brandName }, index) => (
               <li key={product.id}>
@@ -211,37 +231,20 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
 
         <Section title={t.looks.new.photo}>
           <div className="grid gap-6 md:grid-cols-2">
-            <Field label={t.looks.photoField} htmlFor="photo" hint={t.looks.new.photoHint}>
-              <input
-                id="photo"
-                type="file"
-                name="photo"
-                accept="image/*"
-                className="block w-full rounded-sm border border-line bg-card px-3 py-2 text-[13px] file:mr-3 file:rounded-xs file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-[12px] file:text-paper"
-              />
-              <span className="mt-2 flex flex-col gap-1.5 text-[13px]">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    name="rememberPhoto"
-                    defaultChecked
-                    className="size-4 accent-ink"
-                  />
-                  {t.looks.new.rememberPhoto}
-                </label>
-                {user.photoPath ? (
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      name="useSavedPhoto"
-                      defaultChecked
-                      className="size-4 accent-ink"
-                    />
-                    {t.looks.new.useSavedPhoto}
-                  </label>
-                ) : null}
-              </span>
-            </Field>
+            <ReferencePhotoField
+              hasSavedPhoto={Boolean(user.photoPath)}
+              labels={{
+                field: t.looks.photoField,
+                hint: t.looks.new.photoHint,
+                previewAlt: t.looks.new.photoPreviewAlt,
+                empty: t.looks.new.noPhotoSelected,
+                selected: t.looks.new.savedPhotoSelected,
+                generated: t.looks.new.generatedModel,
+                newPhoto: t.looks.new.newPhoto,
+                remember: t.looks.new.rememberPhoto,
+                useSaved: t.looks.new.useSavedPhoto,
+              }}
+            />
 
             <div className="flex flex-col gap-5">
               <Field label={t.looks.new.occasion} htmlFor="occasion">

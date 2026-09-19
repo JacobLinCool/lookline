@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { and, brands, desc, eq, inArray, looks, articles, users } from '@lookline/db'
+import { and, brands, desc, eq, gt, inArray, looks, ne, articles, users } from '@lookline/db'
 import { getUserNetwork } from '@lookline/engine'
 import { IntentWorkspace, type HomeLook, type HomeProduct } from '@/components/intent/workspace'
 import { paramList, paramString } from '@/components/intent/urls'
@@ -16,22 +16,13 @@ export async function generateMetadata(): Promise<Metadata> {
 const RAIL_LIMIT = 12
 
 /**
- * The rail under the sentence field. Signed in: Looks shared (by link or publicly) by the people
- * in your circle. Signed out: public Looks only. Private Looks never appear.
+ * The rail under the sentence field. Signed-in viewers see circle Looks first, then recent public
+ * Looks from everyone else. Signed-out viewers see recent public Looks. Private Looks never appear.
  */
 async function loadNetworkLooks(userId: string | null): Promise<HomeLook[]> {
   try {
     const { db } = getDb()
-    let where = eq(looks.visibility, 'public')
-    if (userId) {
-      const network = await getUserNetwork(db, userId)
-      const people = [...new Set(network.edges.map((edge) => edge.other.id))].filter(
-        (id) => id !== userId,
-      )
-      if (people.length === 0) return []
-      where = and(inArray(looks.ownerId, people), inArray(looks.visibility, ['link', 'public']))!
-    }
-    const rows = await db
+    const publicRows = await db
       .select({
         id: looks.id,
         title: looks.title,
@@ -44,9 +35,47 @@ async function loadNetworkLooks(userId: string | null): Promise<HomeLook[]> {
       })
       .from(looks)
       .innerJoin(users, eq(looks.ownerId, users.id))
-      .where(where)
+      .where(
+        userId
+          ? and(eq(looks.visibility, 'public'), ne(looks.ownerId, userId))
+          : eq(looks.visibility, 'public'),
+      )
       .orderBy(desc(looks.createdAt))
       .limit(RAIL_LIMIT)
+
+    let circleRows: typeof publicRows = []
+    if (userId) {
+      try {
+        const network = await getUserNetwork(db, userId)
+        const people = [...new Set(network.edges.map((edge) => edge.other.id))].filter(
+          (id) => id !== userId,
+        )
+        if (people.length > 0)
+          circleRows = await db
+            .select({
+              id: looks.id,
+              title: looks.title,
+              stylePreset: looks.stylePreset,
+              imagePath: looks.imagePath,
+              kind: looks.kind,
+              displayName: users.displayName,
+              handle: users.handle,
+              avatarSeed: users.avatarSeed,
+            })
+            .from(looks)
+            .innerJoin(users, eq(looks.ownerId, users.id))
+            .where(
+              and(inArray(looks.ownerId, people), inArray(looks.visibility, ['link', 'public'])),
+            )
+            .orderBy(desc(looks.createdAt))
+            .limit(RAIL_LIMIT)
+      } catch (error) {
+        console.warn('[home] circle Looks unavailable; showing public Looks', error)
+      }
+    }
+    const rows = [...circleRows, ...publicRows]
+      .filter((row, index, all) => all.findIndex(({ id }) => id === row.id) === index)
+      .slice(0, RAIL_LIMIT)
     return rows.map((r) => ({
       look: {
         id: r.id,
