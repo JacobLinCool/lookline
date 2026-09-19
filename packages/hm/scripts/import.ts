@@ -12,11 +12,11 @@
 import { fileURLToPath } from 'node:url'
 import {
   FTS_REBUILD_SQL,
-  articleVectorsInsertSql,
   type NewArticle,
+  articleVectorsInsertSql,
   articles as articlesTable,
-  getTableColumns,
   brands as brandsTable,
+  getTableColumns,
   insertAll,
   sql,
 } from '@lookline/db'
@@ -24,7 +24,12 @@ import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
 import {
   categoryGroupFor,
   loadArticles,
+  loadStats,
+  materialFrom,
+  momentumOf,
   placeholderPrice,
+  popularityOf,
+  sectionMeaning,
   sizeSystemFor,
   slugFor,
   tierFor,
@@ -65,6 +70,10 @@ await insertAll(db, brandsTable, [
   },
 ])
 
+const stats = loadStats(`${dir}/article_stats.csv`)
+const maxSales = Math.max(...[...stats.values()].map((s) => s.salesCount))
+console.log(`read ${stats.size} article aggregates, top seller ${maxSales} units`)
+
 const source = loadArticles(`${dir}/articles.csv`)
 console.log(`read ${source.length} articles in ${secs(started)}s`)
 
@@ -73,7 +82,10 @@ const rows: NewArticle[] = []
 for (const a of source) {
   const categoryGroup = categoryGroupFor(a.outfitRole, a.indexGroupName, a.productType)
   if (categoryGroup === null) continue
-  const price = placeholderPrice(categoryGroup, a.articleId)
+  // Real transaction prices where the article ever sold; 995 of them never did.
+  const stat = stats.get(a.articleId)
+  const price = stat?.price ?? placeholderPrice(categoryGroup, a.articleId)
+  const section = sectionMeaning(a.section ?? '')
   rows.push({
     id: a.articleId,
     brandId: HM_BRAND_ID,
@@ -94,6 +106,12 @@ for (const a of source) {
     outfitRole: a.outfitRole,
     price,
     tier: tierFor(price),
+    salesCount: stat?.salesCount ?? 0,
+    firstSoldAt: stat?.firstSoldAt ?? null,
+    lastSoldAt: stat?.lastSoldAt ?? null,
+    onlineRatio: stat?.onlineRatio ?? 0,
+    popularity: stat ? popularityOf(stat.salesCount, maxSales) : 0,
+    trendScore: stat ? momentumOf(stat.sales30d, stat.sales90d) : 0,
     department: a.department,
     slug: slugFor(a.name, a.articleId),
     colorHex: a.colourHex ?? '#9E9E9E',
@@ -102,8 +120,9 @@ for (const a of source) {
     // Filled when the images are uploaded to R2 — not every article ships with a photo, and the
     // key must not point at an object that is not there.
     imagePath: null,
-    occasions: [],
+    occasions: [...section.occasions],
     aesthetics: [],
+    material: materialFrom(a.description),
     styleVector: ZERO_VECTOR,
   })
 }

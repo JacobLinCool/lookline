@@ -10,7 +10,8 @@
     "articles": "tsx scripts/clean.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "seed": "tsx scripts/import.ts"
+    "seed": "tsx scripts/import.ts",
+    "aggregate": "bash scripts/aggregate.sh"
   },
   "dependencies": {
     "@lookline/db": "workspace:*"
