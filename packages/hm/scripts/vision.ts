@@ -14,6 +14,12 @@
  * so this needs no public bucket and no signed URL — and `detail: 'low'` is the right budget for
  * a product shot of that size.
  *
+ * The 440 articles with no photograph are skipped rather than read from their copy alone. Reading
+ * the text is the inference this pass exists to avoid: `detail_desc` already had its regex pass,
+ * and anything past it is a guess. Measured on the first 205 readings, a text-only one came back
+ * at 0.43 confidence against 0.95 for a photographed one — less than half, and it would still
+ * have written an aesthetic into the style vector.
+ *
  * Nothing here writes to `articles`. `materialize` does that, from the rows this leaves behind.
  *
  *   OPENAI_API_KEY       required
@@ -28,8 +34,10 @@ import { fileURLToPath } from 'node:url'
 import {
   articleVision as articleVisionTable,
   articles as articlesTable,
+  and,
   desc,
   eq,
+  isNotNull,
   isNull,
 } from '@lookline/db'
 import type { NewArticleVision } from '@lookline/db'
@@ -62,8 +70,8 @@ await migrateLocal(handle)
 const { db } = handle
 console.log(`database ${handle.url}`)
 
-// Only articles with no reading at the current version; a bumped VISION_VERSION re-reads the
-// catalogue rather than silently mixing two vocabularies in one column.
+// Only photographed articles with no reading at the current version; a bumped VISION_VERSION
+// re-reads the catalogue rather than silently mixing two vocabularies in one column.
 const pending = await db
   .select({
     id: articlesTable.id,
@@ -77,7 +85,7 @@ const pending = await db
   })
   .from(articlesTable)
   .leftJoin(articleVisionTable, eq(articleVisionTable.articleId, articlesTable.id))
-  .where(isNull(articleVisionTable.articleId))
+  .where(and(isNull(articleVisionTable.articleId), isNotNull(articlesTable.imagePath)))
   .orderBy(desc(articlesTable.popularity))
   .limit(limit ?? 1_000_000)
 
@@ -115,14 +123,17 @@ function imageDataUrl(imagePath: string | null): string | null {
 type Pending = (typeof pending)[number]
 
 async function read(article: Pending): Promise<NewArticleVision | null> {
+  // The column says there is a photograph; only a missing local file gets here, and that is a
+  // converted folder out of step with the database rather than an article to guess at.
   const dataUrl = imageDataUrl(article.imagePath)
-  if (!dataUrl) noImage += 1
+  if (!dataUrl) {
+    noImage += 1
+    return null
+  }
   const content: Array<Record<string, unknown>> = [
     { type: 'input_text', text: buildVisionPrompt(article) },
+    { type: 'input_image', image_url: dataUrl, detail: 'low' },
   ]
-  // Text alone still fills occasions and the axes; without the photograph it simply says less,
-  // and reports the lower confidence itself.
-  if (dataUrl) content.push({ type: 'input_image', image_url: dataUrl, detail: 'low' })
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const t0 = performance.now()
@@ -206,7 +217,7 @@ await Promise.all(Array.from({ length: Math.max(1, concurrency) }, () => worker(
 
 const secs = (performance.now() - started) / 1000
 console.log(
-  `read ${done} articles in ${(secs / 60).toFixed(1)} min (${failed} failed, ${noImage} had no photograph)`,
+  `read ${done} articles in ${(secs / 60).toFixed(1)} min (${failed} failed, ${noImage} had no local image file)`,
 )
 console.log(
   `tokens: ${inTokens} fresh + ${cachedTokens} cached input, ${outTokens} output — $${cost().toFixed(2)}`,
