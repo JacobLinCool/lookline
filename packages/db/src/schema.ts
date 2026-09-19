@@ -965,6 +965,380 @@ export const evaluationRuns = sqliteTable(
 )
 
 // ---------------------------------------------------------------------------
+// Personas, wardrobe entitlements, card credits and collectible cards
+//
+// Holding is never stored on a card. A card names the persona it belongs to and the persona names
+// its current owner, so handing a persona to another account is one UPDATE of one row — which is
+// the only way to move a whole set of cards atomically on a runtime with no transactions. Nothing
+// here can end up half-transferred, because there is no second row to miss.
+//
+// What a card records about its own making — author, articles worn, ownership ratio, tier, number
+// — is a snapshot taken at issue time and never rewritten when the persona changes hands.
+// ---------------------------------------------------------------------------
+
+/** A card's subject: a real person photographed, or an avatar. Not a login. */
+export const PERSONA_KIND_VALUES = ['person', 'avatar'] as const
+export const PERSONA_TRANSFER_STATE_VALUES = [
+  'pending',
+  'accepted',
+  'cancelled',
+  'expired',
+] as const
+/** Why a wardrobe article is available to a session: bought by this account, or lent by a friend. */
+export const ENTITLEMENT_SOURCE_VALUES = ['purchase', 'loan'] as const
+export const LOAN_STATE_VALUES = ['active', 'revoked'] as const
+/**
+ * Credit movements. `grant` follows a confirmed purchase line, `reserve` holds one for a session,
+ * `settle` spends the held credit on a finished card, and `release` returns it when a session
+ * produced nothing usable. Balance is the sum of every delta; nothing caches it.
+ */
+export const CREDIT_REASON_VALUES = ['grant', 'reserve', 'settle', 'release'] as const
+export const CARD_SESSION_STATE_VALUES = ['open', 'settled', 'cancelled', 'expired'] as const
+export const GENERATION_STATE_VALUES = ['pending', 'succeeded', 'failed'] as const
+
+export const personas = sqliteTable(
+  'personas',
+  {
+    id: text('id').primaryKey(),
+    /** Whoever may act for this persona right now. Transfers move this and nothing else. */
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => users.id),
+    displayName: text('display_name').notNull(),
+    kind: text('kind', { enum: PERSONA_KIND_VALUES }).notNull().default('person'),
+    /** R2 key of the persona's own reference material. Private: sharing a card never exposes it. */
+    referencePath: text('reference_path'),
+    avatarSeed: integer('avatar_seed').notNull().default(0),
+    /** Bumped on every ownership change so a transfer can be validated against what it read. */
+    version: integer('version').notNull().default(1),
+    createdAt: createdAt(),
+  },
+  (t) => [index('personas_owner_idx').on(t.ownerUserId)],
+)
+
+export const personaTransfers = sqliteTable(
+  'persona_transfers',
+  {
+    id: text('id').primaryKey(),
+    personaId: text('persona_id')
+      .notNull()
+      .references(() => personas.id),
+    fromUserId: text('from_user_id')
+      .notNull()
+      .references(() => users.id),
+    toUserId: text('to_user_id')
+      .notNull()
+      .references(() => users.id),
+    state: text('state', { enum: PERSONA_TRANSFER_STATE_VALUES }).notNull().default('pending'),
+    /** The persona version this offer was written against; acceptance checks it still holds. */
+    personaVersion: integer('persona_version').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    settledAt: timestamp('settled_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('persona_transfers_persona_idx').on(t.personaId),
+    index('persona_transfers_to_idx').on(t.toUserId),
+    /** At most one live offer per persona; settled rows drop out of the index. */
+    uniqueIndex('persona_transfers_pending_idx')
+      .on(t.personaId)
+      .where(sql`state = 'pending'`),
+  ],
+)
+
+/**
+ * One row per purchase line: what the account may dress a persona in. Quantity is kept because a
+ * line can buy several of the same article, and lending one out must not consume it.
+ */
+export const wardrobeEntitlements = sqliteTable(
+  'wardrobe_entitlements',
+  {
+    id: text('id').primaryKey(),
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => users.id),
+    purchaseId: text('purchase_id')
+      .notNull()
+      .references(() => purchases.id),
+    articleId: text('article_id')
+      .notNull()
+      .references(() => articles.id),
+    /** The variant actually bought, when the catalogue records one. */
+    size: text('size'),
+    quantity: integer('quantity').notNull().default(1),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('wardrobe_entitlements_owner_idx').on(t.ownerUserId),
+    index('wardrobe_entitlements_article_idx').on(t.articleId),
+    /** A purchase line grants its wardrobe entitlement exactly once, however often it is retried. */
+    uniqueIndex('wardrobe_entitlements_purchase_idx').on(t.purchaseId),
+  ],
+)
+
+/** A friend may dress their personas in this article. Lending copies no entitlement and no credit. */
+export const wardrobeLoans = sqliteTable(
+  'wardrobe_loans',
+  {
+    id: text('id').primaryKey(),
+    entitlementId: text('entitlement_id')
+      .notNull()
+      .references(() => wardrobeEntitlements.id, { onDelete: 'cascade' }),
+    lenderUserId: text('lender_user_id')
+      .notNull()
+      .references(() => users.id),
+    borrowerUserId: text('borrower_user_id')
+      .notNull()
+      .references(() => users.id),
+    state: text('state', { enum: LOAN_STATE_VALUES }).notNull().default('active'),
+    revokedAt: timestamp('revoked_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('wardrobe_loans_borrower_idx').on(t.borrowerUserId),
+    uniqueIndex('wardrobe_loans_active_idx')
+      .on(t.entitlementId, t.borrowerUserId)
+      .where(sql`state = 'active'`),
+  ],
+)
+
+/**
+ * Every credit movement, never a running total. `operationKey` is what makes the whole thing safe
+ * to retry: a replayed checkout, a re-opened confirmation page or a retried reservation writes the
+ * same key and the unique index rejects the duplicate, so the caller can read back the first
+ * result instead of double-counting.
+ */
+export const creditLedger = sqliteTable(
+  'credit_ledger',
+  {
+    id: text('id').primaryKey(),
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => users.id),
+    /** `+3` on a qualifying purchase line, `-1` to reserve, `+1` to release. Settling spends the
+     * reservation and writes `0`, which keeps the audit line without moving the balance again. */
+    delta: integer('delta').notNull(),
+    reason: text('reason', { enum: CREDIT_REASON_VALUES }).notNull(),
+    purchaseId: text('purchase_id').references(() => purchases.id),
+    /**
+     * No foreign key on purpose: the reservation row is written before the session it pays for
+     * exists, so the constraint would refuse the one insert that has to come first.
+     */
+    sessionId: text('session_id'),
+    /** Which version of the grant rules decided this row. */
+    ruleVersion: text('rule_version').notNull(),
+    operationKey: text('operation_key').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('credit_ledger_owner_idx').on(t.ownerUserId),
+    index('credit_ledger_session_idx').on(t.sessionId),
+    uniqueIndex('credit_ledger_operation_idx').on(t.operationKey),
+  ],
+)
+
+/**
+ * One reserved credit being spent. The persona and the articles are snapshotted when the session
+ * opens: swapping either afterwards would let a card claim a provenance it never had.
+ */
+export const cardSessions = sqliteTable(
+  'card_sessions',
+  {
+    id: text('id').primaryKey(),
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => users.id),
+    personaId: text('persona_id')
+      .notNull()
+      .references(() => personas.id),
+    state: text('state', { enum: CARD_SESSION_STATE_VALUES }).notNull().default('open'),
+    /** The ledger row holding this session's credit. */
+    reserveOperationKey: text('reserve_operation_key').notNull(),
+    maxCandidates: integer('max_candidates').notNull().default(4),
+    /** Articles chosen at open time, each with where the right to use it came from. */
+    articleSnapshot: json<
+      Array<{ articleId: string; source: (typeof ENTITLEMENT_SOURCE_VALUES)[number] }>
+    >('article_snapshot')
+      .notNull()
+      .default(sql`'[]'`),
+    expiresAt: timestamp('expires_at').notNull(),
+    settledAt: timestamp('settled_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('card_sessions_owner_idx').on(t.ownerUserId),
+    index('card_sessions_persona_idx').on(t.personaId),
+    uniqueIndex('card_sessions_reserve_idx').on(t.reserveOperationKey),
+  ],
+)
+
+/** One call to the image provider. Failures are kept: the retry budget counts them. */
+export const generationAttempts = sqliteTable(
+  'generation_attempts',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => cardSessions.id, { onDelete: 'cascade' }),
+    state: text('state', { enum: GENERATION_STATE_VALUES }).notNull().default('pending'),
+    provider: text('provider'),
+    error: text('error'),
+    createdAt: createdAt(),
+    finishedAt: timestamp('finished_at'),
+  },
+  (t) => [index('generation_attempts_session_idx').on(t.sessionId)],
+)
+
+/** A picture that could become a card. Up to `maxCandidates` per session; exactly one is chosen. */
+export const cardCandidates = sqliteTable(
+  'card_candidates',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => cardSessions.id, { onDelete: 'cascade' }),
+    attemptId: text('attempt_id')
+      .notNull()
+      .references(() => generationAttempts.id, { onDelete: 'cascade' }),
+    imagePath: text('image_path').notNull(),
+    position: integer('position').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('card_candidates_session_idx').on(t.sessionId),
+    uniqueIndex('card_candidates_position_idx').on(t.sessionId, t.position),
+  ],
+)
+
+/**
+ * An issued personal card. `personaId` is the only link to a holder; everything else is the
+ * record of its making and stays fixed for the life of the card.
+ */
+export const cards = sqliteTable(
+  'cards',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => cardSessions.id),
+    candidateId: text('candidate_id')
+      .notNull()
+      .references(() => cardCandidates.id),
+    personaId: text('persona_id')
+      .notNull()
+      .references(() => personas.id),
+    /** Who made it. Unchanged by transfers. */
+    authorUserId: text('author_user_id')
+      .notNull()
+      .references(() => users.id),
+    imagePath: text('image_path').notNull(),
+    /** Printed on the card and quoted when verifying one. */
+    verificationCode: text('verification_code').notNull(),
+    tier: text('tier').notNull(),
+    /** Share of the worn articles the author owned outright, at issue time. */
+    ownedRatio: real('owned_ratio').notNull().default(0),
+    articleSnapshot: json<
+      Array<{ articleId: string; source: (typeof ENTITLEMENT_SOURCE_VALUES)[number] }>
+    >('article_snapshot')
+      .notNull()
+      .default(sql`'[]'`),
+    issuedAt: createdAt('issued_at'),
+  },
+  (t) => [
+    index('cards_persona_idx').on(t.personaId),
+    index('cards_author_idx').on(t.authorUserId),
+    uniqueIndex('cards_verification_idx').on(t.verificationCode),
+    /** A session settles into one card. */
+    uniqueIndex('cards_session_idx').on(t.sessionId),
+  ],
+)
+
+/** A grouping of personal cards that can be issued together as a multi-person artwork. */
+export const collections = sqliteTable(
+  'collections',
+  {
+    id: text('id').primaryKey(),
+    ownerUserId: text('owner_user_id')
+      .notNull()
+      .references(() => users.id),
+    title: text('title').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('collections_owner_idx').on(t.ownerUserId)],
+)
+
+/** Which personas take part, and which of their personal cards they bring. */
+export const collectionMembers = sqliteTable(
+  'collection_members',
+  {
+    collectionId: text('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    personaId: text('persona_id')
+      .notNull()
+      .references(() => personas.id),
+    cardId: text('card_id')
+      .notNull()
+      .references(() => cards.id),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.collectionId, t.personaId] }),
+    index('collection_members_persona_idx').on(t.personaId),
+  ],
+)
+
+/** One artwork, made from one credit, issued in as many copies as there are participating personas. */
+export const collectionEditions = sqliteTable(
+  'collection_editions',
+  {
+    id: text('id').primaryKey(),
+    collectionId: text('collection_id')
+      .notNull()
+      .references(() => collections.id),
+    sessionId: text('session_id')
+      .notNull()
+      .references(() => cardSessions.id),
+    imagePath: text('image_path').notNull(),
+    /** N: the number of personas in the collection when it was issued. */
+    editionSize: integer('edition_size').notNull(),
+    issuedAt: createdAt('issued_at'),
+  },
+  (t) => [
+    index('collection_editions_collection_idx').on(t.collectionId),
+    uniqueIndex('collection_editions_session_idx').on(t.sessionId),
+  ],
+)
+
+/**
+ * One persona's numbered share of an edition. Copies follow their beneficiary persona, so
+ * transferring one persona out of a three-person collection moves exactly that persona's copy.
+ */
+export const cardCopies = sqliteTable(
+  'card_copies',
+  {
+    id: text('id').primaryKey(),
+    editionId: text('edition_id')
+      .notNull()
+      .references(() => collectionEditions.id, { onDelete: 'cascade' }),
+    beneficiaryPersonaId: text('beneficiary_persona_id')
+      .notNull()
+      .references(() => personas.id),
+    /** 1..editionSize. */
+    editionNumber: integer('edition_number').notNull(),
+    verificationCode: text('verification_code').notNull(),
+    issuedAt: createdAt('issued_at'),
+  },
+  (t) => [
+    index('card_copies_persona_idx').on(t.beneficiaryPersonaId),
+    uniqueIndex('card_copies_verification_idx').on(t.verificationCode),
+    uniqueIndex('card_copies_number_idx').on(t.editionId, t.editionNumber),
+    /** A persona holds exactly one copy of an edition. */
+    uniqueIndex('card_copies_beneficiary_idx').on(t.editionId, t.beneficiaryPersonaId),
+  ],
+)
+
+// ---------------------------------------------------------------------------
 // Row types
 // ---------------------------------------------------------------------------
 
@@ -1006,6 +1380,41 @@ export type TrendSignal = typeof trendSignals.$inferSelect
 export type ManufacturingRecommendation = typeof manufacturingRecommendations.$inferSelect
 export type SimPersona = typeof simPersonas.$inferSelect
 export type EvaluationRun = typeof evaluationRuns.$inferSelect
+
+export type Persona = typeof personas.$inferSelect
+export type NewPersona = typeof personas.$inferInsert
+export type PersonaTransfer = typeof personaTransfers.$inferSelect
+export type NewPersonaTransfer = typeof personaTransfers.$inferInsert
+export type WardrobeEntitlement = typeof wardrobeEntitlements.$inferSelect
+export type NewWardrobeEntitlement = typeof wardrobeEntitlements.$inferInsert
+export type WardrobeLoan = typeof wardrobeLoans.$inferSelect
+export type NewWardrobeLoan = typeof wardrobeLoans.$inferInsert
+export type CreditLedgerRow = typeof creditLedger.$inferSelect
+export type NewCreditLedgerRow = typeof creditLedger.$inferInsert
+export type CardSession = typeof cardSessions.$inferSelect
+export type NewCardSession = typeof cardSessions.$inferInsert
+export type GenerationAttempt = typeof generationAttempts.$inferSelect
+export type NewGenerationAttempt = typeof generationAttempts.$inferInsert
+export type CardCandidate = typeof cardCandidates.$inferSelect
+export type NewCardCandidate = typeof cardCandidates.$inferInsert
+export type Card = typeof cards.$inferSelect
+export type NewCard = typeof cards.$inferInsert
+export type Collection = typeof collections.$inferSelect
+export type NewCollection = typeof collections.$inferInsert
+export type CollectionMember = typeof collectionMembers.$inferSelect
+export type NewCollectionMember = typeof collectionMembers.$inferInsert
+export type CollectionEdition = typeof collectionEditions.$inferSelect
+export type NewCollectionEdition = typeof collectionEditions.$inferInsert
+export type CardCopy = typeof cardCopies.$inferSelect
+export type NewCardCopy = typeof cardCopies.$inferInsert
+
+export type PersonaKind = (typeof PERSONA_KIND_VALUES)[number]
+export type PersonaTransferState = (typeof PERSONA_TRANSFER_STATE_VALUES)[number]
+export type EntitlementSource = (typeof ENTITLEMENT_SOURCE_VALUES)[number]
+export type LoanState = (typeof LOAN_STATE_VALUES)[number]
+export type CreditReason = (typeof CREDIT_REASON_VALUES)[number]
+export type CardSessionState = (typeof CARD_SESSION_STATE_VALUES)[number]
+export type GenerationState = (typeof GENERATION_STATE_VALUES)[number]
 
 export type Department = (typeof DEPARTMENT_VALUES)[number]
 export type OutfitRole = (typeof OUTFIT_ROLE_VALUES)[number]

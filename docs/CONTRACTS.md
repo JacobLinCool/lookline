@@ -164,3 +164,36 @@ Guarantees:
 Root: `pnpm check` = `format:check`, `lint`, `typecheck`, `test`, `build`.
 End-to-end (after the Kaggle csv files and `pnpm --filter @lookline/hm aggregate` — docs/ONBOARDING.md):
 `pnpm db:migrate && pnpm seed && pnpm evaluate && pnpm d1:migrate:local && pnpm d1:local && pnpm dev`.
+
+## Cards, personas and credits (`@lookline/engine` cards module)
+
+Shared contract for the purchase (#34), persona (#35), studio (#36), collection (#37) and sharing
+(#38) work. See docs/DATA_MODEL.md for why holding is derived and credits are a ledger.
+
+- `creditsForPurchaseLine(unitPrice, quantity)` decides entitlement from the line's own snapshot.
+  The threshold is `creditThresholdTwd()` — US$10 at the project's fixed demo rate, NT$320 — and
+  deliberately not `toTwd`, whose rounding to the nearest 50 or 100 would move the boundary.
+  `CREDIT_RULE_VERSION` is recorded on every ledger row it decides.
+- `grantPurchaseCredits`, `reserveCredit`, `settleCredit`, `releaseCredit` all take an
+  `operationKey` that is stable across retries of the same logical act. Granting or settling twice
+  under one key is a no-op; `reserveCredit` returns `false` only when there was nothing left to
+  reserve. `creditBalance` is the sum of the ledger and the only definition of how many an account
+  has.
+- `createPersona`, `personasOf`, `offerTransfer`, `transferPreview`, `acceptTransfer`,
+  `cancelTransfer`. `transferPreview` reports what an offer will move before it is accepted;
+  `acceptTransfer` returns `{ ok: false, reason }` for a wrong recipient, an expired or already
+  settled offer, or a stale version.
+- `cardHolder` and `holdingsOf` derive holding through the persona. Nothing else should read or
+  write an owner on a card.
+- `grantEntitlement`, `lendArticle`, `revokeLoan`, `availableArticles`, `ownedRatio`.
+  `availableArticles` returns owned and borrowed articles with the source of each, which is what a
+  card snapshots and what `ownedRatio` measures.
+- `openSession`, `startAttempt`, `failAttempt`, `addCandidate`, `candidatesOf`, `settleCard`,
+  `addCollectionMember`, `membersOf`, `issueEdition`. `addCandidate` refuses past
+  `MAX_CANDIDATES_PER_SESSION` and on a closed session, so cancelling and reopening cannot wash out
+  unlimited candidates. `issueEdition` mints one numbered copy per participating persona.
+
+Authorisation, stated once so every caller enforces the same thing: the signed-in account may act
+only on personas whose `ownerUserId` is itself; it may dress them only in what `availableArticles`
+returns for it; a card's author is fixed at issue whoever later holds it; and a transfer may be
+accepted only by its named recipient, once, before it expires.
