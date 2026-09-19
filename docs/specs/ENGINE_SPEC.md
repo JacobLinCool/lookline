@@ -830,7 +830,7 @@ Secondary channels (unioned, deduplicated by id, same prefilters applied in-proc
 
 | channel | source                                                                                                                                                                     | limit | evidence                                 |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------- |
-| social  | `look_products` of Looks created in the last 30 d by users `n` with `trust(user,n) ≥ 0.3` (§5.1), plus `purchases` and `SAVE` interactions by those users in the last 30 d | 50    | `{ userId, displayName, kind: 'look'     | 'purchase' | 'save' | 'advise', lookId?, strength, at }` |
+| social  | `look_products` of Looks created in the last 30 d by users `n` with `trust(user,n) ≥ 0.1` (§5.1), plus `purchases` and `SAVE` interactions by those users in the last 30 d | 50    | `{ userId, displayName, kind: 'look'     | 'purchase' | 'save' | 'advise', lookId?, strength, at }` |
 | trend   | products whose `aesthetics && top-5 aesthetic keys` and `category_group` with today's `trend_signals` momentum ≥ 60, `ORDER BY popularity DESC`                            | 30    | `{ dimension, key, momentum, emerging }` |
 
 Guests (no `userId`) skip the social channel. `trend` channel skipped when `trend_signals` has no
