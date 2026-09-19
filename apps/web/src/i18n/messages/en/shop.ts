@@ -33,6 +33,8 @@ export const shop = {
     refreshFailedShort: 'Pieces could not refresh.',
     resolveFailed: 'Filtering by sentence is unavailable.',
     unverified: 'The filter response could not be verified.',
+    /** The attribute results are up; the caption search for the named motif is still running. */
+    searchingCaptions: 'Looking through the photographs…',
   },
 
   results: {
@@ -51,9 +53,28 @@ export const shop = {
     colour: 'Colour',
     style: 'Style',
     price: 'Price',
+    /** Rail headings for the construction facets, keyed by `SEARCH_FACETS` id. */
+    facet: {
+      categoryGroup: 'Category',
+      colorFamily: 'Colour',
+      aesthetic: 'Style',
+      material: 'Material',
+      pattern: 'Pattern',
+      printSubject: 'Print',
+      silhouette: 'Silhouette',
+      fit: 'Fit',
+      length: 'Length',
+      neckline: 'Neckline',
+      sleeve: 'Sleeve',
+      closure: 'Closure',
+      detail: 'Details',
+    },
+    details: 'Details',
     any: 'Any',
     anyColour: 'Any colour',
     moreStyles: (n: number) => `${n} more styles`,
+    moreValues: (n: number) => `${n} more`,
+    none: 'None in these results',
     not: (label: string) => `Not ${label}`,
     brand: (id: number) => `Brand #${id}`,
     priceFrom: (amount: string) => `${amount} and up`,
@@ -104,7 +125,6 @@ export const shop = {
     quantity: 'Qty',
     soldOut: 'Sold out',
     addToBag: 'Add to bag',
-    askFriend: 'Ask a friend which one',
   },
 
   /** Row names in the product's detail table; the values come from the catalog. */
@@ -117,6 +137,8 @@ export const shop = {
     sleeve: 'Sleeve',
     closure: 'Closure',
     pattern: 'Pattern',
+    printSubject: 'Print',
+    details: 'Details',
     occasions: 'Occasions',
     seasons: 'Seasons',
   },
@@ -172,7 +194,7 @@ export const shop = {
       shares: (styles: string) => `shares ${styles} with your top aesthetics`,
       sharesNothing: 'no overlap with your top aesthetics yet',
       colourOutside: 'colour outside your usual palette',
-      trend: (score: string) => `network trend score ${score} from Looks, remixes and asks`,
+      trend: (score: string) => `network trend score ${score} from Looks and remixes`,
       noTrend: 'no trend momentum recorded for this piece yet',
       join: (clauses: readonly string[]) => clauses.join('; '),
     },

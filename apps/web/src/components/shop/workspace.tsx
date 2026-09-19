@@ -3,8 +3,14 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { Languages, Mic, Square, X } from 'lucide-react'
-import type { FilterDecision, ProductSearch, ProductSearchResult } from '@lookline/engine'
+import type {
+  FilterDecision,
+  KeywordExtraction,
+  ProductSearch,
+  ProductSearchResult,
+} from '@lookline/engine'
 import { isFilterHintId, openingHints, type FilterHintId } from '@lookline/engine/hints'
+import { formatKeyword } from '@lookline/engine/keywords'
 import { Button, EmptyState, Input, Notice, Tag } from '@/components/ui'
 import { useI18n } from '@/i18n/client'
 import { cn } from '@/lib/cn'
@@ -30,6 +36,8 @@ import { searchFromParams, searchToParams, shopHref, SHOP_SORTS } from './query'
 
 type Job = { text: string; final: boolean; base: ProductSearch; started: number }
 const keyOf = (search: ProductSearch) => searchToParams(search).toString()
+/** A sentence still being typed waits this long before its motifs are looked up in captions. */
+const KEYWORDS_DEBOUNCE_MS = 500
 
 const iconButton =
   'inline-flex size-8 shrink-0 items-center justify-center rounded-sm text-muted transition-colors hover:bg-mist hover:text-ink disabled:pointer-events-none disabled:opacity-40 [&_svg]:size-4'
@@ -59,6 +67,7 @@ export function ShopWorkspace({
   const [skipped, setSkipped] = useState<ReadonlySet<FilterHintId>>(() => new Set())
   const [focused, setFocused] = useState(false)
   const [deciding, setDeciding] = useState(false)
+  const [refining, setRefining] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(initialError)
   const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle')
@@ -88,6 +97,12 @@ export function ShopWorkspace({
   const committed = useRef(initialSearch)
   const base = useRef(initialSearch)
   const productsRequest = useRef<AbortController | null>(null)
+  /** The last keywords extracted, and for which sentence, so a growing sentence keeps them. */
+  const keywords = useRef<{ text: string; keywords: string[] } | null>(null)
+  const keywordsRequest = useRef<{
+    controller: AbortController
+    timer?: ReturnType<typeof setTimeout>
+  } | null>(null)
   const field = useRef<HTMLInputElement>(null)
   const voice = useRef<VoiceCapture | null>(null)
   const mounted = useRef(true)
@@ -164,11 +179,85 @@ export function ShopWorkspace({
     }
   }
 
-  function commit(next: ProductSearch, push = true) {
+  function commit(next: ProductSearch, push: boolean | 'replace' = true) {
     committed.current = next
     setPreview(false)
-    if (push && keyOf(next) !== new URLSearchParams(window.location.search).toString())
-      window.history.pushState(null, '', shopHref(next, { page: next.page ?? 1 }))
+    if (push && keyOf(next) !== new URLSearchParams(window.location.search).toString()) {
+      const href = shopHref(next, { page: next.page ?? 1 })
+      if (push === 'replace') window.history.replaceState(null, '', href)
+      else window.history.pushState(null, '', href)
+    }
+  }
+
+  function cancelKeywords() {
+    const pending = keywordsRequest.current
+    keywordsRequest.current = null
+    if (pending) {
+      clearTimeout(pending.timer)
+      pending.controller.abort()
+    }
+    setRefining(false)
+  }
+
+  /**
+   * The second, slower half of a free-text sentence: the attribute filters have painted, and the
+   * motifs the attributes could not carry are now looked up in the photograph captions. The
+   * lookup never blocks the preview, and an answer for a sentence the shopper has since changed
+   * — or a selection they made by hand — is dropped by the revision check.
+   */
+  function scheduleKeywords(
+    job: Job,
+    revision: number,
+    applied: ProductSearch,
+    wasCommitted: boolean,
+  ) {
+    cancelKeywords()
+    const controller = new AbortController()
+    const run = async () => {
+      if (!queue.isCurrent(revision) || !mounted.current) return
+      setRefining(true)
+      try {
+        const response = await fetch('/api/filters/keywords', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ utterance: job.text, revision }),
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
+        })
+        const data = (await response.json()) as KeywordExtraction & {
+          revision: number
+          error?: string
+        }
+        if (!queue.isCurrent(revision) || controller.signal.aborted || !mounted.current) return
+        // No provider is a quiet outcome: the attribute results are already up.
+        if (!response.ok || data.revision !== revision || !Array.isArray(data.keywords)) return
+        const concepts = data.keywords
+          .filter(
+            (c): c is string[] => Array.isArray(c) && c.every((term) => typeof term === 'string'),
+          )
+          .map(formatKeyword)
+          .filter(Boolean)
+        keywords.current = { text: job.text, keywords: concepts }
+        const refined: ProductSearch = { ...applied }
+        if (concepts.length) refined.keywords = concepts
+        else delete refined.keywords
+        if (keyOf(refined) === keyOf(applied)) return
+        setSearch(refined)
+        if (wasCommitted) commit(refined, 'replace')
+        void loadProducts(refined)
+      } catch {
+        /* The attribute results stand; nothing to report. */
+      } finally {
+        if (keywordsRequest.current?.controller === controller && mounted.current) {
+          keywordsRequest.current = null
+          setRefining(false)
+        }
+      }
+    }
+    keywordsRequest.current = {
+      controller,
+      timer: job.final ? undefined : setTimeout(() => void run(), KEYWORDS_DEBOUNCE_MS),
+    }
+    if (job.final) void run()
   }
 
   handler.current = async (job, revision, signal) => {
@@ -184,12 +273,22 @@ export function ShopWorkspace({
       if (!response.ok) throw new Error(data.error ?? t.shop.sentence.resolveFailed)
       if (data.revision !== revision || !data.filters || !Array.isArray(data.unresolved))
         throw new Error(t.shop.sentence.unverified)
-      const next = applyLiveFilters(job.base, data.filters)
+      // A sentence that still names a motif keeps the keywords its earlier revision found until
+      // the fresh lookup replaces them; one that no longer does loses them at once.
+      const carried =
+        data.freeText && keywords.current && job.text.includes(keywords.current.text.trim())
+          ? keywords.current.keywords
+          : undefined
+      if (!data.freeText) keywords.current = null
+      const next = applyLiveFilters(job.base, data.filters, carried)
       setSearch(next)
       setHints(Array.isArray(data.hints) ? data.hints.filter(isFilterHintId) : [])
       setPreview(true)
       setError(null)
-      if (job.final && data.unresolved.length === 0) commit(next)
+      const committing = job.final && data.unresolved.length === 0
+      if (committing) commit(next)
+      if (data.freeText) scheduleKeywords(job, revision, next, committing)
+      else cancelKeywords()
       afterPaint(() => {
         if (queue.isCurrent(revision))
           window.dispatchEvent(
@@ -226,6 +325,7 @@ export function ShopWorkspace({
     setDraft(value)
     // A newer utterance invalidates any query started for an older preview.
     productsRequest.current?.abort()
+    cancelKeywords()
     setLoading(false)
     if (!value.trim()) {
       discard()
@@ -237,6 +337,8 @@ export function ShopWorkspace({
 
   function discard() {
     queue.cancel()
+    cancelKeywords()
+    keywords.current = null
     stopVoice()
     draftValue.current = ''
     setDraft('')
@@ -251,6 +353,8 @@ export function ShopWorkspace({
 
   function manual(next: ProductSearch, push = true) {
     queue.cancel()
+    cancelKeywords()
+    keywords.current = null
     stopVoice()
     base.current = next
     draftValue.current = ''
@@ -284,6 +388,8 @@ export function ShopWorkspace({
 
   function startVoice() {
     queue.cancel()
+    cancelKeywords()
+    keywords.current = null
     setDeciding(false)
     resetHints(committed.current)
     void loadProducts(committed.current)
@@ -325,6 +431,7 @@ export function ShopWorkspace({
     return () => {
       mounted.current = false
       queue.cancel()
+      cancelKeywords()
       voice.current?.cancel()
       productsRequest.current?.abort()
       window.removeEventListener('popstate', pop)
@@ -348,7 +455,9 @@ export function ShopWorkspace({
           ? t.shop.sentence.finishing
           : deciding
             ? t.shop.sentence.reading
-            : ''
+            : refining
+              ? t.shop.sentence.searchingCaptions
+              : ''
 
   return (
     <div onClickCapture={captureLink} className="flex flex-col gap-4 pt-5 md:pt-7">
@@ -555,10 +664,10 @@ export function ShopWorkspace({
       <div className="grid gap-6 md:grid-cols-[13rem_1fr] md:gap-8">
         <aside className="md:sticky md:top-20 md:self-start">
           <FilterDisclosure className="md:hidden" label={t.shop.filters.label}>
-            <FilterRail search={search} facets={stale ? undefined : result?.facets} />
+            <FilterRail search={search} facets={result?.facets} stale={stale} />
           </FilterDisclosure>
           <div className="hidden md:block">
-            <FilterRail search={search} facets={stale ? undefined : result?.facets} />
+            <FilterRail search={search} facets={result?.facets} stale={stale} />
           </div>
         </aside>
         <div className={styles.results} aria-busy={loading} data-shop-results>

@@ -1,10 +1,12 @@
-import { AESTHETICS, CATEGORY_GROUPS, COLOR_FAMILIES, DEPARTMENTS } from '@lookline/catalog'
-import type { CategoryGroup, ColorFamily, Department } from '@lookline/catalog'
+import { DEPARTMENTS, SEARCH_FACETS, isFacetValue } from '@lookline/catalog'
+import type { Department } from '@lookline/catalog'
+import { formatKeyword, parseKeywords } from '@lookline/engine/keywords'
 import type { ProductSearch } from '@lookline/engine'
 
 /**
  * URL contract for `/shop` and `GET /api/articles/search`. Every search param maps 1:1 onto a
- * `ProductSearch` field; selected and excluded facets are repeatable. Unknown values are dropped, never thrown.
+ * `ProductSearch` field; the facet pairs of `SEARCH_FACETS` (`sleeves`, `excludedSleeves`, …) and
+ * `keywords` are repeatable. Unknown values are dropped, never thrown.
  */
 
 export type RawSearchParams = Record<string, string | string[] | undefined>
@@ -26,9 +28,6 @@ export const SHOP_SORTS: readonly ShopSort[] = [
 
 const SORT_VALUES = new Set<string>(SHOP_SORTS)
 const DEPARTMENT_VALUES = new Set<string>(DEPARTMENTS)
-const GROUP_VALUES = new Set<string>(CATEGORY_GROUPS)
-const COLOR_VALUES = new Set<string>(COLOR_FAMILIES)
-const AESTHETIC_VALUES = new Set(AESTHETICS.map((a) => a.slug))
 
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/
 
@@ -38,11 +37,11 @@ function first(value: string | string[] | undefined): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
-function all(value: string | string[] | undefined): string[] {
+function all(value: string | string[] | undefined, split = true): string[] {
   if (value === undefined) return []
   const list = Array.isArray(value) ? value : [value]
   return list
-    .flatMap((v) => v.split(','))
+    .flatMap((v) => (split ? v.split(',') : [v]))
     .map((v) => v.trim())
     .filter(Boolean)
 }
@@ -60,12 +59,26 @@ export function parseProductSearch(params: RawSearchParams): ProductSearch {
   const q = first(params.q)
   if (q) search.q = q.slice(0, 200)
 
+  // A keyword may hold a space ("hello kitty") and `|` between alternatives, so it is not
+  // comma-split; the sanitiser drops anything that is not index tokens.
+  const keywords = parseKeywords(all(params.keywords, false)).map(formatKeyword)
+  if (keywords.length) search.keywords = keywords
+
   const department = first(params.department)
   if (department && DEPARTMENT_VALUES.has(department)) search.department = department as Department
 
-  for (const key of ['categoryGroups', 'excludedCategoryGroups'] as const) {
-    const values = [...new Set(all(params[key]).filter((v) => GROUP_VALUES.has(v)))]
-    if (values.length) search[key] = values as CategoryGroup[]
+  for (const facet of SEARCH_FACETS) {
+    for (const key of [facet.key, facet.excludeKey] as const) {
+      const values = [...new Set(all(params[key]).filter((v) => isFacetValue(facet, v)))]
+      if (values.length) search[key] = values as never
+    }
+    // A value cannot be both wanted and rejected; the selection wins, as it does in the resolver.
+    const included = search[facet.key] as string[] | undefined
+    const excluded = (search[facet.excludeKey] as string[] | undefined)?.filter(
+      (v) => !included?.includes(v),
+    )
+    if (excluded?.length) search[facet.excludeKey] = excluded as never
+    else delete search[facet.excludeKey]
   }
 
   const category = first(params.category)
@@ -73,15 +86,6 @@ export function parseProductSearch(params: RawSearchParams): ProductSearch {
 
   const subcategory = first(params.subcategory)
   if (subcategory && SLUG.test(subcategory)) search.subcategory = subcategory
-
-  for (const key of ['aesthetics', 'excludedAesthetics'] as const) {
-    const values = [...new Set(all(params[key]).filter((v) => AESTHETIC_VALUES.has(v)))]
-    if (values.length) search[key] = values
-  }
-  for (const key of ['colorFamilies', 'excludedColorFamilies'] as const) {
-    const values = [...new Set(all(params[key]).filter((v) => COLOR_VALUES.has(v)))]
-    if (values.length) search[key] = values as ColorFamily[]
-  }
 
   const brandId = toInt(first(params.brandId))
   if (brandId !== undefined && brandId > 0) search.brandId = brandId
@@ -117,16 +121,11 @@ export function parseProductSearch(params: RawSearchParams): ProductSearch {
 export function searchToParams(search: ProductSearch): URLSearchParams {
   const p = new URLSearchParams()
   if (search.q) p.set('q', search.q)
+  for (const keyword of search.keywords ?? []) p.append('keywords', keyword)
   if (search.department) p.set('department', search.department)
-  for (const key of [
-    'categoryGroups',
-    'excludedCategoryGroups',
-    'colorFamilies',
-    'excludedColorFamilies',
-    'aesthetics',
-    'excludedAesthetics',
-  ] as const)
-    for (const value of search[key] ?? []) p.append(key, value)
+  for (const facet of SEARCH_FACETS)
+    for (const key of [facet.key, facet.excludeKey] as const)
+      for (const value of search[key] ?? []) p.append(key, value)
   if (search.category) p.set('category', search.category)
   if (search.subcategory) p.set('subcategory', search.subcategory)
   if (search.brandId !== undefined) p.set('brandId', String(search.brandId))

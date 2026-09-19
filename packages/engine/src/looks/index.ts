@@ -7,7 +7,7 @@ import type { LookPromptInput } from './prompt'
 
 export { STYLE_PRESETS, findStylePreset } from './presets'
 export { deriveLookStyle } from './style'
-export { renderLookPosterSvg, POSTER_WIDTH, POSTER_HEIGHT } from './poster'
+export { renderLookPosterSvg, POSTER_MAX_PIECES, POSTER_WIDTH, POSTER_HEIGHT } from './poster'
 export {
   buildCompositePrompt,
   compositeReferenceLabels,

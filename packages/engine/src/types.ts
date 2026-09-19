@@ -3,8 +3,6 @@
  * keep names and shapes stable; add optional fields, do not rename or remove.
  */
 import type {
-  Ask,
-  AskResponse,
   Department,
   EvaluationRun,
   FeedbackKind,
@@ -22,7 +20,14 @@ import type {
   User,
   Visibility,
 } from '@lookline/db'
-import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
+import type {
+  Axis,
+  CategoryGroup,
+  ColorFamily,
+  SearchFacetField,
+  SearchFacetKey,
+  Season,
+} from '@lookline/catalog'
 
 // ---------------------------------------------------------------------------
 // LLM provider abstraction
@@ -223,8 +228,17 @@ export interface RecommendResponse {
   arm?: { name: string; contextVector: number[] }
 }
 
+/**
+ * A catalog search. The facet pairs (`categoryGroups` / `excludedCategoryGroups`, …) are the
+ * `SEARCH_FACETS` registry of `@lookline/catalog`: values within one facet are OR, facets are
+ * AND, and an exclusion is enforced by SQL. `q` is free text the lexicon scans for taxonomy terms
+ * before the residual goes to full-text search; `keywords` are concepts already known to be free
+ * text (`whale|orca`, alternatives joined by `|`), AND-ed together and matched against the
+ * full-text index without a lexicon pass.
+ */
 export interface ProductSearch {
   q?: string
+  keywords?: string[]
   department?: Department
   categoryGroups?: CategoryGroup[]
   excludedCategoryGroups?: CategoryGroup[]
@@ -234,6 +248,26 @@ export interface ProductSearch {
   excludedAesthetics?: string[]
   colorFamilies?: ColorFamily[]
   excludedColorFamilies?: ColorFamily[]
+  materials?: string[]
+  excludedMaterials?: string[]
+  patterns?: string[]
+  excludedPatterns?: string[]
+  printSubjects?: string[]
+  excludedPrintSubjects?: string[]
+  silhouettes?: string[]
+  excludedSilhouettes?: string[]
+  fits?: string[]
+  excludedFits?: string[]
+  lengths?: string[]
+  excludedLengths?: string[]
+  necklines?: string[]
+  excludedNecklines?: string[]
+  sleeves?: string[]
+  excludedSleeves?: string[]
+  closures?: string[]
+  excludedClosures?: string[]
+  details?: string[]
+  excludedDetails?: string[]
   brandId?: number
   priceMin?: number
   priceMax?: number
@@ -241,22 +275,31 @@ export interface ProductSearch {
   page?: number
   pageSize?: number
 }
+/** Compile-time check that every registry facet has its pair of fields on `ProductSearch`. */
+export type ProductSearchFacetFields = Pick<ProductSearch, SearchFacetField>
+
+export interface FacetCount {
+  key: string
+  count: number
+}
+/**
+ * Counts per facet value over the whole filtered set, keyed by the facet's selection field. The
+ * semantic facets (category groups, colour families, aesthetics) are always present; a
+ * construction facet is absent until `countFacet` has been asked for it.
+ */
+export type ProductSearchFacets = {
+  categoryGroups: FacetCount[]
+  colorFamilies: FacetCount[]
+  aesthetics: FacetCount[]
+} & { [K in SearchFacetKey]?: FacetCount[] }
 
 export interface ProductSearchResult {
   items: Array<Article & { brandName: string }>
   total: number
   page: number
   pageSize: number
-  facets?: {
-    categoryGroups: Array<{ key: string; count: number }>
-    colorFamilies: Array<{ key: string; count: number }>
-    aesthetics: Array<{ key: string; count: number }>
-  }
+  facets?: ProductSearchFacets
 }
-
-// ---------------------------------------------------------------------------
-// Engine 03 — preference feedback loop
-// ---------------------------------------------------------------------------
 
 export interface FeedbackInput {
   userId: string
@@ -359,7 +402,6 @@ export interface PurchaseInput extends DeterministicOptions {
   forUserId?: string | null
   forLabel?: string | null
   sourceLookId?: string | null
-  sourceAskId?: string | null
   intentSessionId?: string | null
 }
 
@@ -390,33 +432,12 @@ export interface RemixSuggestion {
   palette: string[]
 }
 
-export interface CreateAskInput extends DeterministicOptions {
-  askerId: string
-  kind: 'choose' | 'style_me'
-  question: string
-  optionArticleIds?: string[]
-  lookId?: string | null
-  targetUserId?: string | null
-  budget?: number | null
-  occasion?: string | null
-}
-
-export interface AnswerAskInput extends DeterministicOptions {
-  askId: string
-  responderUserId?: string | null
-  responderName?: string | null
-  choiceArticleId?: string | null
-  styledLookId?: string | null
-  comment?: string | null
-}
-
 export interface InteractionInput extends DeterministicOptions {
   actorUserId: string
   type: import('@lookline/db').InteractionType
   targetUserId?: string | null
   lookId?: string | null
   articleId?: string | null
-  askId?: string | null
   payload?: Record<string, unknown>
   sourceInteractionId?: string | null
 }
@@ -436,6 +457,24 @@ export interface LookPosterInput {
   aesthetics: string[]
   seed: number
   editionNumber?: number
+  /** Edition size. With `editionNumber` the card reads 1/N; alone it reads "Edition of N". */
+  editionOf?: number
+  /**
+   * `artwork` draws the ground, the garments and the palette and leaves every word out. The
+   * share export needs that: its text is laid out around the picture, by something that can
+   * reach a font with Chinese in it, which the rasteriser cannot.
+   */
+  chrome?: 'full' | 'artwork'
+  /**
+   * A multi-person card: one band per subject, each holding that subject's own pieces. Without
+   * this the poster is a single flat lay and nothing says whose clothes are whose.
+   */
+  groups?: Array<{
+    name: string
+    articles: Array<
+      Pick<Article, 'name' | 'colorHex' | 'subcategory' | 'pattern' | 'categoryGroup'>
+    >
+  }>
 }
 
 export interface StylePreset {
@@ -507,7 +546,6 @@ export interface TrendDashboard {
   headline: {
     looks: number
     remixes: number
-    asks: number
     togethers: number
     shares: number
     purchases: number
@@ -548,8 +586,6 @@ export interface AnalyticsSummary {
 }
 
 export type {
-  Ask,
-  AskResponse,
   Look,
   Purchase,
   Article,

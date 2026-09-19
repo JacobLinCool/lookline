@@ -12,8 +12,6 @@ import { addToBagAction } from '@/server/actions/bag'
 export interface BagAttribution {
   /** Look the visitor came from (`?look=`), attributed as `sourceLookId` at checkout. */
   sourceLook?: string | null
-  /** Ask the visitor came from (`?ask=`), attributed as `sourceAskId` at checkout. */
-  sourceAsk?: string | null
   /** Intent turn the visitor came from (`?from=`), attributed as `intentSessionId`. */
   intentSession?: string | null
 }
@@ -31,65 +29,57 @@ export async function AddToBagForm({
   const hasSizes = false
   const maxQty = 10
   return (
-    <div className="flex flex-col gap-3">
-      <InstantForm
-        action={addToBagAction}
-        name="add-to-bag"
-        confirmation={t.shop.product.added}
-        className="flex flex-col gap-4"
-        flyToBag={[product.id]}
-      >
-        <input type="hidden" name="articleId" value={product.id} />
-        <input type="hidden" name="redirect" value={`/p/${product.id}?added=1`} />
-        {attribution?.sourceLook ? (
-          <input type="hidden" name="sourceLook" value={attribution.sourceLook} />
-        ) : null}
-        {attribution?.sourceAsk ? (
-          <input type="hidden" name="sourceAsk" value={attribution.sourceAsk} />
-        ) : null}
-        {attribution?.intentSession ? (
-          <input type="hidden" name="intentSession" value={attribution.intentSession} />
-        ) : null}
-        {hasSizes ? (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-[13px] font-medium text-ink" id="size-label">
-              {t.shop.product.size}
-            </span>
-            <Segmented name="size" options={[]} disabled={soldOut} />
-          </div>
-        ) : (
-          <>
-            <input type="hidden" name="size" value="" />
-            <p className="text-[13px] text-muted">{t.shop.product.oneSize}</p>
-          </>
-        )}
-        <div className="flex items-end gap-3">
-          <Field label={t.shop.product.quantity} htmlFor="qty" className="w-20">
-            <Select
-              id="qty"
-              name="qty"
-              defaultValue="1"
-              disabled={soldOut}
-              options={Array.from({ length: maxQty }, (_, i) => ({
-                value: String(i + 1),
-                label: String(i + 1),
-              }))}
-            />
-          </Field>
-          <Button
-            type="submit"
-            size="lg"
-            className="flex-1"
-            icon={<ShoppingBag />}
-            disabled={soldOut}
-          >
-            {soldOut ? t.shop.product.soldOut : t.shop.product.addToBag}
-          </Button>
+    <InstantForm
+      action={addToBagAction}
+      name="add-to-bag"
+      confirmation={t.shop.product.added}
+      className="flex flex-col gap-4"
+      flyToBag={[product.id]}
+    >
+      <input type="hidden" name="articleId" value={product.id} />
+      <input type="hidden" name="redirect" value={`/p/${product.id}?added=1`} />
+      {attribution?.sourceLook ? (
+        <input type="hidden" name="sourceLook" value={attribution.sourceLook} />
+      ) : null}
+      {attribution?.intentSession ? (
+        <input type="hidden" name="intentSession" value={attribution.intentSession} />
+      ) : null}
+      {hasSizes ? (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[13px] font-medium text-ink" id="size-label">
+            {t.shop.product.size}
+          </span>
+          <Segmented name="size" options={[]} disabled={soldOut} />
         </div>
-      </InstantForm>
-      <Button href={`/asks/new?articles=${product.id}`} variant="link" size="sm">
-        {t.shop.product.askFriend}
-      </Button>
-    </div>
+      ) : (
+        <>
+          <input type="hidden" name="size" value="" />
+          <p className="text-[13px] text-muted">{t.shop.product.oneSize}</p>
+        </>
+      )}
+      <div className="flex items-end gap-3">
+        <Field label={t.shop.product.quantity} htmlFor="qty" className="w-20">
+          <Select
+            id="qty"
+            name="qty"
+            defaultValue="1"
+            disabled={soldOut}
+            options={Array.from({ length: maxQty }, (_, i) => ({
+              value: String(i + 1),
+              label: String(i + 1),
+            }))}
+          />
+        </Field>
+        <Button
+          type="submit"
+          size="lg"
+          className="flex-1"
+          icon={<ShoppingBag />}
+          disabled={soldOut}
+        >
+          {soldOut ? t.shop.product.soldOut : t.shop.product.addToBag}
+        </Button>
+      </div>
+    </InstantForm>
   )
 }

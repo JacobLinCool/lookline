@@ -26,7 +26,7 @@ pnpm dev
 ```
 
 `pnpm seed` is three steps: `seed:catalog` imports the H&M articles, `seed:social` simulates 1,200
-people — including the ten named demo personas `/login` offers — over 60 days of Looks, Asks and
+people — including the ten named demo personas `/login` offers — over 60 days of Looks, remixes and
 purchases, and `analytics` derives the relationship graph and trends from what they did. The second
 step is what puts anyone in the database, so a failure in the first leaves you with no users at all.
 

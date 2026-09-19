@@ -87,7 +87,7 @@ describe('bounded filter decisions', () => {
       { apiKey: 'test', fetch: fetcher },
     )
     expect(result.hints).toEqual(['occasion', 'colour'])
-    expect(result.contractVersion).toBe('filters-v2')
+    expect(result.contractVersion).toBe('filters-v3')
     expect(fetcher).toHaveBeenCalledOnce()
   })
   it('retains a whole uncertain facet instead of applying an arbitrary partial decision', async () => {
@@ -207,5 +207,135 @@ describe('bounded filter decisions', () => {
     ])
     expect(budgetCandidates('between NT$1250 and NT$2890')).toEqual([{ min: 1250, max: 2890 }])
     expect(budgetCandidates('navy please')).toEqual([])
+  })
+})
+
+/** A response with the free-text Noul answer set. */
+function withFreeText(response: ReturnType<typeof responseFor>, noul: number) {
+  return { ...response, answers: { ...response.answers, freeText: { type: 'noul', noul } } }
+}
+
+describe('construction facets from the sentence', () => {
+  it('asks only about the values the sentence names and applies include and exclude to them', async () => {
+    const sentence = '有口袋的 A 字裙，不要蕾絲邊'
+    const fetcher = vi.fn(async (_url, init) => {
+      const request = JSON.parse(String(init?.body))
+      const keys = Object.keys(request.questions)
+      expect(keys).toEqual(
+        expect.arrayContaining(['details:pockets', 'details:laceTrim', 'silhouettes:a-line']),
+      )
+      // Lexical facets never put their whole vocabulary to the model.
+      expect(keys.filter((k) => k.startsWith('details:')).length).toBe(2)
+      expect(keys.filter((k) => k.startsWith('sleeves:')).length).toBe(0)
+      expect(request.questions['details:laceTrim'].instructions).toContain('Lace Trim / 蕾絲邊')
+      expect(request.questions.freeText.type).toBe('noul')
+      return Response.json(
+        withFreeText(
+          responseFor(sentence, {
+            'details:pockets': 'include',
+            'details:laceTrim': 'exclude',
+            'silhouettes:a-line': 'include',
+          }),
+          0.1,
+        ),
+      )
+    }) satisfies typeof fetch
+    const result = await resolveFilters(sentence, {}, { apiKey: 'test', fetch: fetcher })
+    expect(result.filters).toEqual({
+      details: ['pockets'],
+      excludedDetails: ['laceTrim'],
+      silhouettes: ['a-line'],
+    })
+    expect(result.unresolved).toEqual([])
+    expect(result.freeText).toBe(false)
+    expect(result.contractVersion).toBe('filters-v3')
+  })
+
+  it('treats a mention the model judges neutral as no filter, and keeps an unsure one unresolved', async () => {
+    const sentence = 'a silk long coat'
+    const response = responseFor(sentence, {
+      'materials:silk': 'include',
+      'sleeves:long': 'neutral',
+    })
+    const first = await resolveFilters(
+      sentence,
+      {},
+      {
+        apiKey: 'test',
+        fetch: async () => Response.json(response),
+      },
+    )
+    expect(first.filters).toEqual({ materials: ['silk'] })
+    expect(first.unresolved).toEqual([])
+    response.answers['materials:silk']!.confidence = 0.3
+    const unsure = await resolveFilters(
+      sentence,
+      {},
+      {
+        apiKey: 'test',
+        fetch: async () => Response.json(response),
+      },
+    )
+    expect(unsure.filters).toEqual({})
+    expect(unsure.unresolved).toEqual(['materials'])
+  })
+
+  it('reconciles a construction facet against existing selections like any other facet', async () => {
+    const base: FilterState = { sleeves: ['short'], details: ['pockets'] }
+    const sentence = '改成長袖'
+    const response = responseFor(
+      sentence,
+      { 'sleeves:operation': 'replace', 'sleeves:long': 'include' },
+      base,
+    )
+    const result = await resolveFilters(sentence, base, {
+      apiKey: 'test',
+      fetch: async () => Response.json(response),
+    })
+    expect(result.filters).toEqual({ sleeves: ['long'], details: ['pockets'] })
+  })
+
+  it('reports free text only when the model is at least half sure, never as an error', async () => {
+    const sentence = '鯨魚圖案的上衣'
+    for (const [noul, expected] of [
+      [0.9, true],
+      [0.5, true],
+      [0.2, false],
+    ] as const) {
+      const result = await resolveFilters(
+        sentence,
+        {},
+        {
+          apiKey: 'test',
+          fetch: async () => Response.json(withFreeText(responseFor(sentence), noul)),
+        },
+      )
+      expect(result.freeText).toBe(expected)
+    }
+    const missing = await resolveFilters(
+      sentence,
+      {},
+      {
+        apiKey: 'test',
+        fetch: async () => Response.json(responseFor(sentence)),
+      },
+    )
+    expect(missing.freeText).toBe(false)
+    expect(missing.unresolved).toEqual([])
+  })
+
+  it('validates every registry facet in the base state', async () => {
+    const fetcher = vi.fn()
+    await expect(
+      resolveFilters(
+        'x',
+        { silhouettes: ['a-line'], excludedSilhouettes: ['a-line'] },
+        { apiKey: 'test', fetch: fetcher },
+      ),
+    ).rejects.toThrow()
+    await expect(
+      resolveFilters('x', { details: ['hood'] } as FilterState, { apiKey: 'test', fetch: fetcher }),
+    ).rejects.toThrow()
+    expect(fetcher).not.toHaveBeenCalled()
   })
 })

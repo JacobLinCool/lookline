@@ -87,11 +87,9 @@ export const me: MeMessages = {
 
   people: {
     title: '你身邊的人',
-    empty: '還沒有人。問問朋友，或把別人的 Look 變成自己的。',
+    empty: '還沒有人。把朋友的 Look 變成自己的，或分享一個你的。',
     andMore: (n: number) => `還有 ${n} 人`,
     kinds: {
-      asks: '請教',
-      trusts: '信任',
       inspired_by: '靈感',
       styles: '搭配',
       buys_for: '買給誰',
@@ -99,10 +97,6 @@ export const me: MeMessages = {
       remixed: '接著穿',
     } as Record<string, string>,
     edges: {
-      asksOut: (name: string) => `你向 ${name} 請教穿搭`,
-      asksIn: (name: string) => `${name} 向你請教穿搭`,
-      trustsOut: (name: string) => `你採納 ${name} 的建議`,
-      trustsIn: (name: string) => `${name} 採納你的建議`,
       inspiredOut: (name: string) => `受 ${name} 啟發`,
       inspiredIn: (name: string) => `${name} 受你啟發`,
       stylesOut: (name: string) => `你幫 ${name} 搭配`,
@@ -113,23 +107,5 @@ export const me: MeMessages = {
       remixedOut: (name: string) => `${name} 把你的 Look 變成自己的`,
       remixedIn: (name: string) => `你把 ${name} 的 Look 變成自己的`,
     },
-  },
-
-  asks: {
-    title: '詢問',
-    youAsked: '你問的',
-    askedOfYou: '問你的',
-    nothingYet: '目前沒有',
-    card: '卡片',
-    answer: '回覆',
-    kinds: {
-      choose: '選哪一件？',
-      style_me: '幫我搭配',
-    } as Record<string, string>,
-    status: {
-      open: '進行中',
-      answered: '已回覆',
-      closed: '已結束',
-    } as Record<string, string>,
   },
 }

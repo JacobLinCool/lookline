@@ -301,21 +301,6 @@ export function chooseOutfit(
   return chosen
 }
 
-/** Two options of one group for a "which fits me better?" Ask. */
-export function chooseOptions(
-  pool: ProductPool,
-  shortlist: Shortlist,
-  rng: Rng,
-): [string, string] | null {
-  const group = pickGroup(rng, shortlist.department, shortlist)
-  if (!group) return null
-  const a = chooseProduct(pool, shortlist, rng, { group })
-  if (!a) return null
-  const b = chooseProduct(pool, shortlist, rng, { group, exclude: new Set([a.id]) })
-  if (!b) return null
-  return [a.id, b.id]
-}
-
 /** Remix fallback: one product per source product, same group, by the remixer's taste. */
 export function remixFallback(
   pool: ProductPool,

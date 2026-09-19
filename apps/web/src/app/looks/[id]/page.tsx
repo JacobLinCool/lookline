@@ -3,7 +3,7 @@ import { EditionCanvas } from '@/components/looks/edition-canvas'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { MessageCircle, Sparkles, Users } from 'lucide-react'
+import { Sparkles, Users } from 'lucide-react'
 import {
   and,
   asc,
@@ -247,16 +247,7 @@ export default async function LookPage({
                 </Button>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                href={`/asks/new?look=${look.id}`}
-                variant="secondary"
-                icon={<MessageCircle />}
-              >
-                {t.looks.detail.askAFriend}
-              </Button>
-              <ShareButton lookId={look.id} sharePath={`/l/${look.shareToken}`} full />
-            </div>
+            <ShareButton lookId={look.id} sharePath={`/l/${look.shareToken}`} full />
             <div className="flex items-center justify-between gap-2">
               <Button
                 href={`/looks/${look.id}/together`}

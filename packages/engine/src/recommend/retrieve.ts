@@ -67,7 +67,7 @@ export type Channel = 'vector' | 'social' | 'trend'
 export interface SocialEvidence {
   userId: string
   displayName: string
-  kind: 'look' | 'purchase' | 'save' | 'advise'
+  kind: 'look' | 'purchase' | 'save'
   lookId?: string | null
   /** Trust of the current user in `userId` (ENGINE_SPEC §5.1). */
   strength: number
@@ -212,7 +212,6 @@ export function mergeChannels(
 
 export const SOCIAL_KIND_WEIGHT: Readonly<Record<SocialEvidence['kind'], number>> = {
   look: 1,
-  advise: 0.9,
   purchase: 0.6,
   save: 0.3,
 }

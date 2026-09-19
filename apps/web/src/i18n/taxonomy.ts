@@ -6,16 +6,22 @@ import {
   COLOR_FAMILY_DEFS,
   COLORS,
   DEPARTMENT_DEFS,
+  DESIGN_DETAILS,
   FITS,
+  GARMENT_DETAILS,
   LENGTHS,
   MATERIALS,
   NECKLINES,
   OCCASIONS,
   PATTERNS,
+  PRINT_SUBJECTS,
   SEASON_DEFS,
   SILHOUETTE_VALUES,
   SLEEVES,
   SUBCATEGORIES,
+  findSearchFacet,
+  type SearchFacet,
+  type SearchFacetId,
 } from '@lookline/catalog'
 import { findEngineOccasion } from '@lookline/engine/occasions'
 import { humanize } from '@/server/format'
@@ -58,6 +64,9 @@ const attributes = bySlug([
   ...SLEEVES,
   ...CLOSURES,
   ...SILHOUETTE_VALUES,
+  ...PRINT_SUBJECTS,
+  ...DESIGN_DETAILS,
+  ...GARMENT_DETAILS,
 ])
 
 export const departmentLabel = (locale: Locale, slug: string) =>
@@ -121,4 +130,22 @@ export function facetLabel(locale: Locale, slug: string): string {
     if (def) return locale === 'zh-TW' ? def.labelZh : def.name
   }
   return humanize(value)
+}
+
+/**
+ * A value of one search facet, read from that facet's own vocabulary. The mixed lookup above
+ * cannot tell a `short` sleeve from a `short` length or a `crew` neck from a `crew` sock, so a
+ * chip or a rail row that knows its facet asks here.
+ */
+export function facetValueLabel(
+  locale: Locale,
+  facet: SearchFacet | SearchFacetId,
+  slug: string,
+): string {
+  const def = typeof facet === 'string' ? findSearchFacet(facet) : facet
+  return label(
+    locale,
+    def?.values.find((v) => v.slug === slug),
+    slug,
+  )
 }

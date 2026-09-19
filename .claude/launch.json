@@ -22,22 +22,6 @@
         "3100"
       ],
       "port": 3100
-    },
-    {
-      "name": "lookline-review",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": [
-        "--dir",
-        "/Users/takala/code/lookline-review",
-        "--filter",
-        "@lookline/web",
-        "exec",
-        "vinext",
-        "dev",
-        "--port",
-        "3200"
-      ],
-      "port": 3200
     }
   ]
 }

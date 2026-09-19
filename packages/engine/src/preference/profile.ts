@@ -139,9 +139,6 @@ function verbFor(e: ProfileEvent, target: RewardTarget): string {
       return 'added to bag'
     case 'purchase':
       return 'bought'
-    case 'ask_choice':
-      if (e.context['role'] === 'adviser') return 'picked for a friend'
-      return e.context['chosen'] === false ? 'passed on' : 'chose'
     case 'remix':
       return e.context['kept'] === false ? 'swapped out' : 'kept in a remix'
     case 'look_create':

@@ -33,8 +33,6 @@ export const EVENT_WEIGHTS: Readonly<Record<InteractionType, number>> = {
   DISMISS: -1,
   SHARE: 4,
   REACT: 2,
-  ASK: 2,
-  ADVISE: 2,
   STYLE: 2,
   REMIX: 6,
   TOGETHER: 5,
@@ -370,7 +368,6 @@ interface KeyState {
   volume: Float64Array
   saves: Int32Array
   remixes: Int32Array
-  asks: Int32Array
   purchases: Int32Array
   searches: Int32Array
   gmv: Float64Array
@@ -404,7 +401,6 @@ export function computeTrendSignals(
         volume: new Float64Array(D),
         saves: new Int32Array(D),
         remixes: new Int32Array(D),
-        asks: new Int32Array(D),
         purchases: new Int32Array(D),
         searches: new Int32Array(D),
         gmv: new Float64Array(D),
@@ -435,7 +431,6 @@ export function computeTrendSignals(
       }
       if (e.type === 'SAVE') s.saves[i] = (s.saves[i] ?? 0) + 1
       else if (e.type === 'REMIX') s.remixes[i] = (s.remixes[i] ?? 0) + 1
-      else if (e.type === 'ASK') s.asks[i] = (s.asks[i] ?? 0) + 1
       else if (e.type === 'SEARCH') s.searches[i] = (s.searches[i] ?? 0) + 1
       else if (e.type === 'PURCHASE') {
         s.purchases[i] = (s.purchases[i] ?? 0) + 1
@@ -508,9 +503,8 @@ export function computeTrendSignals(
       const purchases7d = sum(s.purchases, i - 6, i)
       const saves7d = sum(s.saves, i - 6, i)
       const remixes7d = sum(s.remixes, i - 6, i)
-      const asks7d = sum(s.asks, i - 6, i)
       const searches7d = sum(s.searches, i - 6, i)
-      const conversion = purchases7d / (saves7d + remixes7d + asks7d + 5)
+      const conversion = purchases7d / (saves7d + remixes7d + 5)
       const gmv = Math.round(sum(s.gmv, i - 6, i))
       const roots = (rootsByKey.get(key) ?? []).filter((r) => r.idx >= i - 13 && r.idx <= i)
       let people = 0

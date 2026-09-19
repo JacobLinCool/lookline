@@ -71,6 +71,34 @@
       "when": 1790040000000,
       "tag": "0010_chinese_search",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1790050000000,
+      "tag": "0011_personas_and_cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790060000000,
+      "tag": "0012_session_collection",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790070000000,
+      "tag": "0013_collection_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1790080000000,
+      "tag": "0014_retire_asks",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { brands, eq, articles } from '@lookline/db'
+import { eq, articles } from '@lookline/db'
 import { getDb } from '@/server/db'
 import { getStorage, isSafeKey } from '@/server/storage'
 
@@ -28,7 +28,6 @@ export async function GET(
   const [row] = await getDb()
     .db.select({ imagePath: articles.imagePath })
     .from(articles)
-    .innerJoin(brands, eq(articles.brandId, brands.id))
     .where(eq(articles.id, id))
     .limit(1)
   if (!row?.imagePath || !isSafeKey(row.imagePath))

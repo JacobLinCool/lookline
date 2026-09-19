@@ -11,7 +11,6 @@ import { newId } from './ids'
 
 /** ENGINE_SPEC §4.1 base rewards (used only by the fallback path). */
 export function fallbackReward(input: FeedbackInput): number {
-  const chosen = input.context?.chosen
   switch (input.kind) {
     case 'purchase':
       return 1
@@ -23,9 +22,6 @@ export function fallbackReward(input: FeedbackInput): number {
       return input.context?.kept === false ? -0.15 : 0.6
     case 'save':
       return 0.4
-    case 'ask_choice':
-      if (input.context?.role === 'adviser') return 0.15
-      return chosen === false ? -0.1 : 0.35
     case 'click':
       return 0.1
     case 'dismiss':

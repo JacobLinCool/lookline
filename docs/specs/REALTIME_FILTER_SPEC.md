@@ -10,6 +10,9 @@ matching products as input changes; Apply or finalized speech commits resolved f
 | ------------------------------------------------------------------ | ----------------------------------- | --------------------------------- |
 | Direct selection, validation, price parsing and set operations     | Application code                    | Exact filter state                |
 | Known categories, colour families, aesthetics, department and sort | TypeSafe `jev-1.13.0`               | Validated Choice decisions        |
+| Construction facets the sentence names (material … design detail)  | TypeSafe `jev-1.13.0`               | Choice per lexical candidate      |
+| Whether the sentence names a motif, character, brand or slogan     | TypeSafe `jev-1.13.0`               | One Noul (`freeText`)             |
+| English full-text keywords for such a sentence                     | Fast generative model (`getLlm`)    | `keywords`, after the preview     |
 | Streaming microphone audio                                         | Gemini `gemini-3.5-transcribe-live` | Interim and finalized transcripts |
 | Sentence parsing: catalog attributes, occasion, season, department | TypeSafe `jev-1.13.0`               | Intent slots (ENGINE_SPEC §1.3)   |
 | Say it sentences the decision cannot finish (reference, recipient) | Luna / Gemini Flash-Lite            | Intent and suggestions            |
@@ -25,17 +28,45 @@ from generative provider routing; a failed partial never silently invokes a gene
 
 `POST /api/filters/resolve` accepts `{ utterance, base, revision }`. The utterance is limited to
 500 characters. `base` contains only allowed filter fields and catalog values. The response is
-`{ filters, unresolved, hints, revision, model, contractVersion, latencyMs }`; `filters-v2`
-identifies this question/reduction contract (`v2` added `hints`). The model sees the utterance as
-data, with any existing facet values embedded in its relevant operation question.
+`{ filters, unresolved, hints, freeText, revision, model, contractVersion, latencyMs }`;
+`filters-v3` identifies this question/reduction contract (`v2` added `hints`, `v3` the registry
+facets, lexical candidates and `freeText`). The model sees the utterance as data, with any
+existing facet values embedded in its relevant operation question.
 
-The catalog supplies all candidate categories, colours and aesthetics, including bilingual
-labels and named colours within each family. Navy maps to the blue family; this is a family-level
-filter, not exact-colour matching. For each option Jev chooses include, exclude or neutral.
+The filters are the `SEARCH_FACETS` registry of `@lookline/catalog` — one table that the form,
+the URL, the API validation, the decision questions and the SQL all read. Three facets are
+`semantic`: the catalog supplies every category group, colour family and aesthetic, including
+bilingual labels and named colours within each family, and Jev chooses include, exclude or
+neutral for each. Navy maps to the blue family; this is a family-level filter, not exact-colour
+matching. The ten construction facets — material, pattern, print subject, silhouette, fit,
+length, neckline, sleeve, closure and design detail — are `lexical`: `extractFacetCandidates`
+finds the values whose bilingual terms are literally in the sentence ("A 字裙", "蕾絲邊",
+"cartoon print"; longest match wins its span, so the "lace" in "lace trim" is not also a
+material), and only those values are put to Jev, each with its listed names, as the same
+include / exclude / neutral choice. A word Jev judges to mean something else — "long" in "a
+silk long coat" — is neutral and constrains nothing; an unsure one leaves that facet unresolved.
 When a facet already has filters, a separate question distinguishes replace, add, clear and keep.
 Code reconciles those choices: new positive selections replace by default, explicit additions
 union selections, exclusions remove conflicting inclusions, and an exclusion-only request retains
-other selections. Unmentioned facets stay unchanged.
+other selections. Unmentioned facets stay unchanged. An exclusion never claims an unknown: "not
+lace trim" drops the articles tagged with lace trim and keeps the ones the vision pass has not
+described, in the SQL as in the chips.
+
+One Noul question, `freeText`, asks whether the sentence names something the attributes cannot
+carry — a motif, a character, a brand, a slogan. Jev cannot say which word, and must not: the
+answer only gates `POST /api/filters/keywords` `{ utterance, revision }`, where the fast
+generative model (`getLlm`, Flash-Lite in production) turns those words into up to four concepts
+of up to three terms each — the English word, a plural or synonym, and the Chinese term when the
+request was Chinese (`whale|whales|鯨魚`) — sanitised to index tokens with anything the catalog
+vocabulary already expresses removed. They travel as repeated `keywords` URL fields, AND-ed
+against the FTS5 index over names, copy, print motifs and the photograph captions in both
+languages (a Chinese term is a phrase over its spaced characters), without a lexicon pass. The attribute preview never waits for them: the browser paints
+the resolved filters and their products first, asks for keywords 500 ms after the sentence
+stops changing (at once on Apply or final speech), and narrows the grid when they land — a
+committed sentence updates its URL in place. A keyword answer for a sentence that has since
+changed, or for a search the shopper has since changed by hand, is dropped by the revision
+check; a sentence that still names its motif keeps the keywords its earlier revision found until
+the fresh ones replace them. No provider is a quiet outcome — the attribute results stand.
 
 Price candidates come from the existing deterministic parser, including separate correction
 clauses. Jev selects a parsed candidate, clear, keep or uncertain. It does not invent numbers or
@@ -145,8 +176,14 @@ handling remains governed by the configured service account.
 
 `ProductSearch`, SQL, URL encoding and controls share plural inclusion and exclusion arrays.
 Values within one included facet use OR; different facets use AND. Exclusions are enforced by SQL.
-The canonical URL repeats `categoryGroups`, `colorFamilies`, `aesthetics` and their `excluded…`
-counterparts. There is no singular-parameter compatibility path.
+The canonical URL repeats every registry pair (`categoryGroups` … `details` and their
+`excluded…` counterparts) and `keywords`. There is no singular-parameter compatibility path.
+
+The rail's fixed groups (category, colour, style, price) show counts from the search itself; the
+construction facets appear as folded rows only for the categories they can describe (no sleeve
+row over bags) and count their values when opened, through
+`GET /api/articles/facets?facet=<id>&…`, so a value is offered only once the current results
+are known to hold it. The product page reads the same vocabularies for its detail table.
 
 ## Verification and performance
 
@@ -162,6 +199,18 @@ Mandarin as “我想要海軍藍外套，預算 3000 元以內。” and update
 Chinese ASR accuracy has not been benchmarked; correction behavior was also checked with real Jev
 and controlled transcript events.
 `scripts/qa/jev-smoke.ts` covers bilingual corrections, negation, alternatives and existing filters.
+`scripts/qa/attribute-filters-smoke.ts` covers the construction facets and the free-text signal:
+on 2026-09-20 real Jev resolved "A 字裙" / "an a-line skirt" to `silhouettes: [a-line]` (and
+bottoms), "有口袋、不要蕾絲邊" / "with pockets, no lace trim" to `details: [pockets]` with
+`excludedDetails: [laceTrim]`, "卡通印花上衣" / "cartoon print top" to tops with
+`printSubjects: [character]`, "改成長袖" over `sleeves: [short]` to `sleeves: [long]`, and
+"a silk long coat" to `materials: [silk]` with the sleeve left alone; "鯨魚圖案的上衣" and "a
+whale print hoodie" came back `freeText: true` (0.91) and every attribute-only sentence
+`false` (≤ 0.22), in 300–1 140 ms per call. `scripts/qa/keywords-smoke.ts` then had the
+configured model return `whale|whales|鯨魚`, `dinosaur|dinosaurs|恐龍`, `hello kitty|凱蒂貓` and
+`good vibes only`, and nothing for an attribute-only sentence, in 1.2–2.4 s; against the live
+catalogue `keywords=鯨魚` finds 31 articles and `whale|鯨魚` 48. As before, these are smoke runs,
+not an accuracy benchmark.
 
 Real Jev runs on 2026-09-18 resolved the English multi-colour request, Chinese correction and mixed
 language example with no unresolved fields. The three-request run took 303–939 ms per provider

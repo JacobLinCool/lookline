@@ -1,4 +1,4 @@
-/** `/me`: the viewer's Looks, temporary previews, Wardrobe, taste, People and Asks. */
+/** `/me`: the viewer's Looks, temporary previews, Wardrobe, taste and People. */
 export const me = {
   metaTitle: 'Wardrobe',
   profileMeta: (handle: string, since: string) => `@${handle} · member since ${since}`,
@@ -87,11 +87,9 @@ export const me = {
 
   people: {
     title: 'People',
-    empty: 'No one yet. Ask a friend, or make a Look yours.',
+    empty: "No one yet. Make a friend's Look yours, or share one of your own.",
     andMore: (n: number) => `and ${n} more`,
     kinds: {
-      asks: 'Advice',
-      trusts: 'Trust',
       inspired_by: 'Inspiration',
       styles: 'Styling',
       buys_for: 'Buying for',
@@ -99,10 +97,6 @@ export const me = {
       remixed: 'Made it theirs',
     } as Record<string, string>,
     edges: {
-      asksOut: (name: string) => `You ask ${name} for advice`,
-      asksIn: (name: string) => `${name} asks you for advice`,
-      trustsOut: (name: string) => `You act on ${name}'s advice`,
-      trustsIn: (name: string) => `${name} acts on your advice`,
       inspiredOut: (name: string) => `Inspired by ${name}`,
       inspiredIn: (name: string) => `${name} is inspired by you`,
       stylesOut: (name: string) => `You style ${name}`,
@@ -113,24 +107,6 @@ export const me = {
       remixedOut: (name: string) => `${name} made your Look theirs`,
       remixedIn: (name: string) => `You made ${name}'s Look yours`,
     },
-  },
-
-  asks: {
-    title: 'Asks',
-    youAsked: 'You asked',
-    askedOfYou: 'Asked of you',
-    nothingYet: 'Nothing yet',
-    card: 'Card',
-    answer: 'Answer',
-    kinds: {
-      choose: 'Which one?',
-      style_me: 'Style me',
-    } as Record<string, string>,
-    status: {
-      open: 'Open',
-      answered: 'Answered',
-      closed: 'Closed',
-    } as Record<string, string>,
   },
 }
 

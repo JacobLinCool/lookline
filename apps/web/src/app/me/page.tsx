@@ -2,8 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   and,
-  askResponses,
-  asks,
   brands,
   count,
   desc,
@@ -17,16 +15,21 @@ import {
   articles,
   purchases,
   previews,
+  cardCopies,
+  cards as cardsTable,
+  collectionEditions,
+  collections as collectionsTable,
+  personas as personasTable,
   users,
 } from '@lookline/db'
-import { getPreferenceProfile, getUserNetwork } from '@lookline/engine'
+import { creditBalance, getPreferenceProfile, getUserNetwork, tierForRatio } from '@lookline/engine'
 import { Avatar, Button, Container, Notice, Section } from '@/components/ui'
-import { AsksPanel, type ReceivedAsk, type SentAsk } from '@/components/me/asks'
 import { Circle } from '@/components/me/circle'
 import { EditionsGrid, type EditionItem } from '@/components/me/editions'
 import { ProfileCard } from '@/components/me/profile-card'
 import { PreviewGrid } from '@/components/me/previews'
 import { SavedPhotoForm } from '@/components/me/saved-photo-form'
+import { CardLibrary, type LibraryCard } from '@/components/cards/card-library'
 import { Wardrobe, type WardrobeRow } from '@/components/me/wardrobe'
 import { callEngine } from '@/components/trends/engine-guard'
 import { getI18n } from '@/i18n/server'
@@ -35,6 +38,80 @@ import { getDb } from '@/server/db'
 import { isEngineView } from '@/server/engine-view'
 import { formatRelative } from '@/server/format'
 
+/**
+ * Every card this account holds, through the personas it manages. Copies are listed individually:
+ * three copies of one edition are three holdings, and collapsing them by artwork would lose two.
+ */
+async function loadLibrary(userId: string): Promise<LibraryCard[]> {
+  const { db } = getDb()
+  const [own, copies] = await Promise.all([
+    db
+      .select({
+        id: cardsTable.id,
+        code: cardsTable.verificationCode,
+        ownedRatio: cardsTable.ownedRatio,
+        issuedAt: cardsTable.issuedAt,
+        personaId: personasTable.id,
+        personaName: personasTable.displayName,
+        avatarSeed: personasTable.avatarSeed,
+      })
+      .from(cardsTable)
+      .innerJoin(personasTable, eq(personasTable.id, cardsTable.personaId))
+      .where(eq(personasTable.ownerUserId, userId)),
+    db
+      .select({
+        id: cardCopies.id,
+        code: cardCopies.verificationCode,
+        editionId: cardCopies.editionId,
+        editionNumber: cardCopies.editionNumber,
+        editionSize: collectionEditions.editionSize,
+        collectionTitle: collectionsTable.title,
+        issuedAt: cardCopies.issuedAt,
+        personaId: personasTable.id,
+        personaName: personasTable.displayName,
+        avatarSeed: personasTable.avatarSeed,
+      })
+      .from(cardCopies)
+      .innerJoin(collectionEditions, eq(collectionEditions.id, cardCopies.editionId))
+      .innerJoin(collectionsTable, eq(collectionsTable.id, collectionEditions.collectionId))
+      .innerJoin(personasTable, eq(personasTable.id, cardCopies.beneficiaryPersonaId))
+      .where(eq(personasTable.ownerUserId, userId)),
+  ])
+  return [
+    ...own.map((c) => ({
+      kind: 'card' as const,
+      id: c.id,
+      href: `/cards/${c.id}`,
+      imageUrl: `/api/cards/${c.id}`,
+      personaName: c.personaName,
+      personaId: c.personaId,
+      avatarSeed: c.avatarSeed,
+      verificationCode: c.code,
+      tierLabel: tierForRatio(c.ownedRatio).labelZh,
+      editionNumber: null,
+      editionSize: null,
+      collectionTitle: null,
+      issuedAt: c.issuedAt?.getTime() ?? 0,
+    })),
+    ...copies.map((c) => ({
+      kind: 'copy' as const,
+      id: c.id,
+      href: `/editions/${c.editionId}`,
+      // Each copy shows its own numbered print, the same picture its holder would share.
+      imageUrl: `/api/editions/${c.editionId}?copy=${encodeURIComponent(c.code)}`,
+      personaName: c.personaName,
+      personaId: c.personaId,
+      avatarSeed: c.avatarSeed,
+      verificationCode: c.code,
+      tierLabel: null,
+      editionNumber: c.editionNumber,
+      editionSize: c.editionSize,
+      collectionTitle: c.collectionTitle,
+      issuedAt: c.issuedAt?.getTime() ?? 0,
+    })),
+  ]
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
   return { title: t.me.metaTitle }
@@ -42,7 +119,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const EDITIONS_LIMIT = 48
 const WARDROBE_LIMIT = 60
-const ASKS_LIMIT = 30
 const PREVIEWS_LIMIT = 12
 
 /** Looks the user owns or took part in, newest first, with owner and lineage hint. */
@@ -130,53 +206,8 @@ async function loadPreviews(userId: string) {
     .limit(PREVIEWS_LIMIT)
 }
 
-async function loadAsks(userId: string): Promise<{ sent: SentAsk[]; received: ReceivedAsk[] }> {
-  const { db } = getDb()
-  const [sentRows, received] = await Promise.all([
-    db
-      .select()
-      .from(asks)
-      .where(eq(asks.askerId, userId))
-      .orderBy(desc(asks.createdAt))
-      .limit(ASKS_LIMIT),
-    db
-      .select({
-        ask: asks,
-        asker: {
-          displayName: users.displayName,
-          handle: users.handle,
-          avatarSeed: users.avatarSeed,
-        },
-      })
-      .from(asks)
-      .innerJoin(users, eq(asks.askerId, users.id))
-      .where(eq(asks.targetUserId, userId))
-      .orderBy(desc(asks.createdAt))
-      .limit(ASKS_LIMIT),
-  ])
-  const responseCounts =
-    sentRows.length > 0
-      ? await db
-          .select({ askId: askResponses.askId, n: count() })
-          .from(askResponses)
-          .where(
-            inArray(
-              askResponses.askId,
-              sentRows.map((a) => a.id),
-            ),
-          )
-          .groupBy(askResponses.askId)
-      : []
-  const byAsk = new Map(responseCounts.map((r) => [r.askId, Number(r.n)]))
-  return {
-    sent: sentRows.map((ask) => ({ ask, responses: byAsk.get(ask.id) ?? 0 })),
-    received,
-  }
-}
-
 const LOOKS_SHOWN = 8
 const WARDROBE_SHOWN = 10
-const ASKS_SHOWN = 5
 
 export default async function MePage({
   searchParams,
@@ -187,16 +218,24 @@ export default async function MePage({
   const [{ t, locale }, params] = await Promise.all([getI18n(), searchParams])
   const showAll = params.all === '1'
   const { db } = getDb()
-  const [editions, previewItems, wardrobe, askData, profile, network, engineView] =
-    await Promise.all([
-      callEngine('editions', () => loadEditions(user.id, t.me.looks.madeTogether)),
-      callEngine('previews', () => loadPreviews(user.id)),
-      callEngine('wardrobe', () => loadWardrobe(user.id)),
-      callEngine('asks', () => loadAsks(user.id)),
-      callEngine('getPreferenceProfile', () => getPreferenceProfile(db, user.id)),
-      callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
-      isEngineView(),
-    ])
+  const [editions, previewItems, wardrobe, profile, network, engineView] = await Promise.all([
+    callEngine('editions', () => loadEditions(user.id, t.me.looks.madeTogether)),
+    callEngine('previews', () => loadPreviews(user.id)),
+    callEngine('wardrobe', () => loadWardrobe(user.id)),
+    callEngine('getPreferenceProfile', () => getPreferenceProfile(db, user.id)),
+    callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
+    isEngineView(),
+  ])
+  const library = await loadLibrary(user.id).catch(() => [] as LibraryCard[])
+  const [cardCredits, personaCount] = await Promise.all([
+    creditBalance(db, user.id).catch(() => 0),
+    db
+      .select({ n: count() })
+      .from(personasTable)
+      .where(eq(personasTable.ownerUserId, user.id))
+      .then((r) => Number(r[0]?.n ?? 0))
+      .catch(() => 0),
+  ])
   const unavailable = <Notice tone="warning">{t.me.sectionUnavailable}</Notice>
   const moreLink =
     'text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-ink'
@@ -231,6 +270,30 @@ export default async function MePage({
           {photoErrorMessage}
         </Notice>
       ) : null}
+
+      {/* Personas and credits: the two things the card studio needs, surfaced where a visitor
+          already looks for their own things. */}
+      <Section title="小卡" rule={false}>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-[13px] text-muted">
+            製卡額度{' '}
+            <span className="tabular text-[15px] font-semibold text-ink">{cardCredits}</span>
+            <span className="ml-2">· {personaCount} 位 persona</span>
+          </p>
+          <div className="ml-auto flex gap-2">
+            <Button href="/me/personas" size="sm" variant="secondary">
+              管理 persona
+            </Button>
+            <Button href="/collections" size="sm" variant="secondary">
+              收藏組合
+            </Button>
+            <Button href="/studio" size="sm">
+              製卡工作室
+            </Button>
+          </div>
+        </div>
+        {library.length > 0 ? <CardLibrary items={library} /> : null}
+      </Section>
 
       <Section title={t.me.photo.title} rule={false}>
         <SavedPhotoForm
@@ -292,19 +355,6 @@ export default async function MePage({
 
       <Section title={t.me.people.title}>
         {network.ok ? <Circle network={network.value} /> : unavailable}
-      </Section>
-
-      <Section title={t.me.asks.title}>
-        {askData.ok ? (
-          <AsksPanel
-            sent={showAll ? askData.value.sent : askData.value.sent.slice(0, ASKS_SHOWN)}
-            received={
-              showAll ? askData.value.received : askData.value.received.slice(0, ASKS_SHOWN)
-            }
-          />
-        ) : (
-          unavailable
-        )}
       </Section>
     </Container>
   )

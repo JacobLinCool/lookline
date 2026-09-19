@@ -109,14 +109,12 @@ export default async function SharedLookPage({
   const remixPath = `/looks/${look.id}/remix`
   const previewPath = previewHref({ sourceLookId: look.id })
   const stylePath = `/looks/${look.id}/remix?for=${encodeURIComponent(owner.id)}`
-  const askPath = `/asks/new?look=${encodeURIComponent(look.id)}`
   const firstName = owner.displayName.split(/\s+/)[0] ?? owner.displayName
 
-  // Guests: one name field, four destinations. Each button carries its `next` in a closure so
+  // Guests: one name field, three destinations. Each button carries its `next` in a closure so
   // the submit buttons need no name/value (React reserves those for the action id).
   const guestRemix = guestTo.bind(null, remixPath)
   const guestPreview = guestTo.bind(null, previewPath)
-  const guestAsk = guestTo.bind(null, askPath)
   const guestStyle = guestTo.bind(null, stylePath)
 
   const likeButton = (formAction?: (formData: FormData) => Promise<void>) => (
@@ -185,14 +183,9 @@ export default async function SharedLookPage({
                   {copy.makeItMine}
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button href={askPath} variant="secondary">
-                  {copy.askAboutPiece}
-                </Button>
-                <Button href={stylePath} variant="secondary">
-                  {copy.stylePerson(firstName)}
-                </Button>
-              </div>
+              <Button href={stylePath} variant="secondary">
+                {copy.stylePerson(firstName)}
+              </Button>
               <form action={reactToLookAction} className="flex">
                 <input type="hidden" name="token" value={token} />
                 {likeButton()}
@@ -226,14 +219,9 @@ export default async function SharedLookPage({
                   {copy.makeItMine}
                 </Button>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button type="submit" formAction={guestAsk} variant="secondary">
-                  {copy.askAboutPiece}
-                </Button>
-                <Button type="submit" formAction={guestStyle} variant="secondary">
-                  {copy.stylePerson(firstName)}
-                </Button>
-              </div>
+              <Button type="submit" formAction={guestStyle} variant="secondary">
+                {copy.stylePerson(firstName)}
+              </Button>
               <div className="flex">{likeButton(reactToLookAction)}</div>
             </form>
           )}

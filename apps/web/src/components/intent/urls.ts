@@ -42,12 +42,6 @@ export function productHref(articleId: string, sessionId: string, position: numb
   return `/p/${articleId}?${params.toString()}`
 }
 
-/** "Ask a friend which is better" — owned by the Ask agent; we only link. */
-export function askHref(articleIds: readonly string[], sessionId: string): string {
-  const params = new URLSearchParams({ articles: articleIds.join(','), from: sessionId })
-  return `/asks/new?${params.toString()}`
-}
-
 /** Normalise a `searchParams` value that may repeat. */
 export function paramList(value: string | string[] | undefined): string[] {
   if (value === undefined) return []

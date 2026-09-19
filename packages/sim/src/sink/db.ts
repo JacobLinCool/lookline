@@ -1,6 +1,6 @@
 /**
  * Database sink: every social write goes through the engine write paths (`recordPurchase`,
- * `createLook`, `suggestRemix`, `createAsk`, `answerAsk`, `recordInteraction`,
+ * `createLook`, `suggestRemix`, `recordInteraction`,
  * `recordFeedback`) and searches become `intent_sessions` rows via the offline intent parser.
  * Look posters are not stored: the web image route renders `renderLookPosterSvg` on demand for
  * every Look without an `imagePath` (only generated images live in R2).
@@ -16,13 +16,12 @@ import {
   type Database,
 } from '@lookline/db'
 import {
-  answerAsk,
-  createAsk,
   createLook,
   intentToVector,
   parseIntentOffline,
   recordFeedback,
   recordInteraction,
+  fulfilPurchaseLines,
   recordPurchase,
   suggestRemix,
 } from '@lookline/engine'
@@ -158,6 +157,18 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
 
     async recordPurchase(input) {
       const row = await recordPurchase(db, input)
+      // What checkout does after recording, so a simulated buyer ends up in the same state as a
+      // real one: the piece in their wardrobe and, above the threshold, credits to make a card
+      // with. Without this a seeded database had 5,000 purchases and nobody who could use them.
+      await fulfilPurchaseLines(db, row.userId, [
+        {
+          purchaseId: row.id,
+          articleId: row.articleId,
+          unitPrice: row.price,
+          quantity: row.quantity,
+          size: row.size,
+        },
+      ])
       return { price: row.price }
     },
 
@@ -178,14 +189,6 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
       } catch {
         return []
       }
-    },
-
-    async createAsk(input) {
-      await createAsk(db, input)
-    },
-
-    async answerAsk(input) {
-      await answerAsk(db, input)
     },
   }
 }

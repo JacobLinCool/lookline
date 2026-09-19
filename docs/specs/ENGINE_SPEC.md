@@ -867,7 +867,7 @@ Secondary channels (unioned, deduplicated by id, same prefilters applied in-proc
 
 | channel | source                                                                                                                                                                     | limit | evidence                                 |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------------------------------------- |
-| social  | `look_products` of Looks created in the last 30 d by users `n` with `trust(user,n) ≥ 0.1` (§5.1), plus `purchases` and `SAVE` interactions by those users in the last 30 d | 50    | `{ userId, displayName, kind: 'look'     | 'purchase' | 'save' | 'advise', lookId?, strength, at }` |
+| social  | `look_products` of Looks created in the last 30 d by users `n` with `trust(user,n) ≥ 0.1` (§5.1), plus `purchases` and `SAVE` interactions by those users in the last 30 d | 50    | `{ userId, displayName, kind: 'look'     | 'purchase' | 'save', lookId?, strength, at }` |
 | trend   | products whose `aesthetics && top-5 aesthetic keys` and `category_group` with today's `trend_signals` momentum ≥ 60, `ORDER BY popularity DESC`                            | 30    | `{ dimension, key, momentum, emerging }` |
 
 Guests (no `userId`) skip the social channel. `trend` channel skipped when `trend_signals` has no
@@ -916,7 +916,7 @@ non-applicable factors are redistributed proportionally over applicable positive
 | `attribute_match`  | weighted mean of **specified** sub-checks: subcategory .30 (exact 1 / same group .5 / 0), colour .25 (primary family 1 / secondary hex family .6 / 0; colour-group weights count as `colorWeights[f] ≥ .5`), material .15 (1/0), pattern .05, season .10 (`seasons` contains intent season or `all-season` → 1, else .3), fit .10 (exact 1 / adjacent .5 / 0; adjacency: slim–regular, regular–relaxed, relaxed–oversized), axes .15 (`1 − mean_k | axisTargets_k − product_k                                                | `over specified axes excluding price-tier), mustHave .10 (fraction of`attribute:`/`text:` tokens found), giftCategoryPrior .10 (`categoryGroup ∈ prior` → 1)                                                                | any sub-check specified                                                                                                                      | "checks: hoodie, black, oversized; formality within 0.08" / 「符合：帽T、黑色、寬鬆；正式度差 0.08」                                 |
 | `budget_fit`       | in `[min,max]` → 1; over max: `max(0, 1 − (price − max)/(0.5·max))`; under min: `max(0, 1 − (min − price)/min)`; price-tier axis only: `1 −                                                                                                                                                                                                                                                                                                       | tier − product_tier                                                      | `; no budget and `ctx.user.budgetHint`: tier of hint used as a soft max with the same over-formula                                                                                                                          | budget, price-tier target or budgetHint present                                                                                              | "NT$2,180, within NT$3,000" / 「NT$2,180，在預算 3,000 內」; over: "NT$3,300, 10% over budget — kept because the rest fits strongly" |
 | `user_preference`  | `blockCosine(pref, product.styleVector, PREFERENCE_BLOCK_WEIGHTS)` where `pref = giftPreference` when `intent.recipient.kind === 'other'` (if `giftEventCount ≥ 3`, else self at ×0.5 blend with department centroid, assumption line「你幫別人買的資料還不多，先參考通用範圍」/ "not much gift history yet"), else self preference                                                                                                               | chosen vector exists and its event count ≥ 3                             | "close to the gorpcore pieces you saved (3 signals)" / 「跟你常收藏的山系單品很像（3 次互動）」; gift: "in line with what you picked for your dad before"                                                                   |
-| `social_signal`    | `s = Σ_{e ∈ socialEvidence} strength_e × kindW_e`, kindW: look 1.0, advise .9, purchase .6, save .3; `value = 1 − exp(−s)`                                                                                                                                                                                                                                                                                                                        | user has ≥ 1 trusted edge                                                | "Alice wore this in a Look last week" / 「Alice 上週用它做了 Look」; multiple: "2 people whose taste you trust used it recently"                                                                                            |
+| `social_signal`    | `s = Σ_{e ∈ socialEvidence} strength_e × kindW_e`, kindW: look 1.0, purchase .6, save .3; `value = 1 − exp(−s)`                                                                                                                                                                                                                                                                                                                                   | user has ≥ 1 trusted edge                                                | "Alice wore this in a Look last week" / 「Alice 上週用它做了 Look」; multiple: "2 people whose taste you trust used it recently"                                                                                            |
 | `trend_momentum`   | `momentum/100` of the best matching key among `aesthetic_category:<tag>                                                                                                                                                                                                                                                                                                                                                                           | <group>`(product tags),`aesthetic:<tag>`, `color:<family>`; missing → .3 | trend map non-empty                                                                                                                                                                                                         | emerging: "gorpcore outerwear is spreading across 4 taste circles" / 「山系×外套正在 4 個品味圈擴散」; else "gorpcore momentum 72 this week" |
 | `brand_affinity`   | `min(1, 0.4 + 0.15·purchases + 0.05·saves − 0.2·dismisses)`; cold → .4                                                                                                                                                                                                                                                                                                                                                                            | user exists                                                              | "you've bought Northline 2 times" / 「你買過 Northline 2 次」                                                                                                                                                               |
 | `popularity_prior` | `log1p(popularity)/log1p(popularityMax)`                                                                                                                                                                                                                                                                                                                                                                                                          | always                                                                   | "a frequent pick lately" / 「最近很多人選」                                                                                                                                                                                 |
@@ -952,12 +952,18 @@ price within [0.5, 2]×), retrieval 60, rank with λ .25, limit 12.
 `searchProducts(db, q)`: full-text (`to_tsvector('simple', name||' '||description) @@ websearch_to_tsquery`)
 OR trigram `name % q`, plus the lexicon parse of `q` mapped to filters (`parseIntentOffline` with
 `mode` forced browse); filters from `ProductSearch`; sorts: relevance = `ts_rank + 0.3·cos(intentVector)`,
-`popular` = popularity desc, `trending` = trend_score desc, `new` = created_at desc; facets by
-`count(*) GROUP BY` on the filtered set — every matching row, never a `LIMIT`ed slice of it: an
-unordered limit follows whichever index the planner picks, and under `category_group IN (…)` that
-is the category index, so the slice is all one group and the rest count zero. 231 ms over the
-94k-row catalog and 63 ms once filtered, against the 400 ms the latency spec gives a filter. Top
-12 each; page size default 24.
+`popular` = popularity desc, `trending` = trend_score desc, `new` = created_at desc; facets over
+the whole filtered set — every matching row, never a `LIMIT`ed slice of it: an unordered limit
+follows whichever index the planner picks, and under `category_group IN (…)` that is the category
+index, so the slice is all one group and the rest count zero. The search counts the category
+groups and colour families with one filtered aggregate per value (one pass) and the aesthetics by
+grouping the stored JSON text; on remote D1 that is 315 660 rows read and under 400 ms for the
+unfiltered 105k catalogue, 39 686 rows and ~60 ms for a category (the earlier `json_each` shape
+read 916 218 rows in ~600 ms). The construction facets of `SEARCH_FACETS` (`countFacet`) are
+counted one facet at a time when asked for, at the cost of the total count. Top 12 each; page
+size default 24. Filters are the `SEARCH_FACETS` registry of `@lookline/catalog`: OR within a
+facet, AND across, exclusions by SQL with unknown values kept; `keywords` (`whale|orca`) are AND-ed
+FTS concepts that skip the lexicon.
 
 ### 2.5 Explanation rendering (`src/recommend/explain.ts`)
 
@@ -1131,19 +1137,18 @@ block ≥ .4), palette (source palette families present in the result) }`.
 
 ## 4. Engine 03 — Preference feedback loop (`src/preference/*`)
 
-### 4.1 Rewards (`rewards.ts`) — exactly the 9 contract `FeedbackKind`s; variants via `context`
+### 4.1 Rewards (`rewards.ts`) — exactly the 8 contract `FeedbackKind`s; variants via `context`
 
-| kind        | reward r                       | context modifiers                                                                                                    | target vector                                                                                           |
-| ----------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| impression  | 0                              | `{ armId, weights, position, contextVector }` — never updates a vector; needed for bandit denominators               | –                                                                                                       |
-| click       | +0.10                          | –                                                                                                                    | self / gift by `forOthers`                                                                              |
-| save        | +0.40                          | –                                                                                                                    | same                                                                                                    |
-| dismiss     | −0.30                          | –                                                                                                                    | same                                                                                                    |
-| add_to_bag  | +0.60                          | –                                                                                                                    | same                                                                                                    |
-| purchase    | +1.00                          | `{ forKind }`: `self` → self; `other` → gift (`forOthers = true`); `undisclosed` → self at ×0.5 **and** gift at ×0.5 | per `forKind`                                                                                           |
-| ask_choice  | +0.35 chosen / −0.10 rejected  | `{ chosen: boolean, role: 'asker'                                                                                    | 'adviser', askId }`; adviser rows are +0.15 on the adviser's **gift** vector (what you pick for others) | asker: self; adviser: gift |
-| remix       | +0.60 kept / −0.15 swapped-out | `{ kept: boolean, sourceLookId }`; one row per source product; the remixer's self vector                             | self                                                                                                    |
-| look_create | +0.80                          | `{ lookId }`; one row per product in the Look (or the Look vector when `productId` is null)                          | self                                                                                                    |
+| kind        | reward r                       | context modifiers                                                                                                    | target vector              |
+| ----------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| impression  | 0                              | `{ armId, weights, position, contextVector }` — never updates a vector; needed for bandit denominators               | –                          |
+| click       | +0.10                          | –                                                                                                                    | self / gift by `forOthers` |
+| save        | +0.40                          | –                                                                                                                    | same                       |
+| dismiss     | −0.30                          | –                                                                                                                    | same                       |
+| add_to_bag  | +0.60                          | –                                                                                                                    | same                       |
+| purchase    | +1.00                          | `{ forKind }`: `self` → self; `other` → gift (`forOthers = true`); `undisclosed` → self at ×0.5 **and** gift at ×0.5 | per `forKind`              |
+| remix       | +0.60 kept / −0.15 swapped-out | `{ kept: boolean, sourceLookId }`; one row per source product; the remixer's self vector                             | self                       |
+| look_create | +0.80                          | `{ lookId }`; one row per product in the Look (or the Look vector when `productId` is null)                          | self                       |
 
 `reward` is written on the row at insert time. Event vector `v_e` = `product.styleVector`, or
 `look.styleVector` when only `lookId` is set. `recordFeedback(db, input)` inserts the row, applies
@@ -1292,24 +1297,22 @@ social clusters → lineage stats → trend signals (last 60 days) → manufactu
 
 ### 5.1 Relationships (`graph/relationships.ts`)
 
-`deriveRelationships(interactions (180 d), purchases, askResponses, now) → RelationshipRow[]`
+`deriveRelationships(interactions (180 d), purchases, looks, lookParticipants, now) → RelationshipRow[]`
 (`aUserId → bUserId`, contract kinds only). `weight = 1 − exp(−Σ base·2^(−age_days/30) / 4)`,
 `count` = contributing events, `lastAt` = latest event. Rows with `Σ base·decay < 0.05` dropped.
 
-| kind        | trigger                                                                                                                               | direction | base                                          |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------- | --------------------------------------------- |
-| asks        | `ASK` A→B                                                                                                                             | A→B       | 1.0                                           |
-| trusts      | `ADVISE` B→A followed by A `SAVE`/`PURCHASE` of the advised product within 7 d (`source_interaction_id` or `purchases.source_ask_id`) | A→B       | 2.0 (purchase) / 1.0 (save)                   |
-| trusts      | `ADVISE` B→A not followed                                                                                                             | A→B       | 0.3                                           |
-| inspired_by | A `REMIX` of B's Look                                                                                                                 | A→B       | 1.5                                           |
-| inspired_by | `INSPIRE` (A's purchase with `source_look_id` owned by B)                                                                             | A→B       | 2.5                                           |
-| styles      | `STYLE` B→A (B styled A / answered a style_me Ask with a Look)                                                                        | B→A       | 1.5 (+1.5 if A purchased from it within 14 d) |
-| buys_for    | `BUY_FOR` A→B                                                                                                                         | A→B       | 2.0                                           |
-| shops_with  | `TOGETHER` participants (both directions)                                                                                             | A↔B       | 1.5                                           |
-| remixed     | A `REMIX` of B's Look (inverse view)                                                                                                  | B→A       | 1.0                                           |
+| kind        | trigger                                                   | direction | base                                          |
+| ----------- | --------------------------------------------------------- | --------- | --------------------------------------------- |
+| inspired_by | A `REMIX` of B's Look                                     | A→B       | 1.5                                           |
+| inspired_by | `INSPIRE` (A's purchase with `source_look_id` owned by B) | A→B       | 2.5                                           |
+| styles      | `STYLE` B→A (B styled A with a Look)                      | B→A       | 1.5 (+1.5 if A purchased from it within 14 d) |
+| buys_for    | `BUY_FOR` A→B                                             | A→B       | 2.0                                           |
+| shops_with  | `TOGETHER` participants (both directions)                 | A↔B       | 1.5                                           |
+| remixed     | A `REMIX` of B's Look (inverse view)                      | B→A       | 1.0                                           |
 
-`trust(A, B) = clamp01(1.0·w_trusts + 0.7·w_inspired_by + 0.6·w_styles + 0.5·w_asks + 0.5·w_shops_with + 0.3·w_buys_for)`
+`trust(A, B) = clamp01(0.7·w_inspired_by + 0.6·w_styles + 0.5·w_shops_with + 0.3·w_buys_for)`
 — the `strength` used by the social channel and `social_signal`; `trusted` = top 20 by trust.
+These edges are an internal trust signal, not friendship: explicit friends are their own model (#32).
 `getUserNetwork` returns the raw rows (never rendered as scores to end users).
 
 ### 5.2 Taste clusters (`graph/cluster.ts`) and social clusters
@@ -1329,18 +1332,18 @@ lowest label, seeded by the taste cluster.
 Tree edges: `looks.parent_look_id`; Together editions are children of each `look_participants.source_look_id`.
 BFS from each root (`parent_look_id IS NULL`), visited-set guard.
 
-| column                  | definition                                                                             |
-| ----------------------- | -------------------------------------------------------------------------------------- |
-| depth                   | longest root→leaf path (root = 0)                                                      |
-| nodes                   | Looks in the tree incl. root                                                           |
-| uniquePeople            | distinct owners ∪ distinct actors of `SAVE/REACT/ASK/ADVISE/SHARE` on tree Looks       |
-| clustersReached         | distinct `users.tasteCluster` of owners (null counts as none; min 1)                   |
-| shares / asks / remixes | `SHARE` / `ASK` interactions on tree Looks; remix Looks in tree                        |
-| purchases / gmv         | `purchases.source_look_id ∈ tree`, count and Σ `price × quantity` (buyer ≠ root owner) |
-| velocity                | `(nodes − 1) / max(1, (lastAt − firstAt) in days)`                                     |
-| shareToRemixRate        | `remixes / max(shares, 1)`                                                             |
-| remixToPurchaseRate     | `purchases / max(remixes, 1)`                                                          |
-| firstAt / lastAt        | root `created_at` / latest tree Look `created_at`                                      |
+| column              | definition                                                                             |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| depth               | longest root→leaf path (root = 0)                                                      |
+| nodes               | Looks in the tree incl. root                                                           |
+| uniquePeople        | distinct owners ∪ distinct actors of `SAVE/REACT/SHARE` on tree Looks                  |
+| clustersReached     | distinct `users.tasteCluster` of owners (null counts as none; min 1)                   |
+| shares / remixes    | `SHARE` interactions on tree Looks; remix Looks in tree                                |
+| purchases / gmv     | `purchases.source_look_id ∈ tree`, count and Σ `price × quantity` (buyer ≠ root owner) |
+| velocity            | `(nodes − 1) / max(1, (lastAt − firstAt) in days)`                                     |
+| shareToRemixRate    | `remixes / max(shares, 1)`                                                             |
+| remixToPurchaseRate | `purchases / max(remixes, 1)`                                                          |
+| firstAt / lastAt    | root `created_at` / latest tree Look `created_at`                                      |
 
 `getLineage(db, lookId)` returns `LineageTree` with the root's `LineageNode` tree (≤ 200 nodes; per
 node `purchases`, `gmv`, `reactions`), `stats`, and `path` (root→look). Influencers
@@ -1357,7 +1360,7 @@ key it maps to; a Look contributes through its products, deduplicated per key. M
 0–100.
 
 Event weights: `VIEW 1, SEARCH 2 (intent_sessions rows keyed by intent aesthetics/categories/colours),
-SAVE 3, ASK 2, ADVISE 2, REACT 2, SHARE 4, LOOK_CREATE 5, REMIX 6, TOGETHER 5, INSPIRE 6, PURCHASE 10,
+SAVE 3, REACT 2, SHARE 4, LOOK_CREATE 5, REMIX 6, TOGETHER 5, INSPIRE 6, PURCHASE 10,
 BUY_FOR 10, DISMISS −1`.
 
 Per key and day `d` (window ends at `d` 23:59 local):
@@ -1367,7 +1370,7 @@ volume         = Σ weights on day d (integer, stored)
 volume_7d      = Σ d−6..d ;  volume_prev_7d = Σ d−13..d−7
 velocity       = (volume_7d − volume_prev_7d) / (volume_prev_7d + 10)
 crossCluster   = (c/k) · (H/ln c) with c = clusters contributing ≥ 2 weighted units in d−6..d, H = Shannon entropy of cluster shares; c ≤ 1 → 1/k
-conversion     = purchases_7d / (saves_7d + remixes_7d + asks_7d + 5)
+conversion     = purchases_7d / (saves_7d + remixes_7d + 5)
 gmv            = Σ purchase price×quantity carrying the key in d−6..d
 lineageReach   = 1 − exp(−Σ uniquePeople over root Looks carrying the key created in d−13..d / 50)
 volNorm        = min(1, log1p(volume_7d) / log1p(V95))   with V95 = 95th percentile of volume_7d in the dimension that day
@@ -1485,7 +1488,7 @@ DB access by module (all through `db: Database` first argument):
 | intent     | nothing (contacts/brands/trending arrive in `IntentContext` from the web layer)                                                                                                                                                                                                                                   | `intent_sessions` (web layer after `parseIntent`)                                                                                                                                                                                     |
 | recommend  | `products ⋈ brands` (§2.1), `users` (vectors, department, budgetHint), `relationships` (trust), `look_products ⋈ looks` (social channel, 30 d), `purchases`/`interactions SAVE` (social channel), `trend_signals` (today), `feedback_events` (brand counts 90 d), `bandit_state`, `max(popularity)` cached 10 min | `feedback_events` (impressions with arm/context)                                                                                                                                                                                      |
 | preference | `feedback_events`, `users`, `preference_snapshots`, `products.style_vector`, `looks.style_vector`, `bandit_state`                                                                                                                                                                                                 | `feedback_events`, `users.preference_vector/gift_preference_vector`, `preference_snapshots`, `bandit_state`                                                                                                                           |
-| analytics  | `interactions` (180 d, paged 10k), `purchases`, `asks`, `ask_responses`, `looks`, `look_products`, `look_participants`, `users`, `intent_sessions` (14 d), `products` (tagging/supply), `feedback_events` (bandit replay), `evaluation_runs` (latest)                                                             | `relationships` (transactional rebuild), `users.taste_cluster/social_cluster`, `lineage_stats`, `trend_signals` (delete-by-day + insert), `manufacturing_recommendations` (truncate + insert), `products.trend_score`, `bandit_state` |
+| analytics  | `interactions` (180 d, paged 10k), `purchases`, `looks`, `look_products`, `look_participants`, `users`, `intent_sessions` (14 d), `products` (tagging/supply), `feedback_events` (bandit replay), `evaluation_runs` (latest)                                                                                      | `relationships` (transactional rebuild), `users.taste_cluster/social_cluster`, `lineage_stats`, `trend_signals` (delete-by-day + insert), `manufacturing_recommendations` (truncate + insert), `products.trend_score`, `bandit_state` |
 
 Scripts (`packages/engine/package.json`): `analytics` (existing), `intent -- "<sentence>"` prints
 the offline and (when a key exists) LLM parse side by side for the README.
@@ -1538,7 +1541,7 @@ two taste clusters, generated by the sim with seed 7 and checked in).
 | `preference/bandit.test.ts`                                            | identity state → `balanced` wins ties; after 200 pulls where `social-led` earns .8 and others .1 under `has_trusted = 1`, it is chosen ≥ 90% for that context and `balanced` for cold users; serialize round-trip; 8×8 inverse vs known matrix; `rebuildBanditFromEvents` reproduces a state from logged impressions and rewards                                                                                                             |
 | `preference/profile.test.ts`                                           | confidence formula values; ≤ 5 aesthetics with weight ≥ .25; evidence = top-3 by `                                                                                                                                                                                                                                                                                                                                                           | r                                                                                                                                                                                                                                                                                                 | ·decay·v[tag]`; "still learning" below 3 events; `bandit.arms` pulls/meanReward from events |
 | `preference/evaluate.test.ts`                                          | seed 1, users 40, rounds 12, catalogSize 2000: criterion of §4.5; byte-identical JSON on rerun; seed 2 differs but still passes; `EvalRound` contains all contract keys plus extras; runtime < 10 s                                                                                                                                                                                                                                          |
-| `analytics/relationships.test.ts`                                      | hand-computed weights for 3 pairs incl. decay; `trusts` only when the advice is followed within 7 d (else .3); symmetric `shops_with`; pruning < .05; `trust()` composite                                                                                                                                                                                                                                                                    |
+| `analytics/relationships.test.ts`                                      | hand-computed weights for 3 pairs incl. decay; `styles` purchase bonus within 14 d; symmetric `shops_with`; pruning < .05; `trust()` composite                                                                                                                                                                                                                                                                                               |
 | `analytics/cluster.test.ts`                                            | 3 separated blobs → 3 clusters, exact membership; determinism; `chooseK` table; empty-cluster reseed; label propagation converges in ≤ 10 iterations                                                                                                                                                                                                                                                                                         |
 | `analytics/lineage.test.ts`                                            | `lk_root_1`: depth 4, nodes 9, uniquePeople 7, clustersReached 2, shares/remixes/purchases counts, `gmv` = fixture sum, velocity, rates; cycle guard; influencer ordering                                                                                                                                                                                                                                                                    |
 | `analytics/signals.test.ts`                                            | hand-computed key `korean-minimal                                                                                                                                                                                                                                                                                                                                                                                                            | outerwear`over 14 fixture days: volume, volume_7d, velocity with pseudo-count, crossCluster (even split over 2 of 8 clusters = .25), conversion, momentum ∈ [0,100] and monotone in velocity;`emerging` requires all five conditions (five single-failure negatives, one positive); status ladder |

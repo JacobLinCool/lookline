@@ -31,7 +31,7 @@ export const ui = {
     with: (handle: string) => `With @${handle}`,
   },
 
-  /** `InstantForm`, the optimistic mutation shared by shop, looks, asks and bag. */
+  /** `InstantForm`, the optimistic mutation shared by shop, looks and bag. */
   instantForm: {
     syncing: (confirmation: string) => `${confirmation} · syncing`,
     failed: 'This change could not be saved. Please retry.',
@@ -51,6 +51,8 @@ export const ui = {
     signInRequired: 'Sign in to use live filters and voice.',
     slowDown: 'Please pause briefly before trying again.',
     filtersUnavailable: 'Live filters are temporarily unavailable. Please try again.',
+    keywordsUnavailable:
+      'Keyword search is temporarily unavailable. Attribute filters still apply.',
     productsUnavailable: 'Products could not be loaded. Please try again.',
     sentenceTooLong: 'Enter a sentence of up to 500 characters.',
     recommendationsUnavailable: 'Recommendations could not be loaded. Please try again.',

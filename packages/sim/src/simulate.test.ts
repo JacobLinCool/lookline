@@ -51,7 +51,6 @@ function lineageOf(rows: MemoryRows, clusterOf: Map<string, number | null>) {
       targetUserId: i.targetUserId ?? null,
       lookId: i.lookId ?? null,
       articleId: i.articleId ?? null,
-      askId: i.askId ?? null,
       type: i.type,
       sourceInteractionId: i.sourceInteractionId ?? null,
       createdAt: i.createdAt,
@@ -65,7 +64,6 @@ function lineageOf(rows: MemoryRows, clusterOf: Map<string, number | null>) {
       forKind: p.forKind ?? 'self',
       forUserId: p.forUserId ?? null,
       sourceLookId: p.sourceLookId ?? null,
-      sourceAskId: p.sourceAskId ?? null,
       sourceInteractionId: null,
       intentSessionId: null,
       createdAt: p.createdAt,
@@ -96,8 +94,6 @@ describe('simulateSocial (in-memory sink, dry run)', () => {
     expect(summary.looks.remix).toBeGreaterThan(20)
     expect(summary.looks.together).toBeGreaterThan(0)
     expect(rows.posters).toBe(rows.looks.length)
-    expect(rows.asks.length).toBeGreaterThan(20)
-    expect(rows.answers.length).toBeGreaterThan(10)
     const types = new Set(rows.interactions.map((i) => i.type))
     for (const t of [
       'SEARCH',
@@ -106,9 +102,6 @@ describe('simulateSocial (in-memory sink, dry run)', () => {
       'DISMISS',
       'SHARE',
       'REACT',
-      'ASK',
-      'ADVISE',
-      'STYLE',
       'REMIX',
       'INSPIRE',
       'TOGETHER',
@@ -135,7 +128,6 @@ describe('simulateSocial (in-memory sink, dry run)', () => {
     // ids are deterministic and prefixed
     expect(rows.purchases.every((p) => /^pu_\d{6}$/.test(p.id))).toBe(true)
     expect(rows.looks.every((l) => /^lk_\d{6}$/.test(l.id))).toBe(true)
-    expect(rows.asks.every((a) => /^ask_\d{6}$/.test(a.id))).toBe(true)
     expect(rows.interactions.some((i) => i.id.startsWith('ix_'))).toBe(true)
     expect(rows.feedback.some((f) => f.id.startsWith('fb_'))).toBe(true)
     // timestamps stay inside the window

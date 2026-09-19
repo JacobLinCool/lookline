@@ -3,13 +3,7 @@
  * simulation without Postgres and inspect lineage/interactions. `suggestRemix` is a small
  * taste-based swap over the pool (one product per source slot, same group).
  */
-import type {
-  AnswerAskInput,
-  CreateAskInput,
-  FeedbackInput,
-  InteractionInput,
-  PurchaseInput,
-} from '@lookline/engine'
+import type { FeedbackInput, InteractionInput, PurchaseInput } from '@lookline/engine'
 import { compatibleDepartments } from '../pool'
 import { tasteSimilarity } from '../taste'
 import type { Deterministic, Persona, SearchInput, SimProduct, SimSink } from '../types'
@@ -36,8 +30,6 @@ export interface MemoryRows {
   feedback: Array<Deterministic<FeedbackInput>>
   purchases: Array<Deterministic<PurchaseInput> & { price: number }>
   looks: MemoryLook[]
-  asks: Array<Deterministic<CreateAskInput>>
-  answers: Array<Deterministic<AnswerAskInput>>
   posters: number
 }
 
@@ -54,8 +46,6 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
     feedback: [],
     purchases: [],
     looks: [],
-    asks: [],
-    answers: [],
     posters: 0,
   }
   const looksById = new Map<string, MemoryLook>()
@@ -241,35 +231,6 @@ export function createMemorySink(pool: readonly SimProduct[]): MemorySink {
         if (best) out.push(best.id)
       }
       return out
-    },
-    async createAsk(input) {
-      rows.asks.push(input)
-      rows.interactions.push({
-        id: `${input.id}_ix`,
-        actorUserId: input.askerId,
-        targetUserId: input.targetUserId ?? null,
-        type: 'ASK',
-        askId: input.id,
-        lookId: input.lookId ?? null,
-        createdAt: input.createdAt,
-      })
-    },
-    async answerAsk(input) {
-      const ask = rows.asks.find((a) => a.id === input.askId)
-      if (!ask) throw new Error(`memory sink: ask ${input.askId} not found`)
-      rows.answers.push(input)
-      if (input.responderUserId) {
-        rows.interactions.push({
-          id: `${input.id}_ix`,
-          actorUserId: input.responderUserId,
-          targetUserId: ask.askerId,
-          type: ask.kind === 'choose' ? 'ADVISE' : 'STYLE',
-          askId: ask.id,
-          articleId: input.choiceArticleId ?? null,
-          lookId: input.styledLookId ?? ask.lookId ?? null,
-          createdAt: input.createdAt,
-        })
-      }
     },
   }
   return sink

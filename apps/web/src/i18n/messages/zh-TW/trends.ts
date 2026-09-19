@@ -18,7 +18,6 @@ export const trends: TrendsMessages = {
   headline: {
     looks: '新建 Look',
     remixes: '改作次數',
-    asks: '提問次數',
     togethers: '共創版本',
     shares: '分享次數',
     purchasesFromLooks: '由 Look 帶來的購買',
@@ -177,7 +176,6 @@ export const trends: TrendsMessages = {
       people: '觸及人數',
       clusters: '觸及品味分群',
       shares: '分享',
-      asks: '提問',
       remixes: '改作',
       purchases: '購買',
       gmv: '下游 GMV',
