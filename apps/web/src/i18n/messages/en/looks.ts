@@ -41,7 +41,7 @@ export const looks = {
     noPhotoSelected: 'No photo selected',
     savedPhotoSelected: 'Saved photo selected',
     generatedModel: 'Rendering will use a generated model.',
-    newPhoto: (name: string) => `New photo: ${name}`,
+    newPhoto: 'New photo',
     rememberPhoto: 'Remember this photo',
     useSavedPhoto: 'Use my saved photo',
     occasion: 'Occasion (optional)',

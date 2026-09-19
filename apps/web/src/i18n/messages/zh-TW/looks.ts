@@ -36,7 +36,7 @@ export const looks: LooksMessages = {
     noPhotoSelected: '尚未選擇照片',
     savedPhotoSelected: '已選擇儲存的照片',
     generatedModel: '生成時將使用虛擬模特兒。',
-    newPhoto: (name: string) => `新照片：${name}`,
+    newPhoto: '新照片',
     rememberPhoto: '記住這張照片',
     useSavedPhoto: '使用已存的照片',
     occasion: '場合（選填）',

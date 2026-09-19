@@ -10,7 +10,7 @@ interface PhotoLabels {
   empty: string
   selected: string
   generated: string
-  newPhoto: (name: string) => string
+  newPhoto: string
   remember: string
   useSaved: string
 }
@@ -73,7 +73,7 @@ export function ReferencePhotoField({
           />
           <p className="truncate text-[12px] text-muted">
             {selectedName
-              ? labels.newPhoto(selectedName)
+              ? `${labels.newPhoto}: ${selectedName}`
               : previewUrl
                 ? labels.selected
                 : labels.generated}
