@@ -59,6 +59,8 @@ export interface RankUser {
   budgetHint: number | null
   brandCounts: Map<number, BrandCounts>
   trusted: TrustedUser[]
+  /** Signup time, for the bandit's `daysSinceSignup` context dimension (§4.4). */
+  createdAt?: Date | null
 }
 
 export interface TrendStat {

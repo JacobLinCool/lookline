@@ -74,6 +74,8 @@ export interface RecommendOk {
   candidates: number
   weights: Record<FactorName, number>
   timings: Record<string, number>
+  /** The bandit's blend arm, logged on every impression of this slate (§4.4). */
+  arm?: { name: string; contextVector: number[] }
 }
 
 export interface Recommendation {
@@ -487,6 +489,7 @@ export async function recommendFor(
       candidates: response.candidates,
       weights: response.weights,
       timings: response.timings,
+      arm: response.arm,
     }
   } catch (error) {
     result = describeEngineError(error, 'recommend')
@@ -532,6 +535,10 @@ export async function recommendFor(
             intentSessionId: sessionId,
             position: index + 1,
             forOthers: parse.intent.recipient.kind === 'other',
+            // Without both of these the slate's reward cannot be attributed to the arm (§4.4).
+            ...(result.arm
+              ? { context: { armId: result.arm.name, contextVector: result.arm.contextVector } }
+              : {}),
           }),
         ),
       )
