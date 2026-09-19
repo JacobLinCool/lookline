@@ -1,12 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
+  and,
   askResponses,
   asks,
   brands,
   count,
   desc,
   eq,
+  gt,
   inArray,
   lookParticipants,
   lookProducts,
@@ -14,6 +16,7 @@ import {
   or,
   products,
   purchases,
+  previews,
   users,
 } from '@lookline/db'
 import { getPreferenceProfile, getUserNetwork } from '@lookline/engine'
@@ -22,6 +25,7 @@ import { AsksPanel, type ReceivedAsk, type SentAsk } from '@/components/me/asks'
 import { Circle } from '@/components/me/circle'
 import { EditionsGrid, type EditionItem } from '@/components/me/editions'
 import { ProfileCard } from '@/components/me/profile-card'
+import { PreviewGrid } from '@/components/me/previews'
 import { Wardrobe, type WardrobeRow } from '@/components/me/wardrobe'
 import { callEngine } from '@/components/trends/engine-guard'
 import { getI18n } from '@/i18n/server'
@@ -38,6 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const EDITIONS_LIMIT = 48
 const WARDROBE_LIMIT = 60
 const ASKS_LIMIT = 30
+const PREVIEWS_LIMIT = 12
 
 /** Looks the user owns or took part in, newest first, with owner and lineage hint. */
 async function loadEditions(userId: string, madeTogether: string): Promise<EditionItem[]> {
@@ -109,6 +114,21 @@ async function loadWardrobe(userId: string): Promise<WardrobeRow[]> {
     .limit(WARDROBE_LIMIT)
 }
 
+async function loadPreviews(userId: string) {
+  return getDb()
+    .db.select({
+      id: previews.id,
+      title: previews.title,
+      imagePath: previews.imagePath,
+      imageStatus: previews.imageStatus,
+      expiresAt: previews.expiresAt,
+    })
+    .from(previews)
+    .where(and(eq(previews.ownerId, userId), gt(previews.expiresAt, new Date())))
+    .orderBy(desc(previews.createdAt))
+    .limit(PREVIEWS_LIMIT)
+}
+
 async function loadAsks(userId: string): Promise<{ sent: SentAsk[]; received: ReceivedAsk[] }> {
   const { db } = getDb()
   const [sentRows, received] = await Promise.all([
@@ -166,14 +186,16 @@ export default async function MePage({
   const [{ t, locale }, params] = await Promise.all([getI18n(), searchParams])
   const showAll = params.all === '1'
   const { db } = getDb()
-  const [editions, wardrobe, askData, profile, network, engineView] = await Promise.all([
-    callEngine('editions', () => loadEditions(user.id, t.me.looks.madeTogether)),
-    callEngine('wardrobe', () => loadWardrobe(user.id)),
-    callEngine('asks', () => loadAsks(user.id)),
-    callEngine('getPreferenceProfile', () => getPreferenceProfile(db, user.id)),
-    callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
-    isEngineView(),
-  ])
+  const [editions, previewItems, wardrobe, askData, profile, network, engineView] =
+    await Promise.all([
+      callEngine('editions', () => loadEditions(user.id, t.me.looks.madeTogether)),
+      callEngine('previews', () => loadPreviews(user.id)),
+      callEngine('wardrobe', () => loadWardrobe(user.id)),
+      callEngine('asks', () => loadAsks(user.id)),
+      callEngine('getPreferenceProfile', () => getPreferenceProfile(db, user.id)),
+      callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
+      isEngineView(),
+    ])
   const unavailable = <Notice tone="warning">{t.me.sectionUnavailable}</Notice>
   const moreLink =
     'text-[13px] text-muted underline decoration-line underline-offset-4 hover:text-ink'
@@ -211,6 +233,10 @@ export default async function MePage({
         ) : (
           unavailable
         )}
+      </Section>
+
+      <Section title={t.me.previews.title}>
+        {previewItems.ok ? <PreviewGrid items={previewItems.value} /> : unavailable}
       </Section>
 
       <Section

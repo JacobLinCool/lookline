@@ -13,6 +13,18 @@ export const me: MeMessages = {
     madeTogether: '一起做的',
   },
 
+  previews: {
+    title: '限時預覽',
+    empty: '目前沒有可用的預覽',
+    emptyDescription: '結帳前預覽一套穿搭後，會在這裡保留 24 小時。',
+    expires: (value: string) => `${value} 到期`,
+    status: {
+      preparing: '準備中',
+      ready: '已完成',
+      failed: '需要重試',
+    },
+  },
+
   wardrobe: {
     title: '衣櫥',
     empty: '這裡還是空的',

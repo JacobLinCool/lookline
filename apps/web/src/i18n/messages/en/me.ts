@@ -1,4 +1,4 @@
-/** `/me`: the viewer's Looks, Wardrobe, taste, People and Asks. */
+/** `/me`: the viewer's Looks, temporary previews, Wardrobe, taste, People and Asks. */
 export const me = {
   metaTitle: 'Wardrobe',
   profileMeta: (handle: string, since: string) => `@${handle} · member since ${since}`,
@@ -10,6 +10,18 @@ export const me = {
     title: 'Looks',
     empty: 'No Looks yet',
     madeTogether: 'Made together',
+  },
+
+  previews: {
+    title: 'Temporary previews',
+    empty: 'No active previews',
+    emptyDescription: 'Preview an outfit before checkout and it will stay here for 24 hours.',
+    expires: (value: string) => `Expires ${value}`,
+    status: {
+      preparing: 'Preparing',
+      ready: 'Ready',
+      failed: 'Needs retry',
+    },
   },
 
   wardrobe: {
