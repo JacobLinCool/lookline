@@ -11,7 +11,8 @@ matching products as input changes; Apply or finalized speech commits resolved f
 | Direct selection, validation, price parsing and set operations     | Application code                    | Exact filter state                |
 | Known categories, colour families, aesthetics, department and sort | TypeSafe `jev-1.13.0`               | Validated Choice decisions        |
 | Streaming microphone audio                                         | Gemini `gemini-3.5-transcribe-live` | Interim and finalized transcripts |
-| Open-ended Say it intent understanding                             | Luna / Gemini Flash-Lite            | Intent and suggestions            |
+| Sentence parsing: catalog attributes, occasion, season, department | TypeSafe `jev-1.13.0`               | Intent slots (ENGINE_SPEC §1.3)   |
+| Say it sentences the decision cannot finish (reference, recipient) | Luna / Gemini Flash-Lite            | Intent and suggestions            |
 | Edition artwork                                                    | Flare / Gemini image                | Generated image                   |
 
 Jev uses `POST https://api.typesafe.ai/v1/systemone`, batching independent questions. It is separate
