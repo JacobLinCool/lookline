@@ -1,6 +1,6 @@
 import { createLocalDb } from '@lookline/db/node'
 import { afterAll, describe, expect, it } from 'vitest'
-import { FACET_SAMPLE, aggregateFacets, buildSearchQuery, planSearch, scanQuery } from './search'
+import { aggregateFacets, buildSearchQuery, planSearch, scanQuery } from './search'
 
 describe('scanQuery', () => {
   it('maps 中文 and English taxonomy terms to filters and keeps the residual text', () => {
@@ -48,6 +48,18 @@ describe('buildSearchQuery', () => {
         expect.arrayContaining(['tops', 'outerwear', 'black', 'blue', 'red', 'footwear', 3000]),
       )
     }
+  })
+
+  it('counts facets over every matching row, never a slice of the planner scan order', () => {
+    // A `limit` here samples whatever index the planner picks. Under `category_group IN (…)` that
+    // is the category index, so the slice is all one group and every other group counts zero.
+    // Rendered through the dialect because a raw `sql` chunk keeps its text in `value[]`.
+    const { facets } = buildSearchQuery(handle.db, { categoryGroups: ['bottoms', 'dresses'] })
+    const rendered = (
+      handle.db as unknown as { dialect: { sqlToQuery: (q: typeof facets) => { sql: string } } }
+    ).dialect.sqlToQuery(facets).sql
+    expect(rendered).toContain('group by')
+    expect(rendered.toLowerCase()).not.toContain('limit')
   })
 
   it('renders filters, the FTS5 text predicate, sort and pagination', () => {
@@ -130,17 +142,15 @@ describe('aggregateFacets', () => {
       { dim: 'color', key: 'black', n: 3 },
       { dim: 'color', key: '', n: 3 },
     ]
-    const f = aggregateFacets(rows, 100)
+    const f = aggregateFacets(rows)
     expect(f.aesthetics.length).toBe(12)
     expect(f.aesthetics[0]!.key).toBe('a14')
     expect(f.categoryGroups.map((x) => x.key)).toEqual(['bottoms', 'tops'])
     expect(f.colorFamilies).toEqual([{ key: 'black', count: 3 }])
   })
 
-  it('counts are exact at or below the sample size and scale up beyond it', () => {
-    const rows = [{ dim: 'group', key: 'tops', n: 1130 }]
-    expect(aggregateFacets(rows, FACET_SAMPLE).categoryGroups[0]!.count).toBe(1130)
-    // 94,071 products, 1,130 tops in the 5,000-row sample → ~21,260 (the seed really holds 21,279)
-    expect(aggregateFacets(rows, 94_071).categoryGroups[0]!.count).toBe(21_260)
+  it('reports the counts as given, since they already cover the whole filtered set', () => {
+    const rows = [{ dim: 'group', key: 'bottoms', n: 12_909 }]
+    expect(aggregateFacets(rows).categoryGroups[0]!.count).toBe(12_909)
   })
 })

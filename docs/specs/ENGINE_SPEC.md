@@ -953,10 +953,11 @@ price within [0.5, 2]×), retrieval 60, rank with λ .25, limit 12.
 OR trigram `name % q`, plus the lexicon parse of `q` mapped to filters (`parseIntentOffline` with
 `mode` forced browse); filters from `ProductSearch`; sorts: relevance = `ts_rank + 0.3·cos(intentVector)`,
 `popular` = popularity desc, `trending` = trend_score desc, `new` = created_at desc; facets by
-`count(*) GROUP BY` on a `FACET_SAMPLE`-row sample of the filtered set, scaled by `total / sample`
-so the counts match the `total` shown beside them (exact at or below the sample size; a full
-GROUP BY over the catalog costs ~15× more and `/shop` pays it per request), top 12 each; page size
-default 24.
+`count(*) GROUP BY` on the filtered set — every matching row, never a `LIMIT`ed slice of it: an
+unordered limit follows whichever index the planner picks, and under `category_group IN (…)` that
+is the category index, so the slice is all one group and the rest count zero. 231 ms over the
+94k-row catalog and 63 ms once filtered, against the 400 ms the latency spec gives a filter. Top
+12 each; page size default 24.
 
 ### 2.5 Explanation rendering (`src/recommend/explain.ts`)
 
