@@ -210,6 +210,21 @@ export default async function LookPage({
                 {t.looks.detail.madeWith(participants.map((p) => p.displayName))}
               </p>
             ) : null}
+            {isOwner && owner.photoPath ? (
+              <div className="mt-1 flex items-center gap-3 rounded-sm border border-line bg-card p-2.5">
+                <img
+                  src="/api/me/photo"
+                  alt="Saved reference photo"
+                  className="h-14 w-11 shrink-0 rounded-xs object-cover"
+                />
+                <div className="min-w-0">
+                  <p className="text-[12px] font-medium">Reference photo</p>
+                  <p className="text-[12px] leading-snug text-muted">
+                    Your current saved photo will guide the next render.
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-2">
