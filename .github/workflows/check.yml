@@ -1,0 +1,88 @@
+# `pnpm check` on every pull request, because nothing else here says no.
+#
+# Two classes of thing reached `main` without anything stopping them: branches
+# whose `format:check` was red, so the suite behind it never ran, and three
+# separate migrations numbered against the same index because each branch
+# counted from the same place. Both are cheap to catch here and expensive to
+# find after a merge.
+name: check
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # format:check, lint, typecheck, test, build — in that order, so a
+      # formatting slip does not hide a failing test behind it.
+      - run: pnpm check
+
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: journal indices are unique and every entry has its file
+        run: |
+          node --input-type=module -e '
+            import { readFileSync, existsSync } from "node:fs";
+            const journal = JSON.parse(readFileSync("packages/db/drizzle/meta/_journal.json", "utf8"));
+            const seen = new Map();
+            let bad = false;
+            for (const e of journal.entries) {
+              if (seen.has(e.idx)) {
+                console.error(`duplicate idx ${e.idx}: ${seen.get(e.idx)} and ${e.tag}`);
+                bad = true;
+              }
+              seen.set(e.idx, e.tag);
+              const file = `packages/db/drizzle/${e.tag}.sql`;
+              if (!existsSync(file)) {
+                console.error(`journal names ${e.tag} but ${file} is missing`);
+                bad = true;
+              }
+            }
+            if (bad) process.exit(1);
+            console.log(`${journal.entries.length} migrations, indices unique, every file present`);
+          '
+
+      # A snapshot that disagrees with `schema.ts` makes the next `generate`
+      # emit a migration for a column that already exists.
+      - name: schema matches the newest snapshot
+        run: |
+          pnpm --filter @lookline/db generate
+          if ! git diff --quiet -- packages/db/drizzle; then
+            echo "::error::drizzle-kit generate changed packages/db/drizzle — the snapshot is behind schema.ts"
+            git --no-pager diff --stat -- packages/db/drizzle
+            exit 1
+          fi
+          echo "no schema drift"
