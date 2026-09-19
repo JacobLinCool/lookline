@@ -39,6 +39,7 @@ import {
   eq,
   isNotNull,
   isNull,
+  sql,
 } from '@lookline/db'
 import type { NewArticleVision } from '@lookline/db'
 import { createLocalDb, loadEnv, migrateLocal } from '@lookline/db/node'
@@ -60,6 +61,8 @@ const webpDir =
   process.env['IMG_OUT'] ?? fileURLToPath(new URL('../../../data/hm/webp', import.meta.url))
 const limit = Number(process.env['VISION_LIMIT'] ?? 0) || null
 const concurrency = Number(process.env['VISION_CONCURRENCY'] ?? 32)
+const shards = Math.max(1, Number(process.env['VISION_SHARDS'] ?? 1))
+const shard = Math.max(0, Math.min(shards - 1, Number(process.env['VISION_SHARD'] ?? 0)))
 
 /** Per million tokens, gpt-5.6-luna, standard (not Batch) rates. */
 const PRICE = { input: 0.2, cached: 0.02, output: 1.2 }
@@ -72,11 +75,14 @@ const { db } = handle
 // as journal_mode=delete, where a reader blocks a writer, and libsql leaves busy_timeout at 0 —
 // so one `sqlite3 "select count(*)"` to see how far it had got took a SHARED lock and failed the
 // next write instantly. WAL lets readers and the writer coexist; the timeout covers the rest.
+// The timeout goes first: switching journal modes takes a brief exclusive lock, and with
+// shards starting together the second process to ask got SQLITE_BUSY_RECOVERY and died
+// before it had a timeout to wait on.
+await handle.client.execute('pragma busy_timeout = 30000')
 await handle.client.execute('pragma journal_mode = wal')
 // Under WAL this fsyncs at checkpoints rather than on every commit. The run is resumable from
 // `article_vision`, so the worst a power cut costs is the last few readings, re-read next time.
 await handle.client.execute('pragma synchronous = normal')
-await handle.client.execute('pragma busy_timeout = 30000')
 console.log(`database ${handle.url}`)
 
 // Only photographed articles with no reading at the current version; a bumped VISION_VERSION
@@ -94,12 +100,20 @@ const pending = await db
   })
   .from(articlesTable)
   .leftJoin(articleVisionTable, eq(articleVisionTable.articleId, articlesTable.id))
-  .where(and(isNull(articleVisionTable.articleId), isNotNull(articlesTable.imagePath)))
+  .where(
+    and(
+      isNull(articleVisionTable.articleId),
+      isNotNull(articlesTable.imagePath),
+      // H&M's ids are ten digits, so they divide evenly and cheaply. `1` leaves this a no-op.
+      shards > 1 ? sql`cast(${articlesTable.id} as integer) % ${shards} = ${shard}` : undefined,
+    ),
+  )
   .orderBy(desc(articlesTable.popularity))
   .limit(limit ?? 1_000_000)
 
 console.log(
   `${pending.length} articles to read with ${model}, ${concurrency} at a time` +
+    (shards > 1 ? ` (shard ${shard + 1}/${shards})` : '') +
     (limit ? ` (limited to ${limit})` : ''),
 )
 if (pending.length === 0) {
