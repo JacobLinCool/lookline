@@ -70,6 +70,18 @@ pnpm exec wrangler r2 bucket info lookline-media
 resources and only touch production with `--remote` — a silent no-op against the real data
 otherwise. `r2 bucket info` reports usage on a delay, so `object_count` lags a fresh upload.
 
+### The dev server against production data
+
+`pnpm dev:remote` (equivalently `LOOKLINE_REMOTE=1 pnpm dev`) starts the same dev server with `DB`
+and `STORAGE` bound to the real `lookline` database and `lookline-media` bucket instead of their
+local simulations. Vite prints the binding table at startup and both read `remote` when it is on;
+plain `pnpm dev` is untouched.
+
+Every query is then a real D1 read or write — billed, and irreversible in the way a local reset is
+not — and each one pays a round trip to Cloudflare, so latency measured in this mode says nothing
+about production. Secrets still come from `.dev.vars` and `ASSETS` stays local: only the two
+resource bindings move.
+
 ### Images only
 
 For someone who just reads or writes Look images, skip the account token: R2 → **Manage R2 API
