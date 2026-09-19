@@ -109,3 +109,12 @@ cannot both take it.
 | `collection_members`    | Which personas take part and which of their personal cards they bring. Keyed by `(collection_id, persona_id)` — three personas on one account are three members, not one.                                                                                                                |
 | `collection_editions`   | One artwork made from one credit, with `edition_size` = the number of participating personas at issue time.                                                                                                                                                                              |
 | `card_copies`           | One persona's numbered share of an edition (`edition_number` of `edition_size`), with its own verification code. Unique per `(edition, number)` and per `(edition, beneficiary)`, so a persona holds exactly one copy and transferring one persona moves exactly that copy.              |
+
+## Home discovery and explicit sharing
+
+`friendships` stores one ordered pair, its requester and pending/accepted state. Only the invited
+participant may accept. `activity_sharing` stores explicit purchase-sharing consent (off by default).
+`recent_article_views` materializes each user's latest actual VIEW per article for indexed recent
+history. Finalized `cards.visibility` is private/link/public, default link; current persona ownership
+controls changes. Discovery only includes public finalized cards from accepted friends.
+See [Home discovery](specs/HOME_DISCOVERY_SPEC.md) for ranking, bounded query costs and migration.

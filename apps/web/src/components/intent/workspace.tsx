@@ -1,21 +1,8 @@
 'use client'
 
+import { DiscoveryHome } from '@/components/discovery/home'
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react'
-import {
-  Button,
-  Container,
-  LookCard,
-  Notice,
-  ProductCard,
-  Rail,
-  RailItem,
-  Section,
-  SkeletonCard,
-  Tag,
-  type LookCardLook,
-  type LookCardOwner,
-  type ProductCardData,
-} from '@/components/ui'
+import { Button, Container, Notice, Section, SkeletonCard, Tag } from '@/components/ui'
 import { useI18n } from '@/i18n/client'
 import { afterPaint, LATENCY, startInteraction, type InteractionTrace } from '@/lib/latency'
 import { readIntentStream } from '@/lib/intent-stream'
@@ -28,25 +15,14 @@ import { intentHref, type IntentQuery } from './urls'
 
 type Result = { understanding: Understanding; recommendation: Recommendation }
 
-export interface HomeLook {
-  look: LookCardLook
-  owner: LookCardOwner
-}
-
-export type HomeProduct = ProductCardData
-
 export function IntentWorkspace({
   initialQuery,
   signedIn,
   engineView = false,
-  networkLooks = [],
-  trending = [],
 }: {
   initialQuery: IntentQuery
   signedIn: boolean
   engineView?: boolean
-  networkLooks?: HomeLook[]
-  trending?: HomeProduct[]
 }) {
   const { t } = useI18n()
   const initialKey = JSON.stringify(initialQuery)
@@ -202,34 +178,12 @@ export function IntentWorkspace({
   if (!query.q) {
     return (
       <Container className="pb-24">
-        <section className="flex flex-col gap-5 pt-10 md:pt-16">
+        <section className="flex flex-col gap-5 pt-6 md:pt-16">
           <h1 className="display text-[28px] md:text-[40px]">{t.home.hero.title}</h1>
           <SayItForm key="hero" q="" onQuery={(q) => void run({ q })} />
         </section>
 
-        {networkLooks.length > 0 ? (
-          <Rail
-            title={signedIn ? t.home.rails.circle : t.home.rails.network}
-            className="mt-12 md:mt-16"
-            itemWidth="md"
-          >
-            {networkLooks.map(({ look, owner }, i) => (
-              <RailItem key={look.id} width="md">
-                <LookCard look={look} owner={owner} priority={i < 4} />
-              </RailItem>
-            ))}
-          </Rail>
-        ) : null}
-
-        {trending.length > 0 ? (
-          <Rail title={t.home.rails.trending} className="mt-12" itemWidth="md">
-            {trending.map((product, i) => (
-              <RailItem key={product.id} width="md">
-                <ProductCard product={product} priority={i < 4} />
-              </RailItem>
-            ))}
-          </Rail>
-        ) : null}
+        <DiscoveryHome signedIn={signedIn} />
       </Container>
     )
   }

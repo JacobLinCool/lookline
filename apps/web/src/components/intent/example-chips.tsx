@@ -27,15 +27,15 @@ export function ExampleChips({ examples, inputId, className }: ExampleChipsProps
   }
   return (
     <ul
-      className={className ?? 'flex max-w-full flex-wrap gap-2'}
+      className={className ?? 'flex max-w-full gap-2 overflow-x-auto md:flex-wrap'}
       aria-label={t.home.sayIt.examplesLabel}
     >
       {examples.map((example) => (
-        <li key={example} className="min-w-0 max-w-full">
+        <li key={example} className="min-w-0 max-w-[90%] shrink-0 md:max-w-full">
           <a
             href={intentHref({ q: example })}
             onClick={(event) => pick(event, example)}
-            className="block h-9 max-w-full truncate rounded-sm border border-line bg-card px-3 text-[13px] leading-9 text-ink transition-colors hover:border-ink md:max-w-[24rem]"
+            className="block h-11 max-w-full truncate rounded-sm border border-line bg-card px-3 text-[13px] leading-[44px] text-ink md:h-9 md:leading-9 transition-colors hover:border-ink md:max-w-[24rem]"
           >
             {example}
           </a>

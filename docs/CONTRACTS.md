@@ -197,3 +197,11 @@ Authorisation, stated once so every caller enforces the same thing: the signed-i
 only on personas whose `ownerUserId` is itself; it may dress them only in what `availableArticles`
 returns for it; a card's author is fixed at issue whoever later holds it; and a transfer may be
 accepted only by its named recipient, once, before it expires.
+
+## Home discovery
+
+`@lookline/engine/discovery` owns `trending`, `preferences`, `recent`, `recordArticleView`,
+`friendActivity`, explicit invitation/acceptance/removal and sharing operations. The web endpoints
+never accept an alternate user ID for personalized reads or VIEW writes. Friendship is an explicit
+recipient-confirmed relationship, not an inferred recommendation edge. See
+[Home discovery](specs/HOME_DISCOVERY_SPEC.md) for DTOs' semantics, permission and query boundaries.

@@ -99,6 +99,13 @@
       "when": 1790080000000,
       "tag": "0014_retire_asks",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1789851531664,
+      "tag": "0015_home_discovery",
+      "breakpoints": true
     }
   ]
 }

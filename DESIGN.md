@@ -196,6 +196,16 @@ title row, then a horizontally scrolling track that bleeds to the viewport edge 
 items, and hides its scrollbar. Item widths: sm 8.5/10.5rem, md 10.5/13rem, lg 14/17rem, xl 17/22rem
 (phone/desktop).
 
+**Home discovery (`/`, before a query).** Natural-language search opens the page above clearly
+named horizontal rails: Trending, two preference groups, recently viewed products and friends'
+activity. The shared ProductCard carries real catalog photography in its existing 3:4 frame.
+At phone widths, example sentences occupy one horizontally scrolling row of 44px controls so
+Trending photography remains in the first viewport at 375px; from 768px the examples can wrap
+and use 36px controls. Discovery cards are 168px wide below 768px and 208px above, with 16px gaps.
+Each track reserves 352px on phones and 410px from 768px across content and state changes.
+The first header reserves 80px; later headers reserve 112px on phones and 80px from 768px,
+leaving room for localized titles and a short explanation beside the paging controls.
+
 **Grids.** Catalogs and wardrobes use 2 columns on phones, 3 at 48rem, 4 at 80rem.
 
 **Shop Talk (`/shop-talk`).** At 1280px and above, a 13rem filter rail sits beside a narrower
@@ -217,7 +227,7 @@ Makalot, Prototype tour, Engine lab, the Engine view switch.
 ### Named rules
 
 **The First Viewport Rule.** On every page the largest thing above the fold is an image; on Find it
-is the input sitting over a rail of real Looks. Controls never push content below the fold on a
+is the input sitting over a rail of real garments. Controls never push content below the fold on a
 390px screen.
 
 **The Rail-or-Grid Rule.** Curated sets hang on rails; catalogs stand in grids. Never a stack of
@@ -279,6 +289,26 @@ line, at most one supporting line, one action.
 
 `Section` draws a rail line and a title row; `Rail` draws a title row over a scrolling track.
 Neither renders an eyebrow.
+
+### Home discovery rails
+
+Each rail has a signage title (20px on phones, 22px from 768px), an optional muted explanation
+(13px) and two labelled 44px paging buttons. Each track scrolls independently by touch, buttons
+or keyboard; arrow keys page the focused track, while Home and End reach its edges. Buttons
+reflect the current scroll boundary. Paging is smooth unless reduced motion is requested.
+The track exposes its name and busy state to assistive technology.
+
+Trending, preferences, recent history and friends' activity load independently; the two
+preference rails share their request. Skeletons match the product geometry. A failed group
+keeps its own retry control, while signed-out and empty states use the recessed panel tone
+with a relevant action. Existing product captions and friend attribution remain outside the
+photography; Look Cards retain their own imagery and link to the card detail.
+
+### Example sentence controls
+
+White paper controls with a rail border and the shared control radius. Each example remains a
+real search link; enhanced interaction fills and submits the sentence field. Long labels truncate
+within the phone's single scrolling row, and the border turns ink on hover.
 
 ### Progress
 
