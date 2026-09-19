@@ -108,7 +108,7 @@ interface Placed {
  * seeded drift and a few degrees of tilt so the pieces read as placed by hand, never scattered.
  */
 function composeShapes(input: LookPosterInput, rng: Rng, ink: string): Placed[] {
-  const items = input.products.slice(0, MAX_SHAPES)
+  const items = input.articles.slice(0, MAX_SHAPES)
   const areaTop = 190
   const areaBottom = 780
   const areaLeft = 90
@@ -293,7 +293,7 @@ export function renderLookPosterSvg(input: LookPosterInput): string {
     `<rect x="${MARGIN}" y="${paletteBarY}" width="${fmt(barW)}" height="12" fill="none" stroke="${mixHex(ink, bg, 0.7)}" stroke-width="1"/>`,
   )
   parts.push(
-    `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.products.length} piece${input.products.length === 1 ? '' : 's'}`)}</text>`,
+    `<text x="${POSTER_WIDTH - MARGIN}" y="${paletteBarY + 11}" text-anchor="end" font-family="${SANS}" font-size="16" fill="${muted}">${escapeXml(`${input.articles.length} piece${input.articles.length === 1 ? '' : 's'}`)}</text>`,
   )
 
   parts.push('</svg>')

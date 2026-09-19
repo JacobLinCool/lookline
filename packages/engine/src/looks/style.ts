@@ -1,8 +1,8 @@
 /**
- * `deriveLookStyle(products)`: the Look's aesthetics, palette and 64-d style vector derived from
- * its products (docs/CONTRACTS.md "createLook … computes aesthetics, palette, styleVector").
+ * `deriveLookStyle(articles)`: the Look's aesthetics, palette and 64-d style vector derived from
+ * its articles (docs/CONTRACTS.md "createLook … computes aesthetics, palette, styleVector").
  */
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import {
   AESTHETICS,
   aestheticIndex,
@@ -24,9 +24,9 @@ const RELATIVE_FLOOR = 0.35
  * Style vector: L2-normalised mean of the product vectors.
  */
 export function deriveLookStyle(
-  products: ReadonlyArray<Pick<Product, 'styleVector' | 'aesthetics' | 'colorHex'>>,
+  articles: ReadonlyArray<Pick<Article, 'styleVector' | 'aesthetics' | 'colorHex'>>,
 ): LookStyle {
-  const vectors = products.map((p) => sanitizeVector(p.styleVector))
+  const vectors = articles.map((p) => sanitizeVector(p.styleVector))
   const blend = vectors.length > 0 ? blendVectors(vectors) : zeroVector()
 
   const weights = AESTHETICS.map((a) => ({ slug: a.slug, weight: blend[a.index] ?? 0 }))
@@ -40,7 +40,7 @@ export function deriveLookStyle(
       .map((a) => a.slug)
   } else {
     const votes = new Map<string, number>()
-    for (const p of products) {
+    for (const p of articles) {
       p.aesthetics.forEach((slug, i) => {
         if (aestheticIndex(slug) < 0) return
         votes.set(slug, (votes.get(slug) ?? 0) + (i === 0 ? 1 : 0.5))
@@ -54,7 +54,7 @@ export function deriveLookStyle(
 
   const seen = new Set<string>()
   const palette: string[] = []
-  for (const p of products) {
+  for (const p of articles) {
     const hex = normalizeHex(p.colorHex)
     if (!hex || seen.has(hex)) continue
     seen.add(hex)

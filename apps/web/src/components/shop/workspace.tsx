@@ -110,7 +110,7 @@ export function ShopWorkspace({
     productsRequest.current = controller
     setLoading(true)
     try {
-      const response = await fetch(`/api/products/search?${searchToParams(next)}`, {
+      const response = await fetch(`/api/articles/search?${searchToParams(next)}`, {
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
       })
       const data = await response.json()
@@ -505,7 +505,7 @@ export function ShopWorkspace({
         <label className={cn(styles.sort, 'ml-auto')}>
           Sort
           <select
-            aria-label="Sort products"
+            aria-label="Sort articles"
             value={search.sort ?? 'relevance'}
             onChange={(event) =>
               manual({ ...search, sort: event.target.value as ProductSearch['sort'], page: 1 })

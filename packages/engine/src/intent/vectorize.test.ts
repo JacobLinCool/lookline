@@ -83,12 +83,12 @@ describe('intentToVector (§1.9)', () => {
     expect(v[axisIndex('trendiness')]).toBe(0.65)
   })
 
-  it('is deterministic and referenceLookVector averages products with G zeroed', () => {
+  it('is deterministic and referenceLookVector averages articles with G zeroed', () => {
     const intent = parseIntentOffline('office outfit for summer', FIXTURE_CTX)
     expect(intentToVector(intent)).toEqual(intentToVector(intent))
     const a = zeroVector().map((_, i) => (i === 0 || i === 52 ? 1 : 0))
     const b = zeroVector().map((_, i) => (i === 1 || i === 53 ? 1 : 0))
-    const ref = referenceLookVector({ products: [{ styleVector: a }, { styleVector: b }] })!
+    const ref = referenceLookVector({ articles: [{ styleVector: a }, { styleVector: b }] })!
     expect(ref[0]).toBeCloseTo(0.5, 6)
     expect(ref[52]).toBe(0)
     expect(referenceLookVector({ styleVector: a })).toEqual(a)

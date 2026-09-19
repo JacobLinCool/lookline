@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { brands, eq, insertAll, looks, products, users } from '@lookline/db'
+import { brands, eq, insertAll, looks, articles, users } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
 import { generateBrands, generateProduct } from '@lookline/catalog'
 import { setLlm, type LlmImageResult } from '@lookline/engine'
@@ -19,7 +19,7 @@ describe('persisted image operations', () => {
   const ownerId = 'qa_latency_owner'
   let handle: DbHandle
   let storage: ReturnType<typeof memoryStorage>
-  let productId: number
+  let articleId: number
   beforeAll(async () => {
     handle = await createTestDb()
     setDb(handle.db)
@@ -43,8 +43,8 @@ describe('persisted image operations', () => {
       { maxParams: 30_000 },
     )
     const product = generateProduct(1, 1, brandRecords)
-    await handle.db.insert(products).values(product)
-    productId = product.id
+    await handle.db.insert(articles).values(product)
+    articleId = product.id
     await handle.db.insert(users).values({
       id: ownerId,
       handle: ownerId,
@@ -79,7 +79,7 @@ describe('persisted image operations', () => {
     const draft = await createLookDraft({
       id,
       ownerId,
-      productIds: [productId],
+      articleIds: [articleId],
       stylePreset: 'studio-minimal',
       title: 'Latency composition',
     })

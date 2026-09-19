@@ -58,7 +58,7 @@ console.log(
   plan.trendSeeds.map((s) => `${s.seed.slug} carrier=${s.carrierId} looks=${s.lookIds.length}`),
 )
 const t3 = performance.now()
-const products = [...generateCatalog({ seed: 20260918, size: 4000 })]
+const articles = [...generateCatalog({ seed: 20260918, size: 4000 })]
   .filter((p) => (p.stock ?? 0) > 0)
   .map((p) => ({
     ...p,
@@ -66,8 +66,8 @@ const products = [...generateCatalog({ seed: 20260918, size: 4000 })]
     popularity: p.popularity ?? 0,
     imageSeed: p.imageSeed ?? 0,
   }))
-console.log('catalog', products.length, Math.round(performance.now() - t3), 'ms')
-const sink = createMemorySink(products as any)
+console.log('catalog', articles.length, Math.round(performance.now() - t3), 'ms')
+const sink = createMemorySink(articles as any)
 const t4 = performance.now()
 const summary = await simulateSocial(sink, {
   seed: 20260918,
@@ -96,7 +96,7 @@ const stats = computeLineage({
     actorUserId: i.actorUserId,
     targetUserId: i.targetUserId ?? null,
     lookId: i.lookId ?? null,
-    productId: i.productId ?? null,
+    articleId: i.articleId ?? null,
     askId: i.askId ?? null,
     type: i.type,
     sourceInteractionId: i.sourceInteractionId ?? null,
@@ -105,7 +105,7 @@ const stats = computeLineage({
   purchases: rows.purchases.map((p) => ({
     id: p.id,
     userId: p.userId,
-    productId: p.productId,
+    articleId: p.articleId,
     quantity: 1,
     price: p.price,
     forKind: p.forKind ?? 'self',

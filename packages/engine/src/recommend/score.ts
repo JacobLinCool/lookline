@@ -4,7 +4,7 @@
  * caps.
  */
 import type { CategoryGroup } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import type { FactorName, RankedItem } from '../types'
 import { buildExplanation, toExplanationFactor } from './explain'
 import type { DetailedFactor } from './explain'
@@ -103,7 +103,7 @@ export function mmr(
   const pool = sorted.slice(0, opts.pool)
   const rest = sorted.slice(opts.pool)
   const picks: MmrPick[] = []
-  const selected: Array<{ product: Product; position: number }> = []
+  const selected: Array<{ product: Article; position: number }> = []
   const brandCount = new Map<number, number>()
   const subCount = new Map<string, number>()
   const remaining = [...pool]

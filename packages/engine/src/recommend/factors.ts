@@ -10,7 +10,7 @@ import {
   findColor,
 } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily } from '@lookline/catalog'
-import type { Department, Product } from '@lookline/db'
+import type { Department, Article } from '@lookline/db'
 import type { FactorName } from '../types'
 import {
   aestheticLabel,
@@ -628,7 +628,7 @@ export function popularityPrior(c: Candidate, ctx: RankContext): FactorResult {
 }
 
 /** `sim = 0.5·cos_A + 0.3·[same subcategory] + 0.2·[same brand]`. */
-export function itemSimilarity(a: Product, b: Product): number {
+export function itemSimilarity(a: Article, b: Article): number {
   let dot = 0
   let na = 0
   let nb = 0
@@ -650,7 +650,7 @@ export function itemSimilarity(a: Product, b: Product): number {
 /** Diversity during MMR: `−max_j sim(i, j)` over the already selected items (0 for the first). */
 export function diversity(
   c: Candidate,
-  selected: ReadonlyArray<{ product: Product; position: number }>,
+  selected: ReadonlyArray<{ product: Article; position: number }>,
   locale: Locale,
 ): FactorResult {
   if (selected.length === 0) {

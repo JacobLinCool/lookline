@@ -9,10 +9,10 @@ import {
   eq,
   inArray,
   lookParticipants,
-  lookProducts,
+  lookArticles,
   looks,
   or,
-  products,
+  articles,
   purchases,
   users,
 } from '@lookline/db'
@@ -55,10 +55,10 @@ async function loadEditions(userId: string): Promise<EditionItem[]> {
   const parentIds = [...new Set(rows.map((r) => r.look.parentLookId).filter((id) => id !== null))]
   const [counts, parents] = await Promise.all([
     db
-      .select({ lookId: lookProducts.lookId, n: count() })
-      .from(lookProducts)
-      .where(inArray(lookProducts.lookId, ids))
-      .groupBy(lookProducts.lookId),
+      .select({ lookId: lookArticles.lookId, n: count() })
+      .from(lookArticles)
+      .where(inArray(lookArticles.lookId, ids))
+      .groupBy(lookArticles.lookId),
     parentIds.length > 0
       ? db
           .select({ id: looks.id, handle: users.handle })
@@ -92,13 +92,13 @@ async function loadWardrobe(userId: string): Promise<WardrobeRow[]> {
   return db
     .select({
       purchase: purchases,
-      product: products,
+      product: articles,
       brand: brands,
       forUser: { displayName: users.displayName, handle: users.handle },
     })
     .from(purchases)
-    .innerJoin(products, eq(purchases.productId, products.id))
-    .innerJoin(brands, eq(products.brandId, brands.id))
+    .innerJoin(articles, eq(purchases.articleId, articles.id))
+    .innerJoin(brands, eq(articles.brandId, brands.id))
     .leftJoin(users, eq(purchases.forUserId, users.id))
     .where(eq(purchases.userId, userId))
     .orderBy(desc(purchases.createdAt))

@@ -2,7 +2,7 @@
  * Hidden taste vectors: aesthetics from a cluster archetype (plus a neighbour and a stray tag),
  * colour families from the catalog colour prior of the primaries, axes from the engine's axis
  * prior with persona noise. The group block carries the persona's category propensity (never
- * used for similarity). Also the block-weighted cosine used to match products to a taste.
+ * used for similarity). Also the block-weighted cosine used to match articles to a taste.
  */
 import {
   AESTHETICS,

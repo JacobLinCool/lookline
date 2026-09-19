@@ -58,7 +58,7 @@ function ev(
     forOthers: false,
     context: {},
     createdAt,
-    productId: seq,
+    articleId: seq,
     lookId: null,
     intentSessionId: null,
     vector,

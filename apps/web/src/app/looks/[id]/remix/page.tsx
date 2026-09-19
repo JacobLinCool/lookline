@@ -28,7 +28,7 @@ export const metadata: Metadata = { title: 'Make it mine' }
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
 const ERRORS: Record<string, string> = {
-  products: 'Keep at least one piece in the Look.',
+  articles: 'Keep at least one piece in the Look.',
   recipient: 'That person no longer exists.',
 }
 
@@ -122,7 +122,7 @@ export default async function RemixPage({
   }
 
   const subjectId = recipient?.id ?? viewer.id
-  const leftovers = source.products
+  const leftovers = source.articles
   const error = first(query.error)
   const presets = presetOptions()
   const defaultTitle = recipient
@@ -198,7 +198,7 @@ export default async function RemixPage({
               lookId={source.look.id}
               userId={subjectId}
               budget={budget}
-              originalIds={source.products.map((p) => p.id)}
+              originalIds={source.articles.map((p) => p.id)}
               engineView={engineView}
             />
           </Suspense>
@@ -208,7 +208,7 @@ export default async function RemixPage({
               <ul className="grid grid-cols-2 gap-4 lg:grid-cols-3">
                 {leftovers.map((product) => (
                   <li key={product.id}>
-                    <ProductOption product={product} name="productId" defaultChecked />
+                    <ProductOption product={product} name="articleId" defaultChecked />
                   </li>
                 ))}
               </ul>

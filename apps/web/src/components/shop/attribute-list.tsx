@@ -1,4 +1,4 @@
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { humanize } from '@/server/format'
 
 interface Row {
@@ -13,7 +13,7 @@ function list(values: readonly string[]): string | null {
 }
 
 /** The few facts a shopper checks before buying; raw catalog fields never appear here. */
-export function AttributeList({ product }: { product: Product }) {
+export function AttributeList({ product }: { product: Article }) {
   const rows: Row[] = [
     { label: 'Material', value: humanize(product.material) },
     { label: 'Fit', value: product.fit ? humanize(product.fit) : null },

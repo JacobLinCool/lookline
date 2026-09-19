@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { z } from 'zod'
 
 /**
- * Cookie-based shopping bag. `ll_bag` holds JSON `[{ productId, size, qty }]` (max 20 lines).
+ * Cookie-based shopping bag. `ll_bag` holds JSON `[{ articleId, size, qty }]` (max 20 lines).
  * Reading works anywhere on the server; writing (`addToBag`, `removeFromBag`, `setBagQty`,
  * `clearBag`) is only allowed from server actions and route handlers.
  */
@@ -13,7 +13,7 @@ export const BAG_MAX_QTY = 10
 const BAG_TTL_SECONDS = 30 * 24 * 60 * 60
 
 const lineSchema = z.object({
-  productId: z.number().int().positive(),
+  articleId: z.number().int().positive(),
   size: z.string().max(24).nullable(),
   qty: z.number().int().min(1).max(BAG_MAX_QTY),
 })
@@ -64,12 +64,12 @@ async function writeBag(lines: BagLine[]): Promise<void> {
   })
 }
 
-const sameLine = (a: BagLine, productId: number, size: string | null): boolean =>
-  a.productId === productId && a.size === size
+const sameLine = (a: BagLine, articleId: number, size: string | null): boolean =>
+  a.articleId === articleId && a.size === size
 
 /** Add `qty` (default 1) of a product/size; merges into an existing line. */
 export async function addToBag(input: {
-  productId: number
+  articleId: number
   size?: string | null
   qty?: number
 }): Promise<BagResult> {
@@ -78,7 +78,7 @@ export async function addToBag(input: {
 
 /** Validate every line before committing an outfit; a full bag never accepts half an outfit. */
 export async function addManyToBag(
-  inputs: { productId: number; size?: string | null; qty?: number }[],
+  inputs: { articleId: number; size?: string | null; qty?: number }[],
 ): Promise<BagResult> {
   const lines = await getBag()
   const proposed = lines.map((line) => ({ ...line }))
@@ -86,13 +86,13 @@ export async function addManyToBag(
     return { ok: false, reason: 'invalid', lines }
   for (const input of inputs) {
     const parsed = lineSchema.safeParse({
-      productId: input.productId,
+      articleId: input.articleId,
       size: input.size ?? null,
       qty: input.qty ?? 1,
     })
     if (!parsed.success) return { ok: false, reason: 'invalid', lines }
     const line = parsed.data
-    const existing = proposed.find((item) => sameLine(item, line.productId, line.size))
+    const existing = proposed.find((item) => sameLine(item, line.articleId, line.size))
     if (existing) existing.qty = Math.min(BAG_MAX_QTY, existing.qty + line.qty)
     else {
       if (proposed.length >= BAG_MAX_LINES) return { ok: false, reason: 'full', lines }
@@ -104,9 +104,9 @@ export async function addManyToBag(
 }
 
 /** Remove one line (product + size). Omit `size` to remove every line of that product. */
-export async function removeFromBag(productId: number, size?: string | null): Promise<BagLine[]> {
+export async function removeFromBag(articleId: number, size?: string | null): Promise<BagLine[]> {
   const lines = (await getBag()).filter((l) =>
-    size === undefined ? l.productId !== productId : !sameLine(l, productId, size),
+    size === undefined ? l.articleId !== articleId : !sameLine(l, articleId, size),
   )
   await writeBag(lines)
   return lines
@@ -114,16 +114,16 @@ export async function removeFromBag(productId: number, size?: string | null): Pr
 
 /** Set an exact quantity; `qty <= 0` removes the line. */
 export async function setBagQty(
-  productId: number,
+  articleId: number,
   size: string | null,
   qty: number,
 ): Promise<BagLine[]> {
-  if (!Number.isInteger(qty) || qty <= 0) return removeFromBag(productId, size)
+  if (!Number.isInteger(qty) || qty <= 0) return removeFromBag(articleId, size)
   const lines = await getBag()
-  const existing = lines.find((l) => sameLine(l, productId, size))
+  const existing = lines.find((l) => sameLine(l, articleId, size))
   if (existing) existing.qty = Math.min(BAG_MAX_QTY, qty)
   else if (lines.length < BAG_MAX_LINES) {
-    lines.push({ productId, size, qty: Math.min(BAG_MAX_QTY, qty) })
+    lines.push({ articleId, size, qty: Math.min(BAG_MAX_QTY, qty) })
   }
   await writeBag(lines)
   return lines

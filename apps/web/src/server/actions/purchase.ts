@@ -54,7 +54,7 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
     for (const line of lines) {
       const purchase = await recordPurchase(getDb().db, {
         userId: user.id,
-        productId: line.productId,
+        articleId: line.articleId,
         quantity: line.qty,
         size: line.size,
         forKind,
@@ -79,7 +79,7 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
 
   if (failure) {
     // Partial success: keep the unpurchased lines in the bag.
-    for (const line of purchased) await removeFromBag(line.productId, line.size)
+    for (const line of purchased) await removeFromBag(line.articleId, line.size)
   } else {
     await clearBag()
   }

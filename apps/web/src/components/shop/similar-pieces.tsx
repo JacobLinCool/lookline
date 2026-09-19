@@ -7,16 +7,16 @@ import { callEngine } from './engine'
 
 /** Nearest pieces on the rail. Reasons and scores only in Engine view. */
 export async function SimilarPieces({
-  productId,
+  articleId,
   userId,
   engineView = false,
 }: {
-  productId: number
+  articleId: number
   userId: string | null
   engineView?: boolean
 }) {
   const result = await callEngine('similarProducts', () =>
-    similarProducts(getDb().db, productId, { limit: 6, userId: userId ?? undefined }),
+    similarProducts(getDb().db, articleId, { limit: 6, userId: userId ?? undefined }),
   )
   if (!result.ok || result.value.length === 0) return null
   return (

@@ -7,7 +7,7 @@
  * straps / hardware / detail / buttons → outline → kids confetti.
  */
 import { hashSeed } from '../rng'
-import type { GeneratedBrand, GeneratedProduct, ProductRenderInput } from '../types'
+import type { ProductRenderInput } from '../types'
 import {
   FALLBACK_BG,
   GOLD_HEX,
@@ -231,7 +231,7 @@ export function renderSwatchSvg(
 }
 
 /**
- * Up to 5 products side by side on a 1500×400 canvas, each product nested as a 300×400 `<svg>`
+ * Up to 5 articles side by side on a 1500×400 canvas, each product nested as a 300×400 `<svg>`
  * (§9.4). Nested ids are scoped by wrapping each product in its own `<svg>` element.
  */
 export function renderOutfitSvg(inputs: readonly RenderInput[]): string {
@@ -248,20 +248,4 @@ export function renderOutfitSvg(inputs: readonly RenderInput[]): string {
   })
   parts.push('</svg>')
   return parts.join('')
-}
-
-/** Builds the renderer input from a generated product (and its brand for the monogram/label). */
-export function renderInputFor(p: GeneratedProduct, brand?: GeneratedBrand): RenderInput {
-  return {
-    silhouetteId: p.silhouetteId,
-    colorHex: normalizeHex(p.colorHex),
-    secondaryColorHex: p.secondaryColorHex ?? null,
-    pattern: p.pattern,
-    aesthetics: p.aesthetics ?? [],
-    imageSeed: p.imageSeed ?? 0,
-    categoryGroup: p.categoryGroup,
-    name: p.name,
-    brandName: brand?.name,
-    department: p.department,
-  }
 }

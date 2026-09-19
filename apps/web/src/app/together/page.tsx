@@ -1,9 +1,9 @@
 /**
  * /together — the judges' prototype tour: Ready Now, Made for You and Borrow a Look walked on live
- * catalog products with sample fulfilment states. Reached from the footer, not the primary nav.
+ * catalog articles with sample fulfilment states. Reached from the footer, not the primary nav.
  */
 import type { Metadata } from 'next'
-import { brands, desc, eq, gt, lookProducts, looks, products, users } from '@lookline/db'
+import { brands, desc, eq, gt, lookArticles, looks, articles, users } from '@lookline/db'
 import {
   JourneyPrototype,
   type JourneyLook,
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 }
 
 interface JourneyData {
-  products: JourneyProduct[]
+  articles: JourneyProduct[]
   sampleLook: JourneyLook | null
   error: string | null
 }
@@ -40,20 +40,20 @@ async function loadJourneyData(): Promise<JourneyData> {
 
     const lookRows = lookRow
       ? await db
-          .select({ product: products, brandName: brands.name, position: lookProducts.position })
-          .from(lookProducts)
-          .innerJoin(products, eq(lookProducts.productId, products.id))
-          .innerJoin(brands, eq(products.brandId, brands.id))
-          .where(eq(lookProducts.lookId, lookRow.id))
-          .orderBy(lookProducts.position)
+          .select({ product: articles, brandName: brands.name, position: lookArticles.position })
+          .from(lookArticles)
+          .innerJoin(articles, eq(lookArticles.articleId, articles.id))
+          .innerJoin(brands, eq(articles.brandId, brands.id))
+          .where(eq(lookArticles.lookId, lookRow.id))
+          .orderBy(lookArticles.position)
       : []
 
     const catalogRows = await db
-      .select({ product: products, brandName: brands.name })
-      .from(products)
-      .innerJoin(brands, eq(products.brandId, brands.id))
-      .where(gt(products.stock, 0))
-      .orderBy(desc(products.trendScore), desc(products.popularity))
+      .select({ product: articles, brandName: brands.name })
+      .from(articles)
+      .innerJoin(brands, eq(articles.brandId, brands.id))
+      .where(gt(articles.stock, 0))
+      .orderBy(desc(articles.trendScore), desc(articles.popularity))
       .limit(8)
 
     const deduped = new Map<number, JourneyProduct>()
@@ -75,7 +75,7 @@ async function loadJourneyData(): Promise<JourneyData> {
     }
 
     return {
-      products: [...deduped.values()].slice(0, 6),
+      articles: [...deduped.values()].slice(0, 6),
       sampleLook: lookRow
         ? {
             id: lookRow.id,
@@ -90,7 +90,7 @@ async function loadJourneyData(): Promise<JourneyData> {
   } catch (error) {
     console.error('[together] could not load journey catalog', error)
     return {
-      products: [],
+      articles: [],
       sampleLook: null,
       error: 'The live catalog is unavailable. Start the database and reload.',
     }

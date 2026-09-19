@@ -25,13 +25,13 @@ describe('deriveLookStyle', () => {
   })
 
   it('is order-independent and deduplicates palette hexes', () => {
-    const products = fixtureLook()
-    const a = deriveLookStyle(products)
-    const b = deriveLookStyle(products.toReversed())
+    const articles = fixtureLook()
+    const a = deriveLookStyle(articles)
+    const b = deriveLookStyle(articles.toReversed())
     expect(cosineSimilarity(a.styleVector, b.styleVector)).toBeCloseTo(1, 9)
     expect(b.palette).toEqual(a.palette)
 
-    const dup = deriveLookStyle([products[0]!, { ...products[0]!, colorHex: '#d9cdb8' }])
+    const dup = deriveLookStyle([articles[0]!, { ...articles[0]!, colorHex: '#d9cdb8' }])
     expect(dup.palette).toEqual(['#D9CDB8'])
   })
 

@@ -29,7 +29,7 @@ function event(partial: Partial<TrendEvent> & Pick<TrendEvent, 'day' | 'weight'>
     type: 'VIEW',
     keys: [KEY],
     cluster: null,
-    productIds: [],
+    articleIds: [],
     lookId: null,
     rootLookId: null,
     gmv: 0,
@@ -222,7 +222,7 @@ describe('buildTrendEvents', () => {
     stock: 10,
     price: 3000,
   }
-  const products = new Map([[1, product]])
+  const articles = new Map([[1, product]])
   const looks: LookLite[] = [
     {
       id: 'l1',
@@ -239,7 +239,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: 'l1',
-      productId: null,
+      articleId: null,
       askId: null,
       type: 'REMIX',
       sourceInteractionId: null,
@@ -250,7 +250,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: null,
-      productId: 1,
+      articleId: 1,
       askId: null,
       type: 'DISMISS',
       sourceInteractionId: null,
@@ -261,7 +261,7 @@ describe('buildTrendEvents', () => {
       actorUserId: 'u2',
       targetUserId: null,
       lookId: null,
-      productId: 1,
+      articleId: 1,
       askId: null,
       type: 'PURCHASE', // derived from the purchases table instead
       sourceInteractionId: null,
@@ -272,7 +272,7 @@ describe('buildTrendEvents', () => {
     {
       id: 'p1',
       userId: 'u3',
-      productId: 1,
+      articleId: 1,
       quantity: 2,
       price: 3000,
       forKind: 'other',
@@ -300,9 +300,9 @@ describe('buildTrendEvents', () => {
     interactions,
     purchases,
     looks,
-    lookProducts: [{ lookId: 'l1', productId: 1 }],
+    lookArticles: [{ lookId: 'l1', articleId: 1 }],
     intents,
-    products,
+    articles,
     clusterOf: new Map([
       ['u1', 0],
       ['u2', 1],
@@ -310,7 +310,7 @@ describe('buildTrendEvents', () => {
     rootOf: new Map([['l1', 'l1']]),
   })
 
-  it('maps products, looks and intents to keys and weights', () => {
+  it('maps articles, looks and intents to keys and weights', () => {
     expect(productKeys(product)).toEqual(
       expect.arrayContaining([
         trendKey('aesthetic', 'minimalist'),

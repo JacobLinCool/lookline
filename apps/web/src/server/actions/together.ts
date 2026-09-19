@@ -65,13 +65,13 @@ export async function createTogetherAction(formData: FormData): Promise<void> {
     userId: string
     displayName: string
     lookId: string
-    productIds: number[]
+    articleIds: number[]
   }> = [
     {
       userId: source.owner.id,
       displayName: source.owner.displayName,
       lookId: source.look.id,
-      productIds: source.products.map((p) => p.id),
+      articleIds: source.articles.map((p) => p.id),
     },
   ]
 
@@ -96,7 +96,7 @@ export async function createTogetherAction(formData: FormData): Promise<void> {
       userId: person.id,
       displayName: person.displayName,
       lookId: bundle.look.id,
-      productIds: bundle.products.map((p) => p.id),
+      articleIds: bundle.articles.map((p) => p.id),
     })
   }
 
@@ -109,15 +109,15 @@ export async function createTogetherAction(formData: FormData): Promise<void> {
         userId: bundle.owner.id,
         displayName: bundle.owner.displayName,
         lookId: bundle.look.id,
-        productIds: bundle.products.map((p) => p.id),
+        articleIds: bundle.articles.map((p) => p.id),
       })
     }
   }
 
   if (contributions.length < 2) redirect(withParams(page, { error: 'participants' }))
 
-  const productIds = [...new Set(contributions.flatMap((c) => c.productIds))]
-  if (productIds.length === 0) redirect(withParams(page, { error: 'products' }))
+  const articleIds = [...new Set(contributions.flatMap((c) => c.articleIds))]
+  if (articleIds.length === 0) redirect(withParams(page, { error: 'articles' }))
 
   const requestedPreset = text(formData.get('stylePreset'), 64)
   const stylePreset =
@@ -132,7 +132,7 @@ export async function createTogetherAction(formData: FormData): Promise<void> {
   const created = await attempt(() =>
     createLookDraft({
       ownerId: user.id,
-      productIds,
+      articleIds,
       stylePreset,
       kind: 'together',
       participantIds: [...new Set([user.id, ...contributions.map((c) => c.userId)])],

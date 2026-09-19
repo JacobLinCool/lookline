@@ -1,5 +1,5 @@
 /**
- * Product pool: the catalog sample the simulation chooses from, indexed by department and
+ * Article pool: the catalog sample the simulation chooses from, indexed by department and
  * category group, with per-taste shortlists (top-K per group by block-weighted cosine × budget
  * fit × size availability). All choices are driven by the caller's rng, so they are
  * reproducible for a given plan.
@@ -56,25 +56,25 @@ export function budgetFit(price: number, budget: number): number {
 }
 
 export class ProductPool {
-  readonly products: SimProduct[] = []
+  readonly articles: SimProduct[] = []
   private readonly index = new Map<number, number>()
   private readonly keys: Float64Array[] = []
   private readonly byDeptGroup = new Map<string, number[]>()
   private readonly shortlists = new Map<string, Shortlist>()
 
-  constructor(products: readonly SimProduct[] = []) {
-    this.add(products)
+  constructor(articles: readonly SimProduct[] = []) {
+    this.add(articles)
   }
 
   get size(): number {
-    return this.products.length
+    return this.articles.length
   }
 
-  add(products: readonly SimProduct[]): void {
-    for (const p of products) {
+  add(articles: readonly SimProduct[]): void {
+    for (const p of articles) {
       if (this.index.has(p.id)) continue
-      const i = this.products.length
-      this.products.push(p)
+      const i = this.articles.length
+      this.articles.push(p)
       this.index.set(p.id, i)
       this.keys.push(tasteKey(p.styleVector))
       const k = `${p.department}|${p.categoryGroup}`
@@ -83,19 +83,19 @@ export class ProductPool {
       else this.byDeptGroup.set(k, [i])
     }
     // Shortlists are computed over the pool at the time; invalidate on growth.
-    if (products.length > 0) this.shortlists.clear()
+    if (articles.length > 0) this.shortlists.clear()
   }
 
   get(id: number): SimProduct | undefined {
     const i = this.index.get(id)
-    return i === undefined ? undefined : this.products[i]
+    return i === undefined ? undefined : this.articles[i]
   }
 
   has(id: number): boolean {
     return this.index.has(id)
   }
 
-  /** Pool indices of `group` products wearable by `department`. */
+  /** Pool indices of `group` articles wearable by `department`. */
   candidates(department: Department, group: CategoryGroup): number[] {
     const out: number[] = []
     for (const d of compatibleDepartments(department)) {
@@ -107,12 +107,12 @@ export class ProductPool {
 
   /** Taste score of a product for a profile: cosine × budget fit × size availability. */
   scoreOf(idx: number, key: Float64Array, profile: TasteProfile): number {
-    const p = this.products[idx]!
+    const p = this.articles[idx]!
     const cos = Math.max(0, keyDot(this.keys[idx]!, key))
     return cos * budgetFit(p.price, profile.budget) * (sizeOk(p, profile.sizes) ? 1 : 0.35)
   }
 
-  /** Top-K products per group for a taste profile (cached by `profile.key`). */
+  /** Top-K articles per group for a taste profile (cached by `profile.key`). */
   shortlist(profile: TasteProfile): Shortlist {
     const cached = this.shortlists.get(profile.key)
     if (cached) return cached
@@ -122,7 +122,7 @@ export class ProductPool {
       const idxs = this.candidates(profile.department, group)
       if (idxs.length === 0) continue
       const scored: Scored[] = idxs.map((i) => ({
-        id: this.products[i]!.id,
+        id: this.articles[i]!.id,
         score: this.scoreOf(i, key, profile),
       }))
       scored.sort((a, b) => b.score - a.score || a.id - b.id)
@@ -138,7 +138,7 @@ export class ProductPool {
     const groups = CATEGORY_GROUPS.filter((g) => this.candidates(department, g).length > 0)
     if (groups.length === 0) return null
     const idxs = this.candidates(department, rng.pick(groups))
-    return this.products[idxs[rng.int(0, idxs.length - 1)]!] ?? null
+    return this.articles[idxs[rng.int(0, idxs.length - 1)]!] ?? null
   }
 }
 
@@ -179,7 +179,7 @@ export function pickGroup(
 export interface ChoiceOptions {
   group?: CategoryGroup | null
   exclude?: ReadonlySet<number>
-  /** Boost products carrying this aesthetic (trend seeds). */
+  /** Boost articles carrying this aesthetic (trend seeds). */
   aesthetic?: string | null
   /** Occasion-favoured groups get a nudge (kept simple: dresses/footwear for events). */
   occasion?: string | null
@@ -221,7 +221,7 @@ export function aestheticLeaders(
   const ai = aestheticIndex(aesthetic)
   const out: Array<{ p: SimProduct; w: number }> = []
   for (const i of pool.candidates(shortlist.department, group)) {
-    const p = pool.products[i]!
+    const p = pool.articles[i]!
     const w = ai >= 0 ? (p.styleVector[ai] ?? 0) : 0
     if (w >= 0.5) out.push({ p, w })
   }
@@ -240,7 +240,7 @@ const OUTFIT_TEMPLATES: ReadonlyArray<readonly CategoryGroup[]> = [
   ['activewear', 'footwear', 'accessories'],
 ]
 
-/** 3–4 products for a Look: keep `base` (recent purchases) and fill the remaining slots by taste. */
+/** 3–4 articles for a Look: keep `base` (recent purchases) and fill the remaining slots by taste. */
 export function chooseOutfit(
   pool: ProductPool,
   shortlist: Shortlist,

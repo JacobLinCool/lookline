@@ -1,5 +1,5 @@
 import { renderProductSvg } from '@lookline/catalog'
-import { brands, eq, products } from '@lookline/db'
+import { brands, eq, articles } from '@lookline/db'
 import { getDb } from '@/server/db'
 import { escapeXml, svgResponse } from '@/server/svg'
 
@@ -14,22 +14,22 @@ function placeholderSvg(name: string, brandName: string): string {
 </svg>`
 }
 
-/** `GET /api/products/[id]/image` — deterministic product artwork, cached forever. */
+/** `GET /api/articles/[id]/image` — deterministic product artwork, cached forever. */
 export async function GET(
   _req: Request,
   ctx: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await ctx.params
-  const productId = Number(id)
-  if (!Number.isInteger(productId) || productId <= 0) {
+  const articleId = Number(id)
+  if (!Number.isInteger(articleId) || articleId <= 0) {
     return new Response('Not found', { status: 404 })
   }
 
   const [row] = await getDb()
-    .db.select({ product: products, brandName: brands.name })
-    .from(products)
-    .innerJoin(brands, eq(products.brandId, brands.id))
-    .where(eq(products.id, productId))
+    .db.select({ product: articles, brandName: brands.name })
+    .from(articles)
+    .innerJoin(brands, eq(articles.brandId, brands.id))
+    .where(eq(articles.id, articleId))
     .limit(1)
   if (!row) return new Response('Not found', { status: 404 })
 
@@ -48,7 +48,7 @@ export async function GET(
     })
     return svgResponse(svg, { cacheControl: IMMUTABLE })
   } catch (error) {
-    console.warn(`[lookline] renderProductSvg failed for product ${productId}`, error)
+    console.warn(`[lookline] renderProductSvg failed for product ${articleId}`, error)
     return svgResponse(placeholderSvg(product.name, brandName), {
       status: 500,
       cacheControl: 'no-store',

@@ -44,7 +44,7 @@ import { askComment, askQuestion, lookTitle, searchUtterance } from './vocab'
 interface LookState {
   id: string
   ownerId: string
-  productIds: number[]
+  articleIds: number[]
   vector: number[]
   aesthetics: string[]
   depth: number
@@ -59,7 +59,7 @@ interface AskState {
 }
 
 interface UserState {
-  purchases: Array<{ productId: number; purchaseId: string; self: boolean }>
+  purchases: Array<{ articleId: number; purchaseId: string; self: boolean }>
   looks: string[]
 }
 
@@ -155,7 +155,7 @@ export async function simulateSocial(
   const createdAt = new Date(config.now.getTime() - (days + 1) * DAY_MS)
   await sink.insertPersonas(personas, createdAt)
   const pool = new ProductPool(await sink.loadPool())
-  log(`pool: ${pool.size} products`)
+  log(`pool: ${pool.size} articles`)
   if (pool.size === 0)
     throw new Error('@lookline/sim: the product pool is empty (seed the catalog first)')
 
@@ -229,7 +229,7 @@ export async function simulateSocial(
     await sink.recordPurchase({
       id: opts.purchaseId,
       userId: p.id,
-      productId: product.id,
+      articleId: product.id,
       quantity: 1,
       size: opts.forKind === 'other' ? null : sizeFor(p, product),
       forKind: opts.forKind,
@@ -241,7 +241,7 @@ export async function simulateSocial(
     })
     totals.purchases++
     usersState.get(p.id)?.purchases.push({
-      productId: product.id,
+      articleId: product.id,
       purchaseId: opts.purchaseId,
       self: opts.forKind !== 'other',
     })
@@ -256,7 +256,7 @@ export async function simulateSocial(
     owner: Persona,
     input: {
       id: string
-      productIds: number[]
+      articleIds: number[]
       kind: 'edition' | 'remix' | 'together'
       preset: string
       occasion: string | null
@@ -265,8 +265,8 @@ export async function simulateSocial(
       title?: string
     },
   ): Promise<LookState | null> {
-    await ensureLoaded(input.productIds)
-    const items = input.productIds
+    await ensureLoaded(input.articleIds)
+    const items = input.articleIds
       .map((id) => pool.get(id))
       .filter((p): p is SimProduct => p !== undefined)
     if (items.length === 0) return null
@@ -285,7 +285,7 @@ export async function simulateSocial(
       title,
       ownerName: owner.displayName,
       stylePreset: input.preset,
-      products: items,
+      articles: items,
       palette: style.palette,
       aesthetics: style.aesthetics,
       seed: hashSeed(config.seed, 'poster', input.id),
@@ -295,7 +295,7 @@ export async function simulateSocial(
       {
         id: input.id,
         ownerId: owner.id,
-        productIds: items.map((p) => p.id),
+        articleIds: items.map((p) => p.id),
         stylePreset: input.preset,
         title,
         occasion: input.occasion,
@@ -312,7 +312,7 @@ export async function simulateSocial(
     const look: LookState = {
       id: input.id,
       ownerId: owner.id,
-      productIds: items.map((p) => p.id),
+      articleIds: items.map((p) => p.id),
       vector: style.styleVector,
       aesthetics: style.aesthetics,
       depth: result.depth,
@@ -325,14 +325,14 @@ export async function simulateSocial(
   /** A product of the Look the user could buy (department-compatible), else a taste pick of the same group. */
   function buyable(look: LookState, p: Persona, shortlist: Shortlist, rng: Rng): SimProduct | null {
     const departments = new Set(compatibleDepartments(p.department))
-    const wearable = look.productIds
+    const wearable = look.articleIds
       .map((id) => pool.get(id))
       .filter((x): x is SimProduct => !!x && departments.has(x.department))
     if (wearable.length > 0 && rng.chance(0.7)) return rng.pick(wearable)
-    const any = look.productIds.map((id) => pool.get(id)).find((x) => !!x)
+    const any = look.articleIds.map((id) => pool.get(id)).find((x) => !!x)
     return chooseProduct(pool, shortlist, rng, {
       group: (any?.categoryGroup as CategoryGroup | undefined) ?? null,
-      exclude: new Set(look.productIds),
+      exclude: new Set(look.articleIds),
     })
   }
   async function remix(
@@ -350,11 +350,11 @@ export async function simulateSocial(
     let ids = await sink.suggestRemix(parent.id, user.id)
     await ensureLoaded(ids)
     ids = ids.filter((id) => pool.has(id))
-    if (ids.length === 0) ids = remixFallback(pool, shortlist, rng, parent.productIds)
+    if (ids.length === 0) ids = remixFallback(pool, shortlist, rng, parent.articleIds)
     if (ids.length === 0) return k
     // keep one wearable source piece (the remix keeps the mood, not only the palette)
     const departments = new Set(compatibleDepartments(user.department))
-    const keepable = parent.productIds.filter((id) => {
+    const keepable = parent.articleIds.filter((id) => {
       const p = pool.get(id)
       return p && departments.has(p.department) && !ids.includes(id)
     })
@@ -372,20 +372,20 @@ export async function simulateSocial(
     }
     const look = await makeLook(e, k++, user, {
       id: newLookId,
-      productIds: ids.slice(0, 5),
+      articleIds: ids.slice(0, 5),
       kind: 'remix',
       preset,
       occasion: null,
       parentLookId: parent.id,
     })
     if (!look) return k
-    for (const src of parent.productIds) {
+    for (const src of parent.articleIds) {
       await feedback(e, k++, {
         userId: user.id,
         kind: 'remix',
-        productId: src,
+        articleId: src,
         lookId: look.id,
-        context: { kept: look.productIds.includes(src), sourceLookId: parent.id },
+        context: { kept: look.articleIds.includes(src), sourceLookId: parent.id },
       })
     }
     if (purchaseId) {
@@ -456,7 +456,7 @@ export async function simulateSocial(
       await feedback(e, k++, {
         userId: p.id,
         kind: 'impression',
-        productId: s.product.id,
+        articleId: s.product.id,
         position: s.position,
         forOthers: e.forGift,
         context: { armId: 'balanced', source: 'sim-browse' },
@@ -470,34 +470,34 @@ export async function simulateSocial(
       await interaction(e, k++, {
         actorUserId: p.id,
         type: 'VIEW',
-        productId: s.product.id,
+        articleId: s.product.id,
         payload: { from: 'search', position: s.position },
       })
       await feedback(e, k++, {
         userId: p.id,
         kind: 'click',
-        productId: s.product.id,
+        articleId: s.product.id,
         position: s.position,
         forOthers: e.forGift,
       })
     }
     const top = clicks[0]
     if (top && rng.chance(0.3)) {
-      await interaction(e, k++, { actorUserId: p.id, type: 'SAVE', productId: top.product.id })
+      await interaction(e, k++, { actorUserId: p.id, type: 'SAVE', articleId: top.product.id })
       await feedback(e, k++, {
         userId: p.id,
         kind: 'save',
-        productId: top.product.id,
+        articleId: top.product.id,
         forOthers: e.forGift,
       })
     }
     const worst = ranked[ranked.length - 1]
     if (worst && worst.sim < 0.35 && rng.chance(0.35)) {
-      await interaction(e, k++, { actorUserId: p.id, type: 'DISMISS', productId: worst.product.id })
+      await interaction(e, k++, { actorUserId: p.id, type: 'DISMISS', articleId: worst.product.id })
       await feedback(e, k++, {
         userId: p.id,
         kind: 'dismiss',
-        productId: worst.product.id,
+        articleId: worst.product.id,
         position: worst.position,
         forOthers: e.forGift,
       })
@@ -515,7 +515,7 @@ export async function simulateSocial(
       : chooseProduct(pool, shortlist, rng, {
           aesthetic: e.aesthetic,
           occasion: e.occasion,
-          exclude: new Set(usersState.get(p.id)!.purchases.map((x) => x.productId)),
+          exclude: new Set(usersState.get(p.id)!.purchases.map((x) => x.articleId)),
         })
     if (!product) {
       skipped.purchase++
@@ -537,15 +537,15 @@ export async function simulateSocial(
     const base = state.purchases
       .filter((x) => x.self)
       .slice(e.seedAesthetic ? -1 : -3)
-      .map((x) => x.productId)
+      .map((x) => x.articleId)
       .toReversed()
-    const products = chooseOutfit(pool, pool.shortlist(selfProfile(p)), rng, base, {
+    const articles = chooseOutfit(pool, pool.shortlist(selfProfile(p)), rng, base, {
       aesthetic: e.seedAesthetic,
       occasion: e.occasion,
     })
     const look = await makeLook(e, 0, p, {
       id: e.lookId,
-      productIds: products,
+      articleIds: articles,
       kind: 'edition',
       preset: e.preset,
       occasion: e.occasion,
@@ -612,11 +612,11 @@ export async function simulateSocial(
       const look = e.lookId ? looks.get(e.lookId) : undefined
       const pair = look
         ? ((): [number, number] | null => {
-            const first = look.productIds[0]
+            const first = look.articleIds[0]
             if (first === undefined) return null
             const alt = chooseProduct(pool, shortlist, rng, {
               group: (pool.get(first)?.categoryGroup as CategoryGroup | undefined) ?? null,
-              exclude: new Set(look.productIds),
+              exclude: new Set(look.articleIds),
             })
             return alt ? [first, alt.id] : null
           })()
@@ -632,7 +632,7 @@ export async function simulateSocial(
       askerId: p.id,
       kind: e.askKind,
       question: askQuestion(rng, e.askKind, e.occasion, e.budget),
-      optionProductIds: options,
+      optionArticleIds: options,
       lookId: e.lookId && looks.has(e.lookId) ? e.lookId : null,
       targetUserId: e.friendId,
       budget: e.budget,
@@ -678,7 +678,7 @@ export async function simulateSocial(
         askId: e.askId,
         responderUserId: responder.id,
         responderName: responder.displayName,
-        choiceProductId: choice,
+        choiceArticleId: choice,
         comment: askComment(rng, 'choose'),
         createdAt: stamp(e, k++),
       })
@@ -698,10 +698,10 @@ export async function simulateSocial(
     let styledLookId: string | null = null
     if (e.styledLookId) {
       const shortlist = pool.shortlist({ ...selfProfile(asker), key: `${asker.id}:styled` })
-      const products = chooseOutfit(pool, shortlist, rng, [], { occasion: ask.occasion })
+      const articles = chooseOutfit(pool, shortlist, rng, [], { occasion: ask.occasion })
       const look = await makeLook(e, k++, responder, {
         id: e.styledLookId,
-        productIds: products,
+        articleIds: articles,
         kind: 'edition',
         preset: e.styledPreset,
         occasion: ask.occasion,
@@ -741,12 +741,12 @@ export async function simulateSocial(
       skipped.together++
       return
     }
-    const productIds = mine.productIds.slice(0, 2)
+    const articleIds = mine.articleIds.slice(0, 2)
     for (const m of mates)
-      for (const id of rng.shuffle(m.look.productIds).slice(0, 2)) productIds.push(id)
+      for (const id of rng.shuffle(m.look.articleIds).slice(0, 2)) articleIds.push(id)
     const look = await makeLook(e, 0, owner, {
       id: e.lookId,
-      productIds: [...new Set(productIds)].slice(0, 6),
+      articleIds: [...new Set(articleIds)].slice(0, 6),
       kind: 'together',
       preset: e.preset,
       occasion: e.occasion,

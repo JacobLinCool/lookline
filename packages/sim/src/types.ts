@@ -3,7 +3,7 @@
  * and the sink interface the simulation writes through (Postgres via the engine write paths,
  * or an in-memory sink for tests).
  */
-import type { Department, Product } from '@lookline/db'
+import type { Department, Article } from '@lookline/db'
 import type {
   AnswerAskInput,
   CreateAskInput,
@@ -232,7 +232,7 @@ export interface SimPlan {
 
 /** The product columns the simulation needs (taste matching, sizes, posters). */
 export type SimProduct = Pick<
-  Product,
+  Article,
   | 'id'
   | 'department'
   | 'categoryGroup'
@@ -264,7 +264,7 @@ export interface SearchInput {
 export interface SimSink {
   /** Insert users + sim_personas rows. */
   insertPersonas(personas: readonly Persona[], createdAt: Date): Promise<void>
-  /** Candidate products the simulation chooses from (a sample of the catalog). */
+  /** Candidate articles the simulation chooses from (a sample of the catalog). */
   loadPool(): Promise<SimProduct[]>
   /** Products by id that may be missing from the pool (e.g. from `suggestRemix`). */
   loadProducts(ids: readonly number[]): Promise<SimProduct[]>
@@ -276,7 +276,7 @@ export interface SimSink {
     input: Deterministic<CreateLookInput>,
     poster: string | null,
   ): Promise<{ depth: number; rootLookId: string }>
-  /** Product ids of a "Make It Mine" suggestion (may be empty). */
+  /** Article ids of a "Make It Mine" suggestion (may be empty). */
   suggestRemix(sourceLookId: string, userId: string): Promise<number[]>
   createAsk(input: Deterministic<CreateAskInput>): Promise<void>
   answerAsk(input: Deterministic<AnswerAskInput>): Promise<void>

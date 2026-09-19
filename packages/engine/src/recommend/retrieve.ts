@@ -18,19 +18,19 @@ import {
   interactions,
   jsonArrayOverlaps,
   jsonKeyIsTrue,
-  lookProducts,
+  lookArticles,
   looks,
   lte,
   notInArray,
-  productVectors,
-  products,
+  articleVectors,
+  articles,
   purchases,
   sql,
   sqlDaysAgoMs,
 } from '@lookline/db'
-import type { Database, Department, Product } from '@lookline/db'
+import type { Database, Department, Article } from '@lookline/db'
 
-export type ProductRow = Product & { brandName: string }
+export type ProductRow = Article & { brandName: string }
 
 export interface RetrieveParams {
   /** Block-scaled with RETRIEVAL_BLOCK_WEIGHTS (see `queryVector`). */
@@ -73,7 +73,7 @@ export interface TrendEvidence {
 }
 
 export interface Candidate {
-  product: Product
+  product: Article
   brandName: string
   /** Cosine between the (block-scaled) query vector and the product vector. */
   cos: number
@@ -128,7 +128,7 @@ export function emptyParams(
 }
 
 /** The SQL prefilter, evaluated in-process (used by MemoryRetriever and by the channels). */
-export function matchesParams(p: Product, params: RetrieveParams): boolean {
+export function matchesParams(p: Article, params: RetrieveParams): boolean {
   if (p.stock <= 0) return false
   if (!params.departments.includes(p.department)) return false
   if (params.categoryGroups && !params.categoryGroups.includes(p.categoryGroup as CategoryGroup))
@@ -151,7 +151,7 @@ export function matchesParams(p: Product, params: RetrieveParams): boolean {
 export function makeCandidate(row: ProductRow, cos: number, channel: Channel): Candidate {
   const { brandName, ...product } = row
   return {
-    product: product as Product,
+    product: product as Article,
     brandName,
     cos,
     channels: new Set([channel]),
@@ -203,7 +203,7 @@ export function socialStrength(evidence: readonly SocialEvidence[]): number {
   return s
 }
 
-export function trendMatches(p: Product, trend: ChannelParams['trend']): TrendEvidence | null {
+export function trendMatches(p: Article, trend: ChannelParams['trend']): TrendEvidence | null {
   if (!trend) return null
   let best: TrendEvidence | null = null
   for (const t of trend.aesthetics) {
@@ -220,7 +220,7 @@ export function trendMatches(p: Product, trend: ChannelParams['trend']): TrendEv
 // ---------------------------------------------------------------------------
 
 export interface MemorySocialHit {
-  productId: number
+  articleId: number
   userId: string
   kind: SocialEvidence['kind']
   lookId?: string | null
@@ -251,7 +251,7 @@ export class MemoryRetriever implements Retriever {
       for (const hit of this.socialHits) {
         const t = trusted.get(hit.userId)
         if (!t) continue
-        const list = byProduct.get(hit.productId) ?? []
+        const list = byProduct.get(hit.articleId) ?? []
         list.push({
           userId: t.userId,
           displayName: t.displayName,
@@ -260,7 +260,7 @@ export class MemoryRetriever implements Retriever {
           strength: t.strength,
           at: hit.at,
         })
-        byProduct.set(hit.productId, list)
+        byProduct.set(hit.articleId, list)
       }
       const rows = [...byProduct.entries()]
         .map(([id, evidence]) => ({ row: this.rows.find((r) => r.id === id), evidence }))
@@ -304,29 +304,29 @@ type SqlChunk = ReturnType<typeof sql>
 
 /** WHERE conditions shared by the vector query and the channels. */
 export function prefilterConditions(p: RetrieveParams): SqlChunk[] {
-  const conds: SqlChunk[] = [gt(products.stock, 0), inArray(products.department, p.departments)]
+  const conds: SqlChunk[] = [gt(articles.stock, 0), inArray(articles.department, p.departments)]
   if (p.categoryGroups && p.categoryGroups.length > 0)
-    conds.push(inArray(products.categoryGroup, p.categoryGroups))
-  if (p.excludeGroups.length > 0) conds.push(notInArray(products.categoryGroup, p.excludeGroups))
+    conds.push(inArray(articles.categoryGroup, p.categoryGroups))
+  if (p.excludeGroups.length > 0) conds.push(notInArray(articles.categoryGroup, p.excludeGroups))
   if (p.subcategories && p.subcategories.length > 0)
-    conds.push(inArray(products.subcategory, p.subcategories))
-  if (p.priceMin !== null) conds.push(gte(products.price, p.priceMin))
-  if (p.priceMax !== null) conds.push(lte(products.price, p.priceMax))
-  if (p.excludeMaterials.length > 0) conds.push(notInArray(products.material, p.excludeMaterials))
+    conds.push(inArray(articles.subcategory, p.subcategories))
+  if (p.priceMin !== null) conds.push(gte(articles.price, p.priceMin))
+  if (p.priceMax !== null) conds.push(lte(articles.price, p.priceMax))
+  if (p.excludeMaterials.length > 0) conds.push(notInArray(articles.material, p.excludeMaterials))
   if (p.excludeColorFamilies.length > 0)
-    conds.push(notInArray(products.colorFamily, p.excludeColorFamilies))
+    conds.push(notInArray(articles.colorFamily, p.excludeColorFamilies))
   if (p.excludeSubcategories.length > 0)
-    conds.push(notInArray(products.subcategory, p.excludeSubcategories))
-  if (p.excludeBrandIds.length > 0) conds.push(notInArray(products.brandId, p.excludeBrandIds))
-  if (p.excludeProductIds.length > 0) conds.push(notInArray(products.id, p.excludeProductIds))
+    conds.push(notInArray(articles.subcategory, p.excludeSubcategories))
+  if (p.excludeBrandIds.length > 0) conds.push(notInArray(articles.brandId, p.excludeBrandIds))
+  if (p.excludeProductIds.length > 0) conds.push(notInArray(articles.id, p.excludeProductIds))
   for (const key of Object.keys(p.requireAttributes))
-    conds.push(jsonKeyIsTrue(products.attributes, key))
+    conds.push(jsonKeyIsTrue(articles.attributes, key))
   for (const key of Object.keys(p.excludeAttributes))
-    conds.push(sql`not ${jsonKeyIsTrue(products.attributes, key)}`)
+    conds.push(sql`not ${jsonKeyIsTrue(articles.attributes, key)}`)
   return conds
 }
 
-const PRODUCT_SELECT = { product: products, brandName: brands.name }
+const PRODUCT_SELECT = { product: articles, brandName: brands.name }
 
 export class SqlRetriever implements Retriever {
   constructor(readonly db: Database) {}
@@ -336,11 +336,11 @@ export class SqlRetriever implements Retriever {
     const cos = cosineExpr(p.vector)
     return this.db
       .select({ ...PRODUCT_SELECT, cos: sql<number>`${cos}` })
-      .from(products)
-      .innerJoin(brands, eq(brands.id, products.brandId))
-      .innerJoin(productVectors, eq(productVectors.productId, products.id))
+      .from(articles)
+      .innerJoin(brands, eq(brands.id, articles.brandId))
+      .innerJoin(articleVectors, eq(articleVectors.articleId, articles.id))
       .where(and(...prefilterConditions(p)))
-      .orderBy(desc(cos), asc(products.id))
+      .orderBy(desc(cos), asc(articles.id))
       .limit(p.limit)
   }
 
@@ -362,19 +362,19 @@ export class SqlRetriever implements Retriever {
     const [lookRows, purchaseRows, saveRows] = await Promise.all([
       this.db
         .select({
-          productId: lookProducts.productId,
+          articleId: lookArticles.articleId,
           userId: looks.ownerId,
           lookId: looks.id,
           at: looks.createdAt,
         })
-        .from(lookProducts)
-        .innerJoin(looks, eq(looks.id, lookProducts.lookId))
+        .from(lookArticles)
+        .innerJoin(looks, eq(looks.id, lookArticles.lookId))
         .where(and(inArray(looks.ownerId, ids), gte(looks.createdAt, window)))
         .orderBy(desc(looks.createdAt))
         .limit(200),
       this.db
         .select({
-          productId: purchases.productId,
+          articleId: purchases.articleId,
           userId: purchases.userId,
           lookId: purchases.sourceLookId,
           at: purchases.createdAt,
@@ -385,7 +385,7 @@ export class SqlRetriever implements Retriever {
         .limit(200),
       this.db
         .select({
-          productId: interactions.productId,
+          articleId: interactions.articleId,
           userId: interactions.actorUserId,
           lookId: interactions.lookId,
           at: interactions.createdAt,
@@ -395,7 +395,7 @@ export class SqlRetriever implements Retriever {
           and(
             inArray(interactions.actorUserId, ids),
             eq(interactions.type, 'SAVE'),
-            sql`${interactions.productId} is not null`,
+            sql`${interactions.articleId} is not null`,
             gte(interactions.createdAt, window),
           ),
         )
@@ -404,33 +404,33 @@ export class SqlRetriever implements Retriever {
     ])
     const byProduct = new Map<number, SocialEvidence[]>()
     const push = (
-      productId: number | null,
+      articleId: number | null,
       userId: string,
       kind: SocialEvidence['kind'],
       lookId: string | null,
       at: Date,
     ): void => {
-      if (productId === null) return
+      if (articleId === null) return
       const t = byUser.get(userId)
       if (!t) return
-      const list = byProduct.get(productId) ?? []
+      const list = byProduct.get(articleId) ?? []
       list.push({ userId, displayName: t.displayName, kind, lookId, strength: t.strength, at })
-      byProduct.set(productId, list)
+      byProduct.set(articleId, list)
     }
-    for (const r of lookRows) push(r.productId, r.userId, 'look', r.lookId, r.at)
-    for (const r of purchaseRows) push(r.productId, r.userId, 'purchase', r.lookId, r.at)
-    for (const r of saveRows) push(r.productId, r.userId, 'save', r.lookId, r.at)
+    for (const r of lookRows) push(r.articleId, r.userId, 'look', r.lookId, r.at)
+    for (const r of purchaseRows) push(r.articleId, r.userId, 'purchase', r.lookId, r.at)
+    for (const r of saveRows) push(r.articleId, r.userId, 'save', r.lookId, r.at)
     if (byProduct.size === 0) return []
     const top = [...byProduct.entries()]
       .toSorted((a, b) => socialStrength(b[1]) - socialStrength(a[1]) || a[0] - b[0])
       .slice(0, SOCIAL_CHANNEL_LIMIT * 2)
     const rows = await this.db
       .select(PRODUCT_SELECT)
-      .from(products)
-      .innerJoin(brands, eq(brands.id, products.brandId))
+      .from(articles)
+      .innerJoin(brands, eq(brands.id, articles.brandId))
       .where(
         inArray(
-          products.id,
+          articles.id,
           top.map(([id]) => id),
         ),
       )
@@ -455,14 +455,14 @@ export class SqlRetriever implements Retriever {
     const cKeys = trend.categories.map((t) => t.key)
     if (aKeys.length === 0 && cKeys.length === 0) return []
     const match: SqlChunk[] = []
-    if (aKeys.length > 0) match.push(jsonArrayOverlaps(products.aesthetics, aKeys))
-    if (cKeys.length > 0) match.push(inArray(products.categoryGroup, cKeys))
+    if (aKeys.length > 0) match.push(jsonArrayOverlaps(articles.aesthetics, aKeys))
+    if (cKeys.length > 0) match.push(inArray(articles.categoryGroup, cKeys))
     const rows = await this.db
       .select(PRODUCT_SELECT)
-      .from(products)
-      .innerJoin(brands, eq(brands.id, products.brandId))
+      .from(articles)
+      .innerJoin(brands, eq(brands.id, articles.brandId))
       .where(and(...prefilterConditions(p), sql`(${sql.join(match, sql` OR `)})`))
-      .orderBy(desc(products.popularity), asc(products.id))
+      .orderBy(desc(articles.popularity), asc(articles.id))
       .limit(TREND_CHANNEL_LIMIT)
     const out: Array<{ row: ProductRow; evidence: TrendEvidence }> = []
     for (const r of rows) {

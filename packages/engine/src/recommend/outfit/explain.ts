@@ -3,7 +3,7 @@
  */
 import { AESTHETICS, axisIndex } from '@lookline/catalog'
 import type { Season } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { aestheticLabel, colorFamilyLabel, seasonLabel, subcategoryLabel } from '../aesthetics'
 import type { Locale } from '../intent-view'
 import { formatTwd, round } from '../vector'
@@ -13,14 +13,14 @@ import type { CompatBreakdown } from './compat'
 const FORMALITY = axisIndex('formality')
 
 export interface PairingSentence {
-  a: Product
-  b: Product
+  a: Article
+  b: Article
   compat: CompatBreakdown
   text: string
   caution: boolean
 }
 
-function shortName(p: Product, locale: Locale): string {
+function shortName(p: Article, locale: Locale): string {
   const colour = colorFamilyLabel(p.colorFamily, locale)
   const sub = subcategoryLabel(p.subcategory, locale)
   return locale === 'zh'
@@ -30,8 +30,8 @@ function shortName(p: Product, locale: Locale): string {
 
 /** The sentence for one pair, chosen by the dominant component (§3.4 table). */
 export function pairingSentence(
-  a: Product,
-  b: Product,
+  a: Article,
+  b: Article,
   locale: Locale,
   season?: Season | null,
 ): PairingSentence {
@@ -120,14 +120,14 @@ export function pairingSentence(
 
 /** All pairs (unscored pairs skipped), best first. */
 export function pairingSentences(
-  products: readonly Product[],
+  articles: readonly Article[],
   locale: Locale,
   season?: Season | null,
 ): PairingSentence[] {
   const out: PairingSentence[] = []
-  for (let i = 0; i < products.length; i++) {
-    for (let j = i + 1; j < products.length; j++) {
-      const s = pairingSentence(products[i]!, products[j]!, locale, season)
+  for (let i = 0; i < articles.length; i++) {
+    for (let j = i + 1; j < articles.length; j++) {
+      const s = pairingSentence(articles[i]!, articles[j]!, locale, season)
       if (s.compat.skipped) continue
       out.push(s)
     }

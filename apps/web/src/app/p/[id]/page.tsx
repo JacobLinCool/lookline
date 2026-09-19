@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
-import { and, brands, eq, feedbackEvents, products, type Brand, type Product } from '@lookline/db'
+import { and, brands, eq, feedbackEvents, articles, type Brand, type Article } from '@lookline/db'
 import { recordInteraction } from '@lookline/engine'
 import { AddToBagForm } from '@/components/shop/add-to-bag-form'
 import { AttributeList } from '@/components/shop/attribute-list'
@@ -27,14 +27,14 @@ function parseId(raw: string): number | null {
   return id > 0 ? id : null
 }
 
-/** Product + brand, deduplicated between `generateMetadata` and the page for one request. */
+/** Article + brand, deduplicated between `generateMetadata` and the page for one request. */
 const loadProduct = cache(
-  async (id: number): Promise<{ product: Product; brand: Brand } | null> => {
+  async (id: number): Promise<{ product: Article; brand: Brand } | null> => {
     const [row] = await getDb()
-      .db.select({ product: products, brand: brands })
-      .from(products)
-      .innerJoin(brands, eq(products.brandId, brands.id))
-      .where(eq(products.id, id))
+      .db.select({ product: articles, brand: brands })
+      .from(articles)
+      .innerJoin(brands, eq(articles.brandId, brands.id))
+      .where(eq(articles.id, id))
       .limit(1)
     return row ?? null
   },
@@ -42,16 +42,16 @@ const loadProduct = cache(
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const id = parseId((await params).id)
-  if (id === null) return { title: 'Product not found' }
+  if (id === null) return { title: 'Article not found' }
   try {
     const row = await loadProduct(id)
-    if (!row) return { title: 'Product not found' }
+    if (!row) return { title: 'Article not found' }
     return {
       title: `${row.product.name} · ${row.brand.name}`,
       description: row.product.description,
     }
   } catch {
-    return { title: 'Product' }
+    return { title: 'Article' }
   }
 }
 
@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
  */
 async function recordArrival(
   userId: string,
-  productId: number,
+  articleId: number,
   from: string | undefined,
   pos: number | null,
 ): Promise<void> {
@@ -73,7 +73,7 @@ async function recordArrival(
       .where(
         and(
           eq(feedbackEvents.userId, userId),
-          eq(feedbackEvents.productId, productId),
+          eq(feedbackEvents.articleId, articleId),
           eq(feedbackEvents.intentSessionId, from),
           eq(feedbackEvents.kind, 'click'),
         ),
@@ -86,7 +86,7 @@ async function recordArrival(
   }
   await recordFeedbackFor(userId, {
     kind: 'click',
-    productId,
+    articleId,
     intentSessionId: from,
     position: pos,
     context: { surface: 'product_page' },
@@ -95,7 +95,7 @@ async function recordArrival(
 
 async function recordView(
   userId: string,
-  productId: number,
+  articleId: number,
   from: string | undefined,
   pos: number | null,
 ): Promise<void> {
@@ -103,7 +103,7 @@ async function recordView(
     await recordInteraction(getDb().db, {
       actorUserId: userId,
       type: 'VIEW',
-      productId,
+      articleId,
       payload: from ? { intentSessionId: from, position: pos } : {},
     })
   } catch (error) {
@@ -192,7 +192,7 @@ export default async function ProductPage({
 
       <div className="mt-5 grid gap-8 md:grid-cols-12 md:gap-12">
         <div className="md:col-span-7">
-          <ProductImage productId={product.id} alt={product.name} priority />
+          <ProductImage articleId={product.id} alt={product.name} priority />
         </div>
 
         <div className="flex flex-col gap-6 md:col-span-5">
@@ -276,8 +276,8 @@ export default async function ProductPage({
       </div>
 
       <div className="mt-14 flex flex-col gap-12">
-        <CompleteTheLook productId={product.id} userId={user?.id ?? null} engineView={engineView} />
-        <SimilarPieces productId={product.id} userId={user?.id ?? null} engineView={engineView} />
+        <CompleteTheLook articleId={product.id} userId={user?.id ?? null} engineView={engineView} />
+        <SimilarPieces articleId={product.id} userId={user?.id ?? null} engineView={engineView} />
       </div>
     </Container>
   )

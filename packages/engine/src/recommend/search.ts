@@ -24,13 +24,13 @@ import {
   jsonArrayOverlaps,
   lte,
   notInArray,
-  productVectors,
-  products,
-  productsFts,
+  articleVectors,
+  articles,
+  articlesFts,
   rowsOf,
   sql,
 } from '@lookline/db'
-import type { Database, Product } from '@lookline/db'
+import type { Database, Article } from '@lookline/db'
 import type { ProductSearch, ProductSearchResult } from '../types'
 import { AESTHETIC_TABLES } from './aesthetics'
 import { isFamily, isGroup } from './intent-view'
@@ -197,54 +197,54 @@ export interface SearchPlan {
 
 export function planSearch(query: ProductSearch, opts: { withText?: boolean } = {}): SearchPlan {
   const scan = scanQuery(query.q ?? '')
-  const where: SqlChunk[] = [gt(products.stock, 0)]
+  const where: SqlChunk[] = [gt(articles.stock, 0)]
   let lexiconFilters = false
-  if (query.department) where.push(eq(products.department, query.department))
+  if (query.department) where.push(eq(articles.department, query.department))
   if (query.categoryGroups?.length)
-    where.push(inArray(products.categoryGroup, query.categoryGroups))
+    where.push(inArray(articles.categoryGroup, query.categoryGroups))
   else if (scan.groups.length > 0 && scan.subcategories.length === 0) {
-    where.push(inArray(products.categoryGroup, scan.groups))
+    where.push(inArray(articles.categoryGroup, scan.groups))
     lexiconFilters = true
   }
-  if (query.category) where.push(eq(products.category, query.category))
-  if (query.subcategory) where.push(eq(products.subcategory, query.subcategory))
+  if (query.category) where.push(eq(articles.category, query.category))
+  if (query.subcategory) where.push(eq(articles.subcategory, query.subcategory))
   else if (scan.subcategories.length > 0) {
-    where.push(inArray(products.subcategory, scan.subcategories))
+    where.push(inArray(articles.subcategory, scan.subcategories))
     lexiconFilters = true
   }
-  if (query.colorFamilies?.length) where.push(inArray(products.colorFamily, query.colorFamilies))
+  if (query.colorFamilies?.length) where.push(inArray(articles.colorFamily, query.colorFamilies))
   else if (scan.colorFamilies.length > 0) {
-    where.push(inArray(products.colorFamily, scan.colorFamilies))
+    where.push(inArray(articles.colorFamily, scan.colorFamilies))
     lexiconFilters = true
   }
   const aesthetics = [...new Set([...(query.aesthetics ?? []), ...scan.aesthetics])]
   if (aesthetics.length > 0) {
-    where.push(jsonArrayOverlaps(products.aesthetics, aesthetics))
+    where.push(jsonArrayOverlaps(articles.aesthetics, aesthetics))
     if (scan.aesthetics.length > 0) lexiconFilters = true
   }
   if (query.excludedCategoryGroups?.length)
-    where.push(notInArray(products.categoryGroup, query.excludedCategoryGroups))
+    where.push(notInArray(articles.categoryGroup, query.excludedCategoryGroups))
   if (query.excludedColorFamilies?.length)
-    where.push(notInArray(products.colorFamily, query.excludedColorFamilies))
+    where.push(notInArray(articles.colorFamily, query.excludedColorFamilies))
   if (query.excludedAesthetics?.length)
-    where.push(sql`not ${jsonArrayOverlaps(products.aesthetics, query.excludedAesthetics)}`)
+    where.push(sql`not ${jsonArrayOverlaps(articles.aesthetics, query.excludedAesthetics)}`)
   if (scan.materials.length > 0) {
-    where.push(inArray(products.material, scan.materials))
+    where.push(inArray(articles.material, scan.materials))
     lexiconFilters = true
   }
   if (scan.patterns.length > 0) {
-    where.push(inArray(products.pattern, scan.patterns))
+    where.push(inArray(articles.pattern, scan.patterns))
     lexiconFilters = true
   }
-  if (query.brandId !== undefined) where.push(eq(products.brandId, query.brandId))
+  if (query.brandId !== undefined) where.push(eq(articles.brandId, query.brandId))
   if (query.priceMin !== undefined && query.priceMin !== null)
-    where.push(gte(products.price, Math.round(query.priceMin)))
+    where.push(gte(articles.price, Math.round(query.priceMin)))
   if (query.priceMax !== undefined && query.priceMax !== null)
-    where.push(lte(products.price, Math.round(query.priceMax)))
+    where.push(lte(articles.price, Math.round(query.priceMax)))
   const withText = opts.withText ?? true
   const text = withText && scan.residual ? scan.residual : null
   const ftsExpr = text ? ftsQuery(text) : null
-  if (ftsExpr) where.push(sql`${products.id} in ${ftsHitsSubquery(ftsExpr)}`)
+  if (ftsExpr) where.push(sql`${articles.id} in ${ftsHitsSubquery(ftsExpr)}`)
   const vector = scanVector(scan, query.aesthetics ?? [])
   const pageSize = Math.max(
     1,
@@ -278,27 +278,27 @@ export function orderFor(plan: SearchPlan): SqlChunk[] {
   const cos = plan.vector ? cosineExpr(blockScale(plan.vector, RETRIEVAL_BLOCK_WEIGHTS)) : null
   switch (plan.sort) {
     case 'price_asc':
-      return [asc(products.price), asc(products.id)]
+      return [asc(articles.price), asc(articles.id)]
     case 'price_desc':
-      return [desc(products.price), asc(products.id)]
+      return [desc(articles.price), asc(articles.id)]
     case 'popular':
-      return [desc(products.popularity), asc(products.id)]
+      return [desc(articles.popularity), asc(articles.id)]
     case 'new':
-      return [desc(products.createdAt), asc(products.id)]
+      return [desc(articles.createdAt), asc(articles.id)]
     case 'trending':
-      return [desc(products.trendScore), desc(products.popularity), asc(products.id)]
+      return [desc(articles.trendScore), desc(articles.popularity), asc(articles.id)]
     default: {
       if (plan.ftsExpr && cos) {
         return [
           desc(sql`(-(${ftsRank})) + ${RELEVANCE_COSINE_WEIGHT} * ${cos}`),
-          desc(products.popularity),
-          asc(products.id),
+          desc(articles.popularity),
+          asc(articles.id),
         ]
       }
       // bm25 is a cost: lower ranks first.
-      if (plan.ftsExpr) return [asc(ftsRank), desc(products.popularity), asc(products.id)]
-      if (cos) return [desc(cos), asc(products.id)]
-      return [desc(products.popularity), asc(products.id)]
+      if (plan.ftsExpr) return [asc(ftsRank), desc(articles.popularity), asc(articles.id)]
+      if (cos) return [desc(cos), asc(articles.id)]
+      return [desc(articles.popularity), asc(articles.id)]
     }
   }
 }
@@ -312,17 +312,17 @@ export function buildSearchQuery(
   const plan = planSearch(query, opts)
   const where = and(...plan.where)
   const base = db
-    .select({ product: products, brandName: brands.name })
-    .from(products)
-    .innerJoin(brands, eq(brands.id, products.brandId))
+    .select({ product: articles, brandName: brands.name })
+    .from(articles)
+    .innerJoin(brands, eq(brands.id, articles.brandId))
     .$dynamic()
   const withVectors = needsVectorJoin(plan)
-    ? base.innerJoin(productVectors, eq(productVectors.productId, products.id))
+    ? base.innerJoin(articleVectors, eq(articleVectors.articleId, articles.id))
     : base
   const joined = needsFtsJoin(plan)
     ? withVectors.innerJoin(
-        productsFts,
-        and(eq(productsFts.rowid, products.id), ftsMatch(plan.ftsExpr!)),
+        articlesFts,
+        and(eq(articlesFts.rowid, articles.id), ftsMatch(plan.ftsExpr!)),
       )
     : withVectors
   const page = joined
@@ -330,11 +330,11 @@ export function buildSearchQuery(
     .orderBy(...orderFor(plan))
     .limit(plan.pageSize)
     .offset((plan.page - 1) * plan.pageSize)
-  const total = db.select({ n: count() }).from(products).where(where)
+  const total = db.select({ n: count() }).from(articles).where(where)
   const facets = sql`
     with sample as (
-      select ${products.categoryGroup} as category_group, ${products.colorFamily} as color_family, ${products.aesthetics} as aesthetics
-      from ${products} where ${where} limit ${FACET_SAMPLE}
+      select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family, ${articles.aesthetics} as aesthetics
+      from ${articles} where ${where} limit ${FACET_SAMPLE}
     )
     select 'group' as dim, category_group as key, count(*) as n from sample group by 2
     union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2
@@ -372,7 +372,7 @@ async function runSearch(
 ): Promise<ProductSearchResult & { plan: SearchPlan }> {
   const { plan, page, total, facets } = buildSearchQuery(db, query, { withText })
   const [rows, totalRows, facetRows] = await Promise.all([page, total, db.all(facets)])
-  const items = rows.map((r) => ({ ...(r.product as Product), brandName: r.brandName }))
+  const items = rows.map((r) => ({ ...(r.product as Article), brandName: r.brandName }))
   return {
     items,
     total: Number(totalRows[0]?.n ?? 0),

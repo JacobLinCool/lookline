@@ -15,8 +15,8 @@ export async function GET(
 
   const counts: Record<string, number> = {}
   for (const { response } of responses) {
-    if (response.choiceProductId) {
-      const key = String(response.choiceProductId)
+    if (response.choiceArticleId) {
+      const key = String(response.choiceArticleId)
       counts[key] = (counts[key] ?? 0) + 1
     }
   }
@@ -58,7 +58,7 @@ export async function GET(
         price: p.price,
         colorName: p.colorName,
         aesthetics: p.aesthetics,
-        imagePath: `/api/products/${p.id}/image`,
+        imagePath: `/api/articles/${p.id}/image`,
         votes: counts[String(p.id)] ?? 0,
       })),
       responses: responses.map(({ response, responder, styledLook }) => ({
@@ -71,7 +71,7 @@ export async function GET(
               isGuest: responder.isGuest,
             }
           : { id: null, handle: null, displayName: response.responderName, isGuest: true },
-        choiceProductId: response.choiceProductId,
+        choiceArticleId: response.choiceArticleId,
         styledLook: styledLook
           ? {
               id: styledLook.id,

@@ -126,7 +126,7 @@ describe('runRecommend (MemoryRetriever)', () => {
       }
       expect(o.items.filter((x) => x.role === 'outer').length).toBeLessThanOrEqual(1)
     }
-    // diversified: no two outfits share > 80% of their products
+    // diversified: no two outfits share > 80% of their articles
     for (let i = 0; i < res.outfits.length; i++) {
       for (let j = i + 1; j < res.outfits.length; j++) {
         const a = new Set(res.outfits[i]!.items.map((x) => x.product.id))
@@ -186,7 +186,7 @@ describe('runRecommend (MemoryRetriever)', () => {
 })
 
 describe('similarProductsWith / completeTheLookWith', () => {
-  it('similar products share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
+  it('similar articles share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
     const anchor = rows.find(
       (r) => r.stock > 0 && r.categoryGroup === 'tops' && r.department === 'women',
     )!

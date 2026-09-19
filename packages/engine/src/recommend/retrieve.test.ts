@@ -84,7 +84,7 @@ describe('MemoryRetriever', () => {
     const target = rows.find((r) => r.stock > 0 && r.department === 'women')!
     const social = new MemoryRetriever(rows, [
       {
-        productId: target.id,
+        articleId: target.id,
         userId: 'u_2',
         kind: 'look',
         lookId: 'lk_1',
@@ -193,17 +193,17 @@ describe('SqlRetriever.buildQuery', () => {
       limit: 300,
     })
     const { sql, params: values } = pg.buildQuery(params).toSQL()
-    expect(sql).toContain('"products"."stock" >')
-    expect(sql).toContain('"products"."department" in (')
-    expect(sql).toContain('"products"."category_group" in (')
-    expect(sql).toContain('"products"."subcategory" in (')
-    expect(sql).toContain('"products"."price" <=')
-    expect(sql).toContain('"products"."color_family" not in (')
-    expect(sql).toContain('"products"."brand_id" not in (')
-    expect(sql).toContain('"products"."id" not in (')
-    expect(sql).toContain('json_type("products"."attributes", ?) = \'true\'')
+    expect(sql).toContain('"articles"."stock" >')
+    expect(sql).toContain('"articles"."department" in (')
+    expect(sql).toContain('"articles"."category_group" in (')
+    expect(sql).toContain('"articles"."subcategory" in (')
+    expect(sql).toContain('"articles"."price" <=')
+    expect(sql).toContain('"articles"."color_family" not in (')
+    expect(sql).toContain('"articles"."brand_id" not in (')
+    expect(sql).toContain('"articles"."id" not in (')
+    expect(sql).toContain('json_type("articles"."attributes", ?) = \'true\'')
     expect(sql).toMatch(
-      /order by \("product_vectors"\."v\d+"\*-?[\d.]+.*\) desc, "products"\."id" asc/,
+      /order by \("product_vectors"\."v\d+"\*-?[\d.]+.*\) desc, "articles"\."id" asc/,
     )
     expect(sql).toContain('inner join "brands"')
     expect(sql).toContain('inner join "product_vectors"')
@@ -217,7 +217,7 @@ describe('SqlRetriever.buildQuery', () => {
   it('omits unused predicates', () => {
     const pg = new SqlRetriever(handle.db)
     const { sql } = pg.buildQuery(emptyParams(vector)).toSQL()
-    expect(sql).not.toContain('"products"."category_group" in (')
+    expect(sql).not.toContain('"articles"."category_group" in (')
     expect(sql).not.toContain('not in')
     expect(sql).not.toContain('json_type')
   })

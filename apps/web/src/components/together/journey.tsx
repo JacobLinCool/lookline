@@ -94,7 +94,7 @@ const SCENARIOS: Scenario[] = [
       },
     ],
     actions: [
-      'Find exact products',
+      'Find exact articles',
       'Open virtual preview',
       'Continue to checkout',
       'Confirm sample order',
@@ -193,8 +193,8 @@ function scenarioByKey(key: ScenarioKey): Scenario {
   return SCENARIOS.find((scenario) => scenario.key === key) ?? SCENARIOS[0]!
 }
 
-function productAt(products: JourneyProduct[], index: number): JourneyProduct | null {
-  return products[index] ?? products[0] ?? null
+function productAt(articles: JourneyProduct[], index: number): JourneyProduct | null {
+  return articles[index] ?? articles[0] ?? null
 }
 
 function ProductFacts({ product }: { product: JourneyProduct }) {
@@ -216,17 +216,17 @@ function ProductFacts({ product }: { product: JourneyProduct }) {
 }
 
 function ProductChooser({
-  products,
+  articles,
   selectedId,
   onSelect,
 }: {
-  products: JourneyProduct[]
+  articles: JourneyProduct[]
   selectedId: number | null
   onSelect: (id: number) => void
 }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-      {products.slice(0, 3).map((product) => {
+      {articles.slice(0, 3).map((product) => {
         const selected = product.id === selectedId
         return (
           <button
@@ -239,7 +239,7 @@ function ProductChooser({
               selected && 'bg-mist ring-2 ring-ink ring-offset-2 ring-offset-paper',
             )}
           >
-            <ProductImage productId={product.id} alt={product.name} priority className="mb-3" />
+            <ProductImage articleId={product.id} alt={product.name} priority className="mb-3" />
             <p className="text-[12px] text-muted">{product.brandName}</p>
             <p className="mt-1 text-[14px] leading-snug font-medium">{product.name}</p>
             <div className="mt-2 flex items-center justify-between gap-2">
@@ -282,7 +282,7 @@ function PreviewFrame({
           />
         ) : (
           <div className="flex items-center justify-center bg-mist p-8">
-            <ProductImage productId={product.id} alt={product.name} className="w-full max-w-72" />
+            <ProductImage articleId={product.id} alt={product.name} className="w-full max-w-72" />
           </div>
         )}
         <figcaption className="flex flex-col justify-between border-l border-line bg-card p-5">
@@ -319,7 +319,7 @@ function LookCardArtifact({
 }) {
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'exported'>('idle')
   const [consent, setConsent] = useState(false)
-  const exportHref = look ? `/api/looks/${look.id}/image` : `/api/products/${product.id}/image`
+  const exportHref = look ? `/api/looks/${look.id}/image` : `/api/articles/${product.id}/image`
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1fr)]">
@@ -334,7 +334,7 @@ function LookCardArtifact({
               className="size-full object-cover"
             />
           ) : (
-            <ProductImage productId={product.id} alt={product.name} className="size-full" />
+            <ProductImage articleId={product.id} alt={product.name} className="size-full" />
           )}
           <span className="absolute top-3 left-3 rounded-xs bg-card px-2 py-1 text-[12px] font-medium text-ink">
             Owned
@@ -403,7 +403,7 @@ function CustomCardIssuing({ product }: { product: JourneyProduct }) {
   return (
     <div className="grid gap-7 md:grid-cols-[12rem_minmax(0,1fr)]">
       <div className="rounded-md bg-mist p-3">
-        <ProductImage productId={product.id} alt={`${product.name} base pattern`} priority />
+        <ProductImage articleId={product.id} alt={`${product.name} base pattern`} priority />
         <p className="mt-3 text-[12px] text-muted">Confirmed base pattern</p>
       </div>
       <div className="flex flex-col justify-center">
@@ -439,7 +439,7 @@ function CustomCardIssuing({ product }: { product: JourneyProduct }) {
 
 function ReadyStage({
   step,
-  products,
+  articles,
   product,
   look,
   selectedId,
@@ -450,7 +450,7 @@ function ReadyStage({
   onSelectedSize,
 }: {
   step: number
-  products: JourneyProduct[]
+  articles: JourneyProduct[]
   product: JourneyProduct
   look: JourneyLook | null
   selectedId: number
@@ -500,7 +500,7 @@ function ReadyStage({
           </p>
           <Tag tone="outline">Live catalog</Tag>
         </div>
-        <ProductChooser products={products} selectedId={selectedId} onSelect={onSelect} />
+        <ProductChooser articles={articles} selectedId={selectedId} onSelect={onSelect} />
       </div>
     )
   }
@@ -518,7 +518,7 @@ function ReadyStage({
     const sizes = product.sizes.length > 0 ? product.sizes : ['One size']
     return (
       <div className="grid gap-8 lg:grid-cols-[10rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} priority />
+        <ProductImage articleId={product.id} alt={product.name} priority />
         <div className="flex flex-col gap-5">
           <div>
             <p className="text-[12px] text-muted">{product.brandName}</p>
@@ -621,7 +621,7 @@ function CustomStage({
   if (step === 1) {
     return (
       <div className="grid gap-7 md:grid-cols-[12rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} priority />
+        <ProductImage articleId={product.id} alt={product.name} priority />
         <div className="space-y-5">
           <div>
             <Tag tone="outline">Base pattern · live catalog</Tag>
@@ -733,7 +733,7 @@ function BorrowStage({
   if (step === 0) {
     return (
       <div className="grid gap-7 md:grid-cols-[13rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} priority />
+        <ProductImage articleId={product.id} alt={product.name} priority />
         <div className="flex flex-col justify-center gap-5">
           <div className="flex items-center gap-3">
             <Avatar seed={look?.ownerAvatarSeed ?? 4107} name={friendName} size="md" />
@@ -789,7 +789,7 @@ function BorrowStage({
     const sizes = product.sizes.length > 0 ? product.sizes : ['One size']
     return (
       <div className="grid gap-8 md:grid-cols-[10rem_minmax(0,1fr)]">
-        <ProductImage productId={product.id} alt={product.name} />
+        <ProductImage articleId={product.id} alt={product.name} />
         <div className="space-y-5">
           <div>
             <p className="text-[12px] text-muted">Your own order</p>
@@ -857,11 +857,11 @@ function OutcomeStrip({ scenario, step }: { scenario: ScenarioKey; step: number 
 }
 
 export function JourneyPrototype({
-  products,
+  articles,
   sampleLook,
   error,
 }: {
-  products: JourneyProduct[]
+  articles: JourneyProduct[]
   sampleLook: JourneyLook | null
   error: string | null
 }) {
@@ -872,10 +872,10 @@ export function JourneyPrototype({
     'Keep the relaxed shape, but explore an original embroidered back graphic and a deeper red finish.',
   )
   const [referenceName, setReferenceName] = useState<string | null>(null)
-  const [selectedId, setSelectedId] = useState<number | null>(products[0]?.id ?? null)
-  const [readySize, setReadySize] = useState(products[0]?.sizes[0] ?? 'One size')
+  const [selectedId, setSelectedId] = useState<number | null>(articles[0]?.id ?? null)
+  const [readySize, setReadySize] = useState(articles[0]?.sizes[0] ?? 'One size')
   const [borrowSize, setBorrowSize] = useState(
-    products[1]?.sizes[0] ?? products[0]?.sizes[0] ?? 'One size',
+    articles[1]?.sizes[0] ?? articles[0]?.sizes[0] ?? 'One size',
   )
   const [unlocked, setUnlocked] = useState<Record<ScenarioKey, number>>({
     ready: 0,
@@ -885,12 +885,12 @@ export function JourneyPrototype({
 
   const scenario = scenarioByKey(scenarioKey)
   const readyProduct = useMemo(
-    () => products.find((product) => product.id === selectedId) ?? productAt(products, 0),
-    [products, selectedId],
+    () => articles.find((product) => product.id === selectedId) ?? productAt(articles, 0),
+    [articles, selectedId],
   )
-  const customProduct = productAt(products, 2)
-  const borrowProduct = productAt(products, 1)
-  const hasCatalog = products.length > 0 && readyProduct && customProduct && borrowProduct
+  const customProduct = productAt(articles, 2)
+  const borrowProduct = productAt(articles, 1)
+  const hasCatalog = articles.length > 0 && readyProduct && customProduct && borrowProduct
 
   function chooseScenario(next: ScenarioKey) {
     setScenarioKey(next)
@@ -912,7 +912,7 @@ export function JourneyPrototype({
   }
 
   function selectReadyProduct(id: number) {
-    const next = products.find((product) => product.id === id)
+    const next = articles.find((product) => product.id === id)
     setSelectedId(id)
     setReadySize(next?.sizes[0] ?? 'One size')
     setUnlocked((current) => ({ ...current, ready: Math.min(current.ready, 1) }))
@@ -923,7 +923,7 @@ export function JourneyPrototype({
     return (
       <Container className="py-16">
         <Notice tone="error" title="The journey prototype needs the live catalog.">
-          {error ?? 'No purchasable catalog products were found. Seed the catalog and reload.'}
+          {error ?? 'No purchasable catalog articles were found. Seed the catalog and reload.'}
         </Notice>
       </Container>
     )
@@ -1019,7 +1019,7 @@ export function JourneyPrototype({
             {scenarioKey === 'ready' ? (
               <ReadyStage
                 step={step}
-                products={products}
+                articles={articles}
                 product={readyProduct}
                 look={sampleLook}
                 selectedId={readyProduct.id}

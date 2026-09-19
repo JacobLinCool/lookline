@@ -71,7 +71,7 @@ const priorCache = new Map<Department, number[]>()
 /**
  * Department centroid used as the prior `p0`.
  *
- * ENGINE_SPEC §4.2 samples 2,000 generated products per department; the catalog generator was a
+ * ENGINE_SPEC §4.2 samples 2,000 generated articles per department; the catalog generator was a
  * stub when this module was written, so the centroid is derived from the taxonomy instead: the
  * aesthetic block from `AESTHETIC_PRIOR × deptMult`, the colour block from the per-group colour
  * priors with the department multipliers, axes at 0.5, groups uniform 1/12. Both constructions

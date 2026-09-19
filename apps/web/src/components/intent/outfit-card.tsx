@@ -27,7 +27,7 @@ export function OutfitRail({
   budgetMax,
   engineView = false,
 }: OutfitRailProps) {
-  const productIds = outfit.items.map((item) => item.product.id)
+  const articleIds = outfit.items.map((item) => item.product.id)
   const budget = outfit.budget ?? budgetMax ?? null
   const over = budget !== null && outfit.total > budget
   const back = intentHref({ ...query, added: outfit.id })
@@ -74,8 +74,8 @@ export function OutfitRail({
           confirmation="Added to your bag"
           className="contents"
         >
-          {productIds.map((id) => (
-            <input key={id} type="hidden" name="productId" value={id} />
+          {articleIds.map((id) => (
+            <input key={id} type="hidden" name="articleId" value={id} />
           ))}
           <input type="hidden" name="intentSession" value={sessionId} />
           <input type="hidden" name="redirect" value={back} />
@@ -83,7 +83,7 @@ export function OutfitRail({
             Add all to bag
           </Button>
         </InstantForm>
-        <Button href={askHref(productIds, sessionId)} variant="ghost" size="sm">
+        <Button href={askHref(articleIds, sessionId)} variant="ghost" size="sm">
           Ask a friend
         </Button>
       </div>

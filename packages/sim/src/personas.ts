@@ -49,7 +49,7 @@ export const DEMO_PERSONAS: readonly DemoSpec[] = [
     displayName: 'Alice Chen',
     department: 'women',
     cluster: 'taipei-quiet-lux',
-    bio: 'Product lead in Xinyi, quiet-luxury believer: camel coats, one good bag, nothing that shouts. Asks friends before every big purchase and answers theirs at 2 a.m.',
+    bio: 'Article lead in Xinyi, quiet-luxury believer: camel coats, one good bag, nothing that shouts. Asks friends before every big purchase and answers theirs at 2 a.m.',
     gift: { label: 'for Mom', department: 'women', primaries: ['romantic', 'quiet-luxury'] },
     budget: 12000,
     params: { activity: 0.85, remixPropensity: 0.3, askPropensity: 0.7, shareRadius: 5 },

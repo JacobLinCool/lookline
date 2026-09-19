@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { Visibility } from '@lookline/db'
-import { and, eq, inArray, interactions, looks, products, users } from '@lookline/db'
+import { and, eq, inArray, interactions, looks, articles, users } from '@lookline/db'
 import { recordInteraction } from '@lookline/engine'
 import { getSessionUser, requireUser, safeNextPath } from '@/server/auth'
 import { getDb } from '@/server/db'
@@ -68,7 +68,7 @@ async function readPhoto(
 
 /**
  * `<form action={createLookAction} encType="multipart/form-data">` on `/looks/new`.
- * Fields: `productId` (repeated checkbox values), `stylePreset` (slug), `occasion`, `title`,
+ * Fields: `articleId` (repeated checkbox values), `stylePreset` (slug), `occasion`, `title`,
  * `visibility` (private | link | public), `photo` (file, ≤ 8 MB, image/*), `useSavedPhoto` (on),
  * `rememberPhoto` (on), `return` (path to come back to on validation errors).
  */
@@ -76,26 +76,26 @@ export async function createLookAction(formData: FormData): Promise<void> {
   const user = await requireUser('/looks/new')
   const back = safeNextPath(formData.get('return'), '/looks/new')
 
-  const productIds = [
+  const articleIds = [
     ...new Set(
       formData
-        .getAll('productId')
+        .getAll('articleId')
         .map(readInt)
         .filter((n): n is number => n !== null),
     ),
   ].slice(0, MAX_LOOK_PRODUCTS)
-  if (productIds.length === 0) {
+  if (articleIds.length === 0) {
     redirect(withParam(back, 'error', 'Pick at least one piece to put in the edition.'))
   }
 
   const known = await getDb()
-    .db.select({ id: products.id })
-    .from(products)
-    .where(inArray(products.id, productIds))
+    .db.select({ id: articles.id })
+    .from(articles)
+    .where(inArray(articles.id, articleIds))
   const knownIds = new Set(known.map((r) => r.id))
-  const validIds = productIds.filter((id) => knownIds.has(id))
+  const validIds = articleIds.filter((id) => knownIds.has(id))
   if (validIds.length === 0) {
-    redirect(withParam(back, 'error', 'Those products are no longer in the catalog.'))
+    redirect(withParam(back, 'error', 'Those articles are no longer in the catalog.'))
   }
 
   const stylePreset = readPresetSlug(formData.get('stylePreset'))
@@ -125,7 +125,7 @@ export async function createLookAction(formData: FormData): Promise<void> {
   try {
     const look = await createLookDraft({
       ownerId: user.id,
-      productIds: validIds,
+      articleIds: validIds,
       stylePreset,
       title,
       occasion,

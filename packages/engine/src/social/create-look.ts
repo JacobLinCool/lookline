@@ -8,13 +8,13 @@ import {
   eq,
   inArray,
   lookParticipants,
-  lookProducts,
+  lookArticles,
   looks,
-  products,
+  articles,
   users,
   type Database,
   type Look,
-  type Product,
+  type Article,
 } from '@lookline/db'
 import { findAesthetic } from '@lookline/catalog'
 import { deriveLookStyle } from '../looks'
@@ -28,11 +28,11 @@ import { resolveCreatedAt } from './time'
 /** Products in the caller's order, deduplicated; throws when any id is unknown. */
 export async function loadProductsInOrder(
   db: Database,
-  productIds: readonly number[],
-): Promise<Product[]> {
-  const ids = [...new Set(productIds)]
+  articleIds: readonly number[],
+): Promise<Article[]> {
+  const ids = [...new Set(articleIds)]
   if (ids.length === 0) throw new Error('@lookline/engine: createLook needs at least one product')
-  const rows = await db.select().from(products).where(inArray(products.id, ids))
+  const rows = await db.select().from(articles).where(inArray(articles.id, ids))
   const byId = new Map(rows.map((p) => [p.id, p]))
   const missing = ids.filter((id) => !byId.has(id))
   if (missing.length > 0) {
@@ -52,7 +52,7 @@ export async function createLook(
   input: CreateLookInput,
   options: { deferFeedback?: (work: () => Promise<void>) => void } = {},
 ): Promise<Look> {
-  const items = await loadProductsInOrder(db, input.productIds)
+  const items = await loadProductsInOrder(db, input.articleIds)
   const [owner] = await db
     .select({ id: users.id, displayName: users.displayName })
     .from(users)
@@ -113,10 +113,10 @@ export async function createLook(
   if (!look) throw new Error('@lookline/engine: look was not inserted')
 
   const roles = inferRoles(items)
-  await db.insert(lookProducts).values(
+  await db.insert(lookArticles).values(
     items.map((p, position) => ({
       lookId: id,
-      productId: p.id,
+      articleId: p.id,
       role: roles[position] ?? null,
       position,
     })),
@@ -139,14 +139,14 @@ export async function createLook(
     )
   }
 
-  const productIds = items.map((p) => p.id)
+  const articleIds = items.map((p) => p.id)
   await insertInteraction(db, {
     actorUserId: input.ownerId,
     type: 'LOOK_CREATE',
     lookId: id,
     payload: {
       kind,
-      productIds,
+      articleIds,
       stylePreset: input.stylePreset,
       parentLookId: parent?.id ?? null,
       rootLookId,
@@ -196,7 +196,7 @@ export async function createLook(
       await emitFeedback(db, {
         userId: input.ownerId,
         kind: 'look_create',
-        productId: p.id,
+        articleId: p.id,
         lookId: id,
         context: { lookId: id, kind, parentLookId: parent?.id ?? null },
         createdAt,

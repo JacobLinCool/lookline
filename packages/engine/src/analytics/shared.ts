@@ -92,7 +92,7 @@ export interface InteractionLite {
   actorUserId: string
   targetUserId: string | null
   lookId: string | null
-  productId: number | null
+  articleId: number | null
   askId: string | null
   type: InteractionType
   sourceInteractionId: string | null
@@ -102,7 +102,7 @@ export interface InteractionLite {
 export interface PurchaseLite {
   id: string
   userId: string
-  productId: number
+  articleId: number
   quantity: number
   price: number
   forKind: PurchaseFor
@@ -131,7 +131,7 @@ export interface ParticipantLite {
 
 export interface LookProductLite {
   lookId: string
-  productId: number
+  articleId: number
 }
 
 export interface ProductLite {
@@ -157,7 +157,7 @@ export interface AskLite {
 export interface AskResponseLite {
   askId: string
   responderUserId: string | null
-  choiceProductId: number | null
+  choiceArticleId: number | null
   styledLookId: string | null
   createdAt: Date
 }

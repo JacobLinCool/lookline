@@ -33,17 +33,17 @@ export const FALLBACK_AESTHETICS: ReadonlyArray<readonly [string, number]> = [
   ['normcore', 0.4],
 ]
 
-/** `look.styleVector` when present, else the mean of its products' vectors with G zeroed. */
+/** `look.styleVector` when present, else the mean of its articles' vectors with G zeroed. */
 export function referenceLookVector(look: {
   styleVector?: readonly number[] | null
-  products?: ReadonlyArray<{ styleVector: readonly number[] }>
+  articles?: ReadonlyArray<{ styleVector: readonly number[] }>
 }): number[] | null {
   if (look.styleVector && look.styleVector.length === 64) return look.styleVector.slice()
-  const products = look.products ?? []
-  if (products.length === 0) return null
+  const articles = look.articles ?? []
+  if (articles.length === 0) return null
   const out = zeroVector()
-  for (const p of products)
-    for (let i = 0; i < 64; i++) out[i] = (out[i] ?? 0) + (p.styleVector[i] ?? 0) / products.length
+  for (const p of articles)
+    for (let i = 0; i < 64; i++) out[i] = (out[i] ?? 0) + (p.styleVector[i] ?? 0) / articles.length
   for (let i = BLOCK.G[0]; i < BLOCK.G[1]; i++) out[i] = 0
   return out
 }

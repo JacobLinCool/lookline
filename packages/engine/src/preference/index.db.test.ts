@@ -1,6 +1,6 @@
 /**
  * Integration test of `recordFeedback` / `getPreferenceProfile` against a migrated in-memory
- * SQLite database (the same dialect as D1): two generated catalog products, a throw-away user, a
+ * SQLite database (the same dialect as D1): two generated catalog articles, a throw-away user, a
  * handful of events, then the profile.
  */
 import {
@@ -10,7 +10,7 @@ import {
   feedbackEvents,
   insertAll,
   preferenceSnapshots,
-  products,
+  articles,
   users,
 } from '@lookline/db'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
@@ -25,7 +25,7 @@ const USER_ID = 'u_test_engine03'
 const SESSION = `is_test_${USER_ID}`
 
 let handle: DbHandle
-let productId = 0
+let articleId = 0
 let otherProductId = 0
 let productAesthetics: string[] = []
 
@@ -49,8 +49,8 @@ beforeAll(async () => {
     { maxParams: 30_000 },
   )
   const [first, second] = [1, 2].map((i) => generateProduct(i, SEED, brandRecords))
-  await insertAll(handle.db, products, [first!, second!], { maxParams: 30_000 })
-  productId = first!.id
+  await insertAll(handle.db, articles, [first!, second!], { maxParams: 30_000 })
+  articleId = first!.id
   otherProductId = second!.id
   productAesthetics = first!.aesthetics ?? []
   await handle.db
@@ -71,7 +71,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'impression',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       context: { armId: 'taste-led', contextVector: [1, 0, 0, 0, 0.8, 0, 1, 0], position: 0 },
@@ -80,7 +80,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'click',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       createdAt: at(1),
@@ -88,7 +88,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'save',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       createdAt: at(2),
@@ -101,9 +101,9 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     expect(afterSave?.p).toHaveLength(64)
     expect(afterSave?.g).toBeNull()
     const [product] = await db
-      .select({ v: products.styleVector })
-      .from(products)
-      .where(eq(products.id, productId))
+      .select({ v: articles.styleVector })
+      .from(articles)
+      .where(eq(articles.id, articleId))
     const primary = productAesthetics[0]
     if (primary) {
       const idx = aestheticIndex(primary)
@@ -115,7 +115,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'purchase',
-      productId,
+      articleId,
       intentSessionId: SESSION,
       position: 0,
       context: { forKind: 'self' },
@@ -137,7 +137,7 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'purchase',
-      productId: otherProductId,
+      articleId: otherProductId,
       forOthers: true,
       context: { forKind: 'other', forLabel: 'dad' },
       createdAt: at(4),
@@ -157,14 +157,14 @@ describe('recordFeedback / getPreferenceProfile (SQLite integration)', () => {
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'save',
-      productId: otherProductId,
+      articleId: otherProductId,
       forOthers: true,
       createdAt: at(5),
     })
     await recordFeedback(db, {
       userId: USER_ID,
       kind: 'save',
-      productId: otherProductId,
+      articleId: otherProductId,
       forOthers: true,
       createdAt: at(6),
     })

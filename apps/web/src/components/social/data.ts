@@ -7,15 +7,15 @@ import {
   eq,
   inArray,
   interactions,
-  lookProducts,
+  lookArticles,
   looks,
-  products,
+  articles,
   users,
   type Ask,
   type AskResponse,
   type Database,
   type Look,
-  type Product,
+  type Article,
   type User,
 } from '@lookline/db'
 import {
@@ -33,12 +33,12 @@ import { getDb } from '@/server/db'
  * that throws "not implemented yet" degrades to a Notice instead of a crash.
  */
 
-export type ShopProduct = Product & { brandName: string }
+export type ShopProduct = Article & { brandName: string }
 
 export interface LookBundle {
   look: Look
   owner: User
-  products: ShopProduct[]
+  articles: ShopProduct[]
 }
 
 export interface AskResponseRow {
@@ -72,10 +72,10 @@ export async function loadProductsByIds(ids: readonly number[]): Promise<ShopPro
   const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))]
   if (unique.length === 0) return []
   const rows = await getDb()
-    .db.select({ product: products, brandName: brands.name })
-    .from(products)
-    .innerJoin(brands, eq(products.brandId, brands.id))
-    .where(inArray(products.id, unique))
+    .db.select({ product: articles, brandName: brands.name })
+    .from(articles)
+    .innerJoin(brands, eq(articles.brandId, brands.id))
+    .where(inArray(articles.id, unique))
   const byId = new Map(rows.map((r) => [r.product.id, { ...r.product, brandName: r.brandName }]))
   return unique.flatMap((id) => {
     const p = byId.get(id)
@@ -86,11 +86,11 @@ export async function loadProductsByIds(ids: readonly number[]): Promise<ShopPro
 /** Products of a Look in position order. */
 export async function loadLookProducts(lookId: string): Promise<ShopProduct[]> {
   const rows = await getDb()
-    .db.select({ product: products, brandName: brands.name, position: lookProducts.position })
-    .from(lookProducts)
-    .innerJoin(products, eq(lookProducts.productId, products.id))
-    .innerJoin(brands, eq(products.brandId, brands.id))
-    .where(eq(lookProducts.lookId, lookId))
+    .db.select({ product: articles, brandName: brands.name, position: lookArticles.position })
+    .from(lookArticles)
+    .innerJoin(articles, eq(lookArticles.articleId, articles.id))
+    .innerJoin(brands, eq(articles.brandId, brands.id))
+    .where(eq(lookArticles.lookId, lookId))
   return rows
     .toSorted((a, b) => a.position - b.position)
     .map((r) => ({ ...r.product, brandName: r.brandName }))
@@ -100,10 +100,10 @@ async function bundleLook(
   row: { look: Look; owner: User } | undefined,
 ): Promise<LookBundle | null> {
   if (!row) return null
-  return { look: row.look, owner: row.owner, products: await loadLookProducts(row.look.id) }
+  return { look: row.look, owner: row.owner, articles: await loadLookProducts(row.look.id) }
 }
 
-/** A Look by id with its owner and products, or null. */
+/** A Look by id with its owner and articles, or null. */
 export async function loadLookById(id: string): Promise<LookBundle | null> {
   const [row] = await getDb()
     .db.select({ look: looks, owner: users })
@@ -140,7 +140,7 @@ async function bundleAsk(row: { ask: Ask; asker: User } | undefined): Promise<As
   if (!row) return null
   const { db } = getDb()
   const [options, target, look, responseRows] = await Promise.all([
-    loadProductsByIds(row.ask.optionProductIds),
+    loadProductsByIds(row.ask.optionArticleIds),
     row.ask.targetUserId
       ? db
           .select()
@@ -231,7 +231,7 @@ export async function ensureInteraction(
     if (input.lookId) conditions.push(eq(interactions.lookId, input.lookId))
     if (input.askId) conditions.push(eq(interactions.askId, input.askId))
     if (input.targetUserId) conditions.push(eq(interactions.targetUserId, input.targetUserId))
-    if (input.productId) conditions.push(eq(interactions.productId, input.productId))
+    if (input.articleId) conditions.push(eq(interactions.articleId, input.articleId))
     const existing = await db
       .select({ id: interactions.id })
       .from(interactions)
@@ -297,7 +297,7 @@ export const OCCASION_OPTIONS = [
   { value: 'seasonal', label: 'Seasonal' },
 ] as const
 
-/** Parse `products=1,2,3` (or repeated params) into positive integer ids. */
+/** Parse `articles=1,2,3` (or repeated params) into positive integer ids. */
 export function parseIdList(value: string | string[] | undefined): number[] {
   const raw = Array.isArray(value) ? value.join(',') : (value ?? '')
   return [

@@ -61,7 +61,7 @@ function OutfitRail({
         className="flex flex-wrap items-center gap-3"
       >
         {outfit.items.map((item) => (
-          <input key={item.product.id} type="hidden" name="productId" value={item.product.id} />
+          <input key={item.product.id} type="hidden" name="articleId" value={item.product.id} />
         ))}
         <input type="hidden" name="redirect" value={`/p/${anchorId}`} />
         <Tag size="md">Total {formatTwd(outfit.total)}</Tag>
@@ -80,16 +80,16 @@ function OutfitRail({
 
 /** Outfits built around this product: real pieces, a total, one button. Factors only in Engine view. */
 export async function CompleteTheLook({
-  productId,
+  articleId,
   userId,
   engineView = false,
 }: {
-  productId: number
+  articleId: number
   userId: string | null
   engineView?: boolean
 }) {
   const result = await callEngine('completeTheLook', () =>
-    completeTheLook(getDb().db, productId, { userId: userId ?? undefined, count: 2 }),
+    completeTheLook(getDb().db, articleId, { userId: userId ?? undefined, count: 2 }),
   )
   return (
     <section className="hairline flex flex-col gap-8 pt-8">
@@ -103,7 +103,7 @@ export async function CompleteTheLook({
           <OutfitRail
             key={outfit.id}
             outfit={outfit}
-            anchorId={productId}
+            anchorId={articleId}
             engineView={engineView}
           />
         ))

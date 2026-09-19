@@ -3,7 +3,7 @@ import type { CategoryGroup, ColorFamily, Department } from '@lookline/catalog'
 import type { ProductSearch } from '@lookline/engine'
 
 /**
- * URL contract for `/shop` and `GET /api/products/search`. Every search param maps 1:1 onto a
+ * URL contract for `/shop` and `GET /api/articles/search`. Every search param maps 1:1 onto a
  * `ProductSearch` field; selected and excluded facets are repeatable. Unknown values are dropped, never thrown.
  */
 

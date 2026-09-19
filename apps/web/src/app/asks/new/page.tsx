@@ -44,15 +44,15 @@ function buildPath(query: Record<string, string | string[] | undefined>, kind: s
   const params = new URLSearchParams()
   params.set('kind', kind)
   const look = first(query.look)
-  const products = first(query.products)
+  const articles = first(query.articles)
   if (look) params.set('look', look)
-  if (products) params.set('products', products)
+  if (articles) params.set('articles', articles)
   return `/asks/new?${params.toString()}`
 }
 
 /**
- * `/asks/new` — compose an Ask. `?products=1,2,3` or `?look=<id>` preload the options (a Look's
- * products are preselected); the bag contributes candidates too. `?kind=style_me` switches to the
+ * `/asks/new` — compose an Ask. `?articles=1,2,3` or `?look=<id>` preload the options (a Look's
+ * articles are preselected); the bag contributes candidates too. `?kind=style_me` switches to the
  * "Style me" brief (no options, a budget and an occasion).
  */
 export default async function NewAskPage({ searchParams }: { searchParams: SearchParams }) {
@@ -78,19 +78,19 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
 
   const [look, paramProducts, bagLines, network, recentAsks] = await Promise.all([
     lookId ? loadLookById(lookId) : Promise.resolve(null),
-    loadProductsByIds(parseIdList(query.products)),
+    loadProductsByIds(parseIdList(query.articles)),
     getBag(),
     loadNetworkPeople(viewer.id),
     loadUserAsks(viewer.id, 3),
   ])
-  const bagProducts = await loadProductsByIds(bagLines.map((l) => l.productId))
+  const bagProducts = await loadProductsByIds(bagLines.map((l) => l.articleId))
 
   const preselected = new Set<number>([
     ...paramProducts.map((p) => p.id),
-    ...(look?.products.map((p) => p.id) ?? []),
+    ...(look?.articles.map((p) => p.id) ?? []),
   ])
   const candidates = new Map<number, ShopProduct>()
-  for (const p of [...paramProducts, ...(look?.products ?? []), ...bagProducts]) {
+  for (const p of [...paramProducts, ...(look?.articles ?? []), ...bagProducts]) {
     if (!candidates.has(p.id)) candidates.set(p.id, p)
   }
   const options = [...candidates.values()]
@@ -167,7 +167,7 @@ export default async function NewAskPage({ searchParams }: { searchParams: Searc
                   if (checked) defaultChecked += 1
                   return (
                     <li key={product.id}>
-                      <ProductOption product={product} name="productId" defaultChecked={checked} />
+                      <ProductOption product={product} name="articleId" defaultChecked={checked} />
                     </li>
                   )
                 })}

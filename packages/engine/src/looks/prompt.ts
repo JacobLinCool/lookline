@@ -4,13 +4,13 @@
  * direction and the occasion, then negative guidance. No brand names or logos are ever requested.
  */
 import { findSubcategory, findMaterial, findPattern } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import type { StylePreset } from '../types'
 
 export interface LookPromptInput {
   preset: StylePreset
-  products: ReadonlyArray<
-    Pick<Product, 'name' | 'colorName' | 'material' | 'subcategory' | 'pattern'>
+  articles: ReadonlyArray<
+    Pick<Article, 'name' | 'colorName' | 'material' | 'subcategory' | 'pattern'>
   >
   ownerName: string
   occasion?: string | null
@@ -24,7 +24,7 @@ function humanize(slug: string): string {
   return slug.replace(/[-_]+/g, ' ').trim()
 }
 
-function describeGarment(p: LookPromptInput['products'][number]): string {
+function describeGarment(p: LookPromptInput['articles'][number]): string {
   const material = findMaterial(p.material)?.name ?? humanize(p.material)
   const subcategory = findSubcategory(p.subcategory)?.name ?? humanize(p.subcategory)
   const pattern =
@@ -47,12 +47,12 @@ function describeOccasion(occasion: string | null | undefined): string | null {
 
 /** A rich, self-contained prompt for the image model (a few short paragraphs, plain text). */
 export function buildLookImagePrompt(input: LookPromptInput): string {
-  const { preset, products, ownerName, occasion, hasReferencePhoto } = input
+  const { preset, articles, ownerName, occasion, hasReferencePhoto } = input
   const subject = hasReferencePhoto
     ? 'Photograph the person in the reference photo, keeping their identity, face, skin tone, hair and body exactly as they are.'
     : 'Photograph one adult model, natural and relaxed, with a real, individual face.'
   const garmentList =
-    products.length > 0 ? products.map(describeGarment).join('; ') : 'a simple, well-cut outfit'
+    articles.length > 0 ? articles.map(describeGarment).join('; ') : 'a simple, well-cut outfit'
   const garments = `They are wearing, as a complete outfit: ${garmentList}. Every piece is clearly visible, fits naturally and moves with the body; fabric texture, colour and drape are accurate.`
   const direction = `Art direction (${preset.name}): ${preset.prompt}`
   const framing =

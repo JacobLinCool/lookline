@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { cosineSimilarity } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { getPreferenceProfile, type Explanation, type ExplanationFactor } from '@lookline/engine'
 import { FactorBreakdown, Tag } from '@/components/ui'
 import { getDb } from '@/server/db'
@@ -28,7 +28,7 @@ const factor = (
  * weight × value, so the score shown by FactorBreakdown is exactly their sum.
  */
 function buildExplanation(
-  product: Product,
+  product: Article,
   profile: Awaited<ReturnType<typeof getPreferenceProfile>>,
   similarity: number,
 ): Explanation {
@@ -91,7 +91,7 @@ export async function WhyThisSuitsYou({
   userId,
   engineView = false,
 }: {
-  product: Product
+  product: Article
   userId: string | null
   engineView?: boolean
 }) {

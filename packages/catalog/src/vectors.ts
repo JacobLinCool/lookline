@@ -166,7 +166,7 @@ export function weightStyleVector(
 
 /**
  * Rebuild the `StyleVectorInput` of a product from its stored vector and columns, so that
- * `toStyleVector(productStyleInput(p))` deep-equals `p.styleVector` for generated products.
+ * `toStyleVector(productStyleInput(p))` deep-equals `p.styleVector` for generated articles.
  */
 export function productStyleInput(p: {
   styleVector: readonly number[]

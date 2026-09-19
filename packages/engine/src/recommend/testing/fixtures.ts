@@ -26,7 +26,7 @@ import {
   toStyleVector,
 } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Rng, Season } from '@lookline/catalog'
-import type { Department, Product } from '@lookline/db'
+import type { Department, Article } from '@lookline/db'
 import type { Intent } from '../../types'
 import type { ContextInput } from '../context'
 import type { RankContext } from '../factors'
@@ -299,7 +299,7 @@ export function makeProduct(
     .replace(/\s+/g, ' ')
     .trim()
   const description = `${sub.name} by ${brand.name} in ${material?.name ?? 'mixed fibres'}, ${colour.name.toLowerCase()}, ${pattern?.name.toLowerCase() ?? 'solid'}. ${aestheticDef.definition}`
-  const row: Product = {
+  const row: Article = {
     id: i,
     slug: `p-${i}-${slugify(name)}`,
     brandId: brand.id,
@@ -345,7 +345,7 @@ export function makeProduct(
 
 let cachedCatalog: { key: string; rows: ProductRow[] } | null = null
 
-/** `n` synthetic products (ids 1..n); memoised per (n, seed). */
+/** `n` synthetic articles (ids 1..n); memoised per (n, seed). */
 export function makeCatalog(n: number, seed = 42): ProductRow[] {
   const key = `${n}:${seed}`
   if (cachedCatalog && cachedCatalog.key === key) return cachedCatalog.rows

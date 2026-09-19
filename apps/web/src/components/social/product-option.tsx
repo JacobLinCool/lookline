@@ -44,7 +44,7 @@ export function ProductOption({
     >
       <div className="relative">
         <ProductImage
-          productId={product.id}
+          articleId={product.id}
           alt={product.name}
           className="ring-2 ring-transparent ring-offset-2 ring-offset-paper transition-shadow group-has-checked:ring-ink"
         />
@@ -93,7 +93,7 @@ export function ProductLine({
 }) {
   const body = (
     <>
-      <ProductImage productId={product.id} alt={product.name} className="w-14 shrink-0" />
+      <ProductImage articleId={product.id} alt={product.name} className="w-14 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12px] text-muted">{product.brandName}</p>
         <p className="truncate text-[14px] leading-snug font-medium">

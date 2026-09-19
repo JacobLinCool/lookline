@@ -1,11 +1,11 @@
 import { InstantForm } from '@/components/latency/instant-form'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { Button, ProductCard, Rail, RailItem, Select } from '@/components/ui'
 import { addToBagAction } from '@/server/actions/bag'
 import { humanize } from '@/server/format'
 
 export interface LookStripProduct {
-  product: Product & { brandName: string }
+  product: Article & { brandName: string }
   role: string | null
 }
 
@@ -39,7 +39,7 @@ export function LookProductStrip({
                 confirmation="Added to your bag"
                 className="flex flex-col gap-1.5"
               >
-                <input type="hidden" name="productId" value={product.id} />
+                <input type="hidden" name="articleId" value={product.id} />
                 <input type="hidden" name="sourceLook" value={lookId} />
                 {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
                 <div className="flex items-center gap-1.5">

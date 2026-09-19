@@ -2,7 +2,7 @@
  * Public types of @lookline/catalog. These are a cross-package contract (docs/CONTRACTS.md):
  * keep names and shapes stable; add fields, do not rename.
  */
-import type { BrandTier, Department, NewBrand, NewProduct, SizeSystem } from '@lookline/db'
+import type { BrandTier, Department, NewBrand, SizeSystem } from '@lookline/db'
 
 export type CategoryGroup =
   | 'tops'
@@ -128,11 +128,6 @@ export interface CategoryDef {
 export interface GeneratedBrand extends Omit<NewBrand, 'createdAt' | 'id'> {
   id: number
   tier: BrandTier
-}
-
-export interface GeneratedProduct extends Omit<NewProduct, 'createdAt' | 'id' | 'styleVector'> {
-  id: number
-  styleVector: number[]
 }
 
 export interface StyleVectorInput {

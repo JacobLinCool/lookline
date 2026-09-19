@@ -4,7 +4,7 @@
  */
 import { axisIndex, cosineRange, findColor } from '@lookline/catalog'
 import type { Season } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { NEUTRAL_FAMILIES, clamp01, colorHsl } from '../vector'
 import type { Hsl } from '../vector'
 
@@ -97,7 +97,7 @@ function familyGuess(hex: string): string {
 }
 
 /** cosine over dims 0–31, +0.10 when a tag is shared, capped at 1. */
-export function aestheticCompat(a: Product, b: Product): number {
+export function aestheticCompat(a: Article, b: Article): number {
   let v = cosineRange(a.styleVector, b.styleVector, 0, 32)
   if (a.aesthetics.some((t) => b.aesthetics.includes(t))) v += 0.1
   return clamp01(v)
@@ -107,7 +107,7 @@ const FORMALITY = axisIndex('formality')
 const BOLDNESS = axisIndex('boldness')
 
 /** `1 − |Δformality|`, ×0.8 when both are statement pieces (boldness > 0.7). */
-export function formalityCompat(a: Product, b: Product): number {
+export function formalityCompat(a: Article, b: Article): number {
   const fa = a.styleVector[FORMALITY] ?? 0.5
   const fb = b.styleVector[FORMALITY] ?? 0.5
   let v = 1 - Math.abs(fa - fb)
@@ -129,7 +129,7 @@ function adjacentSeasons(a: readonly string[], b: readonly string[]): boolean {
 }
 
 /** 1 when seasons intersect or either is all-season; 0.5 adjacent; 0.3 otherwise; intent season multiplier. */
-export function seasonCompat(a: Product, b: Product, intentSeason?: Season | null): number {
+export function seasonCompat(a: Article, b: Article, intentSeason?: Season | null): number {
   let v: number
   if (
     a.seasons.includes('all-season') ||
@@ -164,12 +164,12 @@ const UNSCORED: ReadonlySet<string> = new Set([
   'jewelry|bags',
 ])
 
-export function isUnscoredPair(a: Product, b: Product): boolean {
+export function isUnscoredPair(a: Article, b: Article): boolean {
   return UNSCORED.has(`${a.categoryGroup}|${b.categoryGroup}`)
 }
 
 /** `0.35·colour + 0.30·aesthetic + 0.20·formality + 0.15·season`, clamped [0, 1]. */
-export function compat(a: Product, b: Product, intentSeason?: Season | null): CompatBreakdown {
+export function compat(a: Article, b: Article, intentSeason?: Season | null): CompatBreakdown {
   const colour = colourHarmony(a, b)
   const aesthetic = aestheticCompat(a, b)
   const formality = formalityCompat(a, b)
@@ -180,7 +180,7 @@ export function compat(a: Product, b: Product, intentSeason?: Season | null): Co
 
 /** Compat of an item with an external reference (e.g. a partner Look): vector + colour only. */
 export function referenceCompat(
-  item: Product,
+  item: Article,
   ref: { styleVector: readonly number[]; colorHex: string; colorFamily: string },
 ): number {
   const colour = colourHarmony(item, { colorHex: ref.colorHex, colorFamily: ref.colorFamily }).score

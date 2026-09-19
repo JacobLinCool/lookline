@@ -65,7 +65,7 @@ export function RankedItemCard({
       try {
         const result = await sendFeedbackAction({
           kind: next === 'saved' ? 'save' : 'dismiss',
-          productId: product.id,
+          articleId: product.id,
           position,
           intentSessionId: sessionId,
         })

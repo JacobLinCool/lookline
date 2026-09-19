@@ -5,8 +5,8 @@
  */
 import { axisIndex, findColor, toStyleVector } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
-import { brands, eq, lookProducts, looks, products, users } from '@lookline/db'
-import type { Database, Department, Product } from '@lookline/db'
+import { brands, eq, lookArticles, looks, articles, users } from '@lookline/db'
+import type { Database, Department, Article } from '@lookline/db'
 import type { Outfit, RankedItem, RecommendRequest, RecommendResponse } from '../types'
 import { templateForOccasion } from './aesthetics'
 import { loadContext } from './context'
@@ -200,10 +200,10 @@ async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLoo
       .innerJoin(users, eq(users.id, looks.ownerId))
       .where(eq(looks.id, lookId)),
     db
-      .select({ product: products })
-      .from(lookProducts)
-      .innerJoin(products, eq(products.id, lookProducts.productId))
-      .where(eq(lookProducts.lookId, lookId)),
+      .select({ product: articles })
+      .from(lookArticles)
+      .innerJoin(articles, eq(articles.id, lookArticles.articleId))
+      .where(eq(lookArticles.lookId, lookId)),
   ])
   const look = lookRows[0]
   if (!look) return null
@@ -257,25 +257,25 @@ export async function recommend(db: Database, req: RecommendRequest): Promise<Re
 }
 
 // ---------------------------------------------------------------------------
-// Product-anchored requests
+// Article-anchored requests
 // ---------------------------------------------------------------------------
 
 async function loadProduct(
   db: Database,
-  productId: number,
-): Promise<(Product & { brandName: string }) | null> {
+  articleId: number,
+): Promise<(Article & { brandName: string }) | null> {
   const rows = await db
-    .select({ product: products, brandName: brands.name })
-    .from(products)
-    .innerJoin(brands, eq(brands.id, products.brandId))
-    .where(eq(products.id, productId))
+    .select({ product: articles, brandName: brands.name })
+    .from(articles)
+    .innerJoin(brands, eq(brands.id, articles.brandId))
+    .where(eq(articles.id, articleId))
   const r = rows[0]
   return r ? { ...r.product, brandName: r.brandName } : null
 }
 
 /** Pseudo-intent from a product (§2.4): aesthetics 1.0/.6/.4, its colour family, axes from its vector. */
 export function pseudoIntent(
-  p: Product,
+  p: Article,
   mode: 'single' | 'outfit',
   opts: { budget?: { min?: number; max?: number } } = {},
 ): EngineIntent {
@@ -333,7 +333,7 @@ export function pseudoIntent(
 }
 
 /** Vector of a pseudo-intent: the product's aesthetic ladder, colour and axes, group one-hot when single. */
-export function pseudoVector(p: Product, intent: EngineIntent): number[] {
+export function pseudoVector(p: Article, intent: EngineIntent): number[] {
   const secondary = p.secondaryColorHex ? (findColor(p.secondaryColorHex)?.family ?? null) : null
   const axes = Object.fromEntries(Object.entries(intent.axisTargets ?? {})) as Partial<
     Record<Axis, number>
@@ -349,10 +349,10 @@ export function pseudoVector(p: Product, intent: EngineIntent): number[] {
 
 export async function similarProducts(
   db: Database,
-  productId: number,
+  articleId: number,
   opts: { limit?: number; userId?: string } = {},
 ): Promise<RankedItem[]> {
-  const product = await loadProduct(db, productId)
+  const product = await loadProduct(db, articleId)
   if (!product) return []
   const context = await loadContext(db, { userId: opts.userId ?? null })
   return similarProductsWith(product, { retriever: new SqlRetriever(db), context }, opts)
@@ -360,7 +360,7 @@ export async function similarProducts(
 
 /** Core of `similarProducts` (retriever-agnostic). */
 export async function similarProductsWith(
-  product: Product,
+  product: Article,
   deps: RecommendDeps,
   opts: { limit?: number; userId?: string } = {},
 ): Promise<RankedItem[]> {
@@ -401,10 +401,10 @@ export async function similarProductsWith(
 
 export async function completeTheLook(
   db: Database,
-  productId: number,
+  articleId: number,
   opts: { userId?: string; budget?: number; count?: number } = {},
 ): Promise<Outfit[]> {
-  const product = await loadProduct(db, productId)
+  const product = await loadProduct(db, articleId)
   if (!product) return []
   const context = await loadContext(db, { userId: opts.userId ?? null })
   return completeTheLookWith(product, { retriever: new SqlRetriever(db), context }, opts)
@@ -412,7 +412,7 @@ export async function completeTheLook(
 
 /** Core of `completeTheLook` (retriever-agnostic): plans B/A minus the product's group, product pinned. */
 export async function completeTheLookWith(
-  product: Product & { brandName: string },
+  product: Article & { brandName: string },
   deps: RecommendDeps,
   opts: { userId?: string; budget?: number; count?: number } = {},
 ): Promise<Outfit[]> {

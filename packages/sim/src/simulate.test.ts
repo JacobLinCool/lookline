@@ -53,7 +53,7 @@ function lineageOf(rows: MemoryRows, clusterOf: Map<string, number | null>) {
       actorUserId: i.actorUserId,
       targetUserId: i.targetUserId ?? null,
       lookId: i.lookId ?? null,
-      productId: i.productId ?? null,
+      articleId: i.articleId ?? null,
       askId: i.askId ?? null,
       type: i.type,
       sourceInteractionId: i.sourceInteractionId ?? null,
@@ -62,7 +62,7 @@ function lineageOf(rows: MemoryRows, clusterOf: Map<string, number | null>) {
     purchases: rows.purchases.map((p) => ({
       id: p.id,
       userId: p.userId,
-      productId: p.productId,
+      articleId: p.articleId,
       quantity: p.quantity ?? 1,
       price: p.price,
       forKind: p.forKind ?? 'self',
@@ -176,11 +176,11 @@ describe('simulateSocial (in-memory sink, dry run)', () => {
     const { durationMs: _a, ...summaryA } = a.summary
     const { durationMs: _b, ...summaryB } = b.summary
     expect(summaryA).toEqual(summaryB)
-    expect(a.sink.rows.purchases.map((p) => `${p.id}:${p.productId}`)).toEqual(
-      b.sink.rows.purchases.map((p) => `${p.id}:${p.productId}`),
+    expect(a.sink.rows.purchases.map((p) => `${p.id}:${p.articleId}`)).toEqual(
+      b.sink.rows.purchases.map((p) => `${p.id}:${p.articleId}`),
     )
-    expect(a.sink.rows.looks.map((l) => `${l.id}:${l.productIds.join(',')}`)).toEqual(
-      b.sink.rows.looks.map((l) => `${l.id}:${l.productIds.join(',')}`),
+    expect(a.sink.rows.looks.map((l) => `${l.id}:${l.articleIds.join(',')}`)).toEqual(
+      b.sink.rows.looks.map((l) => `${l.id}:${l.articleIds.join(',')}`),
     )
   }, 30_000)
 })

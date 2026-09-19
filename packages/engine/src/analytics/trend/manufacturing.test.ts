@@ -64,7 +64,7 @@ function signal(
 }
 
 function events(
-  productIds: number[],
+  articleIds: number[],
   n: number,
   type: TrendEvent['type'] = 'PURCHASE',
   weight = 10,
@@ -75,7 +75,7 @@ function events(
     weight,
     keys: [],
     cluster: 0,
-    productIds,
+    articleIds,
     lookId: null,
     rootLookId: `root_${i % 2}`,
     gmv: 0,
@@ -99,7 +99,7 @@ function intent(id: string, partial: Partial<IntentSessionLite> = {}): IntentSes
 function input(partial: Partial<ManufacturingInput> = {}): ManufacturingInput {
   return {
     events: events([1], 3),
-    products: new Map([[1, product(1)]]),
+    articles: new Map([[1, product(1)]]),
     intents: [intent('s1'), intent('s2'), intent('s3'), intent('s4'), intent('s5')],
     sessionsWithPurchase: new Set(['s1', 's2']),
     signals: new Map([
@@ -194,7 +194,7 @@ describe('recommendManufacturing', () => {
     expect(r.rationale).toContain('3 purchases')
     expect(r.rationale).toContain('3 taste clusters')
     expect(r.rationale).toContain('30% conversion')
-    expect(r.rationale).toContain('5 products in stock (40% low stock)')
+    expect(r.rationale).toContain('5 articles in stock (40% low stock)')
     expect(r.evidence.sampleIntents).toEqual(['utterance s1', 'utterance s2', 'utterance s3'])
     expect(String(r.evidence.rationaleZh)).toContain('建議開款')
   })
@@ -219,7 +219,7 @@ describe('recommendManufacturing', () => {
     for (const r of rows) expect(r.evidence.demandIntents14d).toBe(0)
     const tops = recommendManufacturing(
       input({
-        products: new Map([[1, product(1, { categoryGroup: 'tops', subcategory: 'tee' })]]),
+        articles: new Map([[1, product(1, { categoryGroup: 'tops', subcategory: 'tee' })]]),
         signals: new Map([
           [
             trendKey('aesthetic_category', 'minimalist|tops'),

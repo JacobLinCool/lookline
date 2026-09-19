@@ -140,11 +140,11 @@ function attributeMatch(
 }
 
 /**
- * Brute-force retrieval: products visible to the department, restricted to the template's
+ * Brute-force retrieval: articles visible to the department, restricted to the template's
  * category groups, ranked by intent similarity; the top `size` become the candidate pool.
  */
 export function buildPool(
-  products: readonly EvalProduct[],
+  articles: readonly EvalProduct[],
   department: Department,
   template: IntentTemplate,
   intentVector: ArrayLike<number>,
@@ -160,8 +160,8 @@ export function buildPool(
     Object.keys(targets).length > 0
   const logMax = Math.log1p(Math.max(popularityMax, 1e-9))
   const scored: Array<{ index: number; sim: number; pop: number }> = []
-  for (let i = 0; i < products.length; i++) {
-    const p = products[i]!
+  for (let i = 0; i < articles.length; i++) {
+    const p = articles[i]!
     if (!visible.has(p.department)) continue
     if (groups.size > 0 && !groups.has(p.categoryGroup)) continue
     scored.push({
@@ -173,11 +173,11 @@ export function buildPool(
   const ranked = scored.toSorted(
     (a, b) =>
       b.sim - a.sim ||
-      products[b.index]!.popularity - products[a.index]!.popularity ||
+      articles[b.index]!.popularity - articles[a.index]!.popularity ||
       a.index - b.index,
   )
   const items: PoolItem[] = ranked.slice(0, size).map((s) => {
-    const p = products[s.index]!
+    const p = articles[s.index]!
     return {
       product: s.index,
       sim: s.sim,
@@ -246,7 +246,7 @@ export function effectiveWeights(
  */
 export function rankPool(
   pool: CandidatePool,
-  products: readonly EvalProduct[],
+  articles: readonly EvalProduct[],
   weights: Record<FactorName, number>,
   user: RankUser,
   k: number,
@@ -259,7 +259,7 @@ export function rankPool(
   const items = pool.items
   for (let i = 0; i < items.length; i++) {
     const item = items[i]!
-    const p = products[item.product]!
+    const p = articles[item.product]!
     let s =
       w.style_similarity * item.sim +
       w.popularity_prior * item.pop +
@@ -279,9 +279,9 @@ export function rankPool(
       const before =
         s > so ||
         (s === so &&
-          (p.popularity > products[other.product]!.popularity ||
-            (p.popularity === products[other.product]!.popularity &&
-              p.id < products[other.product]!.id)))
+          (p.popularity > articles[other.product]!.popularity ||
+            (p.popularity === articles[other.product]!.popularity &&
+              p.id < articles[other.product]!.id)))
       if (!before) break
       pos = j
     }

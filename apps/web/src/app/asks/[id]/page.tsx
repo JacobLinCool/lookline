@@ -49,8 +49,8 @@ export default async function AskOwnerPage({
   const cardPath = `/a/${encodeURIComponent(ask.shareToken)}`
   const counts = new Map<number, number>()
   for (const { response } of responses) {
-    if (response.choiceProductId) {
-      counts.set(response.choiceProductId, (counts.get(response.choiceProductId) ?? 0) + 1)
+    if (response.choiceArticleId) {
+      counts.set(response.choiceArticleId, (counts.get(response.choiceArticleId) ?? 0) + 1)
     }
   }
   const leader = [...counts.entries()].toSorted((a, b) => b[1] - a[1])[0]
@@ -146,7 +146,7 @@ export default async function AskOwnerPage({
             ) : (
               <ul className="flex flex-col divide-y divide-line">
                 {responses.map(({ response, responder, styledLook }) => {
-                  const chosen = options.find((p) => p.id === response.choiceProductId)
+                  const chosen = options.find((p) => p.id === response.choiceArticleId)
                   const name = responder?.displayName ?? response.responderName ?? 'Guest'
                   return (
                     <li key={response.id} className="flex flex-col gap-3 py-4">
@@ -194,7 +194,7 @@ export default async function AskOwnerPage({
                     name="add-to-bag"
                     confirmation="Added to your bag"
                   >
-                    <input type="hidden" name="productId" value={leading.id} />
+                    <input type="hidden" name="articleId" value={leading.id} />
                     <input type="hidden" name="redirect" value={`/asks/${ask.id}?bag=1`} />
                     <Button type="submit" variant="secondary" size="sm" icon={<ShoppingBag />}>
                       Add to bag

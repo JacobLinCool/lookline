@@ -73,13 +73,13 @@ export function productKeys(p: ProductLite): string[] {
   return [...keys]
 }
 
-/** Keys a Look carries: the union of its products' keys plus its own aesthetics. */
+/** Keys a Look carries: the union of its articles' keys plus its own aesthetics. */
 export function lookKeys(
   look: Pick<LookLite, 'aesthetics'> | undefined,
-  products: readonly ProductLite[],
+  articles: readonly ProductLite[],
 ): string[] {
   const keys = new Set<string>()
-  for (const p of products) for (const k of productKeys(p)) keys.add(k)
+  for (const p of articles) for (const k of productKeys(p)) keys.add(k)
   for (const a of look?.aesthetics ?? []) keys.add(trendKey('aesthetic', a))
   return [...keys]
 }
@@ -101,8 +101,8 @@ export interface TrendEvent {
   weight: number
   keys: readonly string[]
   cluster: number | null
-  /** Products the event touches (one for product events, the Look's products for Look events). */
-  productIds: readonly number[]
+  /** Products the event touches (one for product events, the Look's articles for Look events). */
+  articleIds: readonly number[]
   lookId: string | null
   rootLookId: string | null
   /** price × quantity for purchases, else 0. */
@@ -113,9 +113,9 @@ export interface TrendEventInput {
   interactions: readonly InteractionLite[]
   purchases: readonly PurchaseLite[]
   looks: readonly LookLite[]
-  lookProducts: readonly LookProductLite[]
+  lookArticles: readonly LookProductLite[]
   intents: readonly IntentSessionLite[]
-  products: ReadonlyMap<number, ProductLite>
+  articles: ReadonlyMap<number, ProductLite>
   clusterOf: ReadonlyMap<string, number | null>
   /** look id → root look id. */
   rootOf: ReadonlyMap<string, string>
@@ -126,22 +126,22 @@ const DERIVED_ELSEWHERE = new Set<InteractionType>(['PURCHASE', 'BUY_FOR', 'SEAR
 
 export function buildTrendEvents(input: TrendEventInput): TrendEvent[] {
   const productsByLook = new Map<string, number[]>()
-  for (const lp of input.lookProducts) {
+  for (const lp of input.lookArticles) {
     const list = productsByLook.get(lp.lookId)
-    if (list) list.push(lp.productId)
-    else productsByLook.set(lp.lookId, [lp.productId])
+    if (list) list.push(lp.articleId)
+    else productsByLook.set(lp.lookId, [lp.articleId])
   }
   const lookById = new Map(input.looks.map((l) => [l.id, l]))
   const lookKeyCache = new Map<string, string[]>()
   const keysOfLook = (lookId: string): string[] => {
     const cached = lookKeyCache.get(lookId)
     if (cached) return cached
-    const products: ProductLite[] = []
+    const articles: ProductLite[] = []
     for (const pid of productsByLook.get(lookId) ?? []) {
-      const p = input.products.get(pid)
-      if (p) products.push(p)
+      const p = input.articles.get(pid)
+      if (p) articles.push(p)
     }
-    const out = lookKeys(lookById.get(lookId), products)
+    const out = lookKeys(lookById.get(lookId), articles)
     lookKeyCache.set(lookId, out)
     return out
   }
@@ -154,16 +154,16 @@ export function buildTrendEvents(input: TrendEventInput): TrendEvent[] {
     const weight = EVENT_WEIGHTS[ix.type]
     if (!weight) continue
     let keys: string[] = []
-    let productIds: number[] = []
-    if (ix.productId != null) {
-      const p = input.products.get(ix.productId)
+    let articleIds: number[] = []
+    if (ix.articleId != null) {
+      const p = input.articles.get(ix.articleId)
       if (p) {
         keys = productKeys(p)
-        productIds = [p.id]
+        articleIds = [p.id]
       }
     } else if (ix.lookId) {
       keys = keysOfLook(ix.lookId)
-      productIds = productsByLook.get(ix.lookId) ?? []
+      articleIds = productsByLook.get(ix.lookId) ?? []
     }
     if (keys.length === 0) continue
     events.push({
@@ -172,21 +172,21 @@ export function buildTrendEvents(input: TrendEventInput): TrendEvent[] {
       weight,
       keys,
       cluster: cluster(ix.actorUserId),
-      productIds,
+      articleIds,
       lookId: ix.lookId,
       rootLookId: ix.lookId ? (input.rootOf.get(ix.lookId) ?? null) : null,
       gmv: 0,
     })
   }
   for (const p of input.purchases) {
-    const product = input.products.get(p.productId)
+    const product = input.articles.get(p.articleId)
     if (!product) continue
     const keys = productKeys(product)
     const base = {
       day: dayKey(p.createdAt),
       keys,
       cluster: cluster(p.userId),
-      productIds: [product.id],
+      articleIds: [product.id],
       lookId: p.sourceLookId,
       rootLookId: p.sourceLookId ? (input.rootOf.get(p.sourceLookId) ?? null) : null,
     }
@@ -209,7 +209,7 @@ export function buildTrendEvents(input: TrendEventInput): TrendEvent[] {
       weight: EVENT_WEIGHTS.SEARCH,
       keys,
       cluster: cluster(s.userId),
-      productIds: [],
+      articleIds: [],
       lookId: null,
       rootLookId: null,
       gmv: 0,
@@ -352,7 +352,7 @@ interface KeyState {
   searches: Int32Array
   gmv: Float64Array
   byCluster: Map<number, Float64Array>
-  products: Map<number, number>
+  articles: Map<number, number>
   roots: Set<string>
 }
 
@@ -386,7 +386,7 @@ export function computeTrendSignals(
         searches: new Int32Array(D),
         gmv: new Float64Array(D),
         byCluster: new Map(),
-        products: new Map(),
+        articles: new Map(),
         roots: new Set(),
       }
       state.set(key, s)
@@ -419,7 +419,7 @@ export function computeTrendSignals(
         s.gmv[i] = (s.gmv[i] ?? 0) + e.gmv
       }
       if (recent7 && e.weight > 0) {
-        for (const pid of e.productIds) s.products.set(pid, (s.products.get(pid) ?? 0) + e.weight)
+        for (const pid of e.articleIds) s.articles.set(pid, (s.articles.get(pid) ?? 0) + e.weight)
       }
       if (recent14 && e.rootLookId) s.roots.add(e.rootLookId)
     }
@@ -514,7 +514,7 @@ export function computeTrendSignals(
       const status = statusOf(volume7d, velocity, emerging)
       const topProducts =
         i === lastIdx
-          ? [...s.products.entries()]
+          ? [...s.articles.entries()]
               .toSorted((a, b) => b[1] - a[1] || a[0] - b[0])
               .slice(0, 5)
               .map(([id]) => id)

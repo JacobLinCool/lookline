@@ -49,7 +49,7 @@ export async function emitFeedback(db: Database, input: FeedbackInput): Promise<
   await db.insert(feedbackEvents).values({
     id: newId(input.id),
     userId: input.userId,
-    productId: input.productId ?? null,
+    articleId: input.articleId ?? null,
     lookId: input.lookId ?? null,
     intentSessionId: input.intentSessionId ?? null,
     kind: input.kind,

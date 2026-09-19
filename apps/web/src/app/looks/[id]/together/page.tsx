@@ -22,12 +22,12 @@ const ERRORS: Record<string, string> = {
   occasion: 'Choose an occasion.',
   participants: 'Add at least one other person.',
   token: 'That link is not a shared Look. Paste the /l/… link or its token.',
-  products: 'The chosen Looks have no pieces.',
+  articles: 'The chosen Looks have no pieces.',
 }
 
 /**
  * `/looks/[id]/together` — a shared Look for an occasion. The viewer's Look [id] plus the Looks
- * of the people they pick (or a friend's Look by share link); the products are unioned and the
+ * of the people they pick (or a friend's Look by share link); the articles are unioned and the
  * engine records TOGETHER interactions between every participant.
  */
 export default async function TogetherPage({
@@ -84,9 +84,9 @@ export default async function TogetherPage({
           <div className="max-w-xs">
             <LookCard look={source.look} owner={source.owner} href={`/looks/${source.look.id}`} />
           </div>
-          {source.products.length > 0 ? (
+          {source.articles.length > 0 ? (
             <ul className="flex flex-col gap-3">
-              {source.products.map((product) => (
+              {source.articles.map((product) => (
                 <li key={product.id}>
                   <ProductLine product={product} href={`/p/${product.id}`} />
                 </li>

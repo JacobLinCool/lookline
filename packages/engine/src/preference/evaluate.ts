@@ -124,11 +124,11 @@ function armWeights(name: ArmName): Record<FactorName, number> {
 }
 
 function groupShareByDepartment(
-  products: readonly EvalProduct[],
+  articles: readonly EvalProduct[],
 ): Partial<Record<Department, number[]>> {
   const out: Partial<Record<Department, number[]>> = {}
   const counts = new Map<Department, number[]>()
-  for (const p of products) {
+  for (const p of articles) {
     let row = counts.get(p.department)
     if (!row) {
       row = Array.from({ length: CATEGORY_GROUPS.length }, () => 0)
@@ -147,7 +147,7 @@ function groupShareByDepartment(
 function truthFor(
   user: SyntheticUser,
   pool: CandidatePool,
-  products: readonly EvalProduct[],
+  articles: readonly EvalProduct[],
   k: number,
   relevantShare: number,
 ): Truth {
@@ -156,7 +156,7 @@ function truthFor(
   const hNorm = prefNorm(user.hidden)
   for (let i = 0; i < n; i++) {
     const item = pool.items[i]!
-    const p = products[item.product]!
+    const p = articles[item.product]!
     const budgetOk =
       p.price <= user.budgetMax
         ? 1
@@ -218,10 +218,10 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
   const relevantShare = opts.relevantShare ?? DEFAULT_RELEVANT_SHARE
 
   const catalog = buildEvalCatalog(config.catalogSize, config.seed, opts.catalogSource ?? 'auto')
-  const products = catalog.products
-  const popularityMax = products.reduce((m, p) => Math.max(m, p.popularity), 0)
+  const articles = catalog.articles
+  const popularityMax = articles.reduce((m, p) => Math.max(m, p.popularity), 0)
   const users = makeSyntheticUsers(config.users, config.seed, {
-    groupShare: groupShareByDepartment(products),
+    groupShare: groupShareByDepartment(articles),
   })
   const priors = new Map<Department, number[]>()
   const priorOf = (d: Department): number[] => {
@@ -241,7 +241,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
     if (!pool) {
       const template = templatesFor(department)[t]!
       pool = buildPool(
-        products,
+        articles,
         department,
         template,
         intentVectorFor(template),
@@ -257,7 +257,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
     const key = user.index * 64 + t
     let truth = truths.get(key)
     if (!truth) {
-      truth = truthFor(user, pool, products, k, relevantShare)
+      truth = truthFor(user, pool, articles, k, relevantShare)
       truths.set(key, truth)
     }
     return truth
@@ -364,7 +364,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
           budgetMax,
           brandCounts: condition === 'static' || condition === 'oracle' ? null : uc.brandCounts,
         }
-        const slate = rankPool(pool, products, weights, rankUser, k)
+        const slate = rankPool(pool, articles, weights, rankUser, k)
 
         // Click model
         const events: SlateEvent[] = []
@@ -372,7 +372,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
         let hit = 0
         let dcg = 0
         slate.forEach((item, position) => {
-          const product = products[pool.items[item]!.product]!
+          const product = articles[pool.items[item]!.product]!
           if (truth.relevant.has(item)) hit = 1
           dcg += (2 ** (truth.grade[item] ?? 0) - 1) / Math.log2(position + 2)
           const rng = createRng(hashSeed(config.seed, 'click', user.index, round, product.id))
@@ -412,12 +412,12 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
         // Learning
         if (condition === 'learned' || condition === 'full') {
           for (const e of events)
-            learnEvent(uc, products[pool.items[e.item]!.product]!, e.reward, now, p0)
+            learnEvent(uc, articles[pool.items[e.item]!.product]!, e.reward, now, p0)
         } else if (condition === 'placebo') {
           for (const e of events)
             placeboQueue.push({
               uc,
-              product: products[pool.items[e.item]!.product]!,
+              product: articles[pool.items[e.item]!.product]!,
               reward: e.reward,
               p0,
             })
@@ -551,7 +551,7 @@ export function evaluatePreferenceLoop(config: EvalConfig): EvalResult {
     ),
     meanDismissesPerRound: roundTo(eventTotals.dismiss / Math.max(1, users.length * series.length)),
     catalogSource: catalog.source === 'generated' ? 1 : 0,
-    catalogSize: products.length,
+    catalogSize: articles.length,
     users: users.length,
     rounds: series.length,
     k,

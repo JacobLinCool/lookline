@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { and, brands, desc, eq, gt, inArray, looks, products, users } from '@lookline/db'
+import { and, brands, desc, eq, gt, inArray, looks, articles, users } from '@lookline/db'
 import { getUserNetwork } from '@lookline/engine'
 import { IntentWorkspace, type HomeLook, type HomeProduct } from '@/components/intent/workspace'
 import { paramList, paramString } from '@/components/intent/urls'
@@ -64,16 +64,16 @@ async function loadTrending(): Promise<HomeProduct[]> {
   try {
     return await getDb()
       .db.select({
-        id: products.id,
-        name: products.name,
-        price: products.price,
-        colorName: products.colorName,
+        id: articles.id,
+        name: articles.name,
+        price: articles.price,
+        colorName: articles.colorName,
         brandName: brands.name,
       })
-      .from(products)
-      .innerJoin(brands, eq(products.brandId, brands.id))
-      .where(gt(products.stock, 0))
-      .orderBy(desc(products.trendScore), desc(products.popularity))
+      .from(articles)
+      .innerJoin(brands, eq(articles.brandId, brands.id))
+      .where(gt(articles.stock, 0))
+      .orderBy(desc(articles.trendScore), desc(articles.popularity))
       .limit(RAIL_LIMIT)
   } catch (error) {
     console.warn('[home] trending pieces unavailable', error)

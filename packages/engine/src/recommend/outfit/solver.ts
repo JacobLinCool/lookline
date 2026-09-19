@@ -4,7 +4,7 @@
  */
 import { axisIndex } from '@lookline/catalog'
 import type { Season } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import type { RankedItem } from '../../types'
 import type { BudgetStrictness } from '../intent-view'
 import { compat, isUnscoredPair } from './compat'
@@ -62,7 +62,7 @@ const median = (xs: number[]): number => {
   return sorted[Math.floor(sorted.length / 2)] ?? 0
 }
 
-function pairScore(a: Product, b: Product, season: Season | null | undefined): number | null {
+function pairScore(a: Article, b: Article, season: Season | null | undefined): number | null {
   if (isUnscoredPair(a, b)) return null
   return compat(a, b, season).score
 }

@@ -3,7 +3,7 @@
  * written). Not exported from the package barrel.
  */
 import { toStyleVector, type CategoryGroup, type ColorFamily } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 
 export interface FixtureSpec {
   id: number
@@ -18,15 +18,15 @@ export interface FixtureSpec {
   material?: string
   pattern?: string
   price?: number
-  department?: Product['department']
-  sizeSystem?: Product['sizeSystem']
+  department?: Article['department']
+  sizeSystem?: Article['sizeSystem']
   sizes?: string[]
   popularity?: number
   secondaryColorHex?: string | null
   formality?: number
 }
 
-export function makeProduct(spec: FixtureSpec): Product {
+export function makeProduct(spec: FixtureSpec): Article {
   const aesthetics: Record<string, number> = {}
   spec.aesthetics.forEach((slug, i) => {
     aesthetics[slug] = i === 0 ? 1 : 0.5
@@ -90,7 +90,7 @@ export function makeProduct(spec: FixtureSpec): Product {
 }
 
 /** A four-piece quiet-luxury Look: knit, trousers, loafers, tote. */
-export function fixtureLook(): Product[] {
+export function fixtureLook(): Article[] {
   return [
     makeProduct({
       id: 1,

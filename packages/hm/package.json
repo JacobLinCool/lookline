@@ -1,0 +1,24 @@
+{
+  "name": "@lookline/hm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "articles": "tsx scripts/clean.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "seed": "tsx scripts/import.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "vitest": "5.0.1"
+  },
+  "dependencies": {
+    "@lookline/db": "workspace:*"
+  }
+}

@@ -11,7 +11,7 @@ import {
   inArray,
   insertAll,
   intentSessions,
-  products,
+  articles,
   simPersonas,
   sql,
   users,
@@ -40,23 +40,23 @@ export interface DbSinkOptions {
 }
 
 const POOL_COLUMNS = {
-  id: products.id,
-  department: products.department,
-  categoryGroup: products.categoryGroup,
-  subcategory: products.subcategory,
-  price: products.price,
-  colorFamily: products.colorFamily,
-  colorHex: products.colorHex,
-  secondaryColorHex: products.secondaryColorHex,
-  aesthetics: products.aesthetics,
-  sizeSystem: products.sizeSystem,
-  sizes: products.sizes,
-  popularity: products.popularity,
-  name: products.name,
-  silhouetteId: products.silhouetteId,
-  pattern: products.pattern,
-  imageSeed: products.imageSeed,
-  styleVector: products.styleVector,
+  id: articles.id,
+  department: articles.department,
+  categoryGroup: articles.categoryGroup,
+  subcategory: articles.subcategory,
+  price: articles.price,
+  colorFamily: articles.colorFamily,
+  colorHex: articles.colorHex,
+  secondaryColorHex: articles.secondaryColorHex,
+  aesthetics: articles.aesthetics,
+  sizeSystem: articles.sizeSystem,
+  sizes: articles.sizes,
+  popularity: articles.popularity,
+  name: articles.name,
+  silhouetteId: articles.silhouetteId,
+  pattern: articles.pattern,
+  imageSeed: articles.imageSeed,
+  styleVector: articles.styleVector,
 } as const
 
 export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink {
@@ -108,9 +108,9 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
     async loadPool(): Promise<SimProduct[]> {
       const rows = await db
         .select(POOL_COLUMNS)
-        .from(products)
-        .where(and(gt(products.stock, 0), sql`${products.id} % ${modulo} = 0`))
-        .orderBy(products.id)
+        .from(articles)
+        .where(and(gt(articles.stock, 0), sql`${articles.id} % ${modulo} = 0`))
+        .orderBy(articles.id)
       return rows
     },
 
@@ -118,8 +118,8 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
       if (ids.length === 0) return []
       return db
         .select(POOL_COLUMNS)
-        .from(products)
-        .where(inArray(products.id, [...ids]))
+        .from(articles)
+        .where(inArray(articles.id, [...ids]))
     },
 
     async recordSearch(input) {

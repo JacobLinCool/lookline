@@ -119,7 +119,7 @@ export function findMaterial(slug: string): MaterialRow | undefined {
   return MATERIAL_BY_SLUG.get(slug)
 }
 
-/** Never used for kids products; shearling is allowed on kids footwear (§2.4). */
+/** Never used for kids articles; shearling is allowed on kids footwear (§2.4). */
 export const KIDS_EXCLUDED_MATERIALS: readonly string[] = [
   'silk',
   'cashmere',

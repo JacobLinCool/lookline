@@ -10,11 +10,11 @@ import {
   findSubcategory,
   type CategoryGroup,
 } from '@lookline/catalog'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import type { Explanation, ExplanationFactor, FactorName, RankedItem } from '../types'
 import { normalizeHex } from '../looks/color'
 
-export type RemixProduct = Product & { brandName: string }
+export type RemixProduct = Article & { brandName: string }
 
 export interface RemixSlot {
   /** Source piece this slot replaces. */

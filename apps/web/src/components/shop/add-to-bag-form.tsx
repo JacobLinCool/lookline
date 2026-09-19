@@ -1,11 +1,11 @@
 import { InstantForm } from '@/components/latency/instant-form'
 import { ShoppingBag } from 'lucide-react'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { Button, Field, Segmented, Select } from '@/components/ui'
 import { addToBagAction } from '@/server/actions/bag'
 
 /**
- * Size + quantity → `addToBagAction` (fields `productId`, `size`, `qty`, `redirect`).
+ * Size + quantity → `addToBagAction` (fields `articleId`, `size`, `qty`, `redirect`).
  * Redirects back to the product page with `?added=1` so a Notice can confirm.
  */
 export interface BagAttribution {
@@ -21,7 +21,7 @@ export function AddToBagForm({
   product,
   attribution,
 }: {
-  product: Product
+  product: Article
   attribution?: BagAttribution
 }) {
   const soldOut = product.stock <= 0
@@ -35,7 +35,7 @@ export function AddToBagForm({
         confirmation="Added to your bag"
         className="flex flex-col gap-4"
       >
-        <input type="hidden" name="productId" value={product.id} />
+        <input type="hidden" name="articleId" value={product.id} />
         <input type="hidden" name="redirect" value={`/p/${product.id}?added=1`} />
         {attribution?.sourceLook ? (
           <input type="hidden" name="sourceLook" value={attribution.sourceLook} />
@@ -88,7 +88,7 @@ export function AddToBagForm({
           </Button>
         </div>
       </InstantForm>
-      <Button href={`/asks/new?products=${product.id}`} variant="link" size="sm">
+      <Button href={`/asks/new?articles=${product.id}`} variant="link" size="sm">
         Ask a friend which one
       </Button>
     </div>

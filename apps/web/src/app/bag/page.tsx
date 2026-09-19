@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { Minus, Plus, X } from 'lucide-react'
-import { brands, eq, inArray, products } from '@lookline/db'
+import { brands, eq, inArray, articles } from '@lookline/db'
 import { Flash } from '@/components/looks/flash'
 import { OrderLines, orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
 import { Button, Container, EmptyState, Notice, PageHeader, Price, Tag } from '@/components/ui'
@@ -17,11 +17,11 @@ export const metadata: Metadata = { title: 'Bag' }
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
 function QtyControls({
-  productId,
+  articleId,
   size,
   qty,
 }: {
-  productId: number
+  articleId: number
   size: string | null
   qty: number
 }) {
@@ -31,7 +31,7 @@ function QtyControls({
         action={setBagQtyAction}
         className="flex items-center rounded-sm border border-line bg-card"
       >
-        <input type="hidden" name="productId" value={productId} />
+        <input type="hidden" name="articleId" value={articleId} />
         <input type="hidden" name="size" value={size ?? ''} />
         <input type="hidden" name="redirect" value="/bag" />
         <Button
@@ -56,7 +56,7 @@ function QtyControls({
         />
       </form>
       <form action={removeFromBagAction}>
-        <input type="hidden" name="productId" value={productId} />
+        <input type="hidden" name="articleId" value={articleId} />
         <input type="hidden" name="size" value={size ?? ''} />
         <input type="hidden" name="redirect" value="/bag" />
         <Button type="submit" variant="ghost" size="sm" icon={<X />}>
@@ -73,26 +73,26 @@ export default async function BagPage({ searchParams }: { searchParams: SearchPa
   const sourceLookId = store.get(SOURCE_LOOK_COOKIE)?.value ?? null
   const count = lines.reduce((sum, l) => sum + l.qty, 0)
 
-  const ids = [...new Set(lines.map((l) => l.productId))]
+  const ids = [...new Set(lines.map((l) => l.articleId))]
   const rows =
     ids.length > 0
       ? await getDb()
-          .db.select({ product: products, brandName: brands.name })
-          .from(products)
-          .innerJoin(brands, eq(products.brandId, brands.id))
-          .where(inArray(products.id, ids))
+          .db.select({ product: articles, brandName: brands.name })
+          .from(articles)
+          .innerJoin(brands, eq(articles.brandId, brands.id))
+          .where(inArray(articles.id, ids))
       : []
   const byId = new Map(rows.map((r) => [r.product.id, { ...r.product, brandName: r.brandName }]))
-  const missing = lines.filter((l) => !byId.has(l.productId))
+  const missing = lines.filter((l) => !byId.has(l.articleId))
   const orderLines: OrderLine[] = lines.flatMap((line) => {
-    const product = byId.get(line.productId)
+    const product = byId.get(line.articleId)
     if (!product) return []
     return [
       {
         product,
         size: line.size,
         qty: line.qty,
-        controls: <QtyControls productId={line.productId} size={line.size} qty={line.qty} />,
+        controls: <QtyControls articleId={line.articleId} size={line.size} qty={line.qty} />,
       },
     ]
   })

@@ -1,9 +1,458 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "c6fd5b38-cb9d-4319-a388-790a01ced7b4",
+  "id": "87335800-1d38-409e-ba8c-f85011bd554e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
+    "articles": {
+      "name": "articles",
+      "columns": {
+        "article_id": {
+          "name": "article_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "brand_id": {
+          "name": "brand_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "product_code": {
+          "name": "product_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "prod_name": {
+          "name": "prod_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "detail_desc": {
+          "name": "detail_desc",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "product_type_name": {
+          "name": "product_type_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "product_group_name": {
+          "name": "product_group_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "garment_group_name": {
+          "name": "garment_group_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "section_name": {
+          "name": "section_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "index_name": {
+          "name": "index_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "index_group_name": {
+          "name": "index_group_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "graphical_appearance_name": {
+          "name": "graphical_appearance_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "colour_group_name": {
+          "name": "colour_group_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "perceived_colour_master_name": {
+          "name": "perceived_colour_master_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "perceived_colour_value_name": {
+          "name": "perceived_colour_value_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outfit_role": {
+          "name": "outfit_role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "department": {
+          "name": "department",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "colour_hex": {
+          "name": "colour_hex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "size_system": {
+          "name": "size_system",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sizes": {
+          "name": "sizes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "image_path": {
+          "name": "image_path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "price": {
+          "name": "price",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "tier": {
+          "name": "tier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'mid'"
+        },
+        "sales_count": {
+          "name": "sales_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "first_sold_at": {
+          "name": "first_sold_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_sold_at": {
+          "name": "last_sold_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "online_ratio": {
+          "name": "online_ratio",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "popularity": {
+          "name": "popularity",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "trend_score": {
+          "name": "trend_score",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "material": {
+          "name": "material",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "fit": {
+          "name": "fit",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "silhouette": {
+          "name": "silhouette",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "silhouette_id": {
+          "name": "silhouette_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "length": {
+          "name": "length",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "neckline": {
+          "name": "neckline",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sleeve": {
+          "name": "sleeve",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "closure": {
+          "name": "closure",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "secondary_color_hex": {
+          "name": "secondary_color_hex",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "seasons": {
+          "name": "seasons",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "occasions": {
+          "name": "occasions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "aesthetics": {
+          "name": "aesthetics",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
+        },
+        "attributes": {
+          "name": "attributes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'{}'"
+        },
+        "style_vector": {
+          "name": "style_vector",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "stock": {
+          "name": "stock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "rating": {
+          "name": "rating",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "review_count": {
+          "name": "review_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "image_seed": {
+          "name": "image_seed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(cast((julianday('now') - 2440587.5) * 86400000 as integer))"
+        }
+      },
+      "indexes": {
+        "articles_slug_idx": {
+          "name": "articles_slug_idx",
+          "columns": [
+            "slug"
+          ],
+          "isUnique": true
+        },
+        "articles_brand_idx": {
+          "name": "articles_brand_idx",
+          "columns": [
+            "brand_id"
+          ],
+          "isUnique": false
+        },
+        "articles_product_code_idx": {
+          "name": "articles_product_code_idx",
+          "columns": [
+            "product_code"
+          ],
+          "isUnique": false
+        },
+        "articles_department_idx": {
+          "name": "articles_department_idx",
+          "columns": [
+            "department"
+          ],
+          "isUnique": false
+        },
+        "articles_outfit_role_idx": {
+          "name": "articles_outfit_role_idx",
+          "columns": [
+            "outfit_role"
+          ],
+          "isUnique": false
+        },
+        "articles_product_type_idx": {
+          "name": "articles_product_type_idx",
+          "columns": [
+            "product_type_name"
+          ],
+          "isUnique": false
+        },
+        "articles_price_idx": {
+          "name": "articles_price_idx",
+          "columns": [
+            "price"
+          ],
+          "isUnique": false
+        },
+        "articles_dept_role_price_idx": {
+          "name": "articles_dept_role_price_idx",
+          "columns": [
+            "department",
+            "outfit_role",
+            "price"
+          ],
+          "isUnique": false
+        },
+        "articles_popularity_idx": {
+          "name": "articles_popularity_idx",
+          "columns": [
+            "popularity"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "articles_brand_id_brands_id_fk": {
+          "name": "articles_brand_id_brands_id_fk",
+          "tableFrom": "articles",
+          "tableTo": "brands",
+          "columnsFrom": [
+            "brand_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "ask_responses": {
       "name": "ask_responses",
       "columns": {
@@ -35,9 +484,9 @@
           "notNull": false,
           "autoincrement": false
         },
-        "choice_product_id": {
-          "name": "choice_product_id",
-          "type": "integer",
+        "choice_article_id": {
+          "name": "choice_article_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -108,15 +557,15 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "ask_responses_choice_product_id_products_id_fk": {
-          "name": "ask_responses_choice_product_id_products_id_fk",
+        "ask_responses_choice_article_id_articles_article_id_fk": {
+          "name": "ask_responses_choice_article_id_articles_article_id_fk",
           "tableFrom": "ask_responses",
-          "tableTo": "products",
+          "tableTo": "articles",
           "columnsFrom": [
-            "choice_product_id"
+            "choice_article_id"
           ],
           "columnsTo": [
-            "id"
+            "article_id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -177,8 +626,8 @@
           "notNull": true,
           "autoincrement": false
         },
-        "option_product_ids": {
-          "name": "option_product_ids",
+        "option_article_ids": {
+          "name": "option_article_ids",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -503,9 +952,9 @@
           "notNull": true,
           "autoincrement": false
         },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
+        "article_id": {
+          "name": "article_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -579,10 +1028,10 @@
           ],
           "isUnique": false
         },
-        "feedback_events_product_idx": {
-          "name": "feedback_events_product_idx",
+        "feedback_events_article_idx": {
+          "name": "feedback_events_article_idx",
           "columns": [
-            "product_id"
+            "article_id"
           ],
           "isUnique": false
         },
@@ -615,15 +1064,15 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "feedback_events_product_id_products_id_fk": {
-          "name": "feedback_events_product_id_products_id_fk",
+        "feedback_events_article_id_articles_article_id_fk": {
+          "name": "feedback_events_article_id_articles_article_id_fk",
           "tableFrom": "feedback_events",
-          "tableTo": "products",
+          "tableTo": "articles",
           "columnsFrom": [
-            "product_id"
+            "article_id"
           ],
           "columnsTo": [
-            "id"
+            "article_id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -790,9 +1239,9 @@
           "notNull": false,
           "autoincrement": false
         },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
+        "article_id": {
+          "name": "article_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
@@ -857,10 +1306,10 @@
           ],
           "isUnique": false
         },
-        "interactions_product_idx": {
-          "name": "interactions_product_idx",
+        "interactions_article_idx": {
+          "name": "interactions_article_idx",
           "columns": [
-            "product_id"
+            "article_id"
           ],
           "isUnique": false
         },
@@ -919,15 +1368,15 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "interactions_product_id_products_id_fk": {
-          "name": "interactions_product_id_products_id_fk",
+        "interactions_article_id_articles_article_id_fk": {
+          "name": "interactions_article_id_articles_article_id_fk",
           "tableFrom": "interactions",
-          "tableTo": "products",
+          "tableTo": "articles",
           "columnsFrom": [
-            "product_id"
+            "article_id"
           ],
           "columnsTo": [
-            "id"
+            "article_id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -1099,6 +1548,88 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "look_articles": {
+      "name": "look_articles",
+      "columns": {
+        "look_id": {
+          "name": "look_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "article_id": {
+          "name": "article_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "look_articles_article_idx": {
+          "name": "look_articles_article_idx",
+          "columns": [
+            "article_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "look_articles_look_id_looks_id_fk": {
+          "name": "look_articles_look_id_looks_id_fk",
+          "tableFrom": "look_articles",
+          "tableTo": "looks",
+          "columnsFrom": [
+            "look_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "look_articles_article_id_articles_article_id_fk": {
+          "name": "look_articles_article_id_articles_article_id_fk",
+          "tableFrom": "look_articles",
+          "tableTo": "articles",
+          "columnsFrom": [
+            "article_id"
+          ],
+          "columnsTo": [
+            "article_id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "look_articles_look_id_article_id_pk": {
+          "columns": [
+            "look_id",
+            "article_id"
+          ],
+          "name": "look_articles_look_id_article_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "look_participants": {
       "name": "look_participants",
       "columns": {
@@ -1168,88 +1699,6 @@
             "user_id"
           ],
           "name": "look_participants_look_id_user_id_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
-    "look_products": {
-      "name": "look_products",
-      "columns": {
-        "look_id": {
-          "name": "look_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "role": {
-          "name": "role",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "position": {
-          "name": "position",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        }
-      },
-      "indexes": {
-        "look_products_product_idx": {
-          "name": "look_products_product_idx",
-          "columns": [
-            "product_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "look_products_look_id_looks_id_fk": {
-          "name": "look_products_look_id_looks_id_fk",
-          "tableFrom": "look_products",
-          "tableTo": "looks",
-          "columnsFrom": [
-            "look_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "look_products_product_id_products_id_fk": {
-          "name": "look_products_product_id_products_id_fk",
-          "tableFrom": "look_products",
-          "tableTo": "products",
-          "columnsFrom": [
-            "product_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "look_products_look_id_product_id_pk": {
-          "columns": [
-            "look_id",
-            "product_id"
-          ],
-          "name": "look_products_look_id_product_id_pk"
         }
       },
       "uniqueConstraints": {},
@@ -1676,374 +2125,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "products": {
-      "name": "products",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "slug": {
-          "name": "slug",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "brand_id": {
-          "name": "brand_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "department": {
-          "name": "department",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "category_group": {
-          "name": "category_group",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "subcategory": {
-          "name": "subcategory",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "silhouette_id": {
-          "name": "silhouette_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "color_name": {
-          "name": "color_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "color_hex": {
-          "name": "color_hex",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "color_family": {
-          "name": "color_family",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "secondary_color_hex": {
-          "name": "secondary_color_hex",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "pattern": {
-          "name": "pattern",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "material": {
-          "name": "material",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "fit": {
-          "name": "fit",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "silhouette": {
-          "name": "silhouette",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "length": {
-          "name": "length",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "neckline": {
-          "name": "neckline",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "sleeve": {
-          "name": "sleeve",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "closure": {
-          "name": "closure",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "occasions": {
-          "name": "occasions",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "seasons": {
-          "name": "seasons",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "aesthetics": {
-          "name": "aesthetics",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "attributes": {
-          "name": "attributes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'{}'"
-        },
-        "style_vector": {
-          "name": "style_vector",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "price": {
-          "name": "price",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "tier": {
-          "name": "tier",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "size_system": {
-          "name": "size_system",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sizes": {
-          "name": "sizes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
-        },
-        "stock": {
-          "name": "stock",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "rating": {
-          "name": "rating",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "review_count": {
-          "name": "review_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "popularity": {
-          "name": "popularity",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "trend_score": {
-          "name": "trend_score",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "hero_image_url": {
-          "name": "hero_image_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "image_seed": {
-          "name": "image_seed",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(cast((julianday('now') - 2440587.5) * 86400000 as integer))"
-        }
-      },
-      "indexes": {
-        "products_slug_idx": {
-          "name": "products_slug_idx",
-          "columns": [
-            "slug"
-          ],
-          "isUnique": true
-        },
-        "products_brand_idx": {
-          "name": "products_brand_idx",
-          "columns": [
-            "brand_id"
-          ],
-          "isUnique": false
-        },
-        "products_department_idx": {
-          "name": "products_department_idx",
-          "columns": [
-            "department"
-          ],
-          "isUnique": false
-        },
-        "products_category_group_idx": {
-          "name": "products_category_group_idx",
-          "columns": [
-            "category_group"
-          ],
-          "isUnique": false
-        },
-        "products_subcategory_idx": {
-          "name": "products_subcategory_idx",
-          "columns": [
-            "subcategory"
-          ],
-          "isUnique": false
-        },
-        "products_price_idx": {
-          "name": "products_price_idx",
-          "columns": [
-            "price"
-          ],
-          "isUnique": false
-        },
-        "products_dept_group_price_idx": {
-          "name": "products_dept_group_price_idx",
-          "columns": [
-            "department",
-            "category_group",
-            "price"
-          ],
-          "isUnique": false
-        },
-        "products_popularity_idx": {
-          "name": "products_popularity_idx",
-          "columns": [
-            "popularity"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "products_brand_id_brands_id_fk": {
-          "name": "products_brand_id_brands_id_fk",
-          "tableFrom": "products",
-          "tableTo": "brands",
-          "columnsFrom": [
-            "brand_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "purchases": {
       "name": "purchases",
       "columns": {
@@ -2061,9 +2142,9 @@
           "notNull": true,
           "autoincrement": false
         },
-        "product_id": {
-          "name": "product_id",
-          "type": "integer",
+        "article_id": {
+          "name": "article_id",
+          "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -2157,10 +2238,10 @@
           ],
           "isUnique": false
         },
-        "purchases_product_idx": {
-          "name": "purchases_product_idx",
+        "purchases_article_idx": {
+          "name": "purchases_article_idx",
           "columns": [
-            "product_id"
+            "article_id"
           ],
           "isUnique": false
         },
@@ -2193,15 +2274,15 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "purchases_product_id_products_id_fk": {
-          "name": "purchases_product_id_products_id_fk",
+        "purchases_article_id_articles_article_id_fk": {
+          "name": "purchases_article_id_articles_article_id_fk",
           "tableFrom": "purchases",
-          "tableTo": "products",
+          "tableTo": "articles",
           "columnsFrom": [
-            "product_id"
+            "article_id"
           ],
           "columnsTo": [
-            "id"
+            "article_id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"

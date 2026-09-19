@@ -16,17 +16,17 @@ const FORBIDDEN = [
 
 describe('buildLookImagePrompt', () => {
   const preset = findStylePreset('tokyo-midnight')!
-  const products = fixtureLook()
+  const articles = fixtureLook()
 
   it('mentions every garment with colour, material and subcategory, plus the art direction', () => {
     const prompt = buildLookImagePrompt({
       preset,
-      products,
+      articles,
       ownerName: 'Mia',
       occasion: 'date-night',
       hasReferencePhoto: false,
     })
-    for (const p of products) {
+    for (const p of articles) {
       expect(prompt).toContain(p.name)
       expect(prompt.toLowerCase()).toContain(p.colorName.toLowerCase())
     }
@@ -47,7 +47,7 @@ describe('buildLookImagePrompt', () => {
   it('keeps the reference person when a photo is attached and tolerates missing occasion', () => {
     const prompt = buildLookImagePrompt({
       preset,
-      products: products.slice(0, 1),
+      articles: articles.slice(0, 1),
       ownerName: 'Mia',
       occasion: null,
       hasReferencePhoto: true,

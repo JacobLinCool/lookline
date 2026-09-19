@@ -5,7 +5,7 @@ import { getDb } from '@/server/db'
 export const dynamic = 'force-dynamic'
 
 /**
- * `GET /api/products/search?q=&department=&categoryGroups=&excludedCategoryGroups=&category=&subcategory=&aesthetics=&aesthetics=&colorFamilies=&excludedColorFamilies=&excludedAesthetics=&brandId=&priceMin=&priceMax=&sort=&page=&pageSize=`
+ * `GET /api/articles/search?q=&department=&categoryGroups=&excludedCategoryGroups=&category=&subcategory=&aesthetics=&aesthetics=&colorFamilies=&excludedColorFamilies=&excludedAesthetics=&brandId=&priceMin=&priceMax=&sort=&page=&pageSize=`
  * → `{ items, total, page, pageSize, facets }` (the engine's `ProductSearchResult`).
  * Same URL contract as `/shop`, for curl demos and client components.
  */
@@ -33,7 +33,7 @@ export async function GET(req: Request): Promise<Response> {
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.warn('[api/products/search] searchProducts failed', message)
+    console.warn('[api/articles/search] searchProducts failed', message)
     return Response.json(
       { error: 'Products could not be loaded. Please try again.' },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },

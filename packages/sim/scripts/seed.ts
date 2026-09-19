@@ -1,7 +1,7 @@
 /**
  * `pnpm --filter @lookline/sim seed` — replace the simulated social history in the local SQLite
  * database: delete previous simulation rows (users `u_…` and everything hanging off them, never
- * products/brands), generate personas, simulate 60 days of purchases / Looks / Asks / remixes /
+ * articles/brands), generate personas, simulate 60 days of purchases / Looks / Asks / remixes /
  * Together editions / shares / feedback through the engine write paths, run the analytics and
  * print a summary. Ship the result to D1 with `pnpm d1:local` / `pnpm d1:remote`.
  *
@@ -126,9 +126,9 @@ async function summary(): Promise<void> {
 async function main(): Promise<void> {
   console.log(`seed=${seed} n=${n} days=${days} now=${now.toISOString()} db=${handle.url}`)
   await migrateLocal(handle)
-  const products = await count(sql`select count(*) as n from products`)
-  if (products === 0) {
-    throw new Error('products table is empty — run `pnpm seed:catalog` first')
+  const articles = await count(sql`select count(*) as n from articles`)
+  if (articles === 0) {
+    throw new Error('articles table is empty — run `pnpm seed:catalog` first')
   }
   await cleanup()
   console.log(`cleaned previous simulation rows (${elapsed()})`)

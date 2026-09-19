@@ -57,15 +57,15 @@ function finish(formData: FormData): void {
 }
 
 /**
- * Fields: `productId` (int), `size` (optional), `qty` (optional int), `redirect` (optional path),
+ * Fields: `articleId` (int), `size` (optional), `qty` (optional int), `redirect` (optional path),
  * and optional attribution ids `sourceLook`, `sourceAsk`, `intentSession` (stored in cookies for
  * `/checkout`).
  */
 export async function addToBagAction(formData: FormData): Promise<ActionResult> {
-  const productId = readInt(formData.get('productId'))
-  if (productId === null || productId <= 0) return { ok: false, message: 'Choose a product.' }
+  const articleId = readInt(formData.get('articleId'))
+  if (articleId === null || articleId <= 0) return { ok: false, message: 'Choose a product.' }
   const result = await addToBag({
-    productId,
+    articleId,
     size: readSize(formData.get('size')),
     qty: readInt(formData.get('qty')) ?? 1,
   })
@@ -83,7 +83,7 @@ export async function addToBagAction(formData: FormData): Promise<ActionResult> 
     after(() =>
       recordFeedbackFor(user.id, {
         kind: 'add_to_bag',
-        productId,
+        articleId,
         lookId: sanitizeId(formData.get('sourceLook')),
         intentSessionId: sanitizeId(formData.get('intentSession')),
       }).then(() => {}),
@@ -92,21 +92,21 @@ export async function addToBagAction(formData: FormData): Promise<ActionResult> 
   return { ok: true }
 }
 
-/** Fields: `productId`, `size` (optional; omit to drop every size of the product), `redirect`. */
+/** Fields: `articleId`, `size` (optional; omit to drop every size of the product), `redirect`. */
 export async function removeFromBagAction(formData: FormData): Promise<void> {
-  const productId = readInt(formData.get('productId'))
-  if (productId === null) return
+  const articleId = readInt(formData.get('articleId'))
+  if (articleId === null) return
   const size = formData.has('size') ? readSize(formData.get('size')) : undefined
-  await removeFromBag(productId, size)
+  await removeFromBag(articleId, size)
   finish(formData)
 }
 
-/** Fields: `productId`, `size`, `qty` (0 removes), `redirect`. */
+/** Fields: `articleId`, `size`, `qty` (0 removes), `redirect`. */
 export async function setBagQtyAction(formData: FormData): Promise<void> {
-  const productId = readInt(formData.get('productId'))
+  const articleId = readInt(formData.get('articleId'))
   const qty = readInt(formData.get('qty'))
-  if (productId === null || qty === null) return
-  await setBagQty(productId, readSize(formData.get('size')), qty)
+  if (articleId === null || qty === null) return
+  await setBagQty(articleId, readSize(formData.get('size')), qty)
   finish(formData)
 }
 
@@ -118,10 +118,10 @@ export async function clearBagAction(formData: FormData): Promise<void> {
 
 /** Outfit additions share one cookie commit and the same attribution path as single pieces. */
 export async function addOutfitToBagAction(formData: FormData): Promise<ActionResult> {
-  const ids = [...new Set(formData.getAll('productId').map(Number))]
+  const ids = [...new Set(formData.getAll('articleId').map(Number))]
   if (!ids.length || ids.length > 12 || ids.some((id) => !Number.isInteger(id) || id <= 0))
     return { ok: false, message: 'Choose up to 12 available pieces.' }
-  const result = await addManyToBag(ids.map((productId) => ({ productId })))
+  const result = await addManyToBag(ids.map((articleId) => ({ articleId })))
   if (!result.ok)
     return { ok: false, message: 'Your bag has no room for this outfit. Remove a piece and retry.' }
   await rememberAttribution(formData)
@@ -129,8 +129,8 @@ export async function addOutfitToBagAction(formData: FormData): Promise<ActionRe
   const intentSessionId = sanitizeId(formData.get('intentSession'))
   if (user)
     after(async () => {
-      for (const productId of ids)
-        await recordFeedbackFor(user.id, { kind: 'add_to_bag', productId, intentSessionId })
+      for (const articleId of ids)
+        await recordFeedbackFor(user.id, { kind: 'add_to_bag', articleId, intentSessionId })
     })
   revalidatePath('/', 'layout')
   return { ok: true }

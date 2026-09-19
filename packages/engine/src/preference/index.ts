@@ -17,7 +17,7 @@ import {
   looks,
   ne,
   preferenceSnapshots,
-  products,
+  articles,
   relationships,
   users,
   type Database,
@@ -44,14 +44,14 @@ const PROFILE_EVENT_LIMIT = 2000
 
 async function loadEventVector(
   db: Database,
-  productId: number | null | undefined,
+  articleId: number | null | undefined,
   lookId: string | null | undefined,
 ): Promise<number[] | null> {
-  if (productId != null) {
+  if (articleId != null) {
     const [row] = await db
-      .select({ vector: products.styleVector })
-      .from(products)
-      .where(eq(products.id, productId))
+      .select({ vector: articles.styleVector })
+      .from(articles)
+      .where(eq(articles.id, articleId))
       .limit(1)
     const v = asVector(row?.vector)
     if (v) return v
@@ -82,17 +82,17 @@ async function loadProfileEvents(
       forOthers: feedbackEvents.forOthers,
       context: feedbackEvents.context,
       createdAt: feedbackEvents.createdAt,
-      productId: feedbackEvents.productId,
+      articleId: feedbackEvents.articleId,
       lookId: feedbackEvents.lookId,
       intentSessionId: feedbackEvents.intentSessionId,
-      productVector: products.styleVector,
-      productName: products.name,
+      productVector: articles.styleVector,
+      productName: articles.name,
       brandName: brands.name,
       lookVector: looks.styleVector,
     })
     .from(feedbackEvents)
-    .leftJoin(products, eq(feedbackEvents.productId, products.id))
-    .leftJoin(brands, eq(products.brandId, brands.id))
+    .leftJoin(articles, eq(feedbackEvents.articleId, articles.id))
+    .leftJoin(brands, eq(articles.brandId, brands.id))
     .leftJoin(looks, eq(feedbackEvents.lookId, looks.id))
     .where(eq(feedbackEvents.userId, userId))
     .orderBy(desc(feedbackEvents.createdAt), desc(feedbackEvents.id))
@@ -105,7 +105,7 @@ async function loadProfileEvents(
     forOthers: r.forOthers,
     context: r.context ?? {},
     createdAt: r.createdAt,
-    productId: r.productId,
+    articleId: r.articleId,
     lookId: r.lookId,
     intentSessionId: r.intentSessionId,
     vector: asVector(r.productVector) ?? asVector(r.lookVector),
@@ -126,7 +126,7 @@ export async function recordFeedback(db: Database, input: FeedbackInput): Promis
   await db.insert(feedbackEvents).values({
     id,
     userId: input.userId,
-    productId: input.productId ?? null,
+    articleId: input.articleId ?? null,
     lookId: input.lookId ?? null,
     intentSessionId: input.intentSessionId ?? null,
     kind: input.kind,
@@ -150,7 +150,7 @@ export async function recordFeedback(db: Database, input: FeedbackInput): Promis
     .limit(1)
   if (!user) return
   const p0 = departmentPrior(user.department)
-  const vector = await loadEventVector(db, input.productId, input.lookId)
+  const vector = await loadEventVector(db, input.articleId, input.lookId)
 
   // Meta state (n, mass, lastAt) of each target from the events before this one.
   const prior = await db

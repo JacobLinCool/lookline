@@ -52,7 +52,7 @@ export interface EvalProduct {
 export type EvalCatalogSource = 'generated' | 'synthetic'
 
 export interface EvalCatalog {
-  products: EvalProduct[]
+  articles: EvalProduct[]
   brands: EvalBrand[]
   source: EvalCatalogSource
 }
@@ -229,7 +229,7 @@ function probeGenerator(seed: number, brands: readonly EvalBrand[]): GeneratedPr
   }
 }
 
-/** Build `size` products for `seed`; `source` says which generator produced them. */
+/** Build `size` articles for `seed`; `source` says which generator produced them. */
 export function buildEvalCatalog(
   size: number,
   seed: number,
@@ -237,7 +237,7 @@ export function buildEvalCatalog(
 ): EvalCatalog {
   const brands = generateBrands(seed)
   const brandName = new Map(brands.map((b) => [b.id, b.name]))
-  const products: EvalProduct[] = []
+  const articles: EvalProduct[] = []
   let first: GeneratedProduct | null = null
   if (source === 'generated' || source === 'auto') first = probeGenerator(seed, brands)
   if (source === 'generated' && !first) {
@@ -246,13 +246,13 @@ export function buildEvalCatalog(
     )
   }
   if (first) {
-    products.push(fromGenerated(first, brandName.get(first.brandId) ?? `Brand ${first.brandId}`))
+    articles.push(fromGenerated(first, brandName.get(first.brandId) ?? `Brand ${first.brandId}`))
     for (let i = 2; i <= size; i++) {
       const p = generateProduct(i, seed, brands)
-      products.push(fromGenerated(p, brandName.get(p.brandId) ?? `Brand ${p.brandId}`))
+      articles.push(fromGenerated(p, brandName.get(p.brandId) ?? `Brand ${p.brandId}`))
     }
-    return { products, brands, source: 'generated' }
+    return { articles, brands, source: 'generated' }
   }
-  for (let i = 1; i <= size; i++) products.push(syntheticProduct(i, seed, brands))
-  return { products, brands, source: 'synthetic' }
+  for (let i = 1; i <= size; i++) articles.push(syntheticProduct(i, seed, brands))
+  return { articles, brands, source: 'synthetic' }
 }

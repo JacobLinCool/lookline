@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
-import { brands, eq, inArray, products } from '@lookline/db'
+import { brands, eq, inArray, articles } from '@lookline/db'
 import { Flash } from '@/components/looks/flash'
 import { OrderLines, orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
 import { RecipientPicker } from '@/components/looks/recipient-picker'
@@ -37,18 +37,18 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
   const intentSessionId =
     sanitizeId(first(params.from)) ?? sanitizeId(store.get(INTENT_SESSION_COOKIE)?.value)
 
-  const ids = [...new Set(lines.map((l) => l.productId))]
+  const ids = [...new Set(lines.map((l) => l.articleId))]
   const rows =
     ids.length > 0
       ? await getDb()
-          .db.select({ product: products, brandName: brands.name })
-          .from(products)
-          .innerJoin(brands, eq(products.brandId, brands.id))
-          .where(inArray(products.id, ids))
+          .db.select({ product: articles, brandName: brands.name })
+          .from(articles)
+          .innerJoin(brands, eq(articles.brandId, brands.id))
+          .where(inArray(articles.id, ids))
       : []
   const byId = new Map(rows.map((r) => [r.product.id, { ...r.product, brandName: r.brandName }]))
   const orderLines: OrderLine[] = lines.flatMap((line) => {
-    const product = byId.get(line.productId)
+    const product = byId.get(line.articleId)
     return product ? [{ product, size: line.size, qty: line.qty }] : []
   })
   const count = orderLines.reduce((sum, l) => sum + l.qty, 0)

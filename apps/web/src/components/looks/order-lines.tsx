@@ -1,13 +1,13 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import type { Product } from '@lookline/db'
+import type { Article } from '@lookline/db'
 import { Price, ProductImage } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { displayName } from '@/lib/product-name'
 import { formatTwd } from '@/server/format'
 
 export interface OrderLine {
-  product: Pick<Product, 'id' | 'name' | 'price'> & { brandName: string; colorName?: string | null }
+  product: Pick<Article, 'id' | 'name' | 'price'> & { brandName: string; colorName?: string | null }
   size: string | null
   qty: number
   /** Unit price at purchase time; defaults to the product price. */
@@ -50,7 +50,7 @@ export function OrderLines({
             className={cn('shrink-0', compact ? 'w-16' : 'w-24')}
             aria-label={line.product.name}
           >
-            <ProductImage productId={line.product.id} alt={line.product.name} />
+            <ProductImage articleId={line.product.id} alt={line.product.name} />
           </Link>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <p className="truncate text-[12px] text-muted">{line.product.brandName}</p>

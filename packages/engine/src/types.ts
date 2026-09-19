@@ -12,7 +12,7 @@ import type {
   LlmProvider,
   Look,
   ManufacturingRecommendation,
-  Product,
+  Article,
   Purchase,
   PurchaseFor,
   Relationship,
@@ -168,7 +168,7 @@ export interface Explanation {
 }
 
 export interface RankedItem {
-  product: Product
+  product: Article
   brandName: string
   score: number
   explanation: Explanation
@@ -227,7 +227,7 @@ export interface ProductSearch {
 }
 
 export interface ProductSearchResult {
-  items: Array<Product & { brandName: string }>
+  items: Array<Article & { brandName: string }>
   total: number
   page: number
   pageSize: number
@@ -245,7 +245,7 @@ export interface ProductSearchResult {
 export interface FeedbackInput {
   userId: string
   kind: FeedbackKind
-  productId?: number | null
+  articleId?: number | null
   lookId?: string | null
   intentSessionId?: string | null
   position?: number | null
@@ -334,7 +334,7 @@ export interface DeterministicOptions {
 
 export interface PurchaseInput extends DeterministicOptions {
   userId: string
-  productId: number
+  articleId: number
   quantity?: number
   size?: string | null
   forKind?: PurchaseFor
@@ -347,7 +347,7 @@ export interface PurchaseInput extends DeterministicOptions {
 
 export interface CreateLookInput extends DeterministicOptions {
   ownerId: string
-  productIds: number[]
+  articleIds: number[]
   stylePreset: string
   title?: string
   prompt?: string | null
@@ -376,7 +376,7 @@ export interface CreateAskInput extends DeterministicOptions {
   askerId: string
   kind: 'choose' | 'style_me'
   question: string
-  optionProductIds?: number[]
+  optionArticleIds?: number[]
   lookId?: string | null
   targetUserId?: string | null
   budget?: number | null
@@ -387,7 +387,7 @@ export interface AnswerAskInput extends DeterministicOptions {
   askId: string
   responderUserId?: string | null
   responderName?: string | null
-  choiceProductId?: number | null
+  choiceArticleId?: number | null
   styledLookId?: string | null
   comment?: string | null
 }
@@ -397,7 +397,7 @@ export interface InteractionInput extends DeterministicOptions {
   type: import('@lookline/db').InteractionType
   targetUserId?: string | null
   lookId?: string | null
-  productId?: number | null
+  articleId?: number | null
   askId?: string | null
   payload?: Record<string, unknown>
   sourceInteractionId?: string | null
@@ -413,9 +413,9 @@ export interface LookPosterInput {
   title: string
   ownerName: string
   stylePreset: string
-  products: Array<
+  articles: Array<
     Pick<
-      Product,
+      Article,
       | 'name'
       | 'colorHex'
       | 'silhouetteId'
@@ -459,7 +459,7 @@ export interface UserSummary {
 export interface LineageNode {
   look: Look
   owner: UserSummary
-  products: Array<Product & { brandName: string }>
+  articles: Array<Article & { brandName: string }>
   children: LineageNode[]
   purchases: number
   gmv: number
@@ -517,7 +517,7 @@ export interface TrendDashboard {
   silhouettes: TrendSeries[]
   aestheticCategory: TrendSeries[]
   emerging: TrendSeries[]
-  topLineages: Array<{ stats: LineageStat; look: Look; owner: UserSummary; products: Product[] }>
+  topLineages: Array<{ stats: LineageStat; look: Look; owner: UserSummary; articles: Article[] }>
   influencers: Influencer[]
   clusters: Array<{ id: number; size: number; topAesthetics: string[]; label: string }>
   manufacturing: ManufacturingRecommendation[]
@@ -544,7 +544,7 @@ export type {
   AskResponse,
   Look,
   Purchase,
-  Product,
+  Article,
   User,
   LineageStat,
   ManufacturingRecommendation,

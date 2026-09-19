@@ -28,10 +28,10 @@ export interface ProfileEvent {
   forOthers: boolean
   context: Record<string, unknown>
   createdAt: Date
-  productId: number | null
+  articleId: number | null
   lookId: string | null
   intentSessionId: string | null
-  /** Product (or Look) style vector; `null` when the object is gone. */
+  /** Article (or Look) style vector; `null` when the object is gone. */
   vector: number[] | null
   productName?: string | null
   brandName?: string | null

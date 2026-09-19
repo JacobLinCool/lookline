@@ -44,8 +44,8 @@ const ERRORS: Record<string, string> = {
 function tally(bundle: AskBundle): Map<number, number> {
   const counts = new Map<number, number>()
   for (const { response } of bundle.responses) {
-    if (response.choiceProductId) {
-      counts.set(response.choiceProductId, (counts.get(response.choiceProductId) ?? 0) + 1)
+    if (response.choiceArticleId) {
+      counts.set(response.choiceArticleId, (counts.get(response.choiceArticleId) ?? 0) + 1)
     }
   }
   return counts
@@ -61,7 +61,7 @@ function ThankYou({
   lookError: string | undefined
 }) {
   const { ask, asker, options } = bundle
-  const chosen = options.find((p) => p.id === mine.response.choiceProductId)
+  const chosen = options.find((p) => p.id === mine.response.choiceArticleId)
   const counts = tally(bundle)
   const name = mine.responder?.displayName ?? mine.response.responderName ?? 'You'
   return (
@@ -254,7 +254,7 @@ export default async function AskCardPage({
                 <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
                   {search.value.items.map((product) => (
                     <li key={product.id}>
-                      <ProductOption product={product} name="productId" />
+                      <ProductOption product={product} name="articleId" />
                     </li>
                   ))}
                 </ul>
@@ -307,7 +307,7 @@ export default async function AskCardPage({
                 <li key={product.id}>
                   <ProductOption
                     product={product}
-                    name="choiceProductId"
+                    name="choiceArticleId"
                     kind="radio"
                     badge={LETTERS[i]}
                   />

@@ -5,7 +5,7 @@
 import { createHash } from 'node:crypto'
 import { categoryGroupIndex, colorFamilyIndex } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
-import type { Department, Product } from '@lookline/db'
+import type { Department, Article } from '@lookline/db'
 import type { Explanation, ExplanationFactor, Outfit, RankedItem } from '../../types'
 import { colorFamilyLabel, subcategoryLabel } from '../aesthetics'
 import { renderSummary, sortFactors } from '../explain'
@@ -113,11 +113,11 @@ function sha1Id(ids: readonly number[]): string {
 }
 
 /** Mean of the items' A/C/X blocks (clamped) with the category groups unioned (private deriveLookStyle). */
-export function outfitStyleVector(products: readonly Product[]): number[] {
+export function outfitStyleVector(articles: readonly Article[]): number[] {
   const v = Array.from({ length: 64 }, () => 0)
-  if (products.length === 0) return v
-  for (const p of products) {
-    for (let i = 0; i < 52; i++) v[i] = (v[i] ?? 0) + (p.styleVector[i] ?? 0) / products.length
+  if (articles.length === 0) return v
+  for (const p of articles) {
+    for (let i = 0; i < 52; i++) v[i] = (v[i] ?? 0) + (p.styleVector[i] ?? 0) / articles.length
     const g = categoryGroupIndex(p.categoryGroup as CategoryGroup)
     if (g >= 52) v[g] = 1
   }
@@ -125,9 +125,9 @@ export function outfitStyleVector(products: readonly Product[]): number[] {
   return v
 }
 
-function dominantFamily(products: readonly Product[]): { family: string; hex: string } | null {
+function dominantFamily(articles: readonly Article[]): { family: string; hex: string } | null {
   const counts = new Map<string, { n: number; hex: string }>()
-  for (const p of products) {
+  for (const p of articles) {
     const c = counts.get(p.colorFamily) ?? { n: 0, hex: p.colorHex }
     c.n += 1
     counts.set(p.colorFamily, c)
@@ -143,7 +143,7 @@ const COMPAT_WEIGHT = 0.35
 /** Rescale an item's factors ×0.60 and append the in-outfit compatibility factor. */
 export function outfitItem(
   placed: PlacedItem,
-  others: readonly Product[],
+  others: readonly Article[],
   intent: EngineIntent,
   season: Season | null | undefined,
   partner: PartnerLook | null | undefined,
@@ -151,7 +151,7 @@ export function outfitItem(
   const locale = localeOf(intent)
   const item = placed.item
   const scores: number[] = []
-  let best: { p: Product; s: number } | null = null
+  let best: { p: Article; s: number } | null = null
   for (const o of others) {
     if (isUnscoredPair(item.product, o)) continue
     const s = compat(item.product, o, season).score
@@ -215,21 +215,21 @@ export function toOutfit(
 ): Outfit {
   const locale = localeOf(intent)
   const season = intent.season ?? null
-  const products = state.items.map((it) => it.item.product)
+  const articles = state.items.map((it) => it.item.product)
   const items = state.items.map((placed) =>
     outfitItem(
       placed,
-      products.filter((p) => p.id !== placed.item.product.id),
+      articles.filter((p) => p.id !== placed.item.product.id),
       intent,
       season,
       partner,
     ),
   )
-  const total = products.reduce((s, p) => s + p.price, 0)
-  const pairs = pairingSentences(products, locale, season)
+  const total = articles.reduce((s, p) => s + p.price, 0)
+  const pairs = pairingSentences(articles, locale, season)
   const compatibility =
     pairs.length > 0 ? pairs.reduce((s, p) => s + p.compat.score, 0) / pairs.length : 1
-  const styleVector = outfitStyleVector(products)
+  const styleVector = outfitStyleVector(articles)
   const budgetMax = budget.scope === 'total' ? budget.max : null
   const util = budgetMax ? Math.min(1, total / budgetMax) : 1
   const meanStyle =
@@ -296,7 +296,7 @@ export function toOutfit(
   ]
   factors[1]!.contribution = factors[1]!.weight * factors[1]!.value
   const outfit: Outfit = {
-    id: sha1Id(products.map((p) => p.id)),
+    id: sha1Id(articles.map((p) => p.id)),
     items,
     total,
     compatibility,
