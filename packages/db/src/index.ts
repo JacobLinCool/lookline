@@ -23,6 +23,7 @@ export {
   ftsQuery,
   ftsConceptsQuery,
   ftsAnd,
+  spaceCjk,
   ftsMatch,
   ftsHitsSubquery,
   ftsRank,

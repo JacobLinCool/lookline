@@ -62,6 +62,8 @@ export const trends: TrendsMessages = {
     category: '品類',
     color: '顏色',
     silhouette: '輪廓',
+    detail: '設計細節',
+    motif: '印花主題',
     aesthetic_category: '風格 × 品類',
   },
 

@@ -134,8 +134,16 @@ export function scanQuery(q: string): QueryScan {
     patterns: [],
   }
   for (const t of termIndex) {
+    // A single Han character inside a longer word is not that word. `麻` is linen, and `麻花`
+    // is a cable knit — matching the one inside the other turned a search for cable knits into
+    // a search for linen and dropped the rest of the query on the floor.
     const re = t.cjk
-      ? new RegExp(escapeRe(t.term), 'g')
+      ? new RegExp(
+          t.term.length === 1
+            ? `(?<!\\p{Script=Han})${escapeRe(t.term)}(?!\\p{Script=Han})`
+            : escapeRe(t.term),
+          'gu',
+        )
       : new RegExp(`(?<![a-z0-9])${escapeRe(t.term)}(?![a-z0-9])`, 'g')
     if (!re.test(text)) continue
     text = text.replace(re, ' ')
@@ -166,7 +174,10 @@ export function scanQuery(q: string): QueryScan {
     }
   }
   const residual = text.replace(/\s+/g, ' ').trim()
-  scan.residual = /[a-z0-9]/.test(residual) ? residual : ''
+  // Han counts as text. The check was ASCII-only, so a Chinese query matching no lexicon term
+  // left no residual and therefore no search at all — `荷葉邊` filtered on nothing and returned
+  // the whole catalogue.
+  scan.residual = /[a-z0-9]|\p{Script=Han}/u.test(residual) ? residual : ''
   return scan
 }
 
@@ -338,7 +349,10 @@ export function buildSearchQuery(
   const joined = needsFtsJoin(plan)
     ? withVectors.innerJoin(
         articlesFts,
-        // `article_id` is text; the index keys on the implicit rowid (see `@lookline/db` fts.ts).
+        // `articles.id` is H&M's ten-character `article_id`; the FTS side is the integer rowid
+        // the virtual table keys on. Comparing them matched nothing, so every relevance-sorted
+        // text search returned an empty page next to a total that counted the real hits — the
+        // count uses the WHERE clause, which joins on `articleRowid` and is correct.
         and(eq(articlesFts.rowid, articleRowid), ftsMatch(plan.ftsExpr!)),
       )
     : withVectors

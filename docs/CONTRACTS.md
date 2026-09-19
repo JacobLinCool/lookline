@@ -162,4 +162,5 @@ Guarantees:
 ## Verification
 
 Root: `pnpm check` = `format:check`, `lint`, `typecheck`, `test`, `build`.
-End-to-end: `pnpm db:migrate && pnpm seed && pnpm evaluate && pnpm d1:migrate:local && pnpm d1:local && pnpm dev`.
+End-to-end (after the Kaggle csv files and `pnpm --filter @lookline/hm aggregate` — docs/ONBOARDING.md):
+`pnpm db:migrate && pnpm seed && pnpm evaluate && pnpm d1:migrate:local && pnpm d1:local && pnpm dev`.

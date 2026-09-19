@@ -290,6 +290,10 @@ function labelFor(dimension: TrendSeries['dimension'], key: string): string {
     case 'silhouette':
     case 'detail':
       return humanizeSlug(key)
+    // A motif is free text the model wrote, already lower-cased and clustered; it is not a slug
+    // and has no label table, so it is shown as it is.
+    case 'motif':
+      return key
     case 'aesthetic_category': {
       const { dimension: _d, key: raw } = splitTrendKey(trendKey(dimension, key))
       const i = raw.indexOf('|')

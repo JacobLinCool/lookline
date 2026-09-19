@@ -144,6 +144,8 @@ export interface ProductLite {
   aesthetics: string[]
   /** `articles.attributes`; the design-detail keys in it drive the `detail` dimension. */
   attributes: Record<string, string | number | boolean>
+  /** Clustered print motif; `''` for an unprinted article or one the print pass has not read. */
+  printMotif: string
 }
 
 export interface AskLite {

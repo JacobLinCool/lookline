@@ -8,6 +8,7 @@ import {
   colorFamilyIndex,
 } from '@lookline/catalog'
 import { materializeVision, type ImportedArticle } from './materialize'
+import { motifKey } from './print-pass'
 import {
   MAX_AESTHETICS,
   MAX_DESIGN_DETAILS,
@@ -35,8 +36,15 @@ const full = {
   material: 'wool',
   axes: { formality: 0.6, boldness: 0.2, structure: 0.4, coverage: 0.8, texture: 0.7 },
   occasions: ['everyday', 'work'],
-  captionEn: 'An oatmeal cable knit that reads expensive without a single logo.',
-  captionZh: '燕麥色麻花針織，不靠標誌就顯得昂貴。',
+  rise: '',
+  shoulder: 'dropped',
+  pocketStyle: 'none',
+  knitGauge: 'chunky',
+  padding: '',
+  lookEn: 'An oatmeal cable knit with a dropped shoulder and a ribbed hem.',
+  lookZh: '燕麥色麻花針織，落肩剪裁，下襬羅紋收邊。',
+  stylingEn: 'Suits quiet weekday dressing, over a shirt or on its own.',
+  stylingZh: '適合低調的平日穿搭，可單穿或罩在襯衫外。',
   confidence: 0.8,
   evidence: 'oversized cable knit in oatmeal, no hardware',
 }
@@ -172,6 +180,25 @@ describe('materializeVision', () => {
     expect(out.styleVector.slice(from, to).filter((x) => x > 0)).toHaveLength(1)
   })
 
+  it('gives every single-valued reading its own column and leaves only the sets in JSON', () => {
+    expect(out.shoulder).toBe('dropped')
+    expect(out.knitGauge).toBe('chunky')
+    expect(out.pocketStyle).toBe('none')
+    // A jumper has no rise and no padding, and the column says so rather than guessing.
+    expect(out.rise).toBe('')
+    expect(out.padding).toBe('')
+    // The details are a set, so they stay where `attribute_match` reads them.
+    expect(out.attributes['cableKnit']).toBe(true)
+    expect(out.attributes['shoulder']).toBeUndefined()
+    // The description is indexed and the styling note is not, so they are separate columns.
+    expect(out.styleCaption).toContain('cable knit')
+    expect(out.styleCaptionZh).toContain('麻花')
+    expect(out.styleCaption).not.toContain('weekday')
+    expect(out.stylingNote).toContain('weekday')
+    expect(out.visionConfidence).toBe(0.8)
+    expect(out.visionEvidence).toContain('oatmeal')
+  })
+
   it('writes the aesthetic block scaled by confidence and leaves the rest of it zero', () => {
     expect(out.styleVector).toHaveLength(64)
     expect(out.styleVector[aestheticIndex('quiet-luxury')]).toBeCloseTo(0.9 * 0.8, 9)
@@ -220,5 +247,38 @@ describe('materializeVision', () => {
     expect(out.printSubject).toBe('')
     const tee = materializeVision(row, { ...(full as VisionResult), printSubject: 'slogan' })
     expect(tee.printSubject).toBe('slogan')
+  })
+})
+
+describe('motifKey', () => {
+  it('merges the variants the first readings actually produced', () => {
+    // Every pair below appeared as two separate strings across 4 598 print readings.
+    for (const [a, b] of [
+      ['leopard', 'leopard spots'],
+      ['zebra', 'zebra stripes'],
+      ['snake', 'snake skin'],
+      ['snake', 'snakeskin'.replace('snakeskin', 'snake scales')],
+      ['paisley', 'paisley motifs'],
+      ['heart', 'hearts'],
+      ['flower', 'flowers'],
+      ['flower', 'small flowers'],
+      ['daisy', 'daisies'],
+    ] as const) {
+      expect(motifKey(b)).toBe(motifKey(a))
+    }
+  })
+
+  it('keeps subjects that are genuinely different apart', () => {
+    const keys = ['roses', 'palm fronds', 'american flag', 'nasa logo', 'tyrannosaurus rex'].map(
+      motifKey,
+    )
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(motifKey('roses')).not.toBe(motifKey('flowers'))
+  })
+
+  it('is empty when the motif names a treatment rather than a subject', () => {
+    expect(motifKey('abstract print')).toBe('')
+    expect(motifKey('assorted patterns')).toBe('')
+    expect(motifKey('')).toBe('')
   })
 })

@@ -7,16 +7,28 @@ Two levels of access. Start at level 1 — most work never needs level 2.
 `vinext dev` starts workerd with a _local_ D1 (`apps/web/.wrangler/state`) and a local R2
 simulation, so the whole app — Look image storage included — runs from a clean clone:
 
+The catalogue is the Kaggle [H&M Personalized Fashion
+Recommendations](https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations/data)
+dataset, which is too large for the repository. Put `articles.csv` and `transactions_train.csv` in
+`data/hm/` first — symlinks into the download are fine — and the aggregate step derives the three
+files the import reads (`article_stats.csv`, `article_seasons.csv`, `type_affinity.csv`) from them.
+
 ```bash
 pnpm install
 cp .env.example .env                               # seed / analytics / evaluate scripts
 cp apps/web/.dev.vars.example apps/web/.dev.vars   # the Worker's own secrets
-pnpm db:migrate && pnpm seed                       # 100k products + simulation → data/lookline.sqlite
+pnpm --filter @lookline/hm aggregate               # 31.8M transactions → the four import inputs (~10 s, needs uv)
+pnpm db:migrate && pnpm seed                       # 105k articles + simulated people → data/lookline.sqlite
 pnpm --filter @lookline/hm vision                  # optional: read the photographs (needs OPENAI_API_KEY)
 pnpm --filter @lookline/hm materialize             # apply those readings to the columns and vectors
 pnpm d1:migrate:local && pnpm d1:local             # copy that into the dev D1
 pnpm dev
 ```
+
+`pnpm seed` is three steps: `seed:catalog` imports the H&M articles, `seed:social` simulates 1,200
+people — including the ten named demo personas `/login` offers — over 60 days of Looks, Asks and
+purchases, and `analytics` derives the relationship graph and trends from what they did. The second
+step is what puts anyone in the database, so a failure in the first leaves you with no users at all.
 
 LLM keys are optional: without them every engine falls back to deterministic offline logic and the
 app stays usable end to end. `pnpm check` (format, lint, typecheck, test, build) needs nothing else.

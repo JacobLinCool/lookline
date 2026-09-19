@@ -123,10 +123,12 @@ for (const a of source) {
     section: a.section ?? '',
     indexName: a.indexName,
     indexGroupName: a.indexGroupName,
-    pattern: a.pattern ?? '',
+    // H&M's own label goes in H&M's own column; `pattern` beside it is the catalog slug the
+    // vision pass reads off the photograph, and `materialize` writes it.
+    graphicalAppearance: a.pattern ?? '',
     colorName: a.colourName ?? '',
     colorMaster: a.colourFamily ?? '',
-    colorFamily: colorFamilyOf(a.colourFamily ?? ''),
+    colorFamily: colorFamilyOf(a.colourFamily ?? '', a.colourName ?? ''),
     colorValue: a.colourValue ?? '',
     categoryGroup,
     outfitRole: a.outfitRole,
@@ -153,7 +155,7 @@ for (const a of source) {
     attributes: detail.attributes,
     material,
     styleVector: toStyleVector({
-      colorFamily: colorFamilyOf(a.colourFamily ?? '') as ColorFamily,
+      colorFamily: colorFamilyOf(a.colourFamily ?? '', a.colourName ?? '') as ColorFamily,
       secondaryColorFamily: null,
       axes: styleAxes({
         formality: section.formality,
