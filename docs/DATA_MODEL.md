@@ -78,3 +78,36 @@ the asynchronous web flow.
 | `lineage_stats`                 | Per root Look: depth, nodes, unique people, clusters reached, shares, asks, remixes, purchases, GMV, velocity (nodes per day), share→remix and remix→purchase rates.                               |
 | `trend_signals`                 | Per day × dimension (`aesthetic`, `category`, `color`, `silhouette`, `aesthetic_category`) × key: volume, velocity, cross-cluster spread, conversion, GMV, momentum, `emerging` flag and evidence. |
 | `manufacturing_recommendations` | Ranked "開款 / 備料" suggestions (aesthetic × category group × colour family) with momentum, confidence, projected demand, rationale and evidence, for the manufacturing view on `/trends`.        |
+
+## Personas, wardrobe and collectible cards (owned by `@lookline/engine` cards module)
+
+Two decisions shape this whole group, both forced by D1 having no transactions.
+
+**Holding is never stored on a card.** A card names its persona, a collection copy names its
+beneficiary persona, and a persona names the account that currently manages it. Handing a persona
+to another account is therefore one `UPDATE personas` — there is no second row a partial failure
+could leave behind, so a set of cards can never end up half-transferred. What a card records about
+its own making (author, articles worn, owned ratio, tier, verification code, edition number) is a
+snapshot taken at issue time and is never rewritten when the persona changes hands.
+
+**Credits are a ledger, never a counter.** The balance is `sum(delta)`; nothing caches it. Every
+row carries a unique `operation_key`, so a replayed checkout or a retried reservation collides on
+the index instead of counting twice, and the caller reads back the first result. Reserving is a
+single `INSERT … SELECT … WHERE balance >= 1`, which is why two sessions racing for the last credit
+cannot both take it.
+
+| Table                   | Meaning                                                                                                                                                                                                                                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `personas`              | A card's subject — a real person photographed or an avatar — not a login. `owner_user_id` is who may act for it now; `version` is bumped on every ownership change so a transfer can be validated against what it read. `reference_path` is private and never exposed by sharing a card. |
+| `persona_transfers`     | An offer of a persona to a registered account, with the persona version it was written against. A partial unique index allows at most one `pending` offer per persona. Acceptance checks recipient, expiry and version.                                                                  |
+| `wardrobe_entitlements` | What a confirmed purchase line put in the wardrobe: article, variant, quantity and owner. Unique on `purchase_id`, so a repeated checkout grants nothing further. Every purchase enters the wardrobe whatever it cost — price only decides credits.                                      |
+| `wardrobe_loans`        | A friend may dress their personas in this article. Lending copies no entitlement and creates no credits; a partial unique index allows one `active` loan per entitlement and borrower.                                                                                                   |
+| `credit_ledger`         | Every credit movement: `grant` (+3 per qualifying unit), `reserve` (−1), `settle` (0, the audit line for what a reservation bought), `release` (+1). Each row records the `rule_version` that decided it and a unique `operation_key`.                                                   |
+| `card_sessions`         | One reserved credit being spent. Persona and articles are snapshotted at open time so a finished card cannot claim a subject or clothes it was not made from. Holds at most `max_candidates` (4).                                                                                        |
+| `generation_attempts`   | One call to the image provider, kept whether it succeeded or failed, so a retry budget can count failures.                                                                                                                                                                               |
+| `card_candidates`       | A picture the session may still choose from, numbered 1..4 within the session. Any one of them can become the card.                                                                                                                                                                      |
+| `cards`                 | An issued personal card: the chosen candidate, its persona, the author, the article snapshot with each article's source, the owned ratio and tier at issue, and a stable verification code.                                                                                              |
+| `collections`           | A grouping of personal cards that can be issued together as one multi-person artwork.                                                                                                                                                                                                    |
+| `collection_members`    | Which personas take part and which of their personal cards they bring. Keyed by `(collection_id, persona_id)` — three personas on one account are three members, not one.                                                                                                                |
+| `collection_editions`   | One artwork made from one credit, with `edition_size` = the number of participating personas at issue time.                                                                                                                                                                              |
+| `card_copies`           | One persona's numbered share of an edition (`edition_number` of `edition_size`), with its own verification code. Unique per `(edition, number)` and per `(edition, beneficiary)`, so a persona holds exactly one copy and transferring one persona moves exactly that copy.              |
