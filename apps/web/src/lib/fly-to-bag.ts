@@ -34,7 +34,9 @@ function visibleBagTarget(): { el: Element; rect: DOMRect } | null {
   return null
 }
 
-export function flyProductToBag(productId: number, delay = 0): void {
+// The id is H&M's ten-character `article_id`, zero-padded — `0706016001`. As a number it loses
+// the leading zero and the selector below matches nothing, which is the whole animation.
+export function flyProductToBag(productId: string, delay = 0): void {
   if (typeof window === 'undefined' || prefersReducedMotion()) return
   const origin = document.querySelector(`[data-product-image="${productId}"]`)
   const target = visibleBagTarget()
@@ -93,6 +95,6 @@ export function flyProductToBag(productId: number, delay = 0): void {
 }
 
 /** Several pieces at once (an outfit): staggered so they read as a handful, not a single blur. */
-export function flyProductsToBag(productIds: readonly number[]): void {
+export function flyProductsToBag(productIds: readonly string[]): void {
   productIds.slice(0, 6).forEach((id, i) => flyProductToBag(id, i * 90))
 }

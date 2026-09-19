@@ -29,7 +29,13 @@ export function seriesLabel(
     case 'color':
       return colorFamilyLabel(locale, series.key)
     case 'silhouette':
+    // A design detail is a catalog slug like any other facet value.
+    case 'detail':
       return facetLabel(locale, series.key)
+    // A motif is free text the model wrote, clustered by `motifKey`. There is no label table for
+    // it and there cannot be one, so it is shown exactly as it was read.
+    case 'motif':
+      return series.key
     case 'aesthetic_category': {
       const [aesthetic, group] = splitPairKey(series.key)
       if (!group) return facetLabel(locale, aesthetic)

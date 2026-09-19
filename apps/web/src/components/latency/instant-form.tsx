@@ -23,7 +23,7 @@ export function InstantForm({
   name: string
   className?: string
   /** Products this form puts in the bag; they fly there as the submit is acknowledged. */
-  flyToBag?: readonly number[]
+  flyToBag?: readonly string[]
 }) {
   const { t } = useI18n()
   const router = useRouter()
