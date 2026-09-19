@@ -295,10 +295,8 @@ export const articles = sqliteTable(
     attributes: json<Record<string, string | number | boolean>>('attributes')
       .notNull()
       .default(sql`'{}'`),
-    /** Derived from the Look's own pieces; all zeroes until it has any. */
-    styleVector: vector('style_vector')
-      .notNull()
-      .$defaultFn(() => Array.from({ length: STYLE_DIMENSIONS }, () => 0)),
+    /** Built at import from the article's own colour, axes and category group. */
+    styleVector: vector('style_vector').notNull(),
     createdAt: createdAt(),
   },
   (t) => [
