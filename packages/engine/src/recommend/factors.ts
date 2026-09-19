@@ -436,13 +436,11 @@ const KIND_EN: Readonly<Record<string, string>> = {
   look: 'wore this in a Look',
   purchase: 'bought this',
   save: 'saved this',
-  advise: 'recommended this',
 }
 const KIND_ZH: Readonly<Record<string, string>> = {
   look: '用它做了 Look',
   purchase: '買了它',
   save: '收藏了它',
-  advise: '推薦了它',
 }
 
 export function socialSignal(c: Candidate, ctx: RankContext): FactorResult {

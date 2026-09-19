@@ -171,10 +171,7 @@ describe('buildProfile', () => {
         productName: 'Sequin Dress',
       }),
       ev('save', 0.4, glam, at(4), { forOthers: true, productName: 'Sequin Dress' }),
-      ev('ask_choice', 0.15, glam, at(5), {
-        context: { role: 'adviser', chosen: true },
-        productName: 'Sequin Dress',
-      }),
+      ev('click', 0.1, glam, at(5), { forOthers: true, productName: 'Sequin Dress' }),
     ]
     const p = base(events)
     // Self taste is green (gorp), gift taste pink (glam) — the colour block is where they split.

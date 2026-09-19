@@ -9,7 +9,7 @@ import { getI18n } from '@/i18n/server'
 import { requireUser } from '@/server/auth'
 import { clearBag, getBag, removeFromBag, type BagLine } from '@/server/bag'
 import { getDb } from '@/server/db'
-import { SOURCE_ASK_COOKIE, SOURCE_LOOK_COOKIE, sanitizeId } from '@/server/looks'
+import { SOURCE_LOOK_COOKIE, sanitizeId } from '@/server/looks'
 
 const FOR_KINDS: readonly PurchaseFor[] = ['self', 'other', 'undisclosed']
 
@@ -27,7 +27,7 @@ function readLabel(value: FormDataEntryValue | null): string | null {
 /**
  * `<form action={placeOrderAction}>` on `/checkout`.
  * Fields: `forKind` (self | other | undisclosed), `forLabel` (optional, "partner", "dad"…),
- * `sourceLookId`, `sourceAskId`, `intentSessionId` (optional hidden attribution ids).
+ * `sourceLookId`, `intentSessionId` (optional hidden attribution ids).
  * Writes one purchase per bag line through the engine (`recordPurchase` also writes the
  * PURCHASE / BUY_FOR interactions and the purchase feedback event), clears the bag and redirects
  * to `/checkout/done?orders=<ids>`.
@@ -40,7 +40,6 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
   const forKind = readForKind(formData.get('forKind'))
   const forLabel = forKind === 'other' ? readLabel(formData.get('forLabel')) : null
   const sourceLookId = sanitizeId(formData.get('sourceLookId'))
-  const sourceAskId = sanitizeId(formData.get('sourceAskId'))
   const intentSessionId = sanitizeId(formData.get('intentSessionId'))
 
   const orderIds: string[] = []
@@ -63,7 +62,6 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
         forKind,
         forLabel,
         sourceLookId,
-        sourceAskId,
         intentSessionId,
       })
       orderIds.push(purchase.id)
@@ -107,7 +105,6 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
   }
   const store = await cookies()
   store.delete(SOURCE_LOOK_COOKIE)
-  store.delete(SOURCE_ASK_COOKIE)
   revalidatePath('/', 'layout')
 
   query.set('orders', orderIds.join(','))

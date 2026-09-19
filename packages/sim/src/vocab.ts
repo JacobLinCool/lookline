@@ -1,6 +1,6 @@
 /**
  * Small vocabularies of the simulation: style presets per cluster, occasion weights, bilingual
- * search utterances, Look titles, Ask questions and comments. All choices take an `Rng`.
+ * search utterances and Look titles. All choices take an `Rng`.
  */
 import { OCCASIONS, findAesthetic, findOccasion, type Rng } from '@lookline/catalog'
 
@@ -161,50 +161,5 @@ export function lookTitle(
     `${lead}${occasion ? ` for ${occasion}` : ''} — ${first}`,
     `${mood} ${lead}`,
     `${first}: ${lead}${occasion ? `, ${occasion}` : ''}`,
-  ])
-}
-
-export function askQuestion(
-  rng: Rng,
-  kind: 'choose' | 'style_me',
-  occasion: string,
-  budget: number,
-): string {
-  const o = findOccasion(occasion)
-  const en = o?.name.toLowerCase() ?? occasion
-  const zh = o?.labelZh ?? occasion
-  if (kind === 'choose') {
-    return rng.pick([
-      `Which one for ${en}?`,
-      `${zh}穿哪一件比較好？`,
-      `Left or right for ${en}? Be honest.`,
-      `這兩件選哪個？${zh}要穿的`,
-      `Which fits me better?`,
-    ])
-  }
-  return rng.pick([
-    `Style me for ${en}, budget NT$${budget}.`,
-    `${zh}要穿什麼？預算 ${budget}，幫我配一套`,
-    `Help — ${en} this weekend, nothing to wear.`,
-    `幫我搭一套${zh}的，${budget} 以內`,
-  ])
-}
-
-export function askComment(rng: Rng, kind: 'choose' | 'style_me'): string {
-  if (kind === 'choose') {
-    return rng.pick([
-      'The first one, no question.',
-      '這件比較適合你',
-      'Second one — better colour on you.',
-      'Go with this one, the other is too safe.',
-      '選這件，另一件太普通',
-      'This. Trust me.',
-    ])
-  }
-  return rng.pick([
-    'Put this together for you — swap the shoes if it rains.',
-    '幫你配了一套，鞋子可以換',
-    'Kept your palette, went a bit bolder on the outerwear.',
-    '這樣搭應該剛好，預算也有守住',
   ])
 }

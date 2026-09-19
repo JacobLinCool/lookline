@@ -3,8 +3,6 @@
  * keep names and shapes stable; add optional fields, do not rename or remove.
  */
 import type {
-  Ask,
-  AskResponse,
   Department,
   EvaluationRun,
   FeedbackKind,
@@ -404,7 +402,6 @@ export interface PurchaseInput extends DeterministicOptions {
   forUserId?: string | null
   forLabel?: string | null
   sourceLookId?: string | null
-  sourceAskId?: string | null
   intentSessionId?: string | null
 }
 
@@ -435,33 +432,12 @@ export interface RemixSuggestion {
   palette: string[]
 }
 
-export interface CreateAskInput extends DeterministicOptions {
-  askerId: string
-  kind: 'choose' | 'style_me'
-  question: string
-  optionArticleIds?: string[]
-  lookId?: string | null
-  targetUserId?: string | null
-  budget?: number | null
-  occasion?: string | null
-}
-
-export interface AnswerAskInput extends DeterministicOptions {
-  askId: string
-  responderUserId?: string | null
-  responderName?: string | null
-  choiceArticleId?: string | null
-  styledLookId?: string | null
-  comment?: string | null
-}
-
 export interface InteractionInput extends DeterministicOptions {
   actorUserId: string
   type: import('@lookline/db').InteractionType
   targetUserId?: string | null
   lookId?: string | null
   articleId?: string | null
-  askId?: string | null
   payload?: Record<string, unknown>
   sourceInteractionId?: string | null
 }
@@ -564,7 +540,6 @@ export interface TrendDashboard {
   headline: {
     looks: number
     remixes: number
-    asks: number
     togethers: number
     shares: number
     purchases: number
@@ -605,8 +580,6 @@ export interface AnalyticsSummary {
 }
 
 export type {
-  Ask,
-  AskResponse,
   Look,
   Purchase,
   Article,

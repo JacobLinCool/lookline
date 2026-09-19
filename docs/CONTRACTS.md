@@ -75,7 +75,7 @@ Guarantees:
 Exports (see `src/index.ts`): `getLlm`, `parseIntent`, `parseIntentOffline`, `intentToVector`,
 `recommend`, `similarProducts`, `completeTheLook`, `searchProducts`, `recordFeedback`,
 `getPreferenceProfile`, `evaluatePreferenceLoop`, `recordInteraction`, `recordPurchase`,
-`createLook`, `suggestRemix`, `createAsk`, `answerAsk`, `deriveLookStyle`, `STYLE_PRESETS`,
+`createLook`, `suggestRemix`, `deriveLookStyle`, `STYLE_PRESETS`,
 `renderLookPosterSvg`, `buildLookImagePrompt`, `runAnalytics`, `getTrendDashboard`, `getLineage`,
 `getUserNetwork`, `countFacet`, `resolveFilters`, `extractSearchKeywords`, `extractFacetCandidates`.
 
@@ -102,7 +102,7 @@ Guarantees:
 ## `@lookline/sim`
 
 - `scripts/seed.ts` creates personas (`users` with `isPersona = true`, `sim_personas`), a social
-  history of purchases, Looks (posters are rendered on demand by the web image route), Asks, remixes,
+  history of purchases, Looks (posters are rendered on demand by the web image route), remixes,
   Together editions, shares, reactions and feedback events by calling the engine write paths with
   deterministic ids and timestamps spread over the last 60 days. It must produce visible
   propagation chains (depth ≥ 4) that cross social clusters, and at least 8 demo-ready personas
@@ -155,9 +155,9 @@ Guarantees:
   write ownership; provider work is bounded by the shared 25 s budget. Expired leases become
   retryable failures without deleting the previous visual. Missing credentials leave an explicitly
   labelled composition; a failed provider never masquerades as a completed image.
-- `createLook` and `answerAsk` accept an optional `deferFeedback` scheduler as their third argument.
+- `createLook` accepts an optional `deferFeedback` scheduler as its third argument.
   Web callers supply `after`; simulation callers await feedback by default so replay is complete
-  before analytics. Core Look/Ask records and social edges remain on the persistence path.
+  before analytics. Core Look records and social edges remain on the persistence path.
 
 ## Verification
 

@@ -2,8 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import {
   and,
-  askResponses,
-  asks,
   brands,
   count,
   desc,
@@ -26,7 +24,6 @@ import {
 } from '@lookline/db'
 import { creditBalance, getPreferenceProfile, getUserNetwork, tierForRatio } from '@lookline/engine'
 import { Avatar, Button, Container, Notice, Section } from '@/components/ui'
-import { AsksPanel, type ReceivedAsk, type SentAsk } from '@/components/me/asks'
 import { Circle } from '@/components/me/circle'
 import { EditionsGrid, type EditionItem } from '@/components/me/editions'
 import { ProfileCard } from '@/components/me/profile-card'
@@ -122,7 +119,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const EDITIONS_LIMIT = 48
 const WARDROBE_LIMIT = 60
-const ASKS_LIMIT = 30
 const PREVIEWS_LIMIT = 12
 
 /** Looks the user owns or took part in, newest first, with owner and lineage hint. */
@@ -210,53 +206,8 @@ async function loadPreviews(userId: string) {
     .limit(PREVIEWS_LIMIT)
 }
 
-async function loadAsks(userId: string): Promise<{ sent: SentAsk[]; received: ReceivedAsk[] }> {
-  const { db } = getDb()
-  const [sentRows, received] = await Promise.all([
-    db
-      .select()
-      .from(asks)
-      .where(eq(asks.askerId, userId))
-      .orderBy(desc(asks.createdAt))
-      .limit(ASKS_LIMIT),
-    db
-      .select({
-        ask: asks,
-        asker: {
-          displayName: users.displayName,
-          handle: users.handle,
-          avatarSeed: users.avatarSeed,
-        },
-      })
-      .from(asks)
-      .innerJoin(users, eq(asks.askerId, users.id))
-      .where(eq(asks.targetUserId, userId))
-      .orderBy(desc(asks.createdAt))
-      .limit(ASKS_LIMIT),
-  ])
-  const responseCounts =
-    sentRows.length > 0
-      ? await db
-          .select({ askId: askResponses.askId, n: count() })
-          .from(askResponses)
-          .where(
-            inArray(
-              askResponses.askId,
-              sentRows.map((a) => a.id),
-            ),
-          )
-          .groupBy(askResponses.askId)
-      : []
-  const byAsk = new Map(responseCounts.map((r) => [r.askId, Number(r.n)]))
-  return {
-    sent: sentRows.map((ask) => ({ ask, responses: byAsk.get(ask.id) ?? 0 })),
-    received,
-  }
-}
-
 const LOOKS_SHOWN = 8
 const WARDROBE_SHOWN = 10
-const ASKS_SHOWN = 5
 
 export default async function MePage({
   searchParams,
@@ -267,16 +218,14 @@ export default async function MePage({
   const [{ t, locale }, params] = await Promise.all([getI18n(), searchParams])
   const showAll = params.all === '1'
   const { db } = getDb()
-  const [editions, previewItems, wardrobe, askData, profile, network, engineView] =
-    await Promise.all([
-      callEngine('editions', () => loadEditions(user.id, t.me.looks.madeTogether)),
-      callEngine('previews', () => loadPreviews(user.id)),
-      callEngine('wardrobe', () => loadWardrobe(user.id)),
-      callEngine('asks', () => loadAsks(user.id)),
-      callEngine('getPreferenceProfile', () => getPreferenceProfile(db, user.id)),
-      callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
-      isEngineView(),
-    ])
+  const [editions, previewItems, wardrobe, profile, network, engineView] = await Promise.all([
+    callEngine('editions', () => loadEditions(user.id, t.me.looks.madeTogether)),
+    callEngine('previews', () => loadPreviews(user.id)),
+    callEngine('wardrobe', () => loadWardrobe(user.id)),
+    callEngine('getPreferenceProfile', () => getPreferenceProfile(db, user.id)),
+    callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
+    isEngineView(),
+  ])
   const library = await loadLibrary(user.id).catch(() => [] as LibraryCard[])
   const [cardCredits, personaCount] = await Promise.all([
     creditBalance(db, user.id).catch(() => 0),
@@ -406,19 +355,6 @@ export default async function MePage({
 
       <Section title={t.me.people.title}>
         {network.ok ? <Circle network={network.value} /> : unavailable}
-      </Section>
-
-      <Section title={t.me.asks.title}>
-        {askData.ok ? (
-          <AsksPanel
-            sent={showAll ? askData.value.sent : askData.value.sent.slice(0, ASKS_SHOWN)}
-            received={
-              showAll ? askData.value.received : askData.value.received.slice(0, ASKS_SHOWN)
-            }
-          />
-        ) : (
-          unavailable
-        )}
       </Section>
     </Container>
   )

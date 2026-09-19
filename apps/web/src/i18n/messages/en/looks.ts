@@ -61,7 +61,6 @@ export const looks = {
     inspiredBy: 'Inspired by',
     madeWith: (names: readonly string[]) => `Made with ${names.join(', ')}`,
     makeItMine: 'Make it mine',
-    askAFriend: 'Ask a friend',
     together: 'Together',
     liked: (n: number) => (n === 1 ? '1 person liked this' : `${n} people liked this`),
     visibility: 'Who can see this',

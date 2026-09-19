@@ -1,10 +1,10 @@
 /**
- * Reward table for the nine contract `FeedbackKind`s and their context variants (ENGINE_SPEC §4.1).
+ * Reward table for the eight contract `FeedbackKind`s and their context variants (ENGINE_SPEC §4.1).
  */
 import type { FeedbackKind, PurchaseFor } from '@lookline/db'
 import type { FeedbackInput } from '../types'
 
-/** Base reward per kind. Variants (rejected choice, adviser rows, swapped-out remix) are below. */
+/** Base reward per kind. Variants (a swapped-out remix product) are below. */
 export const REWARDS: Readonly<Record<FeedbackKind, number>> = {
   impression: 0,
   click: 0.1,
@@ -12,16 +12,11 @@ export const REWARDS: Readonly<Record<FeedbackKind, number>> = {
   dismiss: -0.3,
   add_to_bag: 0.6,
   purchase: 1.0,
-  ask_choice: 0.35,
   remix: 0.6,
   look_create: 0.8,
 }
 
 export const REWARD_VARIANTS = {
-  /** `ask_choice` with `context.chosen === false` (the option the asker did not pick). */
-  ask_choice_rejected: -0.1,
-  /** `ask_choice` with `context.role === 'adviser'`: what you pick for others → adviser's gift vector. */
-  ask_choice_adviser: 0.15,
   /** `remix` with `context.kept === false` (a source product swapped out by the remixer). */
   remix_swapped: -0.15,
 } as const
@@ -71,13 +66,6 @@ export function rewardFor(
             ? 'other'
             : 'self'
       return { reward: REWARDS.purchase, targets: purchaseTargets(forKind) }
-    }
-    case 'ask_choice': {
-      if (ctx['role'] === 'adviser')
-        return { reward: REWARD_VARIANTS.ask_choice_adviser, targets: GIFT }
-      const reward =
-        ctx['chosen'] === false ? REWARD_VARIANTS.ask_choice_rejected : REWARDS.ask_choice
-      return { reward, targets: byFlag }
     }
     case 'remix': {
       const reward = ctx['kept'] === false ? REWARD_VARIANTS.remix_swapped : REWARDS.remix

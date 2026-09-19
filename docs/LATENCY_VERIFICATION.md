@@ -6,9 +6,9 @@ are local checks, not production SLA evidence.
 
 ## Implemented behavior
 
-- Bag additions, whole-outfit additions, Save / Dismiss, Look reactions and Ask forms provide local
+- Bag additions, whole-outfit additions, Save / Dismiss and Look reactions provide local
   feedback before persistence finishes. Rejected writes expose a retry; outfit additions commit all
-  bag lines together. Ask confirmations do not claim delivery before the server accepts the action.
+  bag lines together.
 - Recommendations stream parsed constraints and deterministic ranked products first. Optional AI
   refinement requires an explicit apply action. New queries cancel older requests; direct query
   URLs work under React Strict Mode. Impression and preference writes run after the response.

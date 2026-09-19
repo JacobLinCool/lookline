@@ -21,7 +21,6 @@ export const trends = {
   headline: {
     looks: 'Looks created',
     remixes: 'Remixes',
-    asks: 'Asks',
     togethers: 'Together editions',
     shares: 'Shares',
     purchasesFromLooks: 'Purchases from Looks',
@@ -182,7 +181,6 @@ export const trends = {
       people: 'People touched',
       clusters: 'Taste clusters reached',
       shares: 'Shares',
-      asks: 'Asks',
       remixes: 'Remixes',
       purchases: 'Purchases',
       gmv: 'Downstream GMV',

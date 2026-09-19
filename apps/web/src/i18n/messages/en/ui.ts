@@ -31,7 +31,7 @@ export const ui = {
     with: (handle: string) => `With @${handle}`,
   },
 
-  /** `InstantForm`, the optimistic mutation shared by shop, looks, asks and bag. */
+  /** `InstantForm`, the optimistic mutation shared by shop, looks and bag. */
   instantForm: {
     syncing: (confirmation: string) => `${confirmation} · syncing`,
     failed: 'This change could not be saved. Please retry.',

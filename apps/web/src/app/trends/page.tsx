@@ -32,7 +32,6 @@ function Headline({ headline, t }: { headline: TrendDashboard['headline']; t: Me
     <StatGrid>
       <StatTile label={h.looks} value={formatCompact(headline.looks)} />
       <StatTile label={h.remixes} value={formatCompact(headline.remixes)} />
-      <StatTile label={h.asks} value={formatCompact(headline.asks)} />
       <StatTile label={h.togethers} value={formatCompact(headline.togethers)} />
       <StatTile label={h.shares} value={formatCompact(headline.shares)} />
       <StatTile

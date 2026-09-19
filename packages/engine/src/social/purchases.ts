@@ -37,7 +37,6 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
       forUserId,
       forLabel: forKind === 'other' ? (input.forLabel ?? null) : null,
       sourceLookId: input.sourceLookId ?? null,
-      sourceAskId: input.sourceAskId ?? null,
       intentSessionId: input.intentSessionId ?? null,
       createdAt,
     })
@@ -50,14 +49,12 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
     quantity,
     price: product.price,
     sourceLookId: input.sourceLookId ?? null,
-    sourceAskId: input.sourceAskId ?? null,
   }
   await insertInteraction(db, {
     actorUserId: input.userId,
     type: 'PURCHASE',
     articleId: input.articleId,
     lookId: input.sourceLookId ?? null,
-    askId: input.sourceAskId ?? null,
     payload,
     createdAt,
   })
@@ -103,7 +100,6 @@ export async function recordPurchase(db: Database, input: PurchaseInput): Promis
     context: {
       forKind,
       sourceLookId: input.sourceLookId ?? null,
-      sourceAskId: input.sourceAskId ?? null,
       purchaseId: id,
       quantity,
     },

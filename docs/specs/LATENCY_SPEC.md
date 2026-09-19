@@ -9,11 +9,11 @@ next relevant action on the result, rather than model completion time.
 All clocks start at the user's click, submit or selection, before authentication, transport,
 queueing or model execution. Milestones count only once their UI is painted and usable.
 
-| Class      | Applies to                                                                                                | Required milestones                                                                                        |
-| ---------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Instant    | Save, dismiss, A/B choice, add to bag / Look, Ask submission, preset selection, filters, sort, remix fork | acknowledgement ≤100 ms; perceived completion ≤400 ms                                                      |
-| Generative | Free text, natural-language search, recommendation, styling, explanation                                  | first meaningful progress ≤800 ms; gaps between meaningful updates ≤800 ms; usable result ≤5,000 ms        |
-| Creative   | Edition generation and regeneration                                                                       | first meaningful progress ≤800 ms; gaps ≤800 ms; first meaningful visual ≤5,000 ms; final image ≤30,000 ms |
+| Class      | Applies to                                                                    | Required milestones                                                                                        |
+| ---------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Instant    | Save, dismiss, add to bag / Look, preset selection, filters, sort, remix fork | acknowledgement ≤100 ms; perceived completion ≤400 ms                                                      |
+| Generative | Free text, natural-language search, recommendation, styling, explanation      | first meaningful progress ≤800 ms; gaps between meaningful updates ≤800 ms; usable result ≤5,000 ms        |
+| Creative   | Edition generation and regeneration                                           | first meaningful progress ≤800 ms; gaps ≤800 ms; first meaningful visual ≤5,000 ms; final image ≤30,000 ms |
 
 Composite flows have separate operations: Make It Mine is an Instant fork, followed by Generative
 suggestions and an explicitly requested Creative render. A/B selection is Instant even if a later
@@ -66,7 +66,7 @@ generation does not block this path. Browser events report filter and product pa
 the acceptance targets still require representative end-to-end measurement.
 
 Cache keys must include user, constraints and source revision. Prefetch may prepare read-only data;
-it must not send an Ask, create a Look, mutate preferences or invoke paid generation on a GET.
+it must not create a Look, mutate preferences or invoke paid generation on a GET.
 
 ## Measurement and acceptance
 
@@ -93,8 +93,6 @@ Required scenarios:
 - Delay image generation: real composition is visible first; navigation remains available; a
   30 s miss is recorded as a failure, never a completed image. Retry and concurrent generation do
   not let an obsolete job replace newer state. Reload after a worker interruption remains retryable.
-- Delay or fail Ask persistence: no false “Sent” confirmation; generating suggestion text never
-  participates in the send transaction.
 
 ## Delivery status
 
