@@ -64,6 +64,13 @@
       "when": 1790030000000,
       "tag": "0009_pattern_column",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790040000000,
+      "tag": "0010_chinese_search",
+      "breakpoints": true
     }
   ]
 }
