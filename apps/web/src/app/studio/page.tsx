@@ -62,17 +62,31 @@ export default async function StudioPage({
     : []
   const byId = new Map(rows.map((r) => [r.id, r]))
 
-  const pickable: PickerArticle[] = wardrobe
-    .filter((w) => byId.has(w.articleId))
-    .map((w) => ({
-      articleId: w.articleId,
-      name: byId.get(w.articleId)!.name,
-      categoryGroup: byId.get(w.articleId)!.categoryGroup,
-      source: w.source,
-      // 440 of the catalogue's articles were never photographed; passing the path through is what
-      // keeps those tiles on the tonal ground instead of asking for an image that 404s.
-      imagePath: byId.get(w.articleId)!.imagePath,
-    }))
+  // One tile per article, not per entitlement. Buying the same piece twice is two wardrobe rows
+  // but still one thing to put on a card: the two tiles collided on the same React key, so one
+  // was dropped and the pair that remained toggled together. Owning it outright beats borrowing
+  // it, because that is the distinction the tier counts.
+  const pickable: PickerArticle[] = [
+    ...wardrobe
+      .filter((w) => byId.has(w.articleId))
+      .reduce((seen, w) => {
+        const already = seen.get(w.articleId)
+        if (!already || (already.source === 'loan' && w.source === 'purchase')) {
+          seen.set(w.articleId, {
+            articleId: w.articleId,
+            name: byId.get(w.articleId)!.name,
+            categoryGroup: byId.get(w.articleId)!.categoryGroup,
+            source: w.source,
+            // 440 of the catalogue's articles were never photographed; passing the path through
+            // is what keeps those tiles on the tonal ground instead of asking for an image that
+            // 404s.
+            imagePath: byId.get(w.articleId)!.imagePath,
+          })
+        }
+        return seen
+      }, new Map<string, PickerArticle>())
+      .values(),
+  ]
 
   const people: PickerPersona[] = mine.map((p) => ({
     id: p.id,
