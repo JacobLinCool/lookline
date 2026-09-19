@@ -24,6 +24,7 @@ export async function SiteNav() {
           <Link
             href="/bag"
             aria-label={t.nav.bagWithCount(count)}
+            data-bag-target
             className="relative hidden h-9 items-center gap-2 rounded-sm px-2.5 text-[14px] font-medium text-ink hover:bg-mist md:inline-flex"
           >
             <ShoppingBag className="size-[18px]" />
