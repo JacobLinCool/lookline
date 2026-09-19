@@ -188,6 +188,7 @@ export interface Lexicon {
   occasions: readonly LexEntry[]
   seasons: readonly LexEntry[]
   fits: readonly LexEntry[]
+  sleeves: readonly LexEntry[]
 }
 
 export interface CatalogGenOptions {

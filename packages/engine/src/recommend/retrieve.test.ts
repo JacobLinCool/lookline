@@ -1,3 +1,4 @@
+import type { CategoryGroup } from '@lookline/catalog'
 import { createLocalDb } from '@lookline/db/node'
 import { afterAll, describe, expect, it } from 'vitest'
 import {
@@ -51,6 +52,28 @@ describe('MemoryRetriever', () => {
     // brute-force equality
     const expected = rows.filter((r) => matchesParams(r, params)).length
     expect(out.length).toBe(Math.min(50, expected))
+  })
+
+  it('reads a sleeve requirement strictly on tops and leniently where the label is rare', () => {
+    // H&M labels the sleeve on 62% of tops but 1% of bottoms. An unlabelled tee answering
+    // "要長袖" was the defect; an unlabelled pair of trousers is simply a pair of trousers.
+    const params = emptyParams(vector, { sleeves: ['long'] })
+    const women = rows.find((r) => r.department === 'women')!
+    const as = (categoryGroup: CategoryGroup, sleeve: string) => ({
+      ...women,
+      categoryGroup,
+      sleeve,
+    })
+    expect(matchesParams(as('tops', 'long'), params)).toBe(true)
+    expect(matchesParams(as('tops', 'short'), params)).toBe(false)
+    expect(matchesParams(as('tops', ''), params)).toBe(false)
+    expect(matchesParams(as('dresses', ''), params)).toBe(false)
+    expect(matchesParams(as('bottoms', ''), params)).toBe(true)
+    expect(matchesParams(as('footwear', ''), params)).toBe(true)
+    expect(matchesParams(as('outerwear', 'short'), params)).toBe(false)
+    const avoid = emptyParams(vector, { excludeSleeves: ['sleeveless'] })
+    expect(matchesParams(as('tops', 'sleeveless'), avoid)).toBe(false)
+    expect(matchesParams(as('tops', ''), avoid)).toBe(true)
   })
 
   it('isolates kids and honours attribute have/avoid and product exclusions', async () => {

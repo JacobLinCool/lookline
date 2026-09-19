@@ -31,6 +31,7 @@ export type Section =
   | 'material'
   | 'pattern'
   | 'fit'
+  | 'sleeve'
   | 'season'
   | 'department'
   | 'occasion'
@@ -453,6 +454,7 @@ export function buildDictionary(): Dictionary {
   catalogSection('material', LEXICON.materials)
   catalogSection('pattern', LEXICON.patterns)
   catalogSection('fit', LEXICON.fits)
+  catalogSection('sleeve', LEXICON.sleeves)
   catalogSection('season', LEXICON.seasons)
   catalogSection('department', LEXICON.departments)
 
@@ -686,6 +688,7 @@ export const NEGATABLE: ReadonlySet<Section> = new Set<Section>([
   'aesthetic',
   'modifier',
   'fit',
+  'sleeve',
   'occasion',
 ])
 

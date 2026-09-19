@@ -17,6 +17,7 @@ import {
   axisLabel,
   colorFamilyLabel,
   fitLabel,
+  sleeveLabel,
   materialLabel,
   patternLabel,
   seasonLabel,
@@ -221,6 +222,13 @@ export function attributeMatch(c: Candidate, ctx: RankContext): FactorResult {
     for (const t of have.text) if (hay.includes(t)) found++
     const v = found / haveTokens.length
     checks.push({ w: 0.1, v, label: v > 0 ? (locale === 'zh' ? '必要條件' : 'must-haves') : null })
+  }
+  if (have.sleeves.length > 0) {
+    // Retrieval already dropped the garments that say they are something else; what reaches here
+    // either carries the asked-for sleeve or carries none at all, and a labelled match should win
+    // the slot over a garment that simply never said.
+    const v = have.sleeves.includes(p.sleeve) ? 1 : 0.35
+    checks.push({ w: 0.15, v, label: v === 1 ? sleeveLabel(p.sleeve, locale) : null })
   }
   if (intent.giftCategoryPrior && intent.giftCategoryPrior.length > 0) {
     const v = intent.giftCategoryPrior.includes(p.categoryGroup as CategoryGroup) ? 1 : 0
