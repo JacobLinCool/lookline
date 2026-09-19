@@ -5,30 +5,22 @@ import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { InstantForm } from '@/components/latency/instant-form'
-import {
-  abandonSessionAction,
-  generateCandidateAction,
-  settleCardAction,
-} from '@/server/actions/studio'
+import { generateCandidateAction } from '@/server/actions/studio'
+import { settleEditionAction } from '@/server/actions/collections'
 
-export interface CandidateItem {
-  id: string
-  position: number
-}
-
-/**
- * Four slots, filled one at a time. Candidates sit side by side rather than replacing each other,
- * which is what lets any of them — not just the newest — become the card.
- */
-export function CandidateGrid({
+export function EditionCandidates({
+  collectionId,
   sessionId,
   candidates,
   max,
+  editionSize,
   settled,
 }: {
+  collectionId: string
   sessionId: string
-  candidates: CandidateItem[]
+  candidates: Array<{ id: string; position: number }>
   max: number
+  editionSize: number
   settled: boolean
 }) {
   const [picked, setPicked] = useState<string | null>(null)
@@ -76,7 +68,7 @@ export function CandidateGrid({
         <div className="flex flex-wrap items-center gap-3">
           <InstantForm
             action={generateCandidateAction}
-            name="generate-candidate"
+            name="generate-edition"
             confirmation="已生成"
           >
             <input type="hidden" name="sessionId" value={sessionId} />
@@ -84,26 +76,17 @@ export function CandidateGrid({
               {full ? `已滿 ${max} 張` : candidates.length === 0 ? '生成第一張' : '再生成一張'}
             </Button>
           </InstantForm>
-
-          <form action={settleCardAction}>
+          <form action={settleEditionAction}>
+            <input type="hidden" name="collectionId" value={collectionId} />
             <input type="hidden" name="sessionId" value={sessionId} />
             <input type="hidden" name="candidateId" value={chosen ?? ''} />
             <Button type="submit" disabled={!chosen}>
-              就選這張，正式發行
+              發行 {editionSize} 份
             </Button>
           </form>
-
-          {candidates.length === 0 ? (
-            <form action={abandonSessionAction} className="ml-auto">
-              <input type="hidden" name="sessionId" value={sessionId} />
-              <Button type="submit" variant="link" size="sm">
-                放棄並取回額度
-              </Button>
-            </form>
-          ) : null}
         </div>
       ) : (
-        <p className="text-[13px] text-muted">這次製卡已經定稿。</p>
+        <p className="text-[13px] text-muted">這次發行已經完成。</p>
       )}
     </div>
   )

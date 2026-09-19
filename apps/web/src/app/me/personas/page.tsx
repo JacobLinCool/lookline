@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { and, eq, personaTransfers, personas, users } from '@lookline/db'
 import { creditBalance, transferPreview } from '@lookline/engine'
-import { Avatar, Button, Card, Container, EmptyState, PageHeader, Tag } from '@/components/ui'
+import { Card, Container, EmptyState, PageHeader } from '@/components/ui'
 import { PersonaList, type PersonaRow, type OfferRow } from '@/components/cards/persona-list'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'

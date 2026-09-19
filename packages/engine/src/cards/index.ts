@@ -28,6 +28,7 @@ export {
   CARD_TIERS,
   ownedRatioOf,
   tierForRatio,
+  verificationCode,
   type CardTier,
 } from './rules'
 

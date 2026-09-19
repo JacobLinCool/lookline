@@ -3,8 +3,10 @@ import { notFound } from 'next/navigation'
 import { articles as articlesTable, cards, eq, inArray, personas, users } from '@lookline/db'
 import { tierForRatio } from '@lookline/engine'
 import { Avatar, Button, Card, Container, Tag } from '@/components/ui'
+import { ShareCard } from '@/components/cards/share-card'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
+import { siteOrigin } from '@/server/site'
 
 export async function generateMetadata({
   params,
@@ -19,7 +21,22 @@ export async function generateMetadata({
     .innerJoin(personas, eq(personas.id, cards.personaId))
     .where(eq(cards.id, id))
     .limit(1)
-  return { title: card ? `${card.persona} · ${card.code} · Lookline` : 'Card · Lookline' }
+  if (!card) return { title: 'Card · Lookline' }
+  const origin = await siteOrigin()
+  const title = `${card.persona} · ${card.code} · Lookline`
+  const description = `一張 Lookline 小卡，編號 ${card.code}，可以在平台上查證發行資料。`
+  return {
+    title,
+    description,
+    metadataBase: new URL(origin),
+    alternates: { canonical: `${origin}/cards/${id}` },
+    openGraph: {
+      title,
+      description,
+      url: `${origin}/cards/${id}`,
+      images: [{ url: `${origin}/api/cards/${id}`, width: 900, height: 1200 }],
+    },
+  }
 }
 
 /**
@@ -90,6 +107,11 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
               <Tag tone="accent">{tier.labelZh}</Tag>
             </div>
           </div>
+          <ShareCard
+            title={`${card.personaName} · Lookline`}
+            imageUrl={`/api/cards/${card.id}`}
+            verifyCode={card.verificationCode}
+          />
         </div>
 
         <div className="flex flex-col gap-5">

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Check, Sparkles } from 'lucide-react'
-import { Avatar, Button, Card, ProductImage, Tag } from '@/components/ui'
+import { Avatar, Button, ProductImage, Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { startSessionAction } from '@/server/actions/studio'
 

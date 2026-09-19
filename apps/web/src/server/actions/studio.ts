@@ -18,6 +18,7 @@ import {
   settleCredit,
   startAttempt,
   tierForRatio,
+  verificationCode,
 } from '@lookline/engine'
 import type { ActionResult } from '@/components/latency/instant-form'
 import { requireUser } from '@/server/auth'
@@ -104,11 +105,16 @@ export async function generateCandidateAction(formData: FormData): Promise<Actio
     .limit(1)
   if (!session) return { ok: false, message: '找不到這個製卡階段。' }
 
-  // Re-check the loans: one revoked since the session opened must stop it.
-  const allowed = new Set((await availableArticles(db, user.id)).map((a) => a.articleId))
-  const missing = (session.articleSnapshot ?? []).filter((a) => !allowed.has(a.articleId))
-  if (missing.length > 0) {
-    return { ok: false, message: '有一件服飾的授權已被收回，這次製卡無法繼續。' }
+  // Re-check the loans: one revoked since the session opened must stop it. Only for a personal
+  // card, where the clothes are being used out of this account's wardrobe. An edition draws on
+  // cards its members already issued — a record of what was worn, not a right being exercised —
+  // and those pieces are mostly other people's, so checking them here refused every edition.
+  if (!session.collectionId) {
+    const allowed = new Set((await availableArticles(db, user.id)).map((a) => a.articleId))
+    const missing = (session.articleSnapshot ?? []).filter((a) => !allowed.has(a.articleId))
+    if (missing.length > 0) {
+      return { ok: false, message: '有一件服飾的授權已被收回，這次製卡無法繼續。' }
+    }
   }
 
   const attemptId = `ga_${nanoid(10)}`
@@ -158,7 +164,7 @@ export async function settleCardAction(formData: FormData): Promise<void> {
     cardId,
     sessionId,
     candidateId,
-    verificationCode: `LL-${nanoid(8).toUpperCase()}`,
+    verificationCode: verificationCode(),
     tier: tierForRatio(ratio).slug,
     now: new Date(),
   })

@@ -1,14 +1,13 @@
 import {
-  and,
-  articles as articlesTable,
   cardCandidates,
   cardSessions,
+  collections,
   eq,
-  inArray,
   personas,
 } from '@lookline/db'
 import { renderLookPosterSvg } from '@lookline/engine'
 import { getSessionUser } from '@/server/auth'
+import { cardArtFromSnapshot } from '@/server/card-art'
 import { getDb } from '@/server/db'
 import { svgResponse } from '@/server/svg'
 
@@ -35,36 +34,29 @@ export async function GET(
       ownerUserId: cardSessions.ownerUserId,
       snapshot: cardSessions.articleSnapshot,
       personaName: personas.displayName,
+      collectionTitle: collections.title,
     })
     .from(cardCandidates)
     .innerJoin(cardSessions, eq(cardSessions.id, cardCandidates.sessionId))
     .innerJoin(personas, eq(personas.id, cardSessions.personaId))
+    .leftJoin(collections, eq(collections.id, cardSessions.collectionId))
     .where(eq(cardCandidates.id, id))
     .limit(1)
   if (!row || row.ownerUserId !== user.id) return new Response('Not found', { status: 404 })
 
-  const ids = (row.snapshot ?? []).map((s) => s.articleId)
-  const worn = ids.length
-    ? await db
-        .select({
-          name: articlesTable.name,
-          colorHex: articlesTable.colorHex,
-          subcategory: articlesTable.subcategory,
-          pattern: articlesTable.pattern,
-          categoryGroup: articlesTable.categoryGroup,
-        })
-        .from(articlesTable)
-        .where(inArray(articlesTable.id, ids))
-    : []
+  const art = await cardArtFromSnapshot(db, row.snapshot ?? [])
 
   // Each candidate gets its own seed, so the four differ without any of them being a redraw of
   // another — they are alternatives, not revisions.
   const svg = renderLookPosterSvg({
-    title: row.personaName,
+    // The preview is titled like the card it would become: a collection by its name, a personal
+    // card by its subject.
+    title: row.collectionTitle ?? row.personaName,
     ownerName: user.displayName,
     stylePreset: 'studio',
-    articles: worn,
-    palette: worn.map((w) => w.colorHex ?? '#171717').filter(Boolean),
+    articles: art.articles,
+    groups: art.groups.length > 0 ? art.groups : undefined,
+    palette: art.palette,
     aesthetics: [],
     seed: hash(`${row.candidateId}:${row.position}`),
   })

@@ -78,6 +78,20 @@
       "when": 1790050000000,
       "tag": "0011_personas_and_cards",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790060000000,
+      "tag": "0012_session_collection",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1790070000000,
+      "tag": "0013_collection_invites",
+      "breakpoints": true
     }
   ]
 }

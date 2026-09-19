@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { ShoppingBag, Sparkles } from 'lucide-react'
 import { eq, inArray, articles as articlesTable, personas } from '@lookline/db'
 import { availableArticles, creditBalance } from '@lookline/engine'
-import { Button, Card, Container, EmptyState, Notice, PageHeader } from '@/components/ui'
+import { Button, Container, EmptyState, Notice, PageHeader } from '@/components/ui'
 import {
   StudioPicker,
   type PickerArticle,

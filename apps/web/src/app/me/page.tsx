@@ -17,10 +17,14 @@ import {
   articles,
   purchases,
   previews,
+  cardCopies,
+  cards as cardsTable,
+  collectionEditions,
+  collections as collectionsTable,
   personas as personasTable,
   users,
 } from '@lookline/db'
-import { creditBalance, getPreferenceProfile, getUserNetwork } from '@lookline/engine'
+import { creditBalance, getPreferenceProfile, getUserNetwork, tierForRatio } from '@lookline/engine'
 import { Avatar, Button, Container, Notice, Section } from '@/components/ui'
 import { AsksPanel, type ReceivedAsk, type SentAsk } from '@/components/me/asks'
 import { Circle } from '@/components/me/circle'
@@ -28,6 +32,7 @@ import { EditionsGrid, type EditionItem } from '@/components/me/editions'
 import { ProfileCard } from '@/components/me/profile-card'
 import { PreviewGrid } from '@/components/me/previews'
 import { SavedPhotoForm } from '@/components/me/saved-photo-form'
+import { CardLibrary, type LibraryCard } from '@/components/cards/card-library'
 import { Wardrobe, type WardrobeRow } from '@/components/me/wardrobe'
 import { callEngine } from '@/components/trends/engine-guard'
 import { getI18n } from '@/i18n/server'
@@ -35,6 +40,80 @@ import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { isEngineView } from '@/server/engine-view'
 import { formatRelative } from '@/server/format'
+
+/**
+ * Every card this account holds, through the personas it manages. Copies are listed individually:
+ * three copies of one edition are three holdings, and collapsing them by artwork would lose two.
+ */
+async function loadLibrary(userId: string): Promise<LibraryCard[]> {
+  const { db } = getDb()
+  const [own, copies] = await Promise.all([
+    db
+      .select({
+        id: cardsTable.id,
+        code: cardsTable.verificationCode,
+        ownedRatio: cardsTable.ownedRatio,
+        issuedAt: cardsTable.issuedAt,
+        personaId: personasTable.id,
+        personaName: personasTable.displayName,
+        avatarSeed: personasTable.avatarSeed,
+      })
+      .from(cardsTable)
+      .innerJoin(personasTable, eq(personasTable.id, cardsTable.personaId))
+      .where(eq(personasTable.ownerUserId, userId)),
+    db
+      .select({
+        id: cardCopies.id,
+        code: cardCopies.verificationCode,
+        editionId: cardCopies.editionId,
+        editionNumber: cardCopies.editionNumber,
+        editionSize: collectionEditions.editionSize,
+        collectionTitle: collectionsTable.title,
+        issuedAt: cardCopies.issuedAt,
+        personaId: personasTable.id,
+        personaName: personasTable.displayName,
+        avatarSeed: personasTable.avatarSeed,
+      })
+      .from(cardCopies)
+      .innerJoin(collectionEditions, eq(collectionEditions.id, cardCopies.editionId))
+      .innerJoin(collectionsTable, eq(collectionsTable.id, collectionEditions.collectionId))
+      .innerJoin(personasTable, eq(personasTable.id, cardCopies.beneficiaryPersonaId))
+      .where(eq(personasTable.ownerUserId, userId)),
+  ])
+  return [
+    ...own.map((c) => ({
+      kind: 'card' as const,
+      id: c.id,
+      href: `/cards/${c.id}`,
+      imageUrl: `/api/cards/${c.id}`,
+      personaName: c.personaName,
+      personaId: c.personaId,
+      avatarSeed: c.avatarSeed,
+      verificationCode: c.code,
+      tierLabel: tierForRatio(c.ownedRatio).labelZh,
+      editionNumber: null,
+      editionSize: null,
+      collectionTitle: null,
+      issuedAt: c.issuedAt?.getTime() ?? 0,
+    })),
+    ...copies.map((c) => ({
+      kind: 'copy' as const,
+      id: c.id,
+      href: `/editions/${c.editionId}`,
+      // Each copy shows its own numbered print, the same picture its holder would share.
+      imageUrl: `/api/editions/${c.editionId}?copy=${encodeURIComponent(c.code)}`,
+      personaName: c.personaName,
+      personaId: c.personaId,
+      avatarSeed: c.avatarSeed,
+      verificationCode: c.code,
+      tierLabel: null,
+      editionNumber: c.editionNumber,
+      editionSize: c.editionSize,
+      collectionTitle: c.collectionTitle,
+      issuedAt: c.issuedAt?.getTime() ?? 0,
+    })),
+  ]
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -198,6 +277,7 @@ export default async function MePage({
       callEngine('getUserNetwork', () => getUserNetwork(db, user.id)),
       isEngineView(),
     ])
+  const library = await loadLibrary(user.id).catch(() => [] as LibraryCard[])
   const [cardCredits, personaCount] = await Promise.all([
     creditBalance(db, user.id).catch(() => 0),
     db
@@ -255,11 +335,15 @@ export default async function MePage({
             <Button href="/me/personas" size="sm" variant="secondary">
               管理 persona
             </Button>
+            <Button href="/collections" size="sm" variant="secondary">
+              收藏組合
+            </Button>
             <Button href="/studio" size="sm">
               製卡工作室
             </Button>
           </div>
         </div>
+        {library.length > 0 ? <CardLibrary items={library} /> : null}
       </Section>
 
       <Section title={t.me.photo.title} rule={false}>
