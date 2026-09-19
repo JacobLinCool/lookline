@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "pnpm --filter @lookline/web dev",
     "dev:remote": "pnpm --filter @lookline/web dev:remote",
+    "dev:images": "pnpm --filter @lookline/web dev:images",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test --concurrency=1",
