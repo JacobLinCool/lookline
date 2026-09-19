@@ -331,7 +331,7 @@ export function buildSearchQuery(
   const facets = sql`
     with sample as (
       select ${articles.categoryGroup} as category_group, ${articles.colorFamily} as color_family
-      from ${articles} where ${where}
+      from ${articles} where ${where ?? sql`1`}
     )
     select 'group' as dim, category_group as key, count(*) as n from sample group by 2
     union all select 'color' as dim, color_family as key, count(*) as n from sample group by 2
