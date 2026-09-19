@@ -1,5 +1,6 @@
 import type { LiveServerMessage } from '@google/genai'
 import type { ConversationEvent } from '@lookline/engine/conversation'
+import { PcmPlayback } from './pcm-playback'
 import { connectTalkSocket, type TalkSocket } from './talk-socket'
 import { liveConversationTurns, type TalkConversation } from './talk-conversation'
 
@@ -27,8 +28,7 @@ export class ShopTalkLive {
   private micGeneration = 0
   private output?: AudioContext
   private speaker = false
-  private nextAudioAt = 0
-  private playing = new Set<AudioBufferSourceNode>()
+  private playback?: PcmPlayback
   private expiry?: ReturnType<typeof setTimeout>
   private pendingContext: ConversationEvent[] = []
   constructor(
@@ -128,7 +128,6 @@ export class ShopTalkLive {
       if (part.inlineData?.data && part.inlineData.mimeType?.startsWith('audio/pcm'))
         this.play(part.inlineData.data)
     }
-    if (content.turnComplete && !this.playing.size) this.callbacks.speaking(false)
   }
   private async resume() {
     if (this.closed || this.connecting) return
@@ -169,7 +168,10 @@ export class ShopTalkLive {
       return
     }
     try {
-      this.output ??= new AudioContext()
+      if (!this.output) {
+        this.output = new AudioContext({ latencyHint: 'interactive' })
+        this.playback = new PcmPlayback(this.output, this.callbacks.speaking)
+      }
       await this.output.resume()
     } catch {
       this.speaker = false
@@ -179,36 +181,15 @@ export class ShopTalkLive {
   }
   private play(encoded: string) {
     if (!this.speaker || !this.output || this.output.state !== 'running') return
-    const raw = atob(encoded)
-    const bytes = Uint8Array.from(raw, (c) => c.charCodeAt(0))
-    if (bytes.byteLength % 2) return
-    const view = new DataView(bytes.buffer)
-    const buffer = this.output.createBuffer(1, bytes.byteLength / 2, 24_000)
-    const samples = buffer.getChannelData(0)
-    for (let i = 0; i < samples.length; i++) samples[i] = view.getInt16(i * 2, true) / 32768
-    const source = this.output.createBufferSource()
-    source.buffer = buffer
-    source.connect(this.output.destination)
-    const at = Math.max(this.output.currentTime, this.nextAudioAt)
-    this.nextAudioAt = at + buffer.duration
-    this.playing.add(source)
-    source.onended = () => {
-      source.disconnect()
-      this.playing.delete(source)
-      if (!this.playing.size) this.callbacks.speaking(false)
+    try {
+      this.playback?.enqueue(encoded)
+    } catch {
+      this.clearPlayback()
+      this.callbacks.error('audioError')
     }
-    source.start(at)
-    this.callbacks.speaking(true)
   }
   private clearPlayback() {
-    for (const source of this.playing) {
-      source.onended = null
-      source.stop()
-      source.disconnect()
-    }
-    this.playing.clear()
-    this.nextAudioAt = 0
-    this.callbacks.speaking(false)
+    this.playback?.clear()
   }
   async setMicrophone(enabled: boolean) {
     if (!enabled) {
@@ -234,7 +215,10 @@ export class ShopTalkLive {
       await capture.resume()
       await Promise.all([capture.audioWorklet.addModule('/pcm-capture.js'), this.connect()])
       if (generation !== this.micGeneration || this.closed) return
-      const worklet = new AudioWorkletNode(capture, 'pcm-capture')
+      const worklet = new AudioWorkletNode(capture, 'pcm-capture', {
+        channelCount: 1,
+        channelCountMode: 'explicit',
+      })
       this.worklet = worklet
       const source = capture.createMediaStreamSource(stream)
       const silent = capture.createGain()
@@ -275,7 +259,11 @@ export class ShopTalkLive {
     this.microphone = false
     this.stream?.getTracks().forEach((track) => track.stop())
     this.stream = undefined
-    this.worklet?.disconnect()
+    if (this.worklet) {
+      this.worklet.port.onmessage = null
+      this.worklet.port.close()
+      this.worklet.disconnect()
+    }
     this.worklet = undefined
     if (this.capture?.state !== 'closed') void this.capture?.close()
     this.capture = undefined
@@ -311,6 +299,7 @@ export class ShopTalkLive {
     this.session = undefined
     if (this.output?.state !== 'closed') void this.output?.close()
     this.output = undefined
+    this.playback = undefined
     this.speaker = false
     this.callbacks.speaker(false)
     this.history.finish(true)

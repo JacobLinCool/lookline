@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { LinkFeedback } from './link-feedback'
 import { usePathname } from 'next/navigation'
 import { Search, ShoppingBag, Shirt, Sparkles } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -41,11 +42,12 @@ export function NavLinks() {
               href={item.href}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'inline-flex h-9 items-center rounded-sm px-3 text-[14px] font-medium transition-colors',
+                'relative inline-flex h-9 items-center rounded-sm px-3 text-[14px] font-medium transition-colors active:bg-line',
                 active ? 'bg-mist text-ink' : 'text-muted hover:text-ink',
               )}
             >
               {item.label}
+              <LinkFeedback />
             </Link>
           </li>
         )
@@ -68,7 +70,7 @@ export function TabBar({ bagCount = 0 }: { bagCount?: number }) {
       aria-label={t.nav.primary}
       className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {tabs.map((tab) => {
           const active = isActive(pathname, tab)
           return (
@@ -78,12 +80,13 @@ export function TabBar({ bagCount = 0 }: { bagCount?: number }) {
                 aria-current={active ? 'page' : undefined}
                 data-bag-target={tab.href === '/bag' ? '' : undefined}
                 className={cn(
-                  'relative flex h-[var(--shell-bar-height)] flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors [&_svg]:size-5',
+                  'relative flex h-[var(--shell-bar-height)] flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors active:bg-line [&_svg]:size-5',
                   active ? 'text-ink' : 'text-muted',
                 )}
               >
                 {tab.icon}
                 <span>{tab.label}</span>
+                <LinkFeedback />
                 {tab.href === '/bag' && bagCount > 0 ? (
                   <span className="tabular absolute top-2 left-1/2 ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-ink px-1 text-[10px] font-semibold leading-none text-paper">
                     {bagCount > 99 ? '99+' : bagCount}

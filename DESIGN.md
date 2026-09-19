@@ -336,3 +336,7 @@ visible and distinct, expressed as form (skeleton, progress line, tag, notice) r
 - **Don't** show scores, percentages, confidence or field names to a shopper.
 - **Don't** nest cards, border layout groups, or list aesthetic chips under a product.
 - **Don't** use red for anything that is not the one thing to notice.
+
+### Page navigation
+
+The shell remains stable while route content crossfades in 160 ms. Link pending feedback reflects the router request, and streaming destinations expose a quiet loading state. Live filters and transcripts do not trigger route animations. Reduced motion uses a brief 60 ms dissolve.

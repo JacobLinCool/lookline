@@ -73,3 +73,7 @@ immediate selection feedback, but catalog refresh timing is not certified here.
 Unit tests also cover total provider budgets, propagated cancellation, late completion, synchronous
 adapter failure, split UTF-8 stream chunks and truncated streams. Existing catalog, engine and
 simulation tests remain part of the regression gate.
+
+## Navigation — 2026-09-20
+
+Added a persistent shell, a 160 ms content-only route dissolve (60 ms with reduced motion), router-owned pending indicators, and a streaming loading boundary. Query-only filtering and conversation updates are excluded. The browser check covers 1440 px and 375 px, slow destination response, redirects, and history navigation. On the local development server with every request intercepted, actual click-to-pending was 717 / 380 ms and click-to-destination 1717 / 1664 ms; these development measurements remain above the instant budget and are not production performance claims. Pointer press receives immediate CSS feedback. Raw measurements and screenshots are in ignored `output/playwright/navigation/`.

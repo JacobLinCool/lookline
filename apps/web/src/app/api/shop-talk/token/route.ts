@@ -8,7 +8,7 @@ import { readTalkJson, TalkRequestError, talkHeaders } from '@/server/shop-talk-
 export async function POST(request: Request) {
   const access = await liveAccess(request, 'voice')
   if (access.response) return access.response
-  const { t, locale } = await getI18n()
+  const { t } = await getI18n()
   try {
     z.object({})
       .strict()
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
           model: `models/${SHOP_TALK_MODEL}`,
           generationConfig: { responseModalities, speechConfig },
           ...sessionConfig,
-          systemInstruction: { parts: [{ text: shopTalkPrompt(locale) }] },
+          systemInstruction: { parts: [{ text: shopTalkPrompt() }] },
         },
         fieldMask:
           'model,generationConfig,systemInstruction,inputAudioTranscription,outputAudioTranscription,tools,contextWindowCompression',

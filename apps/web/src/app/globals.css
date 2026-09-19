@@ -262,3 +262,52 @@
     transform: translateX(260%);
   }
 }
+
+/* Keep the rail (navigation) fixed while its contents exchange, without waiting for an exit. */
+::view-transition-group(page-content) {
+  animation-duration: 160ms;
+  animation-timing-function: var(--ease-out-expo);
+}
+::view-transition-old(page-content) {
+  animation: page-leave 100ms ease-out both;
+}
+::view-transition-new(page-content) {
+  animation: page-arrive 160ms var(--ease-out-expo) both;
+}
+::view-transition {
+  pointer-events: none;
+}
+@keyframes page-leave {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes page-arrive {
+  from {
+    opacity: 0;
+  }
+}
+.navigation-pending {
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 2px;
+  height: 2px;
+  background: currentColor;
+  transform-origin: left;
+  animation: navigation-acknowledge 120ms var(--ease-out-expo) both;
+}
+@keyframes navigation-acknowledge {
+  from {
+    transform: scaleX(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(page-content),
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content) {
+    animation-duration: 60ms;
+  }
+  .navigation-pending {
+    animation: none;
+  }
+}

@@ -14,6 +14,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Bricolage_Grotesque, Inter } from 'next/font/google'
 import type { ReactNode } from 'react'
+import { PageTransition } from '@/components/shell/page-transition'
 import { SiteFooter } from '@/components/shell/site-footer'
 import { SiteNav } from '@/components/shell/site-nav'
 import { TabBar } from '@/components/shell/nav-links'
@@ -57,7 +58,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="flex min-h-dvh flex-col bg-paper font-sans text-ink">
         <LocaleProvider locale={locale}>
           <SiteNav />
-          <main className="flex-1 pb-20 md:pb-0">{children}</main>
+          <PageTransition>{children}</PageTransition>
           <SiteFooter />
           <TabBar bagCount={count} />
           {/*
