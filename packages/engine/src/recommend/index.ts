@@ -296,8 +296,10 @@ export async function recommend(db: Database, req: RecommendRequest): Promise<Re
       ? loadPartnerLook(db, intent.referenceLookId).catch(() => null)
       : Promise.resolve(null),
     // A failure here must not cost a recommendation: without it the blend is simply `balanced`.
+    // `rebuild: false` keeps the replay off the request path: a missing row is the analytics job's
+    // to rebuild, not a visitor's scan of up to `REBUILD_ROW_LIMIT` feedback rows.
     req.userId && !req.weights
-      ? loadBanditState(db, { now: new Date() }).catch(() => null)
+      ? loadBanditState(db, { now: new Date(), rebuild: false }).catch(() => null)
       : Promise.resolve(null),
   ])
   const contextMs = performance.now() - t0
