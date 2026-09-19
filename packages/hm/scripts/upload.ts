@@ -3,9 +3,12 @@
  *
  *   pnpm --filter @lookline/hm upload
  *
- * Uses Cloudflare's REST API rather than the S3 endpoint, so the `CLOUDFLARE_API_TOKEN` already
- * in `.env` is enough and no separate S3 key pair is needed. `wrangler r2 object put` would also
- * work but pays ~3s of CLI startup per file, which is 85 hours over this catalogue.
+ * Uses R2's S3 endpoint. The two alternatives do not scale to a catalogue this size:
+ * `wrangler r2 object put` pays ~3s of CLI startup per file (85 hours), and Cloudflare's
+ * management API — `/client/v4/accounts/…/r2/buckets/…/objects/…` — shares the account-wide quota
+ * of 1200 requests per 5 minutes. Measured: 200 uploads succeed at any concurrency, then the
+ * 1273rd returns 429 and everything after it fails until the bucket refills. That is 4 req/s
+ * sustained, or 7.3 hours here, while starving every other Cloudflare API call.
  *
  * Keys mirror the folder layout: `images/<first three characters>/<article_id>.webp`, which is
  * what `articles.image_path` stores. Already-uploaded keys are recorded so a re-run resumes.
@@ -24,13 +27,17 @@ import {
 import path from 'node:path'
 import { createInterface } from 'node:readline'
 import { loadEnv, repoRoot } from '@lookline/db/node'
+import { AwsClient } from 'aws4fetch'
 
 loadEnv()
 
-const token = process.env.CLOUDFLARE_API_TOKEN
 const account = process.env.CLOUDFLARE_ACCOUNT_ID
-if (!token || !account)
-  throw new Error('CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set')
+const accessKeyId = process.env.R2_ACCESS_KEY_ID
+const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+if (!account || !accessKeyId || !secretAccessKey) {
+  throw new Error('CLOUDFLARE_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY must be set')
+}
+const aws = new AwsClient({ accessKeyId, secretAccessKey, service: 's3', region: 'auto' })
 
 const BUCKET = 'lookline-media'
 const CONCURRENCY = Number(process.env.UPLOAD_CONCURRENCY ?? 24)
@@ -60,8 +67,7 @@ for (const bucket of readdirSync(dir)) {
 }
 console.log(`${jobs.length} to upload (${done.size} already done)`)
 
-const url = (key: string): string =>
-  `https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/${BUCKET}/objects/${key}`
+const url = (key: string): string => `https://${account}.r2.cloudflarestorage.com/${BUCKET}/${key}`
 
 const started = Date.now()
 let uploaded = 0
@@ -72,9 +78,9 @@ async function worker(): Promise<void> {
     const job = jobs.pop()
     if (!job) return
     try {
-      const res = await fetch(url(job.key), {
+      const res = await aws.fetch(url(job.key), {
         method: 'PUT',
-        headers: { authorization: `Bearer ${token}`, 'content-type': 'image/webp' },
+        headers: { 'content-type': 'image/webp' },
         body: readFileSync(job.file),
       })
       if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 120)}`)
