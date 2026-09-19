@@ -25,7 +25,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
-export const STYLE_DIMENSIONS = 64
+export const STYLE_DIMENSIONS = 32
 
 // ---------------------------------------------------------------------------
 // Enum values
@@ -272,15 +272,6 @@ export const articles = sqliteTable(
     neckline: text('neckline').notNull().default(''),
     sleeve: text('sleeve').notNull().default(''),
     closure: text('closure').notNull().default(''),
-    // Written by the vision pass (`pnpm --filter @lookline/hm vision`), which is also the only
-    // thing that can fill `aesthetics` — the photograph is where a style lives, never the copy.
-    /** Up to three catalog aesthetic slugs, strongest first. The weights live in `styleVector`. */
-    aesthetics: stringList('aesthetics'),
-    silhouette: text('silhouette').notNull().default(''),
-    /** What the print depicts (`slogan`, `character`, `floral`…); `''` when the garment has none. */
-    printSubject: text('print_subject').notNull().default(''),
-    /** One English sentence; indexed by FTS so a vibe query has prose to match. */
-    styleCaption: text('style_caption').notNull().default(''),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
