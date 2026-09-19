@@ -32,6 +32,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
+  articleRowid,
   articleVision as articleVisionTable,
   articles as articlesTable,
   and,
@@ -131,8 +132,12 @@ const pending = await db
         ? sql`exists (select 1 from article_vision c where c.article_id = ${articlesTable.id}
             and c.pass = 'core' and json_extract(c.payload, '$.printSubject') not in ('', 'none'))`
         : undefined,
-      // H&M's ids are ten digits, so they divide evenly and cheaply. `1` leaves this a no-op.
-      shards > 1 ? sql`cast(${articlesTable.id} as integer) % ${shards} = ${shard}` : undefined,
+      // The rowid, not the article id. H&M's ids are not uniform in their low digits — `% 2`
+      // split the catalogue 38/62, and `% 3` landing even was luck — and multiplying by an odd
+      // number first does not help, because that preserves parity. The rowid is a dense sequence,
+      // so modulo it is uniform by construction: 52 397 / 52 383 over two shards.
+      // `1` leaves this a no-op.
+      shards > 1 ? sql`${articleRowid} % ${shards} = ${shard}` : undefined,
     ),
   )
   .orderBy(desc(articlesTable.popularity))
