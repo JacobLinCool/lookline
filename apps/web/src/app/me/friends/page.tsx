@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { activitySharing, eq } from '@lookline/db'
 import { friendList } from '@lookline/engine/discovery'
 import { Button, Container, Input } from '@/components/ui'
@@ -6,6 +7,11 @@ import { getI18n } from '@/i18n/server'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { friendAction } from '@/server/actions/discovery'
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n()
+  return { title: t.home.discovery.friendTitle, robots: { index: false } }
+}
 
 export default async function FriendsPage() {
   const user = await requireUser()
