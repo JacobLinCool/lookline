@@ -481,6 +481,18 @@ export interface LookPosterInput {
   aesthetics: string[]
   seed: number
   editionNumber?: number
+  /** Edition size. With `editionNumber` the card reads 1/N; alone it reads "Edition of N". */
+  editionOf?: number
+  /**
+   * A multi-person card: one band per subject, each holding that subject's own pieces. Without
+   * this the poster is a single flat lay and nothing says whose clothes are whose.
+   */
+  groups?: Array<{
+    name: string
+    articles: Array<
+      Pick<Article, 'name' | 'colorHex' | 'subcategory' | 'pattern' | 'categoryGroup'>
+    >
+  }>
 }
 
 export interface StylePreset {

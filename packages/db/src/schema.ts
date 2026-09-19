@@ -994,6 +994,7 @@ export const LOAN_STATE_VALUES = ['active', 'revoked'] as const
  */
 export const CREDIT_REASON_VALUES = ['grant', 'reserve', 'settle', 'release'] as const
 export const CARD_SESSION_STATE_VALUES = ['open', 'settled', 'cancelled', 'expired'] as const
+export const COLLECTION_INVITE_STATE_VALUES = ['pending', 'accepted', 'declined'] as const
 export const GENERATION_STATE_VALUES = ['pending', 'succeeded', 'failed'] as const
 
 export const personas = sqliteTable(
@@ -1151,13 +1152,23 @@ export const cardSessions = sqliteTable(
     personaId: text('persona_id')
       .notNull()
       .references(() => personas.id),
+    /** Set only for an edition session: which collection this credit is being spent on. */
+    collectionId: text('collection_id').references(() => collections.id),
     state: text('state', { enum: CARD_SESSION_STATE_VALUES }).notNull().default('open'),
     /** The ledger row holding this session's credit. */
     reserveOperationKey: text('reserve_operation_key').notNull(),
     maxCandidates: integer('max_candidates').notNull().default(4),
-    /** Articles chosen at open time, each with where the right to use it came from. */
+    /**
+     * Articles chosen at open time, each with where the right to use it came from. An edition
+     * session also records which persona wears each piece, so the artwork keeps the mapping
+     * rather than becoming an anonymous union of everyone's clothes.
+     */
     articleSnapshot: json<
-      Array<{ articleId: string; source: (typeof ENTITLEMENT_SOURCE_VALUES)[number] }>
+      Array<{
+        articleId: string
+        source: (typeof ENTITLEMENT_SOURCE_VALUES)[number]
+        personaId?: string
+      }>
     >('article_snapshot')
       .notNull()
       .default(sql`'[]'`),
@@ -1311,6 +1322,32 @@ export const collectionEditions = sqliteTable(
 )
 
 /**
+ * An ask to a persona's manager to take part (#37). The manager answers, and on accepting picks
+ * which of that persona's cards to bring — the inviter never chooses it for them.
+ */
+export const collectionInvites = sqliteTable(
+  'collection_invites',
+  {
+    collectionId: text('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    personaId: text('persona_id')
+      .notNull()
+      .references(() => personas.id),
+    invitedByUserId: text('invited_by_user_id')
+      .notNull()
+      .references(() => users.id),
+    state: text('state', { enum: COLLECTION_INVITE_STATE_VALUES }).notNull().default('pending'),
+    createdAt: createdAt(),
+    respondedAt: timestamp('responded_at'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.collectionId, t.personaId] }),
+    index('collection_invites_persona_idx').on(t.personaId, t.state),
+  ],
+)
+
+/**
  * One persona's numbered share of an edition. Copies follow their beneficiary persona, so
  * transferring one persona out of a three-person collection moves exactly that persona's copy.
  */
@@ -1401,6 +1438,9 @@ export type Card = typeof cards.$inferSelect
 export type NewCard = typeof cards.$inferInsert
 export type Collection = typeof collections.$inferSelect
 export type NewCollection = typeof collections.$inferInsert
+export type CollectionInvite = typeof collectionInvites.$inferSelect
+export type NewCollectionInvite = typeof collectionInvites.$inferInsert
+export type CollectionInviteState = (typeof COLLECTION_INVITE_STATE_VALUES)[number]
 export type CollectionMember = typeof collectionMembers.$inferSelect
 export type NewCollectionMember = typeof collectionMembers.$inferInsert
 export type CollectionEdition = typeof collectionEditions.$inferSelect

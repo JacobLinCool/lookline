@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import type { PurchaseFor } from '@lookline/db'
-import { recordPurchase } from '@lookline/engine'
+import { fulfilPurchaseLines, recordPurchase } from '@lookline/engine'
 import { getI18n } from '@/i18n/server'
 import { requireUser } from '@/server/auth'
 import { clearBag, getBag, removeFromBag, type BagLine } from '@/server/bag'
@@ -45,6 +45,13 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
 
   const orderIds: string[] = []
   const purchased: BagLine[] = []
+  const fulfilment: Array<{
+    purchaseId: string
+    articleId: string
+    unitPrice: number
+    quantity: number
+    size: string | null
+  }> = []
   let failure: string | null = null
   try {
     for (const line of lines) {
@@ -61,10 +68,29 @@ export async function placeOrderAction(formData: FormData): Promise<void> {
       })
       orderIds.push(purchase.id)
       purchased.push(line)
+      fulfilment.push({
+        purchaseId: purchase.id,
+        articleId: purchase.articleId,
+        // The price snapshotted on the line decides the credits, not today's catalogue price.
+        unitPrice: purchase.price,
+        quantity: purchase.quantity,
+        size: purchase.size,
+      })
     }
   } catch (error) {
     console.warn('[purchase] recordPurchase failed', error)
     failure = t.bag.errors.orderFailed
+  }
+
+  // Wardrobe and credits for whatever did go through. Keyed by purchase id, so a retried or
+  // partially completed order can be finished by running this again without granting twice.
+  if (fulfilment.length > 0) {
+    try {
+      await fulfilPurchaseLines(getDb().db, user.id, fulfilment)
+    } catch (error) {
+      // The order stands; the entitlements can be granted again from the same purchase ids.
+      console.warn('[purchase] fulfilment deferred', error)
+    }
   }
 
   const query = new URLSearchParams()

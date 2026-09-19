@@ -39,6 +39,7 @@ import {
   settleCard,
   startAttempt,
   transferPreview,
+  verificationCode,
 } from './index'
 
 let handle: DbHandle
@@ -543,5 +544,14 @@ describe('what has no transaction around it', () => {
       now,
     })
     expect(again).toEqual({ ok: false, reason: 'session-closed' })
+  })
+})
+
+describe('verificationCode', () => {
+  it('leaves out the characters that get mistyped off a printed card', () => {
+    // nanoid's own alphabet has `-` and `_`, which produced codes like `LL--TWS-3TM`.
+    const codes = Array.from({ length: 200 }, () => verificationCode())
+    for (const code of codes) expect(code).toMatch(/^LL-[23456789A-HJ-NP-Z]{8}$/)
+    expect(new Set(codes).size).toBe(codes.length)
   })
 })

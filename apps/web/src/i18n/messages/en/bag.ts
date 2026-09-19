@@ -38,6 +38,10 @@ export const bag = {
     backToShop: 'Back to Shop',
     noOrder: 'No order found for this link.',
     wardrobe: 'Wardrobe',
+    creditsEarned: (n: number) => `This order earned you ${n} card credit${n === 1 ? '' : 's'}`,
+    creditsNote:
+      'Every item at NT$320 or more gives 3. One credit makes four candidates; you issue one of them.',
+    makeCard: 'Make a card',
   },
 
   errors: {

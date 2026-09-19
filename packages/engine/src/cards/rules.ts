@@ -40,8 +40,49 @@ export function creditsForPurchaseLine(unitPrice: number, quantity: number): num
 }
 
 /** Every purchased item enters the wardrobe, whatever it cost. */
+/**
+ * The most garments one card may carry. It is a product rule and a rendering limit at once: the
+ * poster lays out this many legibly, so the picker stops here rather than letting the renderer
+ * drop the rest without saying so.
+ */
+export const MAX_PIECES_PER_CARD = 8
+
 export function entitlementQuantity(quantity: number): number {
   return Math.max(0, quantity)
+}
+
+// ---------------------------------------------------------------------------
+// Card tiers (#36)
+// ---------------------------------------------------------------------------
+
+/**
+ * A card's tier is how much of what it shows the author owned: owned pieces over all pieces, by
+ * count and not by price, so a cheap shirt counts the same as an expensive coat. Selecting the
+ * same article twice cannot inflate it — `ownedRatioOf` counts distinct articles.
+ *
+ * The lowest band exists so an outfit borrowed entirely from friends still lands somewhere named
+ * rather than nowhere. Bands and their public names are configured here, once.
+ */
+export interface CardTier {
+  slug: string
+  labelEn: string
+  labelZh: string
+  /** Inclusive lower bound of the band. */
+  min: number
+}
+
+export const CARD_TIERS: readonly CardTier[] = [
+  { slug: 'full', labelEn: 'Fully owned', labelZh: '全數自有', min: 1 },
+  { slug: 'mostly', labelEn: 'Mostly owned', labelZh: '多數自有', min: 0.75 },
+  { slug: 'half', labelEn: 'Half owned', labelZh: '半數自有', min: 0.5 },
+  { slug: 'some', labelEn: 'Part owned', labelZh: '部分自有', min: 0.25 },
+  { slug: 'borrowed', labelEn: 'Borrowed', labelZh: '全數借用', min: 0 },
+]
+
+/** The band a ratio falls in. Bands are half-open downwards: 0.75 is `mostly`, 0.749 is `half`. */
+export function tierForRatio(ratio: number): CardTier {
+  const r = Math.max(0, Math.min(1, ratio))
+  return CARD_TIERS.find((t) => r >= t.min) ?? CARD_TIERS[CARD_TIERS.length - 1]!
 }
 
 /**

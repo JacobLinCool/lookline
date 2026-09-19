@@ -30,12 +30,16 @@ import { MAX_CANDIDATES_PER_SESSION, ownedRatioOf } from './rules'
 export interface ArticleRef {
   articleId: string
   source: EntitlementSource
+  /** Who wears it, on an edition session. Absent on a personal card: the session's persona does. */
+  personaId?: string
 }
 
 export interface OpenSessionInput {
   id: string
   ownerUserId: string
   personaId: string
+  /** Set for an edition; the collection is then read from the session rather than the request. */
+  collectionId?: string
   /** The credit this session holds, by the key that reserved it. */
   reserveOperationKey: string
   articles: readonly ArticleRef[]
@@ -48,9 +52,14 @@ export async function openSession(db: Database, input: OpenSessionInput): Promis
     id: input.id,
     ownerUserId: input.ownerUserId,
     personaId: input.personaId,
+    collectionId: input.collectionId ?? null,
     reserveOperationKey: input.reserveOperationKey,
     maxCandidates: MAX_CANDIDATES_PER_SESSION,
-    articleSnapshot: input.articles.map((a) => ({ articleId: a.articleId, source: a.source })),
+    articleSnapshot: input.articles.map((a) => ({
+      articleId: a.articleId,
+      source: a.source,
+      ...(a.personaId ? { personaId: a.personaId } : {}),
+    })),
     expiresAt: input.expiresAt,
     state: 'open',
   })

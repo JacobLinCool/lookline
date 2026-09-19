@@ -23,6 +23,7 @@ import {
   parseIntentOffline,
   recordFeedback,
   recordInteraction,
+  fulfilPurchaseLines,
   recordPurchase,
   suggestRemix,
 } from '@lookline/engine'
@@ -158,6 +159,18 @@ export function createDbSink(db: Database, options: DbSinkOptions = {}): SimSink
 
     async recordPurchase(input) {
       const row = await recordPurchase(db, input)
+      // What checkout does after recording, so a simulated buyer ends up in the same state as a
+      // real one: the piece in their wardrobe and, above the threshold, credits to make a card
+      // with. Without this a seeded database had 5,000 purchases and nobody who could use them.
+      await fulfilPurchaseLines(db, row.userId, [
+        {
+          purchaseId: row.id,
+          articleId: row.articleId,
+          unitPrice: row.price,
+          quantity: row.quantity,
+          size: row.size,
+        },
+      ])
       return { price: row.price }
     },
 
