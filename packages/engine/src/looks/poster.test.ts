@@ -141,3 +141,32 @@ describe('renderLookPosterSvg with groups', () => {
     expect(svg).not.toContain('媽媽')
   })
 })
+
+describe('renderLookPosterSvg chrome', () => {
+  it('leaves every word out of the artwork-only variant, and keeps the picture', () => {
+    // The share export lays its own text out, with a font that has Chinese in it; the rasteriser
+    // behind it does not, so anything the poster writes here would come out as tofu.
+    const input: LookPosterInput = {
+      title: '媽媽',
+      ownerName: 'Alice',
+      stylePreset: 'studio',
+      articles: [
+        {
+          name: 'Tee',
+          colorHex: '#223344',
+          subcategory: 'tee',
+          pattern: 'solid',
+          categoryGroup: 'tops' as const,
+        },
+      ],
+      palette: ['#223344'],
+      aesthetics: [],
+      seed: 3,
+    }
+    const artwork = renderLookPosterSvg({ ...input, chrome: 'artwork' })
+    expect(artwork).not.toContain('<text')
+    expect(artwork).toContain('<g transform="translate(')
+    expect(artwork).toContain('#223344')
+    expect(renderLookPosterSvg(input)).toContain('媽媽')
+  })
+})
