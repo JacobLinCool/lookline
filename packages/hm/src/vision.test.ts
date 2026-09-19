@@ -36,8 +36,15 @@ const full = {
   material: 'wool',
   axes: { formality: 0.6, boldness: 0.2, structure: 0.4, coverage: 0.8, texture: 0.7 },
   occasions: ['everyday', 'work'],
-  captionEn: 'An oatmeal cable knit that reads expensive without a single logo.',
-  captionZh: '燕麥色麻花針織，不靠標誌就顯得昂貴。',
+  rise: '',
+  shoulder: 'dropped',
+  pocketStyle: 'none',
+  knitGauge: 'chunky',
+  padding: '',
+  lookEn: 'An oatmeal cable knit with a dropped shoulder and a ribbed hem.',
+  lookZh: '燕麥色麻花針織，落肩剪裁，下襬羅紋收邊。',
+  stylingEn: 'Suits quiet weekday dressing, over a shirt or on its own.',
+  stylingZh: '適合低調的平日穿搭，可單穿或罩在襯衫外。',
   confidence: 0.8,
   evidence: 'oversized cable knit in oatmeal, no hardware',
 }
@@ -173,6 +180,19 @@ describe('materializeVision', () => {
     expect(out.styleVector.slice(from, to).filter((x) => x > 0)).toHaveLength(1)
   })
 
+  it('puts the valued construction fields in attributes and the description in the column', () => {
+    expect(out.attributes['shoulder']).toBe('dropped')
+    expect(out.attributes['knitGauge']).toBe('chunky')
+    expect(out.attributes['pocketStyle']).toBe('none')
+    // A jumper has no rise and no padding, and an empty answer is not stored.
+    expect(out.attributes['rise']).toBeUndefined()
+    expect(out.attributes['padding']).toBeUndefined()
+    // The description is indexed; the styling note stays in the payload for copy to read.
+    expect(out.styleCaption).toContain('cable knit')
+    expect(out.styleCaptionZh).toContain('麻花')
+    expect(out.styleCaption).not.toContain('weekday')
+  })
+
   it('writes the aesthetic block scaled by confidence and leaves the rest of it zero', () => {
     expect(out.styleVector).toHaveLength(64)
     expect(out.styleVector[aestheticIndex('quiet-luxury')]).toBeCloseTo(0.9 * 0.8, 9)
@@ -205,7 +225,14 @@ describe('materializeVision', () => {
   })
 
   it('merges design details beside the regex attributes without colliding', () => {
-    expect(out.attributes).toEqual({ pockets: true, cableKnit: true, ribbed: true })
+    expect(out.attributes).toEqual({
+      pockets: true,
+      cableKnit: true,
+      ribbed: true,
+      shoulder: 'dropped',
+      pocketStyle: 'none',
+      knitGauge: 'chunky',
+    })
     for (const key of DESIGN_DETAIL_SLUGS) {
       expect(['pockets', 'hood', 'zip', 'elasticWaist', 'lined']).not.toContain(key)
     }

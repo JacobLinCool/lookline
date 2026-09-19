@@ -43,6 +43,13 @@
       "when": 1789990000000,
       "tag": "0005_vision_passes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790000000000,
+      "tag": "0006_caption_split",
+      "breakpoints": true
     }
   ]
 }

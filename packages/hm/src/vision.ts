@@ -31,7 +31,7 @@ import {
 } from '@lookline/catalog'
 
 /** Prompt and vocabulary revision. Bump on any change here; `article_vision.version` records it. */
-export const VISION_VERSION = 'vision-2'
+export const VISION_VERSION = 'vision-3'
 
 /** Most tags a single article may carry; the model is told, and `parseVision` enforces. */
 export const MAX_AESTHETICS = 3
@@ -70,6 +70,17 @@ export const VISIBLE_MATERIALS = [
  * article actually sells in, `trendiness` from sales momentum and `price-tier` from the price:
  * a model never overrides a number the data already knows.
  */
+/**
+ * Construction a photograph shows that decides how a garment reads and how it is cut. Each is
+ * `''` on a garment it does not apply to — a bag has no rise, a woven shirt has no gauge — and
+ * the prompt is explicit that an empty answer is the right one there.
+ */
+export const RISES = ['high', 'mid', 'low'] as const
+export const SHOULDERS = ['regular', 'dropped', 'puff', 'padded', 'raglan'] as const
+export const POCKET_STYLES = ['none', 'patch', 'welt', 'slash', 'cargo', 'kangaroo'] as const
+export const KNIT_GAUGES = ['fine', 'medium', 'chunky'] as const
+export const PADDINGS = ['quilted', 'padded', 'puffer'] as const
+
 export const VISION_AXES = ['formality', 'boldness', 'structure', 'coverage', 'texture'] as const
 export type VisionAxis = (typeof VISION_AXES)[number]
 
@@ -89,6 +100,11 @@ export const VISION_VOCAB = {
   closures: slugs(CLOSURES),
   materials: [...VISIBLE_MATERIALS],
   occasions: slugs(OCCASIONS),
+  rises: [...RISES],
+  shoulders: [...SHOULDERS],
+  pocketStyles: [...POCKET_STYLES],
+  knitGauges: [...KNIT_GAUGES],
+  paddings: [...PADDINGS],
 } as const
 
 // A slug that drifted out of the catalog would otherwise reach the model as a value it can return
@@ -115,8 +131,17 @@ export interface VisionResult {
   material: string
   axes: Record<VisionAxis, number>
   occasions: string[]
-  captionEn: string
-  captionZh: string
+  rise: string
+  shoulder: string
+  pocketStyle: string
+  knitGauge: string
+  padding: string
+  /** What it looks like. Indexed for search, in both languages. */
+  lookEn: string
+  lookZh: string
+  /** Who it suits and when. Read by the recommender's copy, never filtered on. */
+  stylingEn: string
+  stylingZh: string
   confidence: number
   evidence: string
 }
@@ -191,13 +216,33 @@ export function visionJsonSchema(): Json {
       enumOf(v.occasions, 'occasion slug'),
       `at most ${MAX_OCCASIONS} places a person would actually wear this`,
     ),
-    captionEn: {
+    rise: enumOf(v.rises, 'where the waistband sits; "" unless it is a bottom or a skirt', true),
+    shoulder: enumOf(
+      v.shoulders,
+      'shoulder construction; "" when the garment has no shoulder',
+      true,
+    ),
+    pocketStyle: enumOf(
+      v.pocketStyles,
+      'the most prominent pocket; "" when pockets cannot be seen',
+      true,
+    ),
+    knitGauge: enumOf(v.knitGauges, 'stitch size; "" unless the garment is knitted', true),
+    padding: enumOf(v.paddings, 'insulation or quilting; "" when there is none', true),
+    lookEn: {
       type: 'string',
       description:
-        'One sentence on how it looks and who it suits, in English. No brand name, no price, ' +
-        'nothing already in the product name.',
+        'One sentence on how it looks, in English — shape, surface, colour. No brand name, no ' +
+        'price, nothing already in the product name, and nothing about who should wear it.',
     },
-    captionZh: { type: 'string', description: 'The same sentence in Traditional Chinese.' },
+    lookZh: { type: 'string', description: 'The same sentence in Traditional Chinese.' },
+    stylingEn: {
+      type: 'string',
+      description:
+        'One sentence on who it suits, when it is worn and what it goes with, in English. This ' +
+        'is the only field that may say something the photograph does not show.',
+    },
+    stylingZh: { type: 'string', description: 'The same sentence in Traditional Chinese.' },
     confidence: { type: 'number', description: 'overall confidence in this reading, 0 to 1' },
     evidence: {
       type: 'string',
@@ -252,6 +297,12 @@ Rules:
 - Set confidence low when the photograph is small, cropped, folded, or shows the item on a hanger with its shape lost.
 - Any stripe is a stripe. \`breton-stripe\` is every horizontal or block stripe, not only a navy
   Breton top; \`pinstripe\` is every fine vertical one. A striped garment is never \`solid\`.
+- The two sentences do different jobs and must not repeat each other. \`lookEn\` describes the
+  garment and is what a search matches against; \`stylingEn\` says who wears it and when, and is
+  the only field allowed to go past what the photograph shows.
+- \`rise\`, \`shoulder\`, \`pocketStyle\`, \`knitGauge\` and \`padding\` are "" on a garment that has
+  no such thing. A bag has no rise, a woven shirt has no gauge, an unlined tee has no padding.
+  Answer them only for a garment the question is about.
 - \`solid\` means one flat colour across the garment. Judge the woven or printed pattern only:
   a texture, a fabric and a trim are not patterns, and have their own fields — denim, lace and
   sequin go to \`material\` or \`designDetails\`, and the garment can still be \`solid\`.`
@@ -348,8 +399,15 @@ export function parseVision(raw: unknown): VisionResult | null {
     material: oneOf(r['material'], v.materials),
     axes,
     occasions: someOf(r['occasions'], v.occasions, MAX_OCCASIONS),
-    captionEn: text('captionEn'),
-    captionZh: text('captionZh'),
+    rise: oneOf(r['rise'], v.rises),
+    shoulder: oneOf(r['shoulder'], v.shoulders),
+    pocketStyle: oneOf(r['pocketStyle'], v.pocketStyles),
+    knitGauge: oneOf(r['knitGauge'], v.knitGauges),
+    padding: oneOf(r['padding'], v.paddings),
+    lookEn: text('lookEn'),
+    lookZh: text('lookZh'),
+    stylingEn: text('stylingEn'),
+    stylingZh: text('stylingZh'),
     confidence: clamp01(r['confidence']),
     evidence: text('evidence'),
   }

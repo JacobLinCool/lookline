@@ -31,6 +31,7 @@ export interface MaterializedArticle {
   occasions: string[]
   attributes: Record<string, string | number | boolean>
   styleCaption: string
+  styleCaptionZh: string
   styleVector: number[]
 }
 
@@ -92,6 +93,18 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
   // and `lined`, the image owns everything in DESIGN_DETAILS.
   const attributes: Record<string, string | number | boolean> = { ...row.attributes }
   for (const detail of vision.designDetails) attributes[detail] = true
+  // Construction that has a value rather than a yes or no. In `attributes` because each applies
+  // to a slice of the catalogue — a rise to bottoms, a gauge to knitwear — and a column apiece
+  // would be four columns empty on most rows.
+  for (const [key, value] of [
+    ['rise', vision.rise],
+    ['shoulder', vision.shoulder],
+    ['pocketStyle', vision.pocketStyle],
+    ['knitGauge', vision.knitGauge],
+    ['padding', vision.padding],
+  ] as const) {
+    if (value) attributes[key] = value
+  }
 
   return {
     aesthetics: vision.aesthetics.map((a) => a.slug),
@@ -112,7 +125,8 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
     // list; a per-item reading is strictly better when there is one.
     occasions: vision.occasions.length > 0 ? vision.occasions : [...row.occasions],
     attributes,
-    styleCaption: vision.captionEn,
+    styleCaption: vision.lookEn,
+    styleCaptionZh: vision.lookZh,
     styleVector,
   }
 }

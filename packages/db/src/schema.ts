@@ -290,8 +290,10 @@ export const articles = sqliteTable(
     silhouette: text('silhouette').notNull().default(''),
     /** What the print depicts (`slogan`, `character`, `floral`…); `''` when the garment has none. */
     printSubject: text('print_subject').notNull().default(''),
-    /** One English sentence; indexed by FTS so a vibe query has prose to match. */
+    /** One sentence on how it looks; indexed by FTS so a vibe query has prose to match. */
     styleCaption: text('style_caption').notNull().default(''),
+    /** The same sentence in Traditional Chinese, indexed too — the product is bilingual. */
+    styleCaptionZh: text('style_caption_zh').notNull().default(''),
     /** What the print depicts, in two to four words — clustered for trends, not filtered on. */
     printMotif: text('print_motif').notNull().default(''),
     /** The words printed on the garment, verbatim; `''` when it carries none. */

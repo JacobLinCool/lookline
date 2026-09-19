@@ -74,6 +74,7 @@ const shard = Math.max(0, Math.min(shards - 1, Number(process.env['VISION_SHARD'
 /** `core` reads everything; `print` reads only what `core` found a print on. */
 const pass = process.env['VISION_PASS'] === 'print' ? 'print' : 'core'
 const isPrint = pass === 'print'
+const version = isPrint ? PRINT_VERSION : VISION_VERSION
 
 /** Per million tokens, gpt-5.6-luna, standard (not Batch) rates. */
 const PRICE = { input: 0.2, cached: 0.02, output: 1.2 }
@@ -96,8 +97,7 @@ await handle.client.execute('pragma journal_mode = wal')
 await handle.client.execute('pragma synchronous = normal')
 console.log(`database ${handle.url}`)
 
-// Only photographed articles with no reading at the current version; a bumped VISION_VERSION
-// re-reads the catalogue rather than silently mixing two vocabularies in one column.
+// Photographed articles with no reading of this pass at this version.
 const pending = await db
   .select({
     id: articlesTable.id,
@@ -112,7 +112,14 @@ const pending = await db
   .from(articlesTable)
   .leftJoin(
     articleVisionTable,
-    and(eq(articleVisionTable.articleId, articlesTable.id), eq(articleVisionTable.pass, pass)),
+    and(
+      eq(articleVisionTable.articleId, articlesTable.id),
+      eq(articleVisionTable.pass, pass),
+      // Version-aware, so bumping the prompt re-reads the catalogue without anything being
+      // deleted first: the old reading stays queryable until the upsert replaces it, and a run
+      // interrupted halfway leaves a mix of versions rather than a hole.
+      eq(articleVisionTable.version, version),
+    ),
   )
   .where(
     and(
@@ -132,7 +139,7 @@ const pending = await db
   .limit(limit ?? 1_000_000)
 
 console.log(
-  `${pending.length} articles for the ${pass} pass with ${model}, ${concurrency} at a time` +
+  `${pending.length} articles for the ${pass} pass (${version}) with ${model}, ${concurrency} at a time` +
     (shards > 1 ? ` (shard ${shard + 1}/${shards})` : '') +
     (limit ? ` (limited to ${limit})` : ''),
 )
@@ -212,14 +219,15 @@ async function read(article: Pending): Promise<NewArticleVision | null> {
       const captions = isPrint
         ? { captionEn: '', captionZh: '' }
         : {
-            captionEn: (parsed as VisionResult).captionEn,
-            captionZh: (parsed as VisionResult).captionZh,
+            // The audit row carries the description, the half that is indexed and searched.
+            captionEn: (parsed as VisionResult).lookEn,
+            captionZh: (parsed as VisionResult).lookZh,
           }
       return {
         articleId: article.id,
         pass,
         model,
-        version: isPrint ? PRINT_VERSION : VISION_VERSION,
+        version,
         payload: parsed as unknown as Record<string, unknown>,
         confidence: parsed.confidence,
         ...captions,
