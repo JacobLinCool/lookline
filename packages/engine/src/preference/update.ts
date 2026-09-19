@@ -75,8 +75,8 @@ export function departmentPrior(department: Department): number[] {
   const cached = priorCache.get(department)
   if (cached) return cached.slice()
   const p = zero64()
-  // The aesthetic block is gone, and with it the per-department aesthetic prior; its mass moves
-  // to colour, which is the only taste dimension the catalogue can still express.
+  // A block: left at zero on purpose — a new person is assumed to have no aesthetic, and every
+  // step away from that is learned, which is what makes the movement toward the truth visible.
   // C block: mean over groups of the normalised per-group family prior
   const colour = Array.from({ length: COLOR_FAMILIES.length }, () => 0)
   for (const group of CATEGORY_GROUPS) {
@@ -129,7 +129,10 @@ export function applyEvent(
   const eta = learningRate(state.n, scale)
   const g = r > 0 ? r : NEGATIVE_STEP * r
   const p = state.p
-  for (let i = BLOCK.C[0]; i < BLOCK.X[1]; i++) {
+  // Aesthetics, colours and axes are one contiguous run of "taste pulled toward what was liked";
+  // only the group block below learns differently. The bound is the end of X rather than
+  // STYLE_DIMENSIONS so that G keeps its own rule.
+  for (let i = BLOCK.A[0]; i < BLOCK.X[1]; i++) {
     const cur = p[i] ?? 0
     p[i] = clamp01(cur + eta * g * ((v[i] ?? 0) - cur))
   }

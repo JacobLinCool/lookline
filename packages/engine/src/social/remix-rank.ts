@@ -256,8 +256,9 @@ export function keptAesthetics(
   items: readonly RankedItem[],
 ): string[] {
   if (items.length === 0) return [...sourceAesthetics]
-  // The catalogue tags no aesthetics, so nothing narrows the source list by tag.
-  const present = new Set<string>()
+  // Tags first, since the vision pass gives most articles one; the vector mean below is the
+  // fallback for an article it has not seen, whose aesthetic block is still zero.
+  const present = new Set(items.flatMap((it) => it.product.aesthetics))
   const byTag = sourceAesthetics.filter((a) => present.has(a))
   if (byTag.length > 0) return byTag
   return sourceAesthetics.filter((a) => {

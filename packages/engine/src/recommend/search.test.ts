@@ -49,6 +49,27 @@ describe('buildSearchQuery', () => {
     }
   })
 
+  it('filters on the aesthetics column and counts it as a facet', () => {
+    const query = buildSearchQuery(handle.db, {
+      aesthetics: ['quiet-luxury', 'minimalist'],
+      excludedAesthetics: ['glam'],
+    })
+    const { sql, params } = query.page.toSQL()
+    // A JSON array column, so membership is json_each rather than IN.
+    expect(sql).toContain('json_each("articles"."aesthetics")')
+    expect(sql).toContain('not exists')
+    expect(params).toEqual(expect.arrayContaining(['quiet-luxury', 'minimalist', 'glam']))
+  })
+
+  it('emits the aesthetic facet dimension that aggregateFacets reads', () => {
+    const { facets } = buildSearchQuery(handle.db, { categoryGroups: ['tops'] })
+    const rendered = (
+      handle.db as unknown as { dialect: { sqlToQuery: (q: typeof facets) => { sql: string } } }
+    ).dialect.sqlToQuery(facets).sql
+    expect(rendered).toContain("'aesthetic'")
+    expect(rendered).toContain('json_each(sample.aesthetics)')
+  })
+
   it('counts facets over every matching row, never a slice of the planner scan order', () => {
     // A `limit` here samples whatever index the planner picks. Under `category_group IN (…)` that
     // is the category index, so the slice is all one group and every other group counts zero.
@@ -59,6 +80,15 @@ describe('buildSearchQuery', () => {
     ).dialect.sqlToQuery(facets).sql
     expect(rendered).toContain('group by')
     expect(rendered.toLowerCase()).not.toContain('limit')
+  })
+
+  it('narrows on an aesthetic named in free text, not only in the style vector', () => {
+    expect(planSearch({ q: 'minimalist black hoodie' }).lexiconFilters).toBe(true)
+    const { sql, params } = buildSearchQuery(handle.db, {
+      q: 'minimalist black hoodie',
+    }).page.toSQL()
+    expect(sql).toContain('json_each("articles"."aesthetics")')
+    expect(params).toEqual(expect.arrayContaining(['minimalist', 'black', 'hoodie']))
   })
 
   it('renders filters, the FTS5 text predicate, sort and pagination', () => {

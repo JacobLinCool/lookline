@@ -1,7 +1,11 @@
 /**
- * Full-text search over `articles.prod_name || detail_desc` with SQLite FTS5 (`articles_fts`, an
- * external-content table created by `drizzle/0001_vectors_fts.sql` and rebuilt after every import
- * with `FTS_REBUILD_SQL`).
+ * Full-text search over `articles.prod_name || detail_desc || style_caption` with SQLite FTS5
+ * (`articles_fts`, an external-content table created by `drizzle/0001_vectors_fts.sql`, widened by
+ * `drizzle/0003_vision.sql`, and rebuilt after every import with `FTS_REBUILD_SQL`).
+ *
+ * `style_caption` is the vision pass's one sentence about the garment, which is the only column
+ * here that describes how a thing looks rather than what it is — it is what a query like
+ * "something chill for the weekend" can actually match.
  *
  * `article_id` is text, so it cannot be an FTS `content_rowid`. The index keys on the implicit
  * `rowid` every SQLite table has instead, and hits are joined back with `articles.rowid`.
@@ -14,6 +18,7 @@ export const articlesFts = sqliteTable('articles_fts', {
   rowid: integer('rowid').primaryKey(),
   prodName: text('prod_name'),
   detailDesc: text('detail_desc'),
+  styleCaption: text('style_caption'),
 })
 
 export const FTS_REBUILD_SQL = "insert into articles_fts(articles_fts) values('rebuild')"

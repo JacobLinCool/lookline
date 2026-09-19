@@ -6,7 +6,7 @@
  * `SPEC_AESTHETIC_ALIASES`. Engine phrase sections (tier 0) win over catalog sections (tier 1)
  * when both match the same longest span, except `aesthetic` and `occasion`, which always fire.
  */
-import { COLORS, LEXICON, SUBCATEGORIES } from '@lookline/catalog'
+import { COLORS, DESIGN_DETAILS, LEXICON, SUBCATEGORIES } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily, Department } from '@lookline/catalog'
 import {
   CATALOG_OCCASION_MAP,
@@ -498,6 +498,19 @@ export function buildDictionary(): Dictionary {
       addEntry(
         map,
         { term, section: 'attribute', value: row.value, meta: { polarity: row.polarity } },
+        false,
+      )
+  }
+  // The construction details the vision pass writes into `articles.attributes`. Generated from
+  // the catalog table rather than retyped here, so a detail can never be askable-for without
+  // being storable, or the reverse. `logo` already has its own rows above, including the
+  // negative ones ("no logo"), which are what people actually say.
+  for (const detail of DESIGN_DETAILS) {
+    if (detail.slug === 'logo') continue
+    for (const term of [detail.labelZh, detail.name, ...detail.synonyms])
+      addEntry(
+        map,
+        { term, section: 'attribute', value: detail.slug, meta: { polarity: 'have' } },
         false,
       )
   }

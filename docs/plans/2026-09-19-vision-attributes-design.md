@@ -1,6 +1,7 @@
 # Vision attributes — design
 
-Date: 2026-09-19. Status: agreed, ready to implement.
+Date: 2026-09-19. Status: implemented. The pass runs with
+`pnpm --filter @lookline/hm vision`, and `… materialize` applies what it stored.
 
 A multimodal pass over the 105 100 catalogue photographs fills the product-side attributes that
 H&M never recorded and that `detail_desc` regexes cannot recover. Everything the pass writes comes
@@ -138,11 +139,35 @@ so the consumer's sentence and the production brief end up in one vocabulary.
 A low-confidence tag is also a question worth asking: Engine 01 can turn it into a clarification
 ("印花還是刺繡？") instead of guessing, which puts all three engines on the same attribute 語彙.
 
-## 5. Build order
+## 5. What shipped
 
-1. `article_vision` table, new `articles` columns, migration `0003`.
-2. `packages/hm/src/vision.ts` — vocabulary, strict JSON schema, prompt.
-3. `packages/hm/scripts/vision.ts` — the live runner, resumable, with cost accounting.
-4. Materialisation: vision row → columns → style vector.
-5. 64-dimension restore across catalog, db and engine.
-6. Lexicon rows for the design details; facet query; trend `detail` dimension.
+1. `article_vision`, the new `articles` columns and migration `0003`.
+2. `packages/catalog/src/taxonomy/details.ts` — the design-detail and print-subject vocabularies,
+   in the catalogue because it owns every vocabulary the other packages share. The vision schema
+   and the intent lexicon are both generated from it, so a detail cannot be askable-for without
+   being storable, or the reverse.
+3. `packages/hm/src/vision.ts` — the strict JSON schema, the prompt and the validator.
+4. `packages/hm/scripts/vision.ts` and `materialize.ts` — the live runner and the pass that
+   applies what it stored.
+5. The 64-dimension restore across catalog, db and engine.
+6. Aesthetic filtering and facets in search, and the trend `detail` dimension.
+
+Restoring the vector block exposed four places that had quietly agreed the block was dead — most
+importantly `applyEvent`, which scored on the aesthetics and could never learn them. With those
+fixed the evaluation harness improves against its own pre-registered criterion rather than
+regressing, and the criterion returns to the 0.05 it was set at when the space last had 64
+dimensions:
+
+| metric                | before | after |
+| --------------------- | -----: | ----: |
+| cosine gain (default) |  0.040 | 0.157 |
+| ndcg lift (default)   |  0.084 | 0.192 |
+| hit rate (default)    |   0.40 |  0.48 |
+
+## 6. Still open
+
+- The pass has not been run: the repository has no `OPENAI_API_KEY`. Every column it writes is
+  empty until it is, and every query behaves exactly as it did before — an untagged article
+  matches no aesthetic filter and contributes a zero block to the cosine.
+- Validation, once it runs: 200 articles first, then agreement against the columns H&M does ship.
+  A row H&M calls "Solid" should come back `solid`, and the perceived colour should match.

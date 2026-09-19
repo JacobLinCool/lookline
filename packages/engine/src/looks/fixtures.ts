@@ -30,6 +30,7 @@ export function makeProduct(spec: FixtureSpec): Article {
     aesthetics[slug] = i === 0 ? 1 : 0.5
   })
   const styleVector = toStyleVector({
+    aesthetics,
     colorFamily: spec.colorFamily,
     axes: {
       formality: spec.formality ?? 0.5,
@@ -72,6 +73,10 @@ export function makeProduct(spec: FixtureSpec): Article {
     neckline: '',
     sleeve: '',
     closure: '',
+    aesthetics: spec.aesthetics,
+    silhouette: '',
+    printSubject: '',
+    styleCaption: '',
     occasions: ['everyday'],
     seasons: ['all-season'],
     attributes: {},

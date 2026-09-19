@@ -198,6 +198,9 @@ importers:
       '@lookline/db':
         specifier: workspace:*
         version: link:../db
+      openai:
+        specifier: 7.17.0
+        version: 7.17.0(undici@7.29.0)(ws@8.21.3)(zod@4.6.5)
     devDependencies:
       '@types/node':
         specifier: 24.13.3

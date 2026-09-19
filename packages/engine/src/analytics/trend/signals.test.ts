@@ -218,6 +218,8 @@ describe('buildTrendEvents', () => {
     subcategory: 'trench-coat',
     colorFamily: 'neutral',
     price: 3000,
+    aesthetics: ['quiet-luxury'],
+    attributes: { belt: true, lined: true },
   }
   const articles = new Map([[ID, product]])
   const looks: LookLite[] = [
@@ -308,16 +310,23 @@ describe('buildTrendEvents', () => {
   })
 
   it('maps articles, looks and intents to keys and weights', () => {
-    // The finest dimension is the product type; the catalogue has no aesthetic tags.
+    // A tagged article moves its own aesthetics, and every design detail it carries.
     expect(productKeys(product)).toEqual(
       expect.arrayContaining([
-        trendKey('aesthetic', 'trench-coat'),
+        trendKey('aesthetic', 'quiet-luxury'),
         trendKey('category', 'outerwear'),
         trendKey('color', 'neutral'),
         trendKey('silhouette', 'trench-coat'),
-        trendKey('aesthetic_category', 'trench-coat|outerwear'),
+        trendKey('aesthetic_category', 'quiet-luxury|outerwear'),
+        trendKey('detail', 'belt'),
       ]),
     )
+    // `lined` is a regex attribute, not a design detail, so it is not a dimension.
+    expect(productKeys(product)).not.toContain(trendKey('detail', 'lined'))
+    // An article the vision pass has not reached still moves the product type, as before.
+    const untagged = productKeys({ ...product, aesthetics: [], attributes: {} })
+    expect(untagged).toContain(trendKey('aesthetic', 'trench-coat'))
+    expect(untagged.some((k) => k.startsWith('detail::'))).toBe(false)
     expect(intentKeys(intents[0]!)).toEqual([
       trendKey('aesthetic', 'minimalist'),
       trendKey('aesthetic_category', 'minimalist|outerwear'),

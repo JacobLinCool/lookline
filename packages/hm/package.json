@@ -14,11 +14,14 @@
     "aggregate": "bash scripts/aggregate.sh",
     "images": "tsx scripts/images.ts",
     "customers": "tsx scripts/customers.ts",
-    "upload": "tsx scripts/upload.ts"
+    "upload": "tsx scripts/upload.ts",
+    "vision": "tsx scripts/vision.ts",
+    "materialize": "tsx scripts/materialize.ts"
   },
   "dependencies": {
     "@lookline/catalog": "workspace:*",
-    "@lookline/db": "workspace:*"
+    "@lookline/db": "workspace:*",
+    "openai": "7.17.0"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

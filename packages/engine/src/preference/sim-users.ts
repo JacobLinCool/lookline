@@ -88,9 +88,15 @@ export function makeSyntheticUsers(
         [d, w * Math.max(aestheticDeptMult(a1, d) * aestheticDeptMult(a2, d), 1e-3)] as const,
     )
     const department = rng.weighted(deptWeights)
-    // The archetype's aesthetics no longer have dimensions of their own; the taste they imply
-    // shows up in the colour and axis priors below, which is all the style space still carries.
     const h = new Float64Array(STYLE_DIMENSIONS)
+    // The archetype IS its two aesthetics, so they are the strongest thing in the hidden taste:
+    // the primary outright, the secondary at the weight `buildEvalCatalog` gives a product's
+    // second tag. Leaving the block at zero while articles carry one would have the ranker score
+    // a dimension the ground truth ignores — noise, measured as if it were taste.
+    const ai1 = aestheticIndex(a1)
+    const ai2 = aestheticIndex(a2)
+    if (ai1 >= 0) h[ai1] = 1
+    if (ai2 >= 0) h[ai2] = Math.max(h[ai2] ?? 0, 0.7)
     for (const slug of [a1, a2]) {
       const row = AESTHETIC_COLOR_PRIOR[slug] ?? {}
       for (const [family, w] of Object.entries(row)) {

@@ -22,6 +22,8 @@ const product = (id: number, partial: Partial<ProductLite> = {}): ProductLite =>
   subcategory: 'trench-coat',
   colorFamily: 'black',
   price: 3000,
+  aesthetics: [],
+  attributes: {},
   ...partial,
 })
 

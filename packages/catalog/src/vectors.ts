@@ -6,22 +6,24 @@ import { AESTHETICS, AXES, CATEGORY_GROUPS, COLOR_FAMILIES } from './taxonomy'
 import type { Axis, CategoryGroup, ColorFamily, StyleVectorInput, VectorDescription } from './types'
 
 /**
- * 32 dimensions: colour family, style axes, category group. There used to be 32 more in front for
- * aesthetic tags, but the H&M catalogue names no aesthetic anywhere, so every one of them was zero
- * on every row — a cosine over them is a coin toss dressed as similarity.
+ * 64 dimensions: aesthetic tags, colour family, style axes, category group — the layout
+ * docs/ARCHITECTURE.md always described.
  *
- * Restoring them means putting the block back at [0, 32), shifting the three below it, and
- * re-adding the `aesthetics` input to `toStyleVector`. Do that when something can fill them.
+ * The aesthetic block was dropped for a while because the H&M catalogue names no aesthetic
+ * anywhere, so all 32 dimensions were zero on every row and a cosine over them was a coin toss
+ * dressed as similarity. The vision pass (`@lookline/hm`) reads a style off the photograph, which
+ * is what fills them; an article it has not seen simply has a zero block, exactly as before.
  */
-export const STYLE_DIMENSIONS = 32
+export const STYLE_DIMENSIONS = 64
 
-export type StyleBlock = 'colors' | 'axes' | 'groups'
+export type StyleBlock = 'aesthetics' | 'colors' | 'axes' | 'groups'
 
-/** Half-open `[start, end)` ranges of the three blocks. */
+/** Half-open `[start, end)` ranges of the four blocks. */
 export const STYLE_BLOCKS: Readonly<Record<StyleBlock, readonly [number, number]>> = {
-  colors: [0, 12],
-  axes: [12, 20],
-  groups: [20, 32],
+  aesthetics: [0, 32],
+  colors: [32, 44],
+  axes: [44, 52],
+  groups: [52, 64],
 }
 
 const clamp01 = (x: number): number => (x < 0 ? 0 : x > 1 ? 1 : x)
@@ -34,31 +36,35 @@ export function aestheticIndex(slug: string): number {
   return AESTHETIC_INDEX.get(slug) ?? -1
 }
 export function colorFamilyIndex(family: ColorFamily): number {
-  return COLOR_FAMILIES.indexOf(family)
+  return 32 + COLOR_FAMILIES.indexOf(family)
 }
 export function axisIndex(axis: Axis): number {
-  return 12 + AXES.indexOf(axis)
+  return 44 + AXES.indexOf(axis)
 }
 export function categoryGroupIndex(group: CategoryGroup): number {
-  return 20 + CATEGORY_GROUPS.indexOf(group)
+  return 52 + CATEGORY_GROUPS.indexOf(group)
 }
 export function zeroVector(): number[] {
   return Array.from({ length: STYLE_DIMENSIONS }, () => 0)
 }
 
-/** Colour block (primary 1.0 / secondary ≥ 0.4), 8 axes, group one-hot. */
+/** Aesthetic weights, colour block (primary 1.0 / secondary ≥ 0.4), 8 axes, group one-hot. */
 export function toStyleVector(input: StyleVectorInput): number[] {
   const v = zeroVector()
+  for (const [slug, weight] of Object.entries(input.aesthetics ?? {})) {
+    const i = aestheticIndex(slug)
+    if (i >= 0) v[i] = Math.max(v[i] ?? 0, clamp01(weight))
+  }
   const primary = colorFamilyIndex(input.colorFamily)
-  if (primary >= 0) v[primary] = 1
+  if (primary >= 32) v[primary] = 1
   if (input.secondaryColorFamily && input.secondaryColorFamily !== input.colorFamily) {
     const secondary = colorFamilyIndex(input.secondaryColorFamily)
-    if (secondary >= 0) v[secondary] = Math.max(v[secondary] ?? 0, 0.4)
+    if (secondary >= 32) v[secondary] = Math.max(v[secondary] ?? 0, 0.4)
   }
   for (const axis of AXES) v[axisIndex(axis)] = clamp01(input.axes[axis] ?? 0)
   if (input.categoryGroup) {
     const g = categoryGroupIndex(input.categoryGroup)
-    if (g >= 20) v[g] = 1
+    if (g >= 52) v[g] = 1
   }
   return v
 }
@@ -119,8 +125,11 @@ export function blendVectors(
   return out
 }
 
-/** Non-zero colour families, the 8 axes, non-zero groups. */
+/** Non-zero aesthetics, non-zero colour families, the 8 axes, non-zero groups. */
 export function describeVector(v: readonly number[]): VectorDescription {
+  const aesthetics = AESTHETICS.map((a) => ({ slug: a.slug, weight: v[a.index] ?? 0 }))
+    .filter((a) => a.weight > 0)
+    .toSorted((x, y) => y.weight - x.weight)
   const colorFamilies = COLOR_FAMILIES.map((family) => ({
     family,
     weight: v[colorFamilyIndex(family)] ?? 0,
@@ -137,7 +146,7 @@ export function describeVector(v: readonly number[]): VectorDescription {
   }))
     .filter((g) => g.weight > 0)
     .toSorted((x, y) => y.weight - x.weight)
-  return { colorFamilies, axes, categoryGroups }
+  return { aesthetics, colorFamilies, axes, categoryGroups }
 }
 
 /**
@@ -169,6 +178,11 @@ export function productStyleInput(p: {
   categoryGroup?: string | null
 }): StyleVectorInput {
   const v = p.styleVector
+  const aesthetics: Record<string, number> = {}
+  for (const a of AESTHETICS) {
+    const w = v[a.index] ?? 0
+    if (w > 0) aesthetics[a.slug] = w
+  }
   const colorFamily = p.colorFamily as ColorFamily
   let secondaryColorFamily: ColorFamily | null = null
   for (const family of COLOR_FAMILIES) {
@@ -183,7 +197,7 @@ export function productStyleInput(p: {
   const categoryGroup = CATEGORY_GROUPS.includes(p.categoryGroup as CategoryGroup)
     ? (p.categoryGroup as CategoryGroup)
     : null
-  return { colorFamily, secondaryColorFamily, axes, categoryGroup }
+  return { aesthetics, colorFamily, secondaryColorFamily, axes, categoryGroup }
 }
 
 // ---------------------------------------------------------------------------

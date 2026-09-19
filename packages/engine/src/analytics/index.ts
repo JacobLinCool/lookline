@@ -288,6 +288,7 @@ function labelFor(dimension: TrendSeries['dimension'], key: string): string {
     case 'color':
       return colorFamilyName(key)
     case 'silhouette':
+    case 'detail':
       return humanizeSlug(key)
     case 'aesthetic_category': {
       const { dimension: _d, key: raw } = splitTrendKey(trendKey(dimension, key))

@@ -3,6 +3,7 @@ export const TABLE_ORDER = [
   'brands',
   'articles',
   'article_vectors',
+  'article_vision',
   'type_affinity',
   'hm_customers',
   'users',

@@ -6,6 +6,7 @@ import {
   SLOT_SETS,
   STYLE_BLOCKS,
   STYLE_DIMENSIONS,
+  aestheticIndex,
   axisIndex,
   blendVectors,
   categoryGroupIndex,
@@ -22,8 +23,13 @@ import {
   zeroVector,
 } from './vectors'
 
+const [COLOR_FROM, COLOR_TO] = STYLE_BLOCKS.colors
+const [GROUP_FROM, GROUP_TO] = STYLE_BLOCKS.groups
+const [AXIS_FROM, AXIS_TO] = STYLE_BLOCKS.axes
+
 const sample = () =>
   toStyleVector({
+    aesthetics: { minimalist: 0.9, 'quiet-luxury': 0.5, 'not-a-real-slug': 1 },
     colorFamily: 'neutral',
     secondaryColorFamily: 'black',
     axes: { formality: 0.6, warmth: 0.4, boldness: 0.1, trendiness: 1.2, structure: -0.5 },
@@ -32,31 +38,38 @@ const sample = () =>
 
 describe('index helpers', () => {
   it('map to the contract layout', () => {
-    expect(colorFamilyIndex('black')).toBe(0)
-    expect(colorFamilyIndex('multi-metallic')).toBe(11)
-    expect(axisIndex('formality')).toBe(12)
-    expect(axisIndex('trendiness')).toBe(19)
-    expect(categoryGroupIndex('tops')).toBe(20)
-    expect(categoryGroupIndex('tailoring')).toBe(31)
+    expect(aestheticIndex('minimalist')).toBe(0)
+    expect(aestheticIndex('not-a-real-slug')).toBe(-1)
+    expect(colorFamilyIndex('black')).toBe(32)
+    expect(colorFamilyIndex('multi-metallic')).toBe(43)
+    expect(axisIndex('formality')).toBe(44)
+    expect(axisIndex('trendiness')).toBe(51)
+    expect(categoryGroupIndex('tops')).toBe(52)
+    expect(categoryGroupIndex('tailoring')).toBe(63)
     expect(STYLE_BLOCKS).toEqual({
-      colors: [0, 12],
-      axes: [12, 20],
-      groups: [20, 32],
+      aesthetics: [0, 32],
+      colors: [32, 44],
+      axes: [44, 52],
+      groups: [52, 64],
     })
   })
 })
 
 describe('toStyleVector', () => {
-  it('produces 32 dims with each block in range', () => {
+  it('produces 64 dims with each block in range', () => {
     const v = sample()
     expect(v).toHaveLength(STYLE_DIMENSIONS)
-    expect(STYLE_DIMENSIONS).toBe(32)
+    expect(STYLE_DIMENSIONS).toBe(64)
     for (const x of v) {
       expect(x).toBeGreaterThanOrEqual(0)
       expect(x).toBeLessThanOrEqual(1)
     }
+    // aesthetic block: weights as given, a slug outside the taxonomy dropped
+    expect(v[aestheticIndex('minimalist')]).toBe(0.9)
+    expect(v[aestheticIndex('quiet-luxury')]).toBe(0.5)
+    expect(v.slice(0, 32).filter((x) => x > 0)).toHaveLength(2)
     // colour block: primary 1.0, secondary 0.4
-    const colour = v.slice(0, 12)
+    const colour = v.slice(COLOR_FROM, COLOR_TO)
     expect(colour.reduce((a, b) => a + b, 0)).toBeCloseTo(1.4, 9)
     expect(v[colorFamilyIndex('neutral')]).toBe(1)
     expect(v[colorFamilyIndex('black')]).toBe(0.4)
@@ -66,21 +79,21 @@ describe('toStyleVector', () => {
     expect(v[axisIndex('coverage')]).toBe(0)
     expect(v[axisIndex('formality')]).toBe(0.6)
     // group one-hot
-    const groups = v.slice(20, 32)
+    const groups = v.slice(GROUP_FROM, GROUP_TO)
     expect(groups.reduce((a, b) => a + b, 0)).toBe(1)
     expect(v[categoryGroupIndex('tops')]).toBe(1)
   })
 
   it('keeps the colour block at 1.0 without a secondary and ignores a secondary equal to the primary', () => {
     const v = toStyleVector({ colorFamily: 'blue', axes: {} })
-    expect(v.slice(0, 12).reduce((a, b) => a + b, 0)).toBe(1)
-    expect(v.slice(20, 32).reduce((a, b) => a + b, 0)).toBe(0)
+    expect(v.slice(COLOR_FROM, COLOR_TO).reduce((a, b) => a + b, 0)).toBe(1)
+    expect(v.slice(GROUP_FROM, GROUP_TO).reduce((a, b) => a + b, 0)).toBe(0)
     const w = toStyleVector({
       colorFamily: 'blue',
       secondaryColorFamily: 'blue',
       axes: {},
     })
-    expect(w.slice(0, 12).reduce((a, b) => a + b, 0)).toBe(1)
+    expect(w.slice(COLOR_FROM, COLOR_TO).reduce((a, b) => a + b, 0)).toBe(1)
   })
 })
 
@@ -104,8 +117,12 @@ describe('vector helpers', () => {
     for (const dim of blendVectors([v.map((x) => x * 3)])) expect(dim).toBeLessThanOrEqual(1)
   })
 
-  it('describeVector reads back the colour block, axes and groups', () => {
+  it('describeVector reads back the aesthetics, colour block, axes and groups', () => {
     const d = describeVector(sample())
+    expect(d.aesthetics).toEqual([
+      { slug: 'minimalist', weight: 0.9 },
+      { slug: 'quiet-luxury', weight: 0.5 },
+    ])
     expect(d.colorFamilies).toEqual([
       { family: 'neutral', weight: 1 },
       { family: 'black', weight: 0.4 },
@@ -119,9 +136,9 @@ describe('vector helpers', () => {
   it('weightStyleVector scales blocks and productStyleInput round-trips', () => {
     const v = sample()
     const w = weightStyleVector(v, { axes: 0, colors: 0.5 })
-    expect(w.slice(12, 20).every((x) => x === 0)).toBe(true)
+    expect(w.slice(AXIS_FROM, AXIS_TO).every((x) => x === 0)).toBe(true)
     expect(w[colorFamilyIndex('neutral')]).toBe(0.5)
-    expect(w.slice(0, 12)).toEqual(v.slice(0, 12).map((x) => x * 0.5))
+    expect(w.slice(COLOR_FROM, COLOR_TO)).toEqual(v.slice(COLOR_FROM, COLOR_TO).map((x) => x * 0.5))
     const input = productStyleInput({
       styleVector: v,
       colorFamily: 'neutral',

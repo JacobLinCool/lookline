@@ -25,7 +25,7 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/sqlite-core'
 
-export const STYLE_DIMENSIONS = 32
+export const STYLE_DIMENSIONS = 64
 
 // ---------------------------------------------------------------------------
 // Enum values
@@ -129,6 +129,8 @@ export const TREND_DIMENSION_VALUES = [
   'color',
   'silhouette',
   'aesthetic_category',
+  /** A design detail: a ruffle, a cable knit, a slit. What a factory actually cuts. */
+  'detail',
 ] as const
 export const LLM_PROVIDER_VALUES = ['gemini', 'openai', 'offline'] as const
 /** Intent sessions also record `jev`, the closed-option decision service. Plain TEXT, no CHECK. */
@@ -279,15 +281,22 @@ export const articles = sqliteTable(
     neckline: text('neckline').notNull().default(''),
     sleeve: text('sleeve').notNull().default(''),
     closure: text('closure').notNull().default(''),
+    // Written by the vision pass (`pnpm --filter @lookline/hm vision`), which is also the only
+    // thing that can fill `aesthetics` — the photograph is where a style lives, never the copy.
+    /** Up to three catalog aesthetic slugs, strongest first. The weights live in `styleVector`. */
+    aesthetics: stringList('aesthetics'),
+    silhouette: text('silhouette').notNull().default(''),
+    /** What the print depicts (`slogan`, `character`, `floral`…); `''` when the garment has none. */
+    printSubject: text('print_subject').notNull().default(''),
+    /** One English sentence; indexed by FTS so a vibe query has prose to match. */
+    styleCaption: text('style_caption').notNull().default(''),
     seasons: stringList('seasons'),
     occasions: stringList('occasions'),
     attributes: json<Record<string, string | number | boolean>>('attributes')
       .notNull()
       .default(sql`'{}'`),
-    /** Derived from the Look's own pieces; all zeroes until it has any. */
-    styleVector: vector('style_vector')
-      .notNull()
-      .$defaultFn(() => Array.from({ length: STYLE_DIMENSIONS }, () => 0)),
+    /** Built at import from the article's own colour, axes and category group. */
+    styleVector: vector('style_vector').notNull(),
     createdAt: createdAt(),
   },
   (t) => [
@@ -324,6 +333,47 @@ export const typeAffinity = sqliteTable(
     lift: real('lift').notNull(),
   },
   (t) => [primaryKey({ columns: [t.typeA, t.typeB] }), index('type_affinity_lift_idx').on(t.lift)],
+)
+
+/**
+ * What a multimodal model read off an article's photograph, kept verbatim.
+ *
+ * The derived columns on `articles` are materialised from `payload`, never written directly by the
+ * run, so a prompt fix re-materialises without paying for the images again — and so a
+ * recommendation can quote its evidence: the model saw an oversized cable knit in oatmeal, which
+ * is why the article is tagged quiet-luxury. A different model writes a different `version` beside
+ * the old one instead of silently replacing it.
+ *
+ * Every value inside `payload` comes from a closed @lookline/catalog vocabulary; the request's
+ * JSON schema makes anything else unrepresentable rather than merely discouraged.
+ */
+export const articleVision = sqliteTable(
+  'article_vision',
+  {
+    articleId: text('article_id')
+      .primaryKey()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    model: text('model').notNull(),
+    /** Prompt and vocabulary revision (`VISION_VERSION`), so a re-run is comparable. */
+    version: text('version').notNull(),
+    payload: json<Record<string, unknown>>('payload')
+      .notNull()
+      .default(sql`'{}'`),
+    /** The model's own overall confidence, hoisted out of `payload` so it can be filtered on. */
+    confidence: real('confidence').notNull().default(0),
+    captionEn: text('caption_en').notNull().default(''),
+    captionZh: text('caption_zh').notNull().default(''),
+    /** The R2 key actually shown; null when the article has no photograph and text alone was used. */
+    imageKey: text('image_key'),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    latencyMs: integer('latency_ms').notNull().default(0),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('article_vision_version_idx').on(t.version),
+    index('article_vision_confidence_idx').on(t.confidence),
+  ],
 )
 
 /**
@@ -875,6 +925,8 @@ export const evaluationRuns = sqliteTable(
 export type Brand = typeof brands.$inferSelect
 export type NewBrand = typeof brands.$inferInsert
 export type Article = typeof articles.$inferSelect
+export type ArticleVision = typeof articleVision.$inferSelect
+export type NewArticleVision = typeof articleVision.$inferInsert
 export type TypeAffinity = typeof typeAffinity.$inferSelect
 export type NewTypeAffinity = typeof typeAffinity.$inferInsert
 export type HmCustomer = typeof hmCustomers.$inferSelect
