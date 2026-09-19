@@ -17,7 +17,7 @@ import {
 } from '@lookline/db'
 import { buildLookImagePrompt, getLlm } from '@lookline/engine'
 import { getDb } from './db'
-import { resolveStylePreset, type ReferencePhoto } from './looks'
+import { loadLookReferences, resolveStylePreset, type ReferencePhoto } from './looks'
 import { getStorage, isSafeKey } from './storage'
 
 const IMAGE_EXT: Record<string, string> = {
@@ -162,9 +162,10 @@ async function finishPreview(preview: Preview) {
       loadComposition(preview),
       loadReference(preview),
     ])
+    const refs = await loadLookReferences(scene.articles, referencePhoto)
     const prompt = buildLookImagePrompt({
       preset: resolveStylePreset(preview.stylePreset),
-      articles: scene.articles,
+      articles: refs.articles,
       ownerName: scene.ownerName,
       occasion: preview.occasion,
       hasReferencePhoto: true,
@@ -173,7 +174,7 @@ async function finishPreview(preview: Preview) {
     if (remaining <= 0) throw new Error('Rendering timed out.')
     const result = await getLlm().generateImage({
       prompt,
-      referenceImages: [referencePhoto],
+      referenceImages: refs.referenceImages,
       aspectRatio: '3:4',
       purpose: 'look',
       timeoutMs: remaining,
