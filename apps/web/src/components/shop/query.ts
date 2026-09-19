@@ -143,7 +143,13 @@ export function searchToParams(search: ProductSearch): URLSearchParams {
  * A `/shop` href for `search` with `patch` applied. Setting a field to `undefined` removes it.
  * Any change other than `page` resets the page to 1.
  */
-export function shopHref(search: ProductSearch, patch: Partial<ProductSearch> = {}): string {
+export type ShopPath = '/shop' | '/shop-talk'
+
+export function shopHref(
+  search: ProductSearch,
+  patch: Partial<ProductSearch> = {},
+  path: ShopPath = '/shop',
+): string {
   const next: ProductSearch = { ...search, ...patch }
   const keys = Object.keys(patch)
   if (!(keys.length === 1 && keys[0] === 'page')) next.page = 1
@@ -151,7 +157,7 @@ export function shopHref(search: ProductSearch, patch: Partial<ProductSearch> = 
     if (patch[key as keyof ProductSearch] === undefined) delete next[key as keyof ProductSearch]
   }
   const qs = searchToParams(next).toString()
-  return qs ? `/shop?${qs}` : '/shop'
+  return qs ? `${path}?${qs}` : path
 }
 
 export function searchFromParams(params: URLSearchParams): ProductSearch {

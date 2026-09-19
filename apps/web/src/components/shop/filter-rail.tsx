@@ -21,7 +21,8 @@ import {
 } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
 import { COLOR_FAMILY_HEX, PRICE_PRESETS } from './constants'
-import { searchToParams, shopHref } from './query'
+import { searchToParams } from './query'
+import { useShopHref } from './path'
 import styles from './filters.module.css'
 
 type Facets = NonNullable<ProductSearchResult['facets']>
@@ -41,6 +42,7 @@ function StyleLink({
   facets?: Facets
   selected: Set<string>
 }) {
+  const shopHref = useShopHref()
   const { t, locale } = useI18n()
   const active = selected.has(a.slug)
   const next = active ? [...selected].filter((s) => s !== a.slug) : [...selected, a.slug]
@@ -122,6 +124,7 @@ function AttributeGroup({
   search: ProductSearch
   stale: boolean
 }) {
+  const shopHref = useShopHref()
   const { t, locale } = useI18n()
   const selected = search[facet.key] ?? []
   const [open, setOpen] = useState(selected.length > 0)
@@ -225,6 +228,7 @@ export function FilterRail({
   facets?: Facets
   stale?: boolean
 }) {
+  const shopHref = useShopHref()
   const { t, locale } = useI18n()
   const selectedAesthetics = new Set(search.aesthetics ?? [])
   const selectedColours = search.colorFamilies ?? []

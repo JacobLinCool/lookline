@@ -198,6 +198,17 @@ items, and hides its scrollbar. Item widths: sm 8.5/10.5rem, md 10.5/13rem, lg 1
 
 **Grids.** Catalogs and wardrobes use 2 columns on phones, 3 at 48rem, 4 at 80rem.
 
+**Shop Talk (`/shop-talk`).** At 1280px and above, a 13rem filter rail sits beside a narrower
+three-column product grid, with chat in a separate right column (`minmax(20rem, 26%)`). The workspace
+fills the visual viewport below the shared shell header; the title and toolbar take their natural
+space, and filters, products and transcript scroll independently in the remaining height. Below
+1280px, filters use a disclosure and chat becomes an expandable fixed bottom sheet. Its expanded
+height is 72dvh, capped to the available visual viewport after the shell header and visible bottom
+navigation. Keyboard changes update its height and bottom offset; below 768px, only the visible
+part of the bottom navigation adds clearance. At a visual viewport height of 500px or less, the
+composer uses a compact row to keep input and audio controls accessible. Products retain two
+columns below 768px and three above it.
+
 **Navigation.** Desktop: a sticky 3.5rem top bar with the wordmark, Find / Shop / Wardrobe, Bag and
 the person. Phones: the same bar without links, plus a fixed 3.5rem bottom tab bar with four labelled
 tabs (Find, Shop, Wardrobe, Bag). The footer holds the doors that are not for shoppers: Trends for
@@ -214,9 +225,13 @@ same-size cards.
 
 ## Elevation & Depth
 
-Flat by default. Depth exists in one place: a tile lifted off the rail on hover
+Flat by default. Product depth comes from a tile lifted off the rail on hover
 (`translateY(-4px)` with `0 14px 28px -12px rgb(23 23 23 / 0.28)`, 180ms expo ease-out). Sticky
-bars use a 95% wall tint with a light backdrop blur. Nothing else casts a shadow.
+bars use a 95% wall tint with a light backdrop blur. The Shop Talk sheet below is the sole additional
+shadow treatment documented here.
+
+The Shop Talk bottom sheet uses the shared sheet shadow (`0 -8px 24px -16px rgb(23 23 23 / 0.25)`)
+to separate its fixed surface from the catalog; its desktop chat column remains flat.
 
 ## Shapes
 
@@ -278,6 +293,23 @@ flat lay with ±5° tilt, the title in a bold grotesque, "by <owner>", up to thr
 palette bar and the piece count, the edition number in the preset's accent. No texture words, no hex
 codes, no uppercase.
 
+### Shop Talk conversation
+
+Chat keeps the existing neutral palette and shared control radii. Bricolage titles sit above an
+Inter transcript (0.875rem, 1.65 line height); user messages have a recessed panel ground, while
+assistant messages sit directly on the page. The composer remains outside the scrolling transcript,
+with separate microphone and speaker controls, each exposing its own pressed state. Both start off;
+typed messages can begin silently, and the explicit voice action enables both. Message arrival uses
+a 140ms ease-out fade and 3px rise only when reduced motion is not requested.
+
+**The Shop Talk Direct Update Rule.** On `/shop-talk`, conversation replaces the sentence field,
+hints and apply controls. Assistant filter updates act directly on the catalog; manual changes
+remain visible in the transcript. Google Search only helps interpret unfamiliar named references;
+product discovery stays in the site's Jev/catalog flow, without external search results, suggestion
+cards or source links. Uncertain preferences remain conversational and do not trigger alerts.
+Actual service failures retain retry or reconnect actions; an unavailable catalog remains distinct
+from a successful search with no matches.
+
 ### Named rules
 
 **The One Reason Rule.** A recommendation carries one plain line built from its strongest factors
@@ -304,3 +336,7 @@ visible and distinct, expressed as form (skeleton, progress line, tag, notice) r
 - **Don't** show scores, percentages, confidence or field names to a shopper.
 - **Don't** nest cards, border layout groups, or list aesthetic chips under a product.
 - **Don't** use red for anything that is not the one thing to notice.
+
+### Page navigation
+
+The shell remains stable while route content crossfades in 160 ms. Link pending feedback reflects the router request, and streaming destinations expose a quiet loading state. Live filters and transcripts do not trigger route animations. Reduced motion uses a brief 60 ms dissolve.

@@ -181,9 +181,14 @@ export interface FilterQuestionPlan {
   candidates: FacetCandidate[]
 }
 
-export function filterQuestions(utterance: string, base: FilterState = {}): FilterQuestionPlan {
-  const budgets = budgetCandidates(utterance)
-  const candidates = extractFacetCandidates(utterance)
+export function filterQuestions(
+  utterance: string,
+  base: FilterState = {},
+  context?: { candidates: FacetCandidate[]; budgets: FilterQuestionPlan['budgets']; rules: string },
+): FilterQuestionPlan {
+  const budgets = context?.budgets ?? budgetCandidates(utterance)
+  const candidates = context?.candidates ?? extractFacetCandidates(utterance)
+  const rules = context?.rules ?? RULES
   const questions: Record<string, Question> = {}
   for (const facet of SEARCH_FACETS) {
     const label = FACET_LABELS[facet.id]
@@ -192,7 +197,7 @@ export function filterQuestions(utterance: string, base: FilterState = {}): Filt
     if (current?.length || excluded?.length)
       questions[`${facet.key}:operation`] = {
         type: 'choice',
-        instructions: `${RULES}The current ${label} selections are ${JSON.stringify(current ?? [])}, with exclusions ${JSON.stringify(excluded ?? [])}. Is the shopper adding to, replacing, or clearing these ${label}?`,
+        instructions: `${rules}The current ${label} selections are ${JSON.stringify(current ?? [])}, with exclusions ${JSON.stringify(excluded ?? [])}. Is the shopper adding to, replacing, or clearing these ${label}?`,
         criteria: {
           replace: `Select new ${label}, replacing previous positive selections.`,
           add: `Explicitly add alternatives to existing ${label}, or only exclude options.`,
@@ -206,7 +211,7 @@ export function filterQuestions(utterance: string, base: FilterState = {}): Filt
         facet.decision === 'semantic'
           ? {
               type: 'choice',
-              instructions: `${RULES}Is ${option} wanted, rejected, or unmentioned in this request? Alternatives joined by OR are wanted.`,
+              instructions: `${rules}Is ${option} wanted, rejected, or unmentioned in this request? Alternatives joined by OR are wanted.`,
               criteria: {
                 include: `${option} is explicitly wanted.`,
                 exclude: `${option} is explicitly rejected / 不要.`,
@@ -215,7 +220,7 @@ export function filterQuestions(utterance: string, base: FilterState = {}): Filt
             }
           : {
               type: 'choice',
-              instructions: `${RULES}The catalog attribute "${facet.id}" records ${FACET_MEANING[facet.id] ?? label}. The request contains a word that names its value ${option}. Is that value wanted, rejected, or does the word mean something else here (for example a garment name, or a colour)? A listed name of the value counts as naming it. Preserve negation (不要, no, without) and follow the final correction.`,
+              instructions: `${rules}The catalog attribute "${facet.id}" records ${FACET_MEANING[facet.id] ?? label}. The request contains a word that names its value ${option}. Is that value wanted, rejected, or does the word mean something else here (for example a garment name, or a colour)? A listed name of the value counts as naming it. Preserve negation (不要, no, without) and follow the final correction.`,
               criteria: {
                 include: `The ${facet.id} ${value} is wanted, or is one acceptable alternative.`,
                 exclude: `The ${facet.id} ${value} is explicitly rejected / 不要.`,
@@ -226,7 +231,7 @@ export function filterQuestions(utterance: string, base: FilterState = {}): Filt
   }
   questions.department = {
     type: 'choice',
-    instructions: `${RULES}Which department filter is explicitly requested?`,
+    instructions: `${rules}Which department filter is explicitly requested?`,
     criteria: {
       keep: 'Not mentioned: keep the current department.',
       clear: 'Explicitly remove the department restriction.',
@@ -236,7 +241,7 @@ export function filterQuestions(utterance: string, base: FilterState = {}): Filt
   }
   questions.sort = {
     type: 'choice',
-    instructions: `${RULES}Which ordering of the catalog is requested?`,
+    instructions: `${rules}Which ordering of the catalog is requested?`,
     criteria: {
       keep: 'Not mentioned: preserve sort.',
       uncertain: 'Cannot determine.',
@@ -250,7 +255,7 @@ export function filterQuestions(utterance: string, base: FilterState = {}): Filt
   }
   questions.budget = {
     type: 'choice',
-    instructions: `${RULES}Which parsed TWD price bounds match the final budget request? Never calculate or invent a value. Choose uncertain if a number is unfinished, currency is ambiguous, or no candidate matches a requested budget.`,
+    instructions: `${rules}Which parsed TWD price bounds match the final budget request? Never calculate or invent a value. Choose uncertain if a number is unfinished, currency is ambiguous, or no candidate matches a requested budget.`,
     criteria: {
       keep: 'No budget change requested.',
       clear: 'Explicitly no price limit.',
@@ -265,7 +270,7 @@ export function filterQuestions(utterance: string, base: FilterState = {}): Filt
   }
   const freeText: FreeTextQuestion = {
     type: 'noul',
-    instructions: `${RULES}Does the request name something specific that these catalog attributes cannot express — a motif or subject of a print (a whale, a dinosaur, strawberries), a named character or franchise, a brand or collaboration, printed words or a slogan, a sport or team, or another concrete object? The attributes already cover garment types, departments, colours, styles and moods, materials, patterns such as stripes or florals, fits, silhouettes, lengths, necklines, sleeves, closures, construction details, print subject classes (animal, character, floral, slogan, logo), occasions, seasons, sizes, budgets and ordering; a request made only of those is not free text.`,
+    instructions: `${rules}Does the request name something specific that these catalog attributes cannot express — a motif or subject of a print (a whale, a dinosaur, strawberries), a named character or franchise, a brand or collaboration, printed words or a slogan, a sport or team, or another concrete object? The attributes already cover garment types, departments, colours, styles and moods, materials, patterns such as stripes or florals, fits, silhouettes, lengths, necklines, sleeves, closures, construction details, print subject classes (animal, character, floral, slogan, logo), occasions, seasons, sizes, budgets and ordering; a request made only of those is not free text.`,
     criteria: {
       true: 'The request names a specific motif, character, brand, slogan or object beyond the catalog attributes.',
       false: 'Everything requested is a catalog attribute, or nothing specific is named.',
@@ -280,18 +285,42 @@ export const FREE_TEXT_QUESTION_KEY = 'freeText'
 export async function resolveFilters(
   utterance: string,
   base: FilterState,
-  options: { apiKey?: string; model?: string; signal?: AbortSignal; fetch?: typeof fetch } = {},
+  options: FilterResolveOptions = {},
 ): Promise<FilterDecision> {
   if (!utterance.trim() || utterance.length > 500)
     throw new Error('Describe filters in 1–500 characters.')
+  const validatedBase = filterStateSchema.parse(base)
+  return evaluateFilterPlan(utterance, validatedBase, filterQuestions(utterance, validatedBase), {
+    ...options,
+    hints: hintQuestions(validatedBase),
+  })
+}
+
+export interface FilterResolveOptions {
+  apiKey?: string
+  model?: string
+  signal?: AbortSignal
+  fetch?: typeof fetch
+  timeoutMs?: number
+}
+
+/** Shared transport, strict answer validation and filter reduction for both input modes. */
+export async function evaluateFilterPlan(
+  state: unknown,
+  validatedBase: FilterState,
+  plan: FilterQuestionPlan,
+  options: FilterResolveOptions & {
+    hints?: Record<string, ChoiceQuestion>
+    contractVersion?: string
+  } = {},
+): Promise<FilterDecision> {
   const start = performance.now()
   const apiKey = options.apiKey ?? process.env.TYPESAFE_API_KEY
   if (!apiKey) throw new Error('Live semantic filters are not configured.')
-  const validatedBase = filterStateSchema.parse(base)
-  const { questions, freeText, budgets, candidates } = filterQuestions(utterance, validatedBase)
-  const hints = hintQuestions(validatedBase)
+  const { questions, freeText, budgets, candidates } = plan
+  const hints = options.hints ?? {}
   const response = await withTimeout(
-    DECISION_TIMEOUT_MS,
+    options.timeoutMs ?? DECISION_TIMEOUT_MS,
     async (signal) => {
       const res = await (options.fetch ?? fetch)('https://api.typesafe.ai/v1/systemone', {
         method: 'POST',
@@ -299,7 +328,7 @@ export async function resolveFilters(
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: options.model ?? process.env.TYPESAFE_MODEL ?? JEV_MODEL,
-          state: utterance,
+          state,
           questions: { ...questions, ...hints, [FREE_TEXT_QUESTION_KEY]: freeText },
         }),
       })
@@ -415,10 +444,10 @@ export async function resolveFilters(
   return {
     filters: filterStateSchema.parse(next),
     unresolved,
-    hints: reduceHints(validatedBase, choiceAnswers),
+    hints: options.hints ? reduceHints(validatedBase, choiceAnswers) : [],
     freeText: free?.type === 'noul' && free.noul >= MIN_FREE_TEXT_PROBABILITY,
     model: response.model,
-    contractVersion: FILTER_CONTRACT_VERSION,
+    contractVersion: options.contractVersion ?? FILTER_CONTRACT_VERSION,
     latencyMs: performance.now() - start,
   }
 }

@@ -96,7 +96,7 @@ export function parseKeywords(values: readonly string[]): KeywordConcept[] {
   return sanitizeKeywords(values.map((value) => value.split('|')))
 }
 
-const SYSTEM = `You extract search keywords from a fashion shopping request for an English-language catalogue (product names, product copy and one English sentence describing each photograph).
+export const KEYWORD_INSTRUCTIONS = `You extract search keywords from a fashion shopping request for an English-language catalogue (product names, product copy and one English sentence describing each photograph).
 The catalogue's closed attributes are handled elsewhere and must NOT be output: garment types and categories, departments (women/men/kids), colours, materials and fabrics, patterns (stripes, floral, checks…), fits, silhouettes, lengths, necklines, sleeves, closures, construction details (pockets, ruffles, lace trim…), print subject classes (animal, character, floral, slogan, logo…), occasions, seasons, sizes, prices and budgets, and sort preferences.
 Output only the specific things the attributes cannot say: a motif or subject (whale, dinosaur, strawberry, rainbow), a named character or franchise, a brand or collaboration, printed words or slogans, a sport or team, a specific object or place, or another concrete descriptive noun.
 For each concept give 1 to 3 terms a product caption might use, lower-case, without punctuation: the English word and its plural or a synonym, plus the term in the request's own language when that is Chinese (the captions exist in both). If the request names nothing of that kind, return no concepts.`
@@ -118,13 +118,22 @@ export async function extractSearchKeywords(
 ): Promise<KeywordExtraction | null> {
   const text = utterance.trim()
   if (!text || text.length > 500) throw new Error('Describe filters in 1–500 characters.')
+  return extractKeywordContext(text, KEYWORD_INSTRUCTIONS, options)
+}
+
+/** The caller validates its input contract; transport and sanitization stay shared. */
+export async function extractKeywordContext(
+  context: unknown,
+  instructions: string,
+  options: ExtractKeywordsOptions,
+): Promise<KeywordExtraction | null> {
   const start = performance.now()
   const { llm } = options
   if (llm.provider === 'offline') return null
   const raw = await llm.generateJson({
     schema: outputSchema,
-    system: SYSTEM,
-    prompt: `Request: ${JSON.stringify(text)}`,
+    system: instructions,
+    prompt: `Request: ${JSON.stringify(context)}`,
     purpose: 'search-keywords',
     signal: options.signal,
     timeoutMs: options.timeoutMs ?? TEXT_TIMEOUT_MS,

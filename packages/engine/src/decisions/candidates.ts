@@ -76,7 +76,10 @@ function lexicalEntries(): Entry[] {
 }
 
 /** Every lexical facet value the sentence names, earliest first, at most `MAX_FILTER_CANDIDATES`. */
-export function extractFacetCandidates(utterance: string): FacetCandidate[] {
+export function extractFacetCandidates(
+  utterance: string,
+  limit = MAX_FILTER_CANDIDATES,
+): FacetCandidate[] {
   const text = normaliseSentence(utterance)
   if (!text) return []
   const dense = compact(text)
@@ -111,7 +114,7 @@ export function extractFacetCandidates(utterance: string): FacetCandidate[] {
         CJK.test(other.term) === CJK.test(candidate.term),
     )
     if (!covered) accepted.push(candidate)
-    if (accepted.length >= MAX_FILTER_CANDIDATES) break
+    if (accepted.length >= limit) break
   }
   return accepted
 }
