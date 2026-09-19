@@ -472,6 +472,16 @@ describe('negation scope in Chinese', () => {
     expect(cotton.mustAvoid).toContain('material:cotton-jersey')
   })
 
+  it('keeps running when 的 hands the clause to another modifier, not a noun', () => {
+    // Two refusals and no head noun. Cutting at the first 的 dropped the white, which is the
+    // regression the head-noun test exists to catch.
+    const both = parse('不要黑色的和白色的')
+    expect(both.mustAvoid).toEqual(expect.arrayContaining(['color:black', 'color:white']))
+    const two = parse('不要蕾絲的、不要雪紡的洋裝')
+    expect(two.categoryGroups).toEqual(['dresses'])
+    expect(two.mustAvoid).toEqual(expect.arrayContaining(['material:lace', 'material:chiffon']))
+  })
+
   it('still negates the category when no 的 hands the clause to a head noun', () => {
     const bare = parse('不要洋裝')
     expect(bare.categoryGroups).toEqual([])
