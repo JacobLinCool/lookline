@@ -20,7 +20,6 @@ import {
   ftsRank,
   gte,
   inArray,
-  isNotNull,
   jsonArrayOverlaps,
   lte,
   notInArray,
@@ -207,10 +206,7 @@ export interface SearchPlan {
 
 export function planSearch(query: ProductSearch, opts: { withText?: boolean } = {}): SearchPlan {
   const scan = scanQuery(query.q ?? '')
-  // The 440 articles H&M never photographed. `ProductImage` renders an empty tonal ground for
-  // them, and the vision pass skips them, so they have no aesthetic, pattern or fit to be ranked
-  // or filtered by — they could only ever appear as a blank tile. 0.4% of the catalogue.
-  const where: SqlChunk[] = [isNotNull(articles.imagePath)]
+  const where: SqlChunk[] = []
   let lexiconFilters = false
   if (query.department) where.push(eq(articles.department, query.department))
   if (query.categoryGroups?.length)

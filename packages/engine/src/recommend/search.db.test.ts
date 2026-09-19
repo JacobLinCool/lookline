@@ -5,7 +5,7 @@
  * `where ${undefined}` left a dangling keyword that SQLite rejects. Every other search on the site
  * has at least one filter, so only the bare /shop — the page with the most to show — went blank.
  */
-import { brands, eq, insertAll, articles } from '@lookline/db'
+import { brands, insertAll, articles } from '@lookline/db'
 import type { CategoryGroup } from '@lookline/catalog'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -56,23 +56,6 @@ describe('searchProducts (SQLite integration)', () => {
     expect(result.facets?.categoryGroups.length).toBeGreaterThan(0)
     const counted = result.facets!.categoryGroups.reduce((n, g) => n + g.count, 0)
     expect(counted).toBe(5)
-  })
-
-  it('leaves out an article H&M never photographed, in the rows and in the counts', async () => {
-    // 440 of the real 105 220 have no `image_path`. `ProductImage` renders an empty tonal ground
-    // for them and the vision pass skips them, so they carry no aesthetic, pattern or fit either
-    // — a blank tile that nothing can rank.
-    const [first] = rows
-    await handle.db.update(articles).set({ imagePath: null }).where(eq(articles.id, first!.id))
-    const result = await searchProducts(handle.db, {})
-    expect(result.total).toBe(4)
-    expect(result.items.map((i) => i.id)).not.toContain(first!.id)
-    const counted = result.facets!.categoryGroups.reduce((n, g) => n + g.count, 0)
-    expect(counted).toBe(4)
-    await handle.db
-      .update(articles)
-      .set({ imagePath: first!.imagePath })
-      .where(eq(articles.id, first!.id))
   })
 
   it('runs with a filter and counts only what the filter matched', async () => {

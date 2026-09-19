@@ -99,11 +99,21 @@ console.log(`read ${stats.size} article aggregates, top seller ${maxSales} units
 const source = loadArticles(`${dir}/articles.csv`)
 console.log(`read ${source.length} articles in ${secs(started)}s`)
 
-// The 322 non-apparel rows — furniture, stationery, cosmetics — never enter the catalogue.
+// The 322 non-apparel rows — furniture, stationery, cosmetics — never enter the catalogue, and
+// neither do the 440 H&M never photographed. A shop cannot sell what it cannot show: those rows
+// render as an empty tile, the vision pass skips them on the confidence it measured (0.43 against
+// 0.947), so they carry no aesthetic, pattern or fit either, and nothing can rank them. Keeping
+// them out here rather than filtering them in every query means the table says what the shop
+// says, which is what anyone counting rows expects.
 const rows: NewArticle[] = []
+let noPhoto = 0
 for (const a of source) {
   const categoryGroup = categoryGroupFor(a.outfitRole, a.indexGroupName, a.productType)
   if (categoryGroup === null) continue
+  if (!haveImage.has(a.articleId)) {
+    noPhoto += 1
+    continue
+  }
   // Real transaction prices where the article ever sold; 995 of them never did.
   const stat = stats.get(a.articleId)
   const price = stat?.price ?? placeholderPrice(categoryGroup, a.articleId)
@@ -176,7 +186,7 @@ const rowKeys = Object.keys(rows[0] ?? {}).length
 const maxParams = Math.floor(SQLITE_MAX_PARAMS / columns) * rowKeys
 const inserted = await insertAll(db, articlesTable, rows, { maxParams })
 console.log(
-  `inserted ${inserted} articles (${source.length - rows.length} non-apparel skipped) in ${secs(started)}s`,
+  `inserted ${inserted} articles (${source.length - rows.length - noPhoto} non-apparel, ${noPhoto} unphotographed) in ${secs(started)}s`,
 )
 
 // The vector channel inner-joins this table, so an article missing from it is invisible to
