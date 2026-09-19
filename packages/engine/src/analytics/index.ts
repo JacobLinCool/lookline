@@ -28,6 +28,7 @@ import {
   type LabelEdge,
   type LabelNode,
 } from './graph/cluster'
+import { rebuildAndSaveBanditState } from '../preference/state'
 import { deriveRelationships } from './graph/relationships'
 import * as q from './queries'
 import { DAY_MS, addDays, compareStrings, dayKey, percentile, round } from './shared'
@@ -253,12 +254,23 @@ export async function runAnalytics(
   }
   await q.updateTrendScores(db, scores)
 
+  // 8. bandit replay. Without it the first request that needs the bandit rebuilds from every
+  // attributed feedback row on the spot; here it is one batch job like the rest of this function.
+  let banditSlates = 0
+  try {
+    const bandit = await rebuildAndSaveBanditState(db, now)
+    for (const a of bandit.summary()) banditSlates += a.pulls
+  } catch (error) {
+    console.warn('[analytics] bandit replay skipped', error)
+  }
+
   return {
     relationships,
     clusters: clustering.k,
     lineages,
     trendSignals,
     manufacturing,
+    banditSlates,
     durationMs: Math.round(performance.now() - started),
   }
 }

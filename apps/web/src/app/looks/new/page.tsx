@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { and, brands, desc, eq, inArray, products, purchases } from '@lookline/db'
 import { STYLE_PRESETS } from '@lookline/engine'
 import { Flash } from '@/components/looks/flash'
+import { PieceToggle } from '@/components/looks/piece-toggle'
 import { ReferencePhotoField } from '@/components/looks/reference-photo-field'
 import { SubmitButton } from '@/components/looks/submit-button'
 import {
@@ -129,7 +130,25 @@ export default async function NewLookPage({ searchParams }: { searchParams: Sear
       <form action={createLookAction} className="block min-w-0">
         <input type="hidden" name="return" value={returnPath} />
 
-        <Section title={t.looks.new.pieces} rule={false} className="pt-6">
+        <Section
+          title={t.looks.new.pieces}
+          rule={false}
+          className="pt-6"
+          actions={
+            ordered.length > 1 ? (
+              <PieceToggle
+                name="productId"
+                max={MAX_PRODUCTS}
+                selectAllLabel={
+                  ordered.length > MAX_PRODUCTS
+                    ? t.looks.new.selectFirst(MAX_PRODUCTS)
+                    : t.looks.new.selectAll
+                }
+                clearLabel={t.looks.new.selectNone}
+              />
+            ) : null
+          }
+        >
           <ul className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {ordered.map(({ product, brandName }, index) => (
               <li key={product.id}>
