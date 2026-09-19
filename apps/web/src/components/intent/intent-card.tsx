@@ -27,6 +27,19 @@ import { clarifyHref, intentHref, type IntentQuery } from './urls'
 // Consumer view: the understood sentence as a row of tags, plus one question if needed
 // ---------------------------------------------------------------------------
 
+/**
+ * A clarification option is the value its answer link carries — `none`, `casual-daily`, `women` —
+ * and not a word anyone should read. The link keeps the value; the tag shows its label. Sizes,
+ * currencies and plain amounts are already the words themselves.
+ */
+function clarifyOptionLabel(slot: string, value: string, locale: Locale, noLimit: string): string {
+  if (value === 'none') return noLimit
+  if (slot === 'occasion') return occasionLabel(locale, value)
+  if (slot === 'categoryGroups') return categoryGroupLabel(locale, value)
+  if (slot.endsWith('department')) return departmentLabel(locale, value)
+  return value
+}
+
 export interface IntentTagsRowProps {
   understanding: Understanding
   query: IntentQuery
@@ -69,7 +82,7 @@ export function IntentTagsRow({ understanding, query, className }: IntentTagsRow
                   previous: sessionId,
                 })}
               >
-                {answer.value}
+                {clarifyOptionLabel(answer.slot, answer.value, locale, t.home.tags.noLimit)}
                 <X aria-hidden className="size-3 opacity-70" />
                 <span className="sr-only">{t.common.remove}</span>
               </Tag>
@@ -89,7 +102,7 @@ export function IntentTagsRow({ understanding, query, className }: IntentTagsRow
                   size="md"
                   href={clarifyHref(query, open.slot, option, sessionId)}
                 >
-                  {option}
+                  {clarifyOptionLabel(open.slot, option, locale, t.home.tags.noLimit)}
                 </Tag>
               </li>
             ))}
