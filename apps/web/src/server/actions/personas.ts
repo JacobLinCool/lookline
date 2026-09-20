@@ -13,6 +13,7 @@ import {
 import type { ActionResult } from '@/components/latency/instant-form'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
+import { readPersonaPhoto, replacePersonaPhoto } from '@/server/personas'
 
 /** An offer is good for a week; after that the recipient has to be asked again. */
 const OFFER_TTL_MS = 7 * 24 * 3_600_000
@@ -35,27 +36,83 @@ export async function createPersonaAction(formData: FormData): Promise<ActionRes
   const displayName = name(formData.get('displayName'))
   if (!displayName) return { ok: false, message: '請給這位 persona 一個名字。' }
   const kind = formData.get('kind') === 'avatar' ? 'avatar' : 'person'
+  const { photo, error } = await readPersonaPhoto(formData.get('photo'))
+  if (error) return { ok: false, message: error }
+
+  // The photo is stored under the persona's own id, so it cannot be saved before the persona
+  // exists. A failed upload afterwards leaves a persona with no reference rather than no persona:
+  // the name is what the studio needs, and the photo can be added from the list at any time.
+  const id = `per_${nanoid(12)}`
   await createPersona(getDb().db, {
-    id: `per_${nanoid(12)}`,
+    id,
     ownerUserId: user.id,
     displayName,
     kind,
     avatarSeed: Math.floor(Math.random() * 1_000_000),
   })
+  if (photo) {
+    try {
+      await replacePersonaPhoto({ id, referencePath: null }, photo)
+    } catch (uploadError) {
+      console.warn('[personas] could not store the reference photo', uploadError)
+      revalidatePath('/me/personas')
+      return { ok: false, message: '已建立，但參考照片沒有存起來，請再上傳一次。' }
+    }
+  }
   revalidatePath('/me/personas')
   return { ok: true }
 }
 
+/**
+ * Give a persona the photograph its cards are rendered from, or take it away again.
+ *
+ * This is the one thing that makes a card of a real person look like them: the image model is
+ * handed this picture as the subject reference. It is never published — a card carries the
+ * rendered artwork, not the photograph — and `remove` is honoured immediately, which is what lets
+ * someone withdraw a family member's likeness without deleting the persona or its cards.
+ */
+export async function setPersonaPhotoAction(formData: FormData): Promise<ActionResult> {
+  const user = await requireUser('/me/personas')
+  const personaId = String(formData.get('personaId') ?? '')
+  const persona = await ownedPersona(personaId, user.id)
+  if (!persona) return { ok: false, message: '這位 persona 不是你管理的。' }
+
+  if (formData.get('remove') === 'on') {
+    await replacePersonaPhoto(persona, null)
+    revalidatePath('/me/personas')
+    return { ok: true }
+  }
+
+  const { photo, error } = await readPersonaPhoto(formData.get('photo'))
+  if (error) return { ok: false, message: error }
+  if (!photo) return { ok: false, message: '請選一張照片。' }
+  try {
+    await replacePersonaPhoto(persona, photo)
+  } catch (uploadError) {
+    console.warn('[personas] could not store the reference photo', uploadError)
+    return { ok: false, message: '照片沒有存起來，請再試一次。' }
+  }
+  revalidatePath('/me/personas')
+  return { ok: true }
+}
+
+/**
+ * Name and kind. Kind is editable here rather than only at creation because it decides how the
+ * card is rendered: a subject marked 真人 is described to the image model as a person whose skin
+ * and hair must be kept, which is wrong — and visibly wrong — for a toy, a pet or a drawn
+ * character, whose reference photo then gets overridden by an invented human.
+ */
 export async function renamePersonaAction(formData: FormData): Promise<ActionResult> {
   const user = await requireUser('/me/personas')
   const personaId = String(formData.get('personaId') ?? '')
   const displayName = name(formData.get('displayName'))
   if (!displayName) return { ok: false, message: '請給這位 persona 一個名字。' }
-  if (!(await ownedPersona(personaId, user.id))) {
-    return { ok: false, message: '這位 persona 不是你管理的。' }
-  }
+  const persona = await ownedPersona(personaId, user.id)
+  if (!persona) return { ok: false, message: '這位 persona 不是你管理的。' }
+  const posted = formData.get('kind')
+  const kind = posted === 'avatar' ? 'avatar' : posted === 'person' ? 'person' : persona.kind
   // Renaming does not touch cards already issued: their artwork and number are fixed.
-  await getDb().db.update(personas).set({ displayName }).where(eq(personas.id, personaId))
+  await getDb().db.update(personas).set({ displayName, kind }).where(eq(personas.id, personaId))
   revalidatePath('/me/personas')
   return { ok: true }
 }

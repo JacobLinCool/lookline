@@ -25,6 +25,7 @@ export default async function PersonasPage() {
       displayName: p.displayName,
       kind: p.kind,
       avatarSeed: p.avatarSeed,
+      hasPhoto: Boolean(p.referencePath),
       ...(await transferPreview(db, p.id)),
     })),
   )
@@ -82,7 +83,7 @@ export default async function PersonasPage() {
     <Container className="flex flex-col gap-6 py-8">
       <PageHeader
         title="Personas"
-        description="每張小卡都有一位主角。你可以替自己、家人或一個虛擬形象各建一位；他們註冊後，你可以把 persona 連同卡片一起交給本人。"
+        description="每張小卡都有一位主角。替每位主角上傳一張參考照片，製卡時就會照著那個人生成；他們註冊後，你可以把 persona 連同卡片一起交給本人。"
       />
 
       <Card surface="panel" padding="sm">

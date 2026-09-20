@@ -28,6 +28,11 @@ const PHOTO_EXT: Record<string, string> = {
   'image/avif': 'avif',
 }
 
+/** The file extension a stored photo of this type gets; anything unknown is stored as a JPEG. */
+export function photoExtension(mimeType: string): string {
+  return PHOTO_EXT[mimeType.toLowerCase()] ?? 'jpg'
+}
+
 /** Unknown presets are rejected rather than inventing an unsupported style. */
 export function resolveStylePreset(slug: string): StylePreset {
   const preset = STYLE_PRESETS.find((p) => p.slug === slug)
@@ -55,7 +60,7 @@ export function presetOptions(locale: Locale): Array<{ value: string; label: str
  * of `users.photoPath`). Does not touch `users.photoPath`; the caller decides.
  */
 export async function savePhoto(userId: string, photo: ReferencePhoto): Promise<string> {
-  const ext = PHOTO_EXT[photo.mimeType.toLowerCase()] ?? 'jpg'
+  const ext = photoExtension(photo.mimeType)
   const safeId = userId.replace(/[^A-Za-z0-9_-]/g, '_')
   const key = `photos/${safeId}.${ext}`
   await getStorage().put(key, photo.data, photo.mimeType)

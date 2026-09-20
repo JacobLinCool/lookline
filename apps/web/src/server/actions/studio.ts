@@ -3,7 +3,7 @@
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { and, cardSessions, cards, eq, lt, personas } from '@lookline/db'
+import { and, cardSessions, cards, collections, eq, lt, personas } from '@lookline/db'
 import {
   MAX_CANDIDATES_PER_SESSION,
   MAX_PIECES_PER_CARD,
@@ -23,6 +23,7 @@ import {
 } from '@lookline/engine'
 import type { ActionResult } from '@/components/latency/instant-form'
 import { requireUser } from '@/server/auth'
+import { canRenderCards, queueCandidateImage, studioProgress } from '@/server/card-generation'
 import { getDb } from '@/server/db'
 
 /** A session is abandoned if it is not settled within the hour; its credit can then be released. */
@@ -166,25 +167,57 @@ export async function generateCandidateAction(formData: FormData): Promise<Actio
     }
   }
 
+  // A render occupies a place before it has produced anything, so the cap counts what is on
+  // screen plus what is on its way. Without this, four clicks while the first was still running
+  // would each start a render and three of them would be thrown away at the end.
+  const progress = await studioProgress(sessionId)
+  if (progress.candidates.length + progress.pending >= MAX_CANDIDATES_PER_SESSION) {
+    return { ok: false, message: `一次最多 ${MAX_CANDIDATES_PER_SESSION} 張候選。` }
+  }
+
   const attemptId = `ga_${nanoid(10)}`
-  await startAttempt(db, { id: attemptId, sessionId, provider: 'composition' })
-  const result = await addCandidate(db, {
-    id: `cc_${nanoid(12)}`,
+  const candidateId = `cc_${nanoid(12)}`
+
+  // Without an image model there is nothing to wait for: the candidate is recorded straight away
+  // and the routes draw it as the composition poster, exactly as the studio worked before.
+  if (!canRenderCards()) {
+    await startAttempt(db, { id: attemptId, sessionId, provider: 'composition' })
+    const result = await addCandidate(db, {
+      id: candidateId,
+      sessionId,
+      attemptId,
+      imagePath: '',
+      now: new Date(),
+    })
+    revalidatePath(`/studio/${sessionId}`)
+    if (result.ok) return { ok: true }
+    return {
+      ok: false,
+      message:
+        result.reason === 'full'
+          ? `一次最多 ${MAX_CANDIDATES_PER_SESSION} 張候選。`
+          : '這個階段已經結束。',
+    }
+  }
+
+  const [collection] = session.collectionId
+    ? await db
+        .select({ title: collections.title })
+        .from(collections)
+        .where(eq(collections.id, session.collectionId))
+        .limit(1)
+    : []
+
+  await startAttempt(db, { id: attemptId, sessionId, provider: 'image' })
+  queueCandidateImage({
     sessionId,
     attemptId,
-    // The composition poster is rendered on demand from the session's own articles.
-    imagePath: '',
-    now: new Date(),
+    candidateId,
+    authorName: user.displayName,
+    collectionTitle: collection?.title ?? null,
   })
   revalidatePath(`/studio/${sessionId}`)
-  if (result.ok) return { ok: true }
-  return {
-    ok: false,
-    message:
-      result.reason === 'full'
-        ? `一次最多 ${MAX_CANDIDATES_PER_SESSION} 張候選。`
-        : '這個階段已經結束。',
-  }
+  return { ok: true }
 }
 
 /**
