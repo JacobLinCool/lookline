@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COLOR_FAMILIES } from '@lookline/catalog'
-import { categoryGroupFor, slugFor } from './derive'
+import { categoryGroupFor, displayNameFor, slugFor } from './derive'
 import { colorFamilyOf } from './enrich'
 
 describe('categoryGroupFor', () => {
@@ -74,5 +74,33 @@ describe('colorFamilyOf', () => {
     expect(colorFamilyOf('', 'Other')).toBe('')
     expect(colorFamilyOf('', '')).toBe('')
     expect(colorFamilyOf('')).toBe('')
+  })
+})
+
+describe('displayNameFor', () => {
+  it('drops the version marker and the stray full stop', () => {
+    expect(displayNameFor('Tilly (1)')).toBe('Tilly')
+    expect(displayNameFor('Pluto RW slacks (1)')).toBe('Pluto RW slacks')
+    expect(displayNameFor('Alex Trs (J)')).toBe('Alex Trs')
+    expect(displayNameFor('Henry polo.')).toBe('Henry polo')
+  })
+
+  it('stops shouting, but leaves a code in its own case', () => {
+    expect(displayNameFor('RICHIE HOOD')).toBe('Richie Hood')
+    expect(displayNameFor('FLEECE PYJAMA')).toBe('Fleece Pyjama')
+    // `OC` and `SS` are codes, not words; `Oc` and `Ss` would be wrong.
+    expect(displayNameFor('SWEATSHIRT  OC')).toBe('Sweatshirt OC')
+    expect(displayNameFor('6P SS BODY')).toBe('6P SS Body')
+  })
+
+  it('leaves a bracket holding a word, and a name that is already fine', () => {
+    // `(Poppy)` is a print, not a version marker.
+    expect(displayNameFor('Fiona Ch Hipster(Poppy)4pk')).toBe('Fiona Ch Hipster(Poppy)4pk')
+    expect(displayNameFor('LOGG beanie LATE')).toBe('LOGG beanie LATE')
+    expect(displayNameFor('Jade HW Skinny Denim TRS')).toBe('Jade HW Skinny Denim TRS')
+  })
+
+  it('never returns an empty name', () => {
+    expect(displayNameFor('(1)')).toBe('(1)')
   })
 })

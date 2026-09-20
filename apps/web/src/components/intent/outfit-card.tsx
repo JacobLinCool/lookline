@@ -1,5 +1,6 @@
 'use client'
 
+import { displayName } from '@/lib/product-name'
 import type { Outfit } from '@lookline/engine'
 import { InstantForm } from '@/components/latency/instant-form'
 import { Button, FactorBreakdown, ProductCard, Rail, RailItem, Tag } from '@/components/ui'
@@ -64,7 +65,7 @@ export function OutfitRail({
               product={{
                 id: item.product.id,
                 imagePath: item.product.imagePath,
-                name: item.product.name,
+                name: displayName(item.product.name, item.brandName),
                 price: item.product.price,
                 brandName: item.brandName,
               }}

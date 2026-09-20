@@ -11,6 +11,8 @@
  * only place material appears at all.
  */
 
+import { PRICE_SCALE } from './derive'
+
 /** Occasions the intent parser can ask for; seasons live in the same taxonomy but not here. */
 export type Occasion =
   | 'everyday'
@@ -262,8 +264,9 @@ export function styleAxes(input: {
   return {
     formality: input.formality,
     warmth: winter ? Math.max(0.65, coolFabric) : summer ? Math.min(0.3, coolFabric) : coolFabric,
-    // H&M prices span NT$8 to NT$8970; log scale, because the mass sits under NT$1000.
-    'price-tier': Math.min(1, Math.log1p(input.price) / Math.log1p(9000)),
+    // H&M prices span NT$40 to NT$44 850 once `PRICE_SCALE` is applied; log scale, because the
+    // mass still sits in the bottom fifth of that.
+    'price-tier': Math.min(1, Math.log1p(input.price) / Math.log1p(9000 * PRICE_SCALE)),
     trendiness: input.trendScore,
     structure: input.formality * 0.8,
   }

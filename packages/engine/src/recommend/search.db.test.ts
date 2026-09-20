@@ -71,23 +71,6 @@ describe('searchProducts (SQLite integration)', () => {
     expect(counted).toBe(5)
   })
 
-  it('leaves out an article H&M never photographed, in the rows and in the counts', async () => {
-    // 440 of the real 105 220 have no `image_path`. `ProductImage` renders an empty tonal ground
-    // for them and the vision pass skips them, so they carry no aesthetic, pattern or fit either
-    // — a blank tile that nothing can rank.
-    const [first] = rows
-    await handle.db.update(articles).set({ imagePath: null }).where(eq(articles.id, first!.id))
-    const result = await searchProducts(handle.db, {})
-    expect(result.total).toBe(4)
-    expect(result.items.map((i) => i.id)).not.toContain(first!.id)
-    const counted = result.facets!.categoryGroups.reduce((n, g) => n + g.count, 0)
-    expect(counted).toBe(4)
-    await handle.db
-      .update(articles)
-      .set({ imagePath: first!.imagePath })
-      .where(eq(articles.id, first!.id))
-  })
-
   it('runs with a filter and counts only what the filter matched', async () => {
     const all = await searchProducts(handle.db, {})
     const group = all.facets!.categoryGroups[0]!

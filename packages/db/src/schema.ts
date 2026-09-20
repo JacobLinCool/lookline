@@ -222,7 +222,7 @@ export const articles = sqliteTable(
       .references(() => brands.id),
     productCode: text('product_code').notNull(),
     name: text('prod_name').notNull(),
-    /** Free-text product copy; missing on 416 rows. */
+    /** Free-text product copy. Articles H&M left blank are not imported. */
     description: text('detail_desc').notNull().default(''),
     subcategory: text('product_type_name').notNull(),
     productGroup: text('product_group_name').notNull(),
