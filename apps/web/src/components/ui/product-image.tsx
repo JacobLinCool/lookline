@@ -1,3 +1,4 @@
+import { articleImageSrc } from '@/lib/article-image'
 import { cn } from '@/lib/cn'
 
 export interface ProductImageProps {
@@ -40,7 +41,7 @@ export function ProductImage({
     >
       {imagePath === null || imagePath === '' ? null : (
         <img
-          src={`/api/articles/${articleId}/image`}
+          src={articleImageSrc(articleId)}
           alt={alt}
           width={600}
           height={aspect === '3/4' ? 800 : 600}

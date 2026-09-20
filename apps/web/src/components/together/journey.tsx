@@ -12,6 +12,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { articleImageSrc } from '@/lib/article-image'
 import {
   Avatar,
   Button,
@@ -198,7 +199,7 @@ function LookCardArtifact({
   const copy = t.social.tour.card
   const [shareStatus, setShareStatus] = useState<'idle' | 'shared' | 'exported'>('idle')
   const [consent, setConsent] = useState(false)
-  const exportHref = look ? `/api/looks/${look.id}/image` : `/api/articles/${product.id}/image`
+  const exportHref = look ? `/api/looks/${look.id}/image` : articleImageSrc(product.id)
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1fr)]">
