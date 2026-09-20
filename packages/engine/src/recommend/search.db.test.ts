@@ -10,7 +10,7 @@ import type { CategoryGroup } from '@lookline/catalog'
 import { createTestDb, type DbHandle } from '@lookline/db/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { fixtureBrands, makeProduct } from './testing/fixtures'
-import { countFacet, searchProducts } from './search'
+import { clearCountCache, countFacet, searchProducts } from './search'
 
 const SEED = 20260918
 const fixtureRows = (brandRecords: ReturnType<typeof fixtureBrands>) =>
@@ -153,5 +153,45 @@ describe('searchProducts (SQLite integration)', () => {
     expect(
       (await searchProducts(handle.db, { silhouettes: ['a-line'], sleeves: ['sleeveless'] })).total,
     ).toBe(0)
+  })
+
+  it('counts a filtered set once and reuses it across pages and sorts, never across filters', async () => {
+    // The two counting statements are the expensive half of a search and depend only on the
+    // `where` clause. Paging and re-sorting must not pay for them again; a different filter must
+    // never be handed another filter's numbers.
+    const db = handle.db
+    clearCountCache(db)
+    const all = db.all.bind(db)
+    let counts = 0
+    db.all = ((q: Parameters<typeof all>[0]) => {
+      counts += 1
+      return all(q)
+    }) as typeof db.all
+
+    try {
+      const group = (await searchProducts(db, {})).facets!.categoryGroups[0]!
+      const filter = { categoryGroups: [group.key as CategoryGroup] }
+
+      counts = 0
+      const first = await searchProducts(db, { ...filter })
+      expect(counts).toBe(2)
+      expect(first.total).toBe(group.count)
+
+      // Same filter, different page and sort: the products are fetched again, the counts are not.
+      const resorted = await searchProducts(db, { ...filter, sort: 'price_asc', page: 1 })
+      expect(counts).toBe(2)
+      expect(resorted.total).toBe(group.count)
+      expect(resorted.facets).toEqual(first.facets)
+
+      // A different filter is a different question.
+      const other = await searchProducts(db, {
+        excludedCategoryGroups: [group.key as CategoryGroup],
+      })
+      expect(counts).toBe(4)
+      expect(other.total).toBe(5 - group.count)
+    } finally {
+      db.all = all
+      clearCountCache(db)
+    }
   })
 })

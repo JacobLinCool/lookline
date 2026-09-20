@@ -486,6 +486,47 @@ export async function countFacet(
   return pickFacet(facet, facetRows(rowsOf<Record<string, unknown>>(result)[0], [facet]))
 }
 
+/**
+ * The counts and the total, memoised per database handle.
+ *
+ * Of the four statements a search runs, one answers the question — twenty-four products, about
+ * 4 ms, an index and a limit. The other three read the whole filtered set to say how many there
+ * are and how they divide: on D1 the column aggregate costs 250-290 ms unfiltered and the
+ * aesthetics `group by` 350-390 ms (`facetCountsSql`), and the page cannot paint until they
+ * return. They also depend on nothing the reader brings — only on the `where` clause, which is a
+ * function of the search — and the catalogue behind them is fixed. So the bare /shop, the URL
+ * with the most to count and the most visitors, pays that 640 ms once per isolate instead of
+ * once per request.
+ *
+ * `page` is never memoised: it carries the sort, the offset and the rows themselves.
+ *
+ * ponytail: an isolate-local Map, not the Cache API — it needs no key ceremony and no eviction
+ * policy beyond a cap. A cold isolate still pays full price; reach for `caches.default` if the
+ * miss rate on a real PoP turns out to matter.
+ */
+const COUNT_CACHE_MAX = 64
+const countCache = new WeakMap<Database, Map<string, Promise<CountedRows>>>()
+
+interface CountedRows {
+  totalRows: Array<{ n: unknown }>
+  facetResult: unknown
+  aestheticResult: unknown
+}
+
+/** What `where` is built from: the search minus the three fields only the page query reads. */
+function countKey(query: ProductSearch, withText: boolean, withLexicon: boolean): string {
+  const { page: _page, pageSize: _pageSize, sort: _sort, ...rest } = query
+  const entries = Object.entries(rest)
+    .filter(([, v]) => v !== undefined)
+    .toSorted(([a], [b]) => a.localeCompare(b))
+  return JSON.stringify([entries, withText, withLexicon])
+}
+
+/** Clears the memoised counts (a test that writes to the catalogue between searches). */
+export function clearCountCache(db: Database): void {
+  countCache.delete(db)
+}
+
 async function runSearch(
   db: Database,
   query: ProductSearch,
@@ -496,12 +537,25 @@ async function runSearch(
     withText,
     withLexicon,
   })
-  const [rows, totalRows, facetResult, aestheticResult] = await Promise.all([
-    page,
-    total,
-    db.all(facets),
-    db.all(aestheticFacets),
-  ])
+  let cached = countCache.get(db)
+  if (!cached) countCache.set(db, (cached = new Map()))
+  const key = countKey(query, withText, withLexicon)
+  let counted = cached.get(key)
+  if (!counted) {
+    counted = Promise.all([total, db.all(facets), db.all(aestheticFacets)]).then(
+      ([totalRows, facetResult, aestheticResult]) => ({
+        totalRows: totalRows as Array<{ n: unknown }>,
+        facetResult,
+        aestheticResult,
+      }),
+    )
+    // A rejected count must not be remembered: the next search is the one that might succeed.
+    counted.catch(() => cached.delete(key))
+    // Insertion order is eviction order; the cap is memory, not correctness.
+    if (cached.size >= COUNT_CACHE_MAX) cached.delete(cached.keys().next().value!)
+    cached.set(key, counted)
+  }
+  const [rows, { totalRows, facetResult, aestheticResult }] = await Promise.all([page, counted])
   const items = rows.map((r) => ({ ...(r.product as Article), brandName: r.brandName }))
   return {
     items,
