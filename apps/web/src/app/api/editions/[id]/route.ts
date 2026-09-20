@@ -10,6 +10,7 @@ import {
 import { renderLookPosterSvg } from '@lookline/engine'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
+import { storedImageResponse } from '@/server/storage'
 import { svgResponse } from '@/server/svg'
 
 /**
@@ -34,6 +35,7 @@ export async function GET(
       snapshot: cardSessions.articleSnapshot,
       candidateId: cardCandidates.id,
       candidatePosition: cardCandidates.position,
+      candidateImage: cardCandidates.imagePath,
     })
     .from(collectionEditions)
     .innerJoin(collections, eq(collections.id, collectionEditions.collectionId))
@@ -56,6 +58,16 @@ export async function GET(
         .where(and(eq(cardCopies.editionId, id), eq(cardCopies.verificationCode, code)))
         .limit(1)
     : []
+
+  // The rendered artwork, when the chosen candidate was one. It carries no edition number: a
+  // photograph cannot have `3/5` drawn into it here, and the number is said on the page, in each
+  // copy's own row, and on the badge of the share image. Only the poster below can print it.
+  const rendered = await storedImageResponse(
+    request,
+    edition.candidateImage,
+    'public, max-age=31536000, immutable',
+  )
+  if (rendered) return rendered
 
   const art = await cardArtFromSnapshot(db, edition.snapshot ?? [])
   const svg = renderLookPosterSvg({

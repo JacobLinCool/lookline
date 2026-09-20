@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Check, Sparkles } from 'lucide-react'
 import {
   CARD_TIERS,
@@ -17,6 +18,8 @@ export interface PickerPersona {
   displayName: string
   kind: 'person' | 'avatar'
   avatarSeed: number
+  /** Whether a reference photograph is stored; without one the card is of no one in particular. */
+  hasPhoto: boolean
 }
 
 export interface PickerArticle {
@@ -54,6 +57,7 @@ export function StudioPicker({
   selectedPersona: string
 }) {
   const [personaId, setPersonaId] = useState(selectedPersona)
+  const subject = personas.find((p) => p.id === personaId) ?? null
   const [picked, setPicked] = useState<string[]>([])
 
   const chosen = articles.filter((a) => picked.includes(a.articleId))
@@ -90,6 +94,16 @@ export function StudioPicker({
             </li>
           ))}
         </ul>
+        {/* Said here rather than only on the persona page, because this is the moment a credit is
+            about to be spent on a picture of someone the model would otherwise invent. */}
+        {subject && !subject.hasPhoto ? (
+          <p className="text-[12px] text-muted">
+            {subject.displayName} 還沒有參考照片，生成出來的人不會是本人。
+            <Link href="/me/personas" className="ml-1 text-ink underline underline-offset-4">
+              去上傳一張
+            </Link>
+          </p>
+        ) : null}
       </section>
 
       <section className="flex flex-col gap-2">

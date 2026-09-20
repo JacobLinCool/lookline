@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { and, cardSessions, collectionMembers, collections, eq, personas } from '@lookline/db'
-import { MAX_CANDIDATES_PER_SESSION, candidatesOf } from '@lookline/engine'
+import { MAX_CANDIDATES_PER_SESSION } from '@lookline/engine'
 import { Container, PageHeader, Tag } from '@/components/ui'
 import { EditionCandidates } from '@/components/cards/edition-candidates'
 import { requireUser } from '@/server/auth'
+import { studioProgress } from '@/server/card-generation'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,7 +38,7 @@ export default async function IssueEditionPage({
     .innerJoin(personas, eq(personas.id, collectionMembers.personaId))
     .where(eq(collectionMembers.collectionId, id))
 
-  const made = await candidatesOf(db, sessionId)
+  const progress = await studioProgress(sessionId)
 
   return (
     <Container className="flex flex-col gap-6 py-8">
@@ -53,7 +54,9 @@ export default async function IssueEditionPage({
       <EditionCandidates
         collectionId={id}
         sessionId={sessionId}
-        candidates={made.map((c) => ({ id: c.id, position: c.position }))}
+        candidates={progress.candidates}
+        pending={progress.pending}
+        error={progress.error}
         max={MAX_CANDIDATES_PER_SESSION}
         editionSize={members.length}
         settled={session.state !== 'open'}

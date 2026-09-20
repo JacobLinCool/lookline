@@ -29,11 +29,17 @@ export interface ShareCardFace {
   badge: string
   verificationCode: string
   artwork: LookPosterInput
+  /**
+   * The rendered artwork as a `data:` URI, when the card has one. The poster in `artwork` is what
+   * gets drawn otherwise — a shared card should show the picture its page shows.
+   */
+  artworkSrc?: string | null
 }
 
 export async function shareCardImage(face: ShareCardFace): Promise<ImageResponse> {
-  const artwork = renderLookPosterSvg({ ...face.artwork, chrome: 'artwork' })
-  const src = `data:image/svg+xml;base64,${btoa(String.fromCharCode(...new TextEncoder().encode(artwork)))}`
+  const src =
+    face.artworkSrc ??
+    `data:image/svg+xml;base64,${btoa(String.fromCharCode(...new TextEncoder().encode(renderLookPosterSvg({ ...face.artwork, chrome: 'artwork' }))))}`
   // Exactly the characters this image draws, `LOOKLINE` in the case it is drawn in: a letter left
   // out of the subset falls back to the built-in face and the word comes out in two weights.
   const font = await chineseFont(
@@ -51,7 +57,13 @@ export async function shareCardImage(face: ShareCardFace): Promise<ImageResponse
         padding: 56,
       }}
     >
-      <img src={src} width={392} height={523} style={{ borderRadius: 14 }} alt="" />
+      <img
+        src={src}
+        width={392}
+        height={523}
+        style={{ borderRadius: 14, objectFit: 'cover' }}
+        alt=""
+      />
       <div
         style={{
           display: 'flex',

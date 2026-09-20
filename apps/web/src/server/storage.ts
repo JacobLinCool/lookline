@@ -101,3 +101,62 @@ export function getStorage(): Storage {
   }
   return cached
 }
+
+/**
+ * Stream a stored object back to the browser, honouring `If-None-Match`. Answers `null` when the
+ * key is unusable, the object is gone or the read failed, which is the caller's cue to fall back
+ * to whatever it can draw itself rather than to fail the request.
+ */
+export async function storedImageResponse(
+  request: Request,
+  key: string | null | undefined,
+  cacheControl: string,
+): Promise<Response | null> {
+  if (!key || !isSafeKey(key)) return null
+  try {
+    const object = await getStorage().get(key)
+    if (!object) return null
+    if (request.headers.get('if-none-match') === object.etag) {
+      return new Response(null, {
+        status: 304,
+        headers: { ETag: object.etag, 'Cache-Control': cacheControl },
+      })
+    }
+    return new Response(object.body, {
+      headers: {
+        'Content-Type': object.contentType,
+        'Content-Length': String(object.size),
+        ETag: object.etag,
+        'Cache-Control': cacheControl,
+      },
+    })
+  } catch (error) {
+    console.warn(`[lookline] could not read stored image ${key}`, error)
+    return null
+  }
+}
+
+/**
+ * A stored image as a `data:` URI, for the one consumer that cannot fetch a URL: `ImageResponse`
+ * renders the share image inside the worker and only inlines what it is handed. Answers `null`
+ * when there is nothing to inline, and the caller draws its own poster instead.
+ *
+ * The bytes are encoded in chunks: `btoa(String.fromCharCode(...bytes))` spreads the whole image
+ * across the argument list, and a card-sized photograph overflows the stack doing it.
+ */
+export async function storedDataUri(key: string | null | undefined): Promise<string | null> {
+  if (!key || !isSafeKey(key)) return null
+  try {
+    const object = await getStorage().get(key)
+    if (!object) return null
+    const bytes = new Uint8Array(await object.arrayBuffer())
+    let binary = ''
+    for (let i = 0; i < bytes.length; i += 8192) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + 8192))
+    }
+    return `data:${object.contentType};base64,${btoa(binary)}`
+  } catch (error) {
+    console.warn(`[lookline] could not inline stored image ${key}`, error)
+    return null
+  }
+}

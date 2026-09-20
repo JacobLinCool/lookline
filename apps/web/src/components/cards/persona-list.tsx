@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { UserPlus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ImagePlus, UserPlus } from 'lucide-react'
 import { Avatar, Button, Card, Field, Input, Select, Tag } from '@/components/ui'
 import { InstantForm } from '@/components/latency/instant-form'
 import {
@@ -10,6 +10,7 @@ import {
   createPersonaAction,
   offerPersonaAction,
   renamePersonaAction,
+  setPersonaPhotoAction,
 } from '@/server/actions/personas'
 
 export interface PersonaRow {
@@ -17,6 +18,8 @@ export interface PersonaRow {
   displayName: string
   kind: 'person' | 'avatar'
   avatarSeed: number
+  /** Whether a reference photograph is stored; the picture itself is never sent to the list. */
+  hasPhoto: boolean
   /** What a transfer of this persona would carry with it. */
   cards: number
   copies: number
@@ -39,8 +42,76 @@ function carries(cards: number, copies: number): string {
   return parts.length > 0 ? parts.join('、') : '目前還沒有卡片'
 }
 
+/**
+ * The photograph a card of this persona is rendered from. It is the subject reference the image
+ * model is handed, so without one a card of your mother is a card of someone the model invented.
+ *
+ * The stored picture is fetched from `/api/personas/[id]/photo`, which answers only its manager —
+ * the key is never public, and a card carries the rendered artwork rather than this.
+ */
+function PersonaPhotoField({
+  personaId,
+  hasPhoto,
+  id,
+}: {
+  personaId: string
+  hasPhoto: boolean
+  id: string
+}) {
+  const [pickedUrl, setPickedUrl] = useState<string | null>(null)
+  const [storedAvailable, setStoredAvailable] = useState(hasPhoto)
+
+  // A blob URL outlives the element that made it; without this every re-pick leaks one.
+  useEffect(() => {
+    return () => {
+      if (pickedUrl) URL.revokeObjectURL(pickedUrl)
+    }
+  }, [pickedUrl])
+
+  const preview =
+    pickedUrl ?? (storedAvailable ? `/api/personas/${personaId}/photo?v=${personaId}` : null)
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-[5rem_1fr] sm:items-start">
+      <div className="aspect-3/4 overflow-hidden rounded-md border border-line bg-mist">
+        {preview ? (
+          <img
+            src={preview}
+            alt="參考照片"
+            className="size-full object-cover"
+            onError={() => {
+              if (!pickedUrl) setStoredAvailable(false)
+            }}
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center px-2 text-center text-[11px] leading-snug text-muted">
+            還沒有照片
+          </div>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-col gap-2">
+        <input
+          id={id}
+          type="file"
+          name="photo"
+          accept="image/*"
+          className="block w-full rounded-sm border border-line bg-card px-3 py-2 text-[13px] file:mr-3 file:rounded-xs file:border-0 file:bg-ink file:px-3 file:py-1.5 file:text-[12px] file:text-paper"
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0] ?? null
+            setPickedUrl(file ? URL.createObjectURL(file) : null)
+          }}
+        />
+        <p className="text-[12px] text-muted">
+          一張清楚的正面照最好。照片只用來生成這位 persona
+          的小卡，不會公開。主角不是真人時，記得把「形象」設成虛擬。
+        </p>
+      </div>
+    </div>
+  )
+}
+
 function PersonaCard({ persona }: { persona: PersonaRow }) {
-  const [mode, setMode] = useState<'idle' | 'rename' | 'transfer'>('idle')
+  const [mode, setMode] = useState<'idle' | 'rename' | 'transfer' | 'photo'>('idle')
   return (
     <Card as="li" padding="sm" className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
@@ -52,12 +123,25 @@ function PersonaCard({ persona }: { persona: PersonaRow }) {
             {carries(persona.cards, persona.copies)}
           </span>
         </div>
+        {/* Said on the card itself, because a persona with no photo is the difference between a
+            card of this person and a card of someone the model made up. */}
+        <Tag tone={persona.hasPhoto ? undefined : 'accent'}>
+          {persona.hasPhoto ? '有參考照片' : '缺參考照片'}
+        </Tag>
       </div>
 
       {mode === 'idle' ? (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={() => setMode('rename')}>
             改名
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<ImagePlus />}
+            onClick={() => setMode('photo')}
+          >
+            {persona.hasPhoto ? '換照片' : '上傳照片'}
           </Button>
           <Button size="sm" variant="secondary" onClick={() => setMode('transfer')}>
             轉讓
@@ -68,27 +152,75 @@ function PersonaCard({ persona }: { persona: PersonaRow }) {
         </div>
       ) : null}
 
+      {mode === 'photo' ? (
+        <InstantForm
+          action={setPersonaPhotoAction}
+          name="set-persona-photo"
+          confirmation="已更新"
+          className="flex flex-col gap-3"
+        >
+          <input type="hidden" name="personaId" value={persona.id} />
+          <PersonaPhotoField
+            personaId={persona.id}
+            hasPhoto={persona.hasPhoto}
+            id={`photo-${persona.id}`}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" size="sm">
+              儲存照片
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setMode('idle')}>
+              取消
+            </Button>
+            {persona.hasPhoto ? (
+              <label className="ml-auto flex items-center gap-2 text-[12px] text-muted">
+                <input type="checkbox" name="remove" className="size-4 accent-ink" />
+                改成移除現有照片
+              </label>
+            ) : null}
+          </div>
+        </InstantForm>
+      ) : null}
+
       {mode === 'rename' ? (
         <InstantForm
           action={renamePersonaAction}
           name="rename-persona"
           confirmation="已更新"
-          className="flex items-end gap-2"
+          className="flex flex-col gap-2"
         >
           <input type="hidden" name="personaId" value={persona.id} />
-          <Field label="名稱" htmlFor={`name-${persona.id}`} className="flex-1">
-            <Input
-              id={`name-${persona.id}`}
-              name="displayName"
-              defaultValue={persona.displayName}
-            />
-          </Field>
-          <Button type="submit" size="sm">
-            儲存
-          </Button>
-          <Button size="sm" variant="secondary" onClick={() => setMode('idle')}>
-            取消
-          </Button>
+          <div className="flex items-end gap-2">
+            <Field label="名稱" htmlFor={`name-${persona.id}`} className="flex-1">
+              <Input
+                id={`name-${persona.id}`}
+                name="displayName"
+                defaultValue={persona.displayName}
+              />
+            </Field>
+            {/* Editable here, not just at creation: this is what tells the image model whether
+                the reference photo is of a person or of a toy, pet or character. */}
+            <Field label="形象" htmlFor={`kind-${persona.id}`} className="w-28">
+              <Select
+                id={`kind-${persona.id}`}
+                name="kind"
+                defaultValue={persona.kind}
+                options={[
+                  { value: 'person', label: '真人' },
+                  { value: 'avatar', label: '虛擬' },
+                ]}
+              />
+            </Field>
+            <Button type="submit" size="sm">
+              儲存
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setMode('idle')}>
+              取消
+            </Button>
+          </div>
+          <p className="text-[12px] text-muted">
+            主角不是真人（玩偶、寵物、動漫角色）時選「虛擬」，生成時才會照著照片畫那個角色，而不是換成一個人。
+          </p>
         </InstantForm>
       ) : null}
 
@@ -179,23 +311,28 @@ export function PersonaList({
               action={createPersonaAction}
               name="create-persona"
               confirmation="已建立"
-              className="flex items-end gap-2"
+              className="flex flex-col gap-3"
             >
-              <Field label="名稱" htmlFor="new-persona-name" className="flex-1">
-                <Input id="new-persona-name" name="displayName" placeholder="媽媽" />
+              <div className="flex items-end gap-2">
+                <Field label="名稱" htmlFor="new-persona-name" className="flex-1">
+                  <Input id="new-persona-name" name="displayName" placeholder="媽媽" />
+                </Field>
+                <Field label="形象" htmlFor="new-persona-kind" className="w-28">
+                  <Select
+                    id="new-persona-kind"
+                    name="kind"
+                    defaultValue="person"
+                    options={[
+                      { value: 'person', label: '真人' },
+                      { value: 'avatar', label: '虛擬' },
+                    ]}
+                  />
+                </Field>
+              </div>
+              <Field label="參考照片（可稍後再加）" htmlFor="new-persona-photo">
+                <PersonaPhotoField personaId="new" hasPhoto={false} id="new-persona-photo" />
               </Field>
-              <Field label="形象" htmlFor="new-persona-kind" className="w-28">
-                <Select
-                  id="new-persona-kind"
-                  name="kind"
-                  defaultValue="person"
-                  options={[
-                    { value: 'person', label: '真人' },
-                    { value: 'avatar', label: '虛擬' },
-                  ]}
-                />
-              </Field>
-              <Button type="submit" size="sm">
+              <Button type="submit" size="sm" className="self-start">
                 建立
               </Button>
             </InstantForm>

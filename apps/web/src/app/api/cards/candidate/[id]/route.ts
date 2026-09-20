@@ -3,6 +3,7 @@ import { renderLookPosterSvg } from '@lookline/engine'
 import { getSessionUser } from '@/server/auth'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
+import { storedImageResponse } from '@/server/storage'
 import { svgResponse } from '@/server/svg'
 
 /**
@@ -12,7 +13,7 @@ import { svgResponse } from '@/server/svg'
  * answers 404 to anyone else rather than revealing that the id exists.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await context.params
@@ -23,6 +24,7 @@ export async function GET(
   const [row] = await db
     .select({
       candidateId: cardCandidates.id,
+      imagePath: cardCandidates.imagePath,
       position: cardCandidates.position,
       sessionId: cardSessions.id,
       ownerUserId: cardSessions.ownerUserId,
@@ -37,6 +39,11 @@ export async function GET(
     .where(eq(cardCandidates.id, id))
     .limit(1)
   if (!row || row.ownerUserId !== user.id) return new Response('Not found', { status: 404 })
+
+  // A rendered candidate is a photograph stored in R2. Everything else — an older candidate, a
+  // render whose image has since been swept — still draws as the composition poster below.
+  const rendered = await storedImageResponse(request, row.imagePath, 'private, max-age=300')
+  if (rendered) return rendered
 
   const art = await cardArtFromSnapshot(db, row.snapshot ?? [])
 
