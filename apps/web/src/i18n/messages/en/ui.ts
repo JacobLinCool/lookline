@@ -72,6 +72,10 @@ export const ui = {
     imageUnavailable:
       'Image generation is unavailable. Check the configured image provider and retry.',
     imageReferences: 'Attach up to 4 garment images and 4 person images, each 8 MB or smaller.',
+    textModelMissing: 'No text model is configured. Add a provider key to apps/web/.dev.vars.',
+    searchTrendsUnavailable: 'Search trends could not be loaded. Check the source and retry.',
+    searchTrendGone: 'That trend is no longer in the current batch. Refresh and try again.',
+    labToken: 'This action needs the lab token.',
     imageFailed: 'The image could not be generated. Review the prompt and try again.',
   },
 }

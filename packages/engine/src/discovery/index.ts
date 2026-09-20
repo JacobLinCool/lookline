@@ -16,6 +16,8 @@ import {
   users,
   type Database,
 } from '@lookline/db'
+import { currentHomeTrend } from '../search-trends/queries'
+import { searchProducts } from '../recommend/search'
 import { discoveryDimensions } from './preferences'
 export * from './friends'
 
@@ -51,6 +53,37 @@ export async function trending(db: Database): Promise<HomeProduct[]> {
     .innerJoin(brands, eq(brands.id, articles.brandId))
     .orderBy(desc(articles.trendScore), desc(articles.popularity), desc(articles.id))
     .limit(HOME_LIMIT)
+}
+
+/**
+ * The rail for what the country is searching for, read as a style by the model that wrote it. The
+ * label and the sentence are that abstract reading; the trending terms behind them never reach
+ * this far, so nothing here can look like an endorsement.
+ *
+ * `q` is free text the lexicon scans for taxonomy terms, which is why a phrase like
+ * "運動風 機能外套 黑色" needs no parsing of its own here.
+ */
+export type SearchingRail = { label: string; rationale: string; items: HomeProduct[] } | null
+export async function searching(db: Database): Promise<SearchingRail> {
+  const trend = await currentHomeTrend(db)
+  if (!trend) return null
+  const { items } = await searchProducts(db, {
+    q: trend.styleQuery,
+    sort: 'popular',
+    pageSize: HOME_LIMIT,
+  })
+  return {
+    label: trend.label,
+    rationale: trend.rationale,
+    items: items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      imagePath: item.imagePath,
+      price: item.price,
+      colorName: item.colorName,
+      brandName: item.brandName,
+    })),
+  }
 }
 
 export async function recent(db: Database, userId: string): Promise<HomeProduct[]> {

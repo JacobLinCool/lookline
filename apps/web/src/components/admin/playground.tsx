@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Search,
   SlidersHorizontal,
+  TrendingUp,
   X,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react'
@@ -19,6 +20,7 @@ import { Button, Field, Input, Notice, Select, Textarea } from '@/components/ui'
 import { useI18n, useLocale } from '@/i18n/client'
 import { facetLabel } from '@/i18n/taxonomy'
 import { cn } from '@/lib/cn'
+import { SearchTrends } from './search-trends'
 import styles from './playground.module.css'
 
 interface Ontology {
@@ -981,7 +983,7 @@ export function AdminPlayground({
   imageConfigured: boolean
 }) {
   const { t } = useI18n()
-  const [tab, setTab] = useState<'intent' | 'image'>('intent')
+  const [tab, setTab] = useState<'intent' | 'image' | 'trends'>('intent')
   return (
     <div className={styles.layout}>
       <OntologyRail ontology={ontology} />
@@ -1038,10 +1040,28 @@ export function AdminPlayground({
               <ImageIcon className="size-4" aria-hidden="true" />
               {t.admin.tabs.image}
             </button>
+            <button
+              id="trends-tab"
+              type="button"
+              role="tab"
+              aria-selected={tab === 'trends'}
+              aria-controls="trends-panel"
+              onClick={() => setTab('trends')}
+              className={cn(
+                'flex items-center gap-2 border-b-2 py-3 text-[13px] font-medium transition-colors',
+                tab === 'trends'
+                  ? 'border-ink text-ink'
+                  : 'border-transparent text-muted hover:text-ink',
+              )}
+            >
+              <TrendingUp className="size-4" aria-hidden="true" />
+              {t.admin.tabs.trends}
+            </button>
           </div>
         </header>
         <IntentCompiler configured={intentConfigured} activePanel={tab === 'intent'} />
         <ImageStudio configured={imageConfigured} activePanel={tab === 'image'} presets={presets} />
+        <SearchTrends activePanel={tab === 'trends'} />
       </section>
     </div>
   )

@@ -1,7 +1,12 @@
 'use client'
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
-import type { FriendActivity, HomeProduct, PreferenceRail } from '@lookline/engine/discovery'
+import type {
+  FriendActivity,
+  HomeProduct,
+  PreferenceRail,
+  SearchingRail,
+} from '@lookline/engine/discovery'
 import { Button, ProductCard } from '@/components/ui'
 import { useI18n } from '@/i18n/client'
 import { aestheticLabel, colorFamilyLabel } from '@/i18n/taxonomy'
@@ -90,6 +95,7 @@ export function DiscoveryHome({ signedIn }: { signedIn: boolean }) {
   const { t, locale } = useI18n()
   const copy = t.home.discovery
   const hot = useSection<HomeProduct[]>('trending')
+  const searching = useSection<SearchingRail>('searching')
   const taste = useSection<PreferenceRail[]>('preferences', signedIn)
   const history = useSection<HomeProduct[]>('recent', signedIn)
   const friends = useSection<{ friendCount: number; items: FriendActivity[] }>('friends', signedIn)
@@ -129,6 +135,20 @@ export function DiscoveryHome({ signedIn }: { signedIn: boolean }) {
           </Empty>
         )}
       </DiscoveryRail>
+      {/*
+        Absent until an operator puts a trend on the page, and silent when it fails: an empty row
+        would be a hole where a shopper has nothing to do. The label and sentence are the model's
+        abstract reading — the trending term that produced them never reaches the storefront.
+      */}
+      {searching.data?.items.length ? (
+        <DiscoveryRail
+          title={copy.searching(searching.data.label)}
+          description={searching.data.rationale || undefined}
+          busy={false}
+        >
+          <Products items={searching.data.items} />
+        </DiscoveryRail>
+      ) : null}
       {[0, 1].map((index) => {
         const group = taste.data?.[index]
         const label = group

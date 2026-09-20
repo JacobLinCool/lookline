@@ -13,6 +13,7 @@ export const admin: AdminMessages = {
     label: '實驗模式',
     intent: '意圖編譯器',
     image: '圖像工作室',
+    trends: '搜尋趨勢',
   },
 
   ontology: {
@@ -114,5 +115,23 @@ export const admin: AdminMessages = {
     emptyTitle: '生成的畫面會出現在這裡',
     emptyBody: '選一段提示詞與長寬比，生成一張真實的圖像，不會存進商品目錄。',
     compositeEmptyBody: '放上服裝與人物的圖片，就能合成這套 Look，不會存進商品目錄。',
+  },
+
+  trends: {
+    title: '大家正在搜什麼',
+    description: 'Google 台灣每日熱搜，整批讀成一種氛圍後直接上首頁。沒有任何一則是人工挑的。',
+    refresh: '讀今天',
+    refreshing: '解讀中…',
+    onHome: '首頁顯示中',
+    nothingOnHome:
+      '目前沒有發佈。今天的熱搜讀不出可以穿的氛圍，或是讀出來的風格在型錄裡找不到商品。',
+    noReading: '熱搜抓到了，但沒有東西可以發佈 —— 這是濾網正常運作，晚點再試。',
+    readFrom: '解讀來源',
+    empty: '還沒有資料，先讀一次今天的熱搜。',
+    failed: '趨勢來源沒有回應，再試一次。',
+    source: '來源',
+    matches: (n: number) => `${n.toLocaleString('zh-TW')} 件`,
+    tokenLabel: 'Lab token',
+    tokenHint: '這個環境要求 token 才能改動首頁。',
   },
 }

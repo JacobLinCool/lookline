@@ -126,6 +126,7 @@ export const home: HomeMessages = {
   discovery: {
     trending: '熱門趨勢',
     trendingReason: '依全站商品的趨勢動能與累積購買熱度排序。',
+    searching: (label: string) => `大家正在搜 · ${label}`,
     forYou: '為你的風格挑選',
     anotherPreference: '探索另一種偏好',
     preferenceTitle: (label: string) => `為你挑選・${label}`,

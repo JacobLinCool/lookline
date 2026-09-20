@@ -139,6 +139,7 @@ export const home = {
   discovery: {
     trending: 'Trending',
     trendingReason: 'Across the catalog, ranked by trend momentum and purchase popularity.',
+    searching: (label: string) => `What people are looking up · ${label}`,
     forYou: 'For your style',
     anotherPreference: 'Another side of your taste',
     preferenceTitle: (label: string) => `Picked for you · ${label}`,

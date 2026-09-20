@@ -52,6 +52,8 @@ export const TABLE_ORDER = [
   'lineage_stats',
   'trend_signals',
   'manufacturing_recommendations',
+  'search_trends',
+  'home_trend',
   'evaluation_runs',
 ] as const
 

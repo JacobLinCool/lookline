@@ -106,6 +106,13 @@
       "when": 1789851531664,
       "tag": "0015_home_discovery",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1789871976198,
+      "tag": "0016_search_trends",
+      "breakpoints": true
     }
   ]
 }

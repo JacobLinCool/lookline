@@ -875,6 +875,48 @@ export const manufacturingRecommendations = sqliteTable(
   (t) => [index('manufacturing_recommendations_rank_idx').on(t.rank)],
 )
 
+/**
+ * What the public is searching for outside Lookline — Google Trends' daily list for Taiwan, which
+ * is culture rather than clothing ("名古屋亞運", "中秋連假"). These rows are the evidence behind the
+ * reading, kept for the engine lab; nothing here is ever rendered to a shopper, because a trending
+ * drama title or a shoe collaboration beside merchandise reads as an endorsement.
+ *
+ * One batch at a time: a refresh replaces every row.
+ */
+export const searchTrends = sqliteTable(
+  'search_trends',
+  {
+    id: text('id').primaryKey(),
+    rank: integer('rank').notNull(),
+    /** The trending query itself. Operator-facing only. */
+    signal: text('signal').notNull(),
+    /** Google's own traffic band, e.g. `1000+`. */
+    heat: text('heat'),
+    /** Headline of the first related news item, the context the model needs to read the signal. */
+    newsTitle: text('news_title'),
+    sourceUrl: text('source_url'),
+    fetchedAt: createdAt('fetched_at'),
+  },
+  (t) => [index('search_trends_rank_idx').on(t.rank)],
+)
+
+/**
+ * The one reading of that batch the home page renders: an abstract style the whole list adds up
+ * to, written by a model forbidden to name anything in it. At most one row — a refresh replaces
+ * it — and `matches` is what the query found when it was written, so a reading that fits nothing
+ * in the catalogue is never published.
+ */
+export const homeTrend = sqliteTable('home_trend', {
+  id: integer('id').primaryKey(),
+  /** Abstract style name, e.g. "運動機能風". */
+  label: text('label').notNull(),
+  /** Free text for `searchProducts({ q })`. */
+  styleQuery: text('style_query').notNull(),
+  rationale: text('rationale').notNull(),
+  matches: integer('matches').notNull().default(0),
+  computedAt: createdAt('computed_at'),
+})
+
 // ---------------------------------------------------------------------------
 // Simulation & evaluation (kept in the same database so the UI can show them)
 // ---------------------------------------------------------------------------
@@ -1359,6 +1401,8 @@ export type NewFeedbackEvent = typeof feedbackEvents.$inferInsert
 export type PreferenceSnapshot = typeof preferenceSnapshots.$inferSelect
 export type LineageStat = typeof lineageStats.$inferSelect
 export type TrendSignal = typeof trendSignals.$inferSelect
+export type SearchTrend = typeof searchTrends.$inferSelect
+export type HomeTrend = typeof homeTrend.$inferSelect
 export type ManufacturingRecommendation = typeof manufacturingRecommendations.$inferSelect
 export type SimPersona = typeof simPersonas.$inferSelect
 export type EvaluationRun = typeof evaluationRuns.$inferSelect

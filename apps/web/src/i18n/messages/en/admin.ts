@@ -15,6 +15,7 @@ export const admin = {
     label: 'Playground mode',
     intent: 'Intent compiler',
     image: 'Image studio',
+    trends: 'Search trends',
   },
 
   ontology: {
@@ -119,6 +120,26 @@ export const admin = {
       'Choose a prompt and ratio, then generate a real image without saving it to the catalog.',
     compositeEmptyBody:
       'Attach the garments and the person, then compose the Look without saving it to the catalog.',
+  },
+
+  trends: {
+    title: 'What the public is searching',
+    description:
+      "Google's daily list for Taiwan, read as one mood and published to the home page. No term is chosen by hand.",
+    refresh: 'Read today',
+    refreshing: 'Reading…',
+    onHome: 'On the home page',
+    nothingOnHome:
+      'Nothing published. Today’s list had no mood to dress, or no reading of it found pieces in the catalogue.',
+    noReading:
+      'The list was fetched, but nothing could be published from it. That is the filter working — try again later.',
+    readFrom: 'Read from',
+    empty: 'No batch yet. Read today’s list to begin.',
+    failed: 'The trend source did not answer. Try again.',
+    source: 'Source',
+    matches: (n: number) => (n === 1 ? '1 piece' : `${n.toLocaleString('en')} pieces`),
+    tokenLabel: 'Lab token',
+    tokenHint: 'This deployment requires a token for actions that change the home page.',
   },
 }
 
