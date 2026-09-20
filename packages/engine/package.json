@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./testing": "./src/recommend/testing/fixtures.ts",
     "./cards/rules": "./src/cards/rules.ts",
+    "./cards/art-direction": "./src/cards/art-direction.ts",
     "./hints": "./src/decisions/hints.ts",
     "./occasions": "./src/constants/occasions.ts",
     "./keywords": "./src/decisions/keywords.ts",

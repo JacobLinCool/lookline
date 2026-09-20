@@ -8,18 +8,18 @@
  */
 import { articles as articlesTable, inArray, personas as personasTable } from '@lookline/db'
 import type { Database } from '@lookline/db'
-import type { LookPosterInput } from '@lookline/engine'
+import type { CardPosterInput } from '@lookline/engine'
 
 export interface SnapshotEntry {
   articleId: string
   personaId?: string
 }
 
-type Worn = LookPosterInput['articles'][number]
+type Worn = CardPosterInput['articles'][number]
 
 export interface CardArt {
   articles: Worn[]
-  groups: NonNullable<LookPosterInput['groups']>
+  groups: NonNullable<CardPosterInput['groups']>
   palette: string[]
 }
 

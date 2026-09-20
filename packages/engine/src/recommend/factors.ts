@@ -69,7 +69,7 @@ export interface TrendStat {
   momentum: number
   velocity: number
   emerging: boolean
-  crossCluster: number
+  breadth: number
 }
 
 export interface RankContext {
@@ -436,14 +436,12 @@ function agePhrase(at: Date, now: Date, locale: Locale): string {
 }
 
 const KIND_EN: Readonly<Record<string, string>> = {
-  look: 'wore this in a Look',
+  card: 'shared this in a public Card',
   purchase: 'bought this',
-  save: 'saved this',
 }
 const KIND_ZH: Readonly<Record<string, string>> = {
-  look: '用它做了 Look',
+  card: '把它放在公開 Card 中',
   purchase: '買了它',
-  save: '收藏了它',
 }
 
 export function socialSignal(c: Candidate, ctx: RankContext): FactorResult {
@@ -531,7 +529,7 @@ export function trendMomentum(c: Candidate, ctx: RankContext): FactorResult {
         momentum: c.trendEvidence.momentum,
         velocity: 0,
         emerging: c.trendEvidence.emerging,
-        crossCluster: 0,
+        breadth: 0,
       }
       if (!best || stat.momentum > (best as { stat: TrendStat }).stat.momentum)
         best = { key, label: c.trendEvidence.key, stat }
@@ -550,8 +548,8 @@ export function trendMomentum(c: Candidate, ctx: RankContext): FactorResult {
   const m = Math.round(stat.momentum)
   const evidence = stat.emerging
     ? locale === 'zh'
-      ? `${label} 正在跨品味圈擴散（動能 ${m}）`
-      : `${label} is spreading across taste circles (momentum ${m})`
+      ? `${label} 正被更多人關注（動能 ${m}）`
+      : `${label} is reaching more people (momentum ${m})`
     : locale === 'zh'
       ? `${label} 本週動能 ${m}`
       : `${label} momentum ${m} this week`

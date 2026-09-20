@@ -272,7 +272,7 @@ export function finalize(input: IntentExt, ctx: IntentContextExt = {}): IntentEx
 
   // --- clarifications & confidence ----------------------------------------------------
   intent.assumptions = assumptions
-  const kept = intent.clarifications.filter((c) => c.slot === 'referenceLookId')
+  const kept = intent.clarifications.filter((c) => c.slot === 'referenceCardId')
   intent.clarifications = kept
   intent.clarifications = buildClarifications(intent)
   intent.confidence = computeConfidence(intent)

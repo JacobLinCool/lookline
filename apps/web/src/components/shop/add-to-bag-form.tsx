@@ -10,8 +10,8 @@ import { addToBagAction } from '@/server/actions/bag'
  * Redirects back to the product page with `?added=1` so a Notice can confirm.
  */
 export interface BagAttribution {
-  /** Look the visitor came from (`?look=`), attributed as `sourceLookId` at checkout. */
-  sourceLook?: string | null
+  /** Card the visitor came from (`?card=`), attributed as `sourceCardId` at checkout. */
+  sourceCard?: string | null
   /** Intent turn the visitor came from (`?from=`), attributed as `intentSessionId`. */
   intentSession?: string | null
 }
@@ -38,8 +38,8 @@ export async function AddToBagForm({
     >
       <input type="hidden" name="articleId" value={product.id} />
       <input type="hidden" name="redirect" value={`/p/${product.id}?added=1`} />
-      {attribution?.sourceLook ? (
-        <input type="hidden" name="sourceLook" value={attribution.sourceLook} />
+      {attribution?.sourceCard ? (
+        <input type="hidden" name="sourceCard" value={attribution.sourceCard} />
       ) : null}
       {attribution?.intentSession ? (
         <input type="hidden" name="intentSession" value={attribution.intentSession} />

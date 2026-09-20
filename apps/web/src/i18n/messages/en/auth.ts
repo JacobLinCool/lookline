@@ -4,7 +4,7 @@ export const auth = {
   metaTitle: 'Choose a profile',
   continueAs: (name: string) => `Continue as ${name}`,
   guest: 'Continue as a guest',
-  guestNote: 'A guest profile keeps your bag and Looks on this device.',
+  guestNote: 'A guest profile keeps your bag on this device.',
   signInToContinue: 'Sign in to continue.',
   signedInAs: (name: string) => `Signed in as ${name}`,
 

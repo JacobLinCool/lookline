@@ -50,7 +50,6 @@ export const common: CommonMessages = {
   count: {
     pieces: (n: number) => `${formatNumber(n)} 件`,
     items: (n: number) => `${formatNumber(n)} 件`,
-    looks: (n: number) => `${formatNumber(n)} 個 Look`,
     lines: (n: number) => `${formatNumber(n)} 項`,
     answers: (n: number) => `${formatNumber(n)} 則回覆`,
     replies: (n: number) => `${formatNumber(n)} 則回覆`,

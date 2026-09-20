@@ -46,14 +46,6 @@ export {
   type SelectProps,
   type TextareaProps,
 } from './input'
-export { LineageText } from './lineage-text'
-export {
-  LookCard,
-  type LookCardLook,
-  type LookCardOwner,
-  type LookCardProps,
-  type LookLineageHint,
-} from './look-card'
 export { Notice, type NoticeProps, type NoticeTone } from './notice'
 export { PageHeader, type PageHeaderProps } from './page-header'
 export { Price, type PriceProps } from './price'

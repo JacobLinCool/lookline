@@ -8,7 +8,7 @@ import { getDb } from '@/server/db'
 export interface FeedbackActionInput {
   kind: FeedbackKind
   articleId?: string | null
-  lookId?: string | null
+  cardId?: string | null
   intentSessionId?: string | null
   position?: number | null
   forOthers?: boolean

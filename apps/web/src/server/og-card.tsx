@@ -7,8 +7,8 @@
  * missing Chinese face still reads.
  */
 import { ImageResponse } from 'next/og'
-import { renderLookPosterSvg } from '@lookline/engine'
-import type { LookPosterInput } from '@lookline/engine'
+import { renderCardPosterSvg } from '@lookline/engine'
+import type { CardPosterInput } from '@lookline/engine'
 import { chineseFont } from './og-font'
 
 export const OG_SIZE = { width: 1200, height: 630 }
@@ -28,7 +28,7 @@ export interface ShareCardFace {
   /** Latin, so it survives a font that failed to load. */
   badge: string
   verificationCode: string
-  artwork: LookPosterInput
+  artwork: CardPosterInput
   /**
    * The rendered artwork as a `data:` URI, when the card has one. The poster in `artwork` is what
    * gets drawn otherwise — a shared card should show the picture its page shows.
@@ -39,7 +39,7 @@ export interface ShareCardFace {
 export async function shareCardImage(face: ShareCardFace): Promise<ImageResponse> {
   const src =
     face.artworkSrc ??
-    `data:image/svg+xml;base64,${btoa(String.fromCharCode(...new TextEncoder().encode(renderLookPosterSvg({ ...face.artwork, chrome: 'artwork' }))))}`
+    `data:image/svg+xml;base64,${btoa(String.fromCharCode(...new TextEncoder().encode(renderCardPosterSvg({ ...face.artwork, chrome: 'artwork' }))))}`
   // Exactly the characters this image draws, `LOOKLINE` in the case it is drawn in: a letter left
   // out of the subset falls back to the built-in face and the word comes out in two weights.
   const font = await chineseFont(

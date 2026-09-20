@@ -53,7 +53,6 @@ export const common = {
   count: {
     pieces: (n: number) => `${formatNumber(n)} ${n === 1 ? 'piece' : 'pieces'}`,
     items: (n: number) => `${formatNumber(n)} ${n === 1 ? 'item' : 'items'}`,
-    looks: (n: number) => `${formatNumber(n)} ${n === 1 ? 'Look' : 'Looks'}`,
     lines: (n: number) => `${formatNumber(n)} ${n === 1 ? 'line' : 'lines'}`,
     answers: (n: number) => `${formatNumber(n)} ${n === 1 ? 'answer' : 'answers'}`,
     replies: (n: number) => `${formatNumber(n)} ${n === 1 ? 'reply' : 'replies'}`,

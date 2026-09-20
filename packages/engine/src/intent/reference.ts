@@ -1,5 +1,5 @@
 /**
- * Reference detection and resolution (ENGINE_SPEC §1.4.8): "like Alice's look", 「跟 Jacob 一起」.
+ * Card-reference detection and resolution: "like Alice's outfit", 「跟 Jacob 一起」.
  */
 import type { Locale } from './normalize'
 import { escapeRe } from './recipient'
@@ -103,7 +103,7 @@ export function detectReference(
 }
 
 export interface ReferenceResolution {
-  referenceLookId?: string
+  referenceCardId?: string
   referenceHandle?: string
   referenceRole?: 'style-source' | 'coordinate-with'
   assumptions: IntentAssumptionExt[]
@@ -119,49 +119,49 @@ export function resolveReference(
 ): ReferenceResolution {
   const out: ReferenceResolution = { assumptions: [], clarifications: [] }
   if (!det.handle || !det.role) {
-    const kept = ctx.previousIntent?.referenceLookId
-    if (kept) out.referenceLookId = kept
+    const kept = ctx.previousIntent?.referenceCardId
+    if (kept) out.referenceCardId = kept
     return out
   }
   out.referenceHandle = det.handle
   out.referenceRole = det.role
   const contact = det.contact
   const confidence = det.role === 'style-source' ? 0.9 : 0.7
-  if (contact && contact.latestLookIds && contact.latestLookIds.length > 1) {
+  if (contact && contact.latestCardIds && contact.latestCardIds.length > 1) {
     out.clarifications.push({
-      slot: 'referenceLookId',
-      question: t(locale, '你指的是哪一個 Look？', 'Which Look do you mean?'),
-      options: contact.latestLookIds.slice(0, 4),
+      slot: 'referenceCardId',
+      question: t(locale, '你指的是哪一張 Card？', 'Which Card do you mean?'),
+      options: contact.latestCardIds.slice(0, 4),
       blocking: true,
     })
-    out.referenceLookId = contact.latestLookIds[0]
+    out.referenceCardId = contact.latestCardIds[0]
     out.assumptions.push({
-      slot: 'referenceLookId',
-      value: contact.latestLookIds[0] ?? '',
+      slot: 'referenceCardId',
+      value: contact.latestCardIds[0] ?? '',
       confidence: 0.5,
       reason: t(
         locale,
-        `${det.handle} 有多個 Look，先用最新的`,
-        `${det.handle} has several Looks; using the latest`,
+        `${det.handle} 有多張 Card，先用最新的`,
+        `${det.handle} has several Cards; using the latest`,
       ),
       source: 'context',
     })
     return out
   }
-  const lookId = contact?.latestLookId ?? contact?.latestLookIds?.[0]
-  if (lookId) {
-    out.referenceLookId = lookId
+  const cardId = contact?.latestCardId ?? contact?.latestCardIds?.[0]
+  if (cardId) {
+    out.referenceCardId = cardId
     out.assumptions.push({
-      slot: 'referenceLookId',
-      value: lookId,
+      slot: 'referenceCardId',
+      value: cardId,
       confidence,
-      reason: t(locale, `${det.handle} 最新的 Look`, `${det.handle}'s latest Look`),
+      reason: t(locale, `${det.handle} 最新的 Card`, `${det.handle}'s latest Card`),
       source: 'context',
     })
     return out
   }
   out.assumptions.push({
-    slot: 'referenceLookId',
+    slot: 'referenceCardId',
     value: '',
     confidence: 0.3,
     reason: t(locale, `找不到 ${det.handle}`, `Could not resolve ${det.handle}`),

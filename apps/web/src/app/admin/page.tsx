@@ -4,7 +4,7 @@
  * with Inter for every control and monospace only for ontology values and raw JSON.
  */
 import type { Metadata } from 'next'
-import { SEARCH_INTENT_ONTOLOGY, STYLE_PRESETS } from '@lookline/engine'
+import { SEARCH_INTENT_ONTOLOGY, PREVIEW_ART_PRESETS } from '@lookline/engine'
 import { AdminPlayground } from '@/components/admin/playground'
 import { getI18n } from '@/i18n/server'
 
@@ -29,7 +29,7 @@ export default function AdminPage() {
   }
 
   // Only the names cross to the browser; a preset's prompt is art direction the server owns.
-  const presets = STYLE_PRESETS.map(({ slug, name, labelZh }) => ({ slug, name, labelZh }))
+  const presets = PREVIEW_ART_PRESETS.map(({ slug, name, labelZh }) => ({ slug, name, labelZh }))
 
   return (
     <AdminPlayground

@@ -27,9 +27,6 @@ export async function SiteFooter() {
           <Link href="/trends" className={link}>
             {t.nav.trends}
           </Link>
-          <Link href="/together" className={link}>
-            {t.nav.tour}
-          </Link>
           <Link href="/admin" className={link}>
             {t.nav.lab}
           </Link>

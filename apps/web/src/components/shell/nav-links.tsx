@@ -21,7 +21,7 @@ const navItems = (t: Messages): NavItem[] => [
   { href: '/', label: t.nav.find, icon: <Sparkles />, match: ['/'] },
   { href: '/shop', label: t.nav.shop, icon: <Search />, match: ['/shop', '/p/'] },
   { href: '/studio', label: t.nav.studio, icon: <Sparkles />, match: ['/studio', '/cards/'] },
-  { href: '/me', label: t.nav.wardrobe, icon: <Shirt />, match: ['/me', '/looks/'] },
+  { href: '/me', label: t.nav.wardrobe, icon: <Shirt />, match: ['/me', '/collections/'] },
 ]
 
 function isActive(pathname: string, item: NavItem): boolean {

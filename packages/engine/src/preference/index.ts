@@ -14,16 +14,14 @@ import {
   desc,
   eq,
   feedbackEvents,
-  looks,
+  friendships,
   ne,
+  or,
   preferenceSnapshots,
   articles,
-  relationships,
   users,
   type Database,
-  type RelationshipKind,
 } from '@lookline/db'
-import { TRUST_MIN, trustFromRows } from '../recommend/context'
 import type { FeedbackInput, PreferenceProfile } from '../types'
 import { collectSlates } from './bandit'
 import {
@@ -47,7 +45,6 @@ const PROFILE_EVENT_LIMIT = 2000
 async function loadEventVector(
   db: Database,
   articleId: string | null | undefined,
-  lookId: string | null | undefined,
 ): Promise<number[] | null> {
   if (articleId != null) {
     const [row] = await db
@@ -58,18 +55,10 @@ async function loadEventVector(
     const v = asVector(row?.vector)
     if (v) return v
   }
-  if (lookId) {
-    const [row] = await db
-      .select({ vector: looks.styleVector })
-      .from(looks)
-      .where(eq(looks.id, lookId))
-      .limit(1)
-    return asVector(row?.vector)
-  }
   return null
 }
 
-/** The user's feedback events (newest first in SQL) joined with product/brand/look for vectors and names. */
+/** The user's feedback events joined with catalog products for vectors and names. */
 async function loadProfileEvents(
   db: Database,
   userId: string,
@@ -85,17 +74,15 @@ async function loadProfileEvents(
       context: feedbackEvents.context,
       createdAt: feedbackEvents.createdAt,
       articleId: feedbackEvents.articleId,
-      lookId: feedbackEvents.lookId,
+      cardId: feedbackEvents.cardId,
       intentSessionId: feedbackEvents.intentSessionId,
       productVector: articles.styleVector,
       productName: articles.name,
       brandName: brands.name,
-      lookVector: looks.styleVector,
     })
     .from(feedbackEvents)
     .leftJoin(articles, eq(feedbackEvents.articleId, articles.id))
     .leftJoin(brands, eq(articles.brandId, brands.id))
-    .leftJoin(looks, eq(feedbackEvents.lookId, looks.id))
     .where(eq(feedbackEvents.userId, userId))
     .orderBy(desc(feedbackEvents.createdAt), desc(feedbackEvents.id))
     .limit(limit)
@@ -108,9 +95,9 @@ async function loadProfileEvents(
     context: r.context ?? {},
     createdAt: r.createdAt,
     articleId: r.articleId,
-    lookId: r.lookId,
+    cardId: r.cardId,
     intentSessionId: r.intentSessionId,
-    vector: asVector(r.productVector) ?? asVector(r.lookVector),
+    vector: asVector(r.productVector),
     productName: r.productName,
     brandName: r.brandName,
   }))
@@ -129,7 +116,7 @@ export async function recordFeedback(db: Database, input: FeedbackInput): Promis
     id,
     userId: input.userId,
     articleId: input.articleId ?? null,
-    lookId: input.lookId ?? null,
+    cardId: input.cardId ?? null,
     intentSessionId: input.intentSessionId ?? null,
     kind: input.kind,
     reward,
@@ -152,7 +139,7 @@ export async function recordFeedback(db: Database, input: FeedbackInput): Promis
     .limit(1)
   if (!user) return
   const p0 = departmentPrior(user.department)
-  const vector = await loadEventVector(db, input.articleId, input.lookId)
+  const vector = await loadEventVector(db, input.articleId)
 
   // Meta state (n, mass, lastAt) of each target from the events before this one.
   const prior = await db
@@ -283,9 +270,14 @@ export async function getPreferenceProfile(
       .orderBy(desc(preferenceSnapshots.version))
       .limit(10),
     db
-      .select({ b: relationships.bUserId, kind: relationships.kind, weight: relationships.weight })
-      .from(relationships)
-      .where(eq(relationships.aUserId, userId)),
+      .select({ low: friendships.lowUserId, high: friendships.highUserId })
+      .from(friendships)
+      .where(
+        and(
+          eq(friendships.state, 'accepted'),
+          or(eq(friendships.lowUserId, userId), eq(friendships.highUserId, userId)),
+        ),
+      ),
     loadBanditState(db, { now }),
   ])
   return buildProfile({
@@ -297,20 +289,9 @@ export async function getPreferenceProfile(
     events,
     snapshots,
     bandit,
-    trustedCount: countTrusted(trusted),
+    trustedCount: trusted.length,
     now,
   })
-}
-
-/** People `userId` trusts by the same rule the recommender's social channel uses. */
-function countTrusted(
-  rows: ReadonlyArray<{ b: string; kind: RelationshipKind; weight: number }>,
-): number {
-  const byPerson = new Map<string, Array<{ kind: RelationshipKind; weight: number }>>()
-  for (const r of rows) byPerson.set(r.b, [...(byPerson.get(r.b) ?? []), r])
-  let n = 0
-  for (const edges of byPerson.values()) if (trustFromRows(edges) >= TRUST_MIN) n++
-  return n
 }
 
 // Additions to the contract surface (distinctively named to avoid barrel collisions).

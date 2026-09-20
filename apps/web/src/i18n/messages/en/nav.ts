@@ -12,7 +12,6 @@ export const nav = {
 
   tagline: 'Meichu Hackathon 2026 × Makalot · Prototype',
   trends: 'Trends for Makalot',
-  tour: 'Prototype tour',
   lab: 'Engine lab',
   engineView: 'Engine view',
 

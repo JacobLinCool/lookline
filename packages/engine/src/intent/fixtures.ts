@@ -10,14 +10,14 @@ export const FIXTURE_CTX: IntentContextExt = {
       displayName: 'Alice',
       handle: 'alice',
       department: 'women',
-      latestLookId: 'lk_alice_01',
+      latestCardId: 'lk_alice_01',
     },
     {
       userId: 'u_000003',
       displayName: 'Jacob',
       handle: 'jacob',
       department: 'men',
-      latestLookId: 'lk_jacob_01',
+      latestCardId: 'lk_jacob_01',
     },
   ],
 }

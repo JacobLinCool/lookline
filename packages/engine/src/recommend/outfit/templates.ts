@@ -476,7 +476,7 @@ export function orderSlots(slots: readonly SlotSpec[]): SlotSpec[] {
   })
 }
 
-/** Slot role for a product group when pinned (completeTheLook). */
+/** Slot role for a product group when pinned (completeOutfit). */
 export function roleForGroup(group: string): SlotRole {
   switch (group) {
     case 'tops':

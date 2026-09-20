@@ -14,9 +14,9 @@ team also needs an internal playground to inspect the search ontology and test m
 ## Product Purpose
 
 Lookline turns natural-language fashion intent into explainable discovery, recommendations and
-collaborative Looks. Success means a user can describe a need naturally and quickly reach relevant,
-understandable options, preview a real product, purchase it, receive a collectible Look Card and
-move that style through a trusted Circle.
+collaborative Card editions. Success means a user can describe a need naturally and quickly reach
+relevant, understandable options, preview a real product, purchase it, create a collectible Card and
+share that style with accepted friends.
 
 ## Positioning
 
@@ -27,9 +27,9 @@ real catalog SKUs and their actual variants.
 
 ## Operating Context
 
-The public product includes natural-language search, catalog browsing, Looks, remixes, personal
-wardrobes and trend analysis. The hackathon team uses a no-authentication admin playground to inspect
-attributes, probe the intent compiler and generate image experiments.
+The public product includes natural-language search, catalog browsing, Cards, Collection Editions,
+personal wardrobes and trend analysis. The hackathon team uses a no-authentication admin playground
+to inspect attributes, probe the intent compiler and generate image experiments.
 
 ## Capabilities and Constraints
 
@@ -39,18 +39,18 @@ attributes, probe the intent compiler and generate image experiments.
 - The current admin playground intentionally has no authentication because it is a hackathon tool.
 - Virtual garments may only represent an existing physical product and purchasable SKU variant;
   generation must not invent colors, configurations or products.
-- A pre-purchase image is a Preview. A Look Card is issued only after order confirmation and remains
-  tied to the purchased product or confirmed custom SKU.
+- A pre-purchase image is a Preview. A Card remains tied to the selected article snapshot and may be
+  created individually or as a Collection Edition.
 - Made for You begins with a real base pattern or an explicit pattern-development review. References
   are inspiration and constraints, never an automatic promise to reproduce someone else's design.
 - Approved custom options come from manufacturing capabilities; there is no arbitrary consumer
   recolor path. A custom item becomes purchasable only after feasibility, specification, price and
   lead time are confirmed.
-- Circle Wardrobe contains only purchased items their owners opted to share. Borrow a Look is a
-  digital preview and never transfers physical ownership.
+- Social recommendations use only accepted friendships, purchases their owners explicitly shared,
+  and public Cards. Private saves never become social evidence.
 - Consumer surfaces and internal instrumentation are separate products. Public UI shows useful
-  fashion outcomes, ownership, sharing and Circle interactions—not model details, ontology traces,
-  graph internals or operational controls.
+  fashion outcomes, ownership and explicit sharing—not model details, ontology traces or operational
+  controls.
 - Provider-backed operations must expose real loading and error states and must not fabricate output.
 
 ## Brand Commitments
@@ -72,10 +72,10 @@ probabilistic search-intent compiler, recommendation flows and working image-pro
 - Digital value follows physical reality: a real product exists first, then its preview, wardrobe
   representation and collectible card may be created.
 - Let unmet demand become a manufacturing opportunity: route it to Made for You or a transparent
-  Circle Edition proposal instead of fabricating inventory or ending the journey silently.
+  Collection Edition proposal instead of fabricating inventory or ending the journey silently.
 - A special card may communicate custom or limited-edition value only when its stated edition size
   matches the real production commitment.
-- Expose concepts at the audience's level. Internal reasoning and influence instrumentation stay in
+- Expose concepts at the audience's level. Internal reasoning and demand instrumentation stay in
   internal tools even when they power a user-visible experience.
 
 The full audience, lifecycle and journey contract is recorded in `../../docs/PRODUCT_JOURNEY.md`.

@@ -1,12 +1,12 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { InstantForm } from '@/components/latency/instant-form'
-import { EditionCanvas } from '@/components/looks/edition-canvas'
+import { PreviewCanvas } from '@/components/previews/preview-canvas'
 import { Button, Container, EmptyState, Notice, ProductCard, Section, Tag } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
 import { addPreviewToBagAction } from '@/server/actions/bag'
 import { getSessionUser } from '@/server/auth'
-import { presetOptions, sanitizeId } from '@/server/looks'
+import { presetOptions, sanitizeId } from '@/server/imagery'
 import { loadPreviewArticles, readPreviewGeneration } from '@/server/preview-generation'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -53,13 +53,11 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
     <Container className="pb-20">
       <div className="grid gap-7 pt-7 md:pt-10 lg:grid-cols-12 lg:gap-12">
         <div className="lg:col-span-7">
-          <EditionCanvas
+          <PreviewCanvas
             title={preview.title}
             isOwner
             stylePreset={preview.stylePreset}
-            presets={presetOptions(locale).filter(
-              (preset) => !preview.sourceLookId || preset.value === preview.stylePreset,
-            )}
+            presets={presetOptions(locale)}
             generationEndpoint={`/api/previews/${preview.id}/generate`}
             unavailableMessage={t.previews.detail.imageUnavailable}
             initial={{

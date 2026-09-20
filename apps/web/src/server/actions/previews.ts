@@ -13,9 +13,9 @@ import {
   savePhoto,
   sanitizeId,
   type ReferencePhoto,
-} from '@/server/looks'
+} from '@/server/imagery'
 import { createPreviewDraft, isPreviewPhotoType } from '@/server/preview-generation'
-import { loadPreviewSourceLook } from '@/server/preview-source'
+import { loadPreviewSourceCard } from '@/server/preview-source'
 
 const MAX_ARTICLES = 8
 
@@ -47,7 +47,7 @@ async function readUploadedPhoto(
   }
 }
 
-/** Creates a private, expiring preview from catalog articles without creating an owned Look. */
+/** Creates a private, expiring preview from catalog articles. */
 export async function createPreviewAction(formData: FormData): Promise<void> {
   const back = safeNextPath(formData.get('return'), '/previews/new')
   const [user, { t }] = await Promise.all([requireUser(back), getI18n()])
@@ -59,9 +59,9 @@ export async function createPreviewAction(formData: FormData): Promise<void> {
         .filter((id): id is string => id !== null),
     ),
   ].slice(0, MAX_ARTICLES)
-  const sourceLookId = sanitizeId(formData.get('sourceLookId'))
-  const source = sourceLookId ? await loadPreviewSourceLook(sourceLookId, user.id) : null
-  if (sourceLookId && !source) returnWithError(back, t.previews.errors.sourceUnavailable)
+  const sourceCardId = sanitizeId(formData.get('sourceCardId'))
+  const source = sourceCardId ? await loadPreviewSourceCard(sourceCardId, user.id) : null
+  if (sourceCardId && !source) returnWithError(back, t.previews.errors.sourceUnavailable)
   if (source) articleIds = source.articleIds.slice(0, MAX_ARTICLES)
   if (articleIds.length === 0) returnWithError(back, t.previews.errors.pickPiece)
 
@@ -95,13 +95,10 @@ export async function createPreviewAction(formData: FormData): Promise<void> {
     const preview = await createPreviewDraft({
       ownerId: user.id,
       articleIds,
-      sourceLookId: source?.look.id ?? null,
-      stylePreset:
-        source?.look.stylePreset ||
-        readText(formData.get('stylePreset'), 40) ||
-        DEFAULT_STYLE_PRESET,
+      sourceCardId: source?.card.id ?? null,
+      stylePreset: readText(formData.get('stylePreset'), 40) || DEFAULT_STYLE_PRESET,
       title: readText(formData.get('title'), 80) || t.previews.new.defaultTitle,
-      occasion: source?.look.occasion || readText(formData.get('occasion'), 80) || null,
+      occasion: readText(formData.get('occasion'), 80) || null,
       referencePhoto,
     })
     previewId = preview.id

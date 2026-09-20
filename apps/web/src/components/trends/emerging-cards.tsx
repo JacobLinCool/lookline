@@ -25,7 +25,7 @@ function Sparkline({ points }: { points: Array<{ day: string; volume: number }> 
   )
 }
 
-/** "Emerging now": low base volume, sharp velocity, spread across at least two clusters. */
+/** "Emerging now": low base volume, sharp velocity and broad audience demand. */
 export async function EmergingCards({ rows, limit = 6 }: { rows: TrendSeries[]; limit?: number }) {
   const { t, locale } = await getI18n()
   const shown = rows.toSorted((a, b) => b.momentum - a.momentum).slice(0, limit)
@@ -53,8 +53,8 @@ export async function EmergingCards({ rows, limit = 6 }: { rows: TrendSeries[]; 
                 {row.velocity >= 0 ? '+' : '−'}
                 {pct(Math.abs(row.velocity))}
               </dd>
-              <dt className="text-muted">{t.trends.metric.crossCluster}</dt>
-              <dd>{num(row.crossCluster)}</dd>
+              <dt className="text-muted">{t.trends.metric.breadth}</dt>
+              <dd>{num(row.breadth)}</dd>
             </dl>
           </div>
         </Card>

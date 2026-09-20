@@ -29,7 +29,7 @@ export function buildClarifications(intent: IntentExt): IntentClarificationExt[]
       blocking: true,
     })
   }
-  const ref = intent.clarifications.find((c) => c.slot === 'referenceLookId')
+  const ref = intent.clarifications.find((c) => c.slot === 'referenceCardId')
   if (ref) push({ ...ref, blocking: true })
 
   const rd = assumption('recipient.department')

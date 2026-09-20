@@ -9,7 +9,9 @@ import {
   cards,
   cardCandidates,
   collections,
+  DEFAULT_CARD_ART_DIRECTION,
   eq,
+  generationAttempts,
   personaTransfers,
   personas,
   insertAll,
@@ -208,6 +210,12 @@ describe('a session settles into one card', () => {
   it('accepts four candidates, refuses a fifth, and any of them can be the card', async () => {
     const db = handle.db
     const now = new Date()
+    const shotDirection = {
+      focus: 'layering',
+      pose: 'walking',
+      scene: 'architecture',
+      note: 'Use long directional shadows.',
+    } as const
     await createPersona(db, { id: 'per_solo', ownerUserId: 'acc_a', displayName: 'Solo' })
     await reserveCredit(db, {
       id: 'res_solo',
@@ -220,13 +228,23 @@ describe('a session settles into one card', () => {
       ownerUserId: 'acc_a',
       personaId: 'per_solo',
       reserveOperationKey: 'reserve:solo',
+      artDirection: DEFAULT_CARD_ART_DIRECTION,
       articles: [
         { articleId: '0000000001', source: 'purchase' },
         { articleId: '0000000002', source: 'loan' },
       ],
       expiresAt: new Date(now.getTime() + HOUR),
     })
-    await startAttempt(db, { id: 'att_solo', sessionId: 'sess_solo' })
+    await startAttempt(db, {
+      id: 'att_solo',
+      sessionId: 'sess_solo',
+      artDirection: shotDirection,
+    })
+    const [attempt] = await db
+      .select()
+      .from(generationAttempts)
+      .where(eq(generationAttempts.id, 'att_solo'))
+    expect(attempt?.artDirection).toEqual(shotDirection)
     for (const n of [1, 2, 3, 4]) {
       const r = await addCandidate(db, {
         id: `cand_${n}`,
@@ -320,10 +338,15 @@ describe('a collection issues one copy per persona', () => {
         ownerUserId: 'acc_a',
         personaId,
         reserveOperationKey: `reserve:fam:${i}`,
+        artDirection: DEFAULT_CARD_ART_DIRECTION,
         articles: [{ articleId: '0000000003', source: 'purchase' }],
         expiresAt: new Date(now.getTime() + HOUR),
       })
-      await startAttempt(db, { id: `att_fam_${i}`, sessionId })
+      await startAttempt(db, {
+        id: `att_fam_${i}`,
+        sessionId,
+        artDirection: DEFAULT_CARD_ART_DIRECTION,
+      })
       await addCandidate(db, {
         id: `cand_fam_${i}`,
         sessionId,
@@ -357,6 +380,7 @@ describe('a collection issues one copy per persona', () => {
       ownerUserId: 'acc_a',
       personaId: 'per_me',
       reserveOperationKey: 'reserve:edition',
+      artDirection: DEFAULT_CARD_ART_DIRECTION,
       articles: [{ articleId: '0000000003', source: 'purchase' }],
       expiresAt: new Date(now.getTime() + HOUR),
     })
@@ -508,11 +532,20 @@ describe('what has no transaction around it', () => {
       ownerUserId: 'acc_a',
       personaId: 'per_race',
       reserveOperationKey: 'reserve:race',
+      artDirection: DEFAULT_CARD_ART_DIRECTION,
       articles: [],
       expiresAt: new Date(now.getTime() + HOUR),
     })
-    await startAttempt(db, { id: 'ga_race1', sessionId: 'sess_race' })
-    await startAttempt(db, { id: 'ga_race2', sessionId: 'sess_race' })
+    await startAttempt(db, {
+      id: 'ga_race1',
+      sessionId: 'sess_race',
+      artDirection: DEFAULT_CARD_ART_DIRECTION,
+    })
+    await startAttempt(db, {
+      id: 'ga_race2',
+      sessionId: 'sess_race',
+      artDirection: DEFAULT_CARD_ART_DIRECTION,
+    })
     // Stand in for the winner of the race: position 1 is taken before the loser inserts.
     await db.insert(cardCandidates).values({
       id: 'cc_winner',

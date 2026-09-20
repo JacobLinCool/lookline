@@ -1,5 +1,5 @@
 import { InstantForm } from '@/components/latency/instant-form'
-import { completeTheLook, type Outfit, type RankedItem } from '@lookline/engine'
+import { completeOutfit, type Outfit, type RankedItem } from '@lookline/engine'
 import { Button, FactorBreakdown, ProductCard, Rail, RailItem, Tag } from '@/components/ui'
 import type { Locale } from '@/i18n/config'
 import type { Messages } from '@/i18n/messages'
@@ -10,7 +10,7 @@ import { getDb } from '@/server/db'
 import { displayName } from '@/lib/product-name'
 import { formatTwd } from '@/server/format'
 import { callEngine } from './engine'
-import { previewHref } from '@/components/looks/preview-url'
+import { previewHref } from '@/components/previews/preview-url'
 
 function roleLabel(item: RankedItem, t: Messages, locale: Locale): string {
   const roles: Record<string, string> = t.shop.outfitRoles
@@ -106,8 +106,8 @@ export async function CompleteTheLook({
   engineView?: boolean
 }) {
   const { t } = await getI18n()
-  const result = await callEngine('completeTheLook', () =>
-    completeTheLook(getDb().db, articleId, { userId: userId ?? undefined, count: 2 }),
+  const result = await callEngine('completeOutfit', () =>
+    completeOutfit(getDb().db, articleId, { userId: userId ?? undefined, count: 2 }),
   )
   return (
     <section className="hairline flex flex-col gap-8 pt-8">

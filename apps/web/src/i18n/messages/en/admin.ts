@@ -106,11 +106,11 @@ export const admin = {
       '9:16': '9:16 · Story',
     },
     generate: 'Generate image',
-    compose: 'Compose the look',
+    compose: 'Compose the outfit',
     generating: 'Generating…',
     starters: 'Prompt starters',
     rendering: 'Rendering the prompt…',
-    composing: 'Composing the look…',
+    composing: 'Composing the outfit…',
     alt: 'Generated fashion experiment',
     generatedIn: (seconds: string) => `Generated in ${seconds}s`,
     download: 'Download',
@@ -119,7 +119,7 @@ export const admin = {
     emptyBody:
       'Choose a prompt and ratio, then generate a real image without saving it to the catalog.',
     compositeEmptyBody:
-      'Attach the garments and the person, then compose the Look without saving it to the catalog.',
+      'Attach the garments and the person, then compose the outfit without saving it to the catalog.',
   },
 
   trends: {

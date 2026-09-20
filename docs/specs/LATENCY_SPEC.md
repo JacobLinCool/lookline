@@ -9,15 +9,14 @@ next relevant action on the result, rather than model completion time.
 All clocks start at the user's click, submit or selection, before authentication, transport,
 queueing or model execution. Milestones count only once their UI is painted and usable.
 
-| Class      | Applies to                                                                    | Required milestones                                                                                        |
-| ---------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Instant    | Save, dismiss, add to bag / Look, preset selection, filters, sort, remix fork | acknowledgement ≤100 ms; perceived completion ≤400 ms                                                      |
-| Generative | Free text, natural-language search, recommendation, styling, explanation      | first meaningful progress ≤800 ms; gaps between meaningful updates ≤800 ms; usable result ≤5,000 ms        |
-| Creative   | Edition generation and regeneration                                           | first meaningful progress ≤800 ms; gaps ≤800 ms; first meaningful visual ≤5,000 ms; final image ≤30,000 ms |
+| Class      | Applies to                                                               | Required milestones                                                                                        |
+| ---------- | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Instant    | Save, dismiss, add to bag, art-direction selection, filters and sort     | acknowledgement ≤100 ms; perceived completion ≤400 ms                                                      |
+| Generative | Free text, natural-language search, recommendation, styling, explanation | first meaningful progress ≤800 ms; gaps between meaningful updates ≤800 ms; usable result ≤5,000 ms        |
+| Creative   | Edition generation and regeneration                                      | first meaningful progress ≤800 ms; gaps ≤800 ms; first meaningful visual ≤5,000 ms; final image ≤30,000 ms |
 
-Composite flows have separate operations: Make It Mine is an Instant fork, followed by Generative
-suggestions and an explicitly requested Creative render. A/B selection is Instant even if a later
-explanation uses a model. A deterministic poster is a legitimate first visual, labelled as a
+Composite flows have separate operations. Candidate selection is Instant even if a later explanation
+uses a model. A deterministic poster is a legitimate first visual only when it is labelled as a
 composition preview; it is a final result only when the user requested a poster.
 
 Acknowledgement means a changed control or selection. Perceived completion means the requested
@@ -35,11 +34,11 @@ unchanged token fragment, error or enabled navigation alone is not a usable resu
    parsed constraints before ranked items. AI may suggest a refined result after the initial
    result is usable. Offer an explicit apply action so late enrichment never silently reorders
    cards the user is interacting with.
-3. Open the remix editor with source products immediately. Stream suggestions separately; they
-   are opt-in. Creating an edition saves metadata and composition before scheduling rendering.
+3. Open Card Studio with persona, articles and art-direction controls immediately. Creating a
+   candidate saves session metadata and the complete attempt snapshot before scheduling rendering.
 4. Show the composition throughout image generation. Keep products, sharing and editing available.
    Regeneration preserves the existing image until a replacement is ready. Use operation revisions
-   to discard obsolete completions and isolate failures from the saved Look.
+   to discard obsolete completions and isolate failures from the issued Card.
 5. A spinner is not progress. Render facts only when work actually completes: parsed budget,
    candidate count, ranked pieces, composed products, decoded final image. Never manufacture stage
    changes or percentage estimates on a timer. If a provider has no intermediate output, report
@@ -66,7 +65,7 @@ generation does not block this path. Browser events report filter and product pa
 the acceptance targets still require representative end-to-end measurement.
 
 Cache keys must include user, constraints and source revision. Prefetch may prepare read-only data;
-it must not create a Look, mutate preferences or invoke paid generation on a GET.
+it must not create a Card, mutate preferences or invoke paid generation on a GET.
 
 ## Measurement and acceptance
 

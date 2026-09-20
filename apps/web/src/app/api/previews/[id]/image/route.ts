@@ -1,5 +1,5 @@
 import { asc, eq, previewArticles, articles, users } from '@lookline/db'
-import { renderLookPosterSvg } from '@lookline/engine'
+import { renderCardPosterSvg } from '@lookline/engine'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { hashString } from '@/lib/hash'
@@ -49,7 +49,7 @@ export async function GET(
   ])
   if (!owners[0] || items.length === 0) return new Response('Not found', { status: 404 })
   return svgResponse(
-    renderLookPosterSvg({
+    renderCardPosterSvg({
       title: preview.title,
       ownerName: owners[0].displayName,
       stylePreset: preview.stylePreset,

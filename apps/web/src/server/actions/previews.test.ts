@@ -22,8 +22,8 @@ vi.mock('@/server/db', () => ({
     },
   }),
 }))
-vi.mock('@/server/looks', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/server/looks')>()),
+vi.mock('@/server/imagery', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/imagery')>()),
   savePhoto: mocks.savePhoto,
 }))
 vi.mock('@/server/preview-generation', async (importOriginal) => ({

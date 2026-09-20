@@ -1,7 +1,7 @@
 /**
  * @lookline/engine — intent (Engine 01), explainable recommendation (Engine 02),
- * preference feedback loop (Engine 03), social write paths, Look presets/posters,
- * graph/lineage/trend analytics.
+ * preference feedback loop (Engine 03), purchase write paths, Card imagery,
+ * and canonical demand analytics.
  *
  * Each module directory has exactly one owner; this barrel only re-exports (docs/CONTRACTS.md).
  */
@@ -10,9 +10,9 @@ export * from './llm'
 export * from './intent'
 export * from './recommend'
 export * from './preference'
-export * from './social'
+export * from './commerce'
 export * from './cards'
-export * from './looks'
+export * from './imagery'
 export * from './analytics'
 export * from './search-trends'
 export * from './search-trends/queries'

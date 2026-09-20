@@ -12,7 +12,6 @@ import { WhyThisSuitsYou } from '@/components/shop/why-this-suits-you'
 import { Button, Container, Notice, Price, ProductImage, Tag } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
 import {
-  aestheticLabel,
   categoryGroupLabel,
   colorFamilyLabel,
   colorNameLabel,
@@ -123,7 +122,7 @@ export default async function ProductPage({
   const pos = Number.isInteger(posRaw) && posRaw >= 0 ? posRaw : null
   const added = typeof query.added === 'string' ? query.added : null
   const attribution = {
-    sourceLook: typeof query.look === 'string' ? query.look : null,
+    sourceCard: typeof query.card === 'string' ? query.card : null,
     intentSession: from ?? null,
   }
 

@@ -20,7 +20,7 @@ export function forWhomLabel(row: WardrobeRow, m: MeMessages['wardrobe']): strin
   return m.forRecipient(who)
 }
 
-/** What the viewer owns; each piece can become a Look. */
+/** What the viewer owns; each piece can be used in the Card studio. */
 export async function Wardrobe({ rows }: { rows: WardrobeRow[] }) {
   const { t } = await getI18n()
   if (rows.length === 0) {
@@ -47,10 +47,10 @@ export async function Wardrobe({ rows }: { rows: WardrobeRow[] }) {
               tag={forWhom ?? undefined}
               footer={
                 <Link
-                  href={`/looks/new?purchases=${encodeURIComponent(purchase.id)}`}
+                  href="/studio"
                   className="text-[12px] text-muted underline decoration-line underline-offset-4 hover:text-ink"
                 >
-                  {t.me.wardrobe.createLook}
+                  {t.me.wardrobe.createCard}
                 </Link>
               }
             />

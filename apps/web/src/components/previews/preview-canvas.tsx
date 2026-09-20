@@ -1,0 +1,246 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+import { Button, Notice, Select } from '@/components/ui'
+import { useI18n } from '@/i18n/client'
+import { afterPaint, startInteraction, type InteractionTrace } from '@/lib/latency'
+
+export interface EditionState {
+  id: string
+  status: 'pending' | 'ready' | 'failed'
+  provider: string | null
+  generationId: string | null
+  startedAt: string | null
+  error: string | null
+  imageUrl: string
+}
+
+/**
+ * The preview image. While a render runs, a thin progress line sits under the image and the owner's
+ * button reads "Rendering…"; the previous visual stays until the new one has decoded.
+ */
+export function PreviewCanvas({
+  initial,
+  title,
+  isOwner,
+  stylePreset,
+  presets,
+  generationEndpoint,
+  unavailableMessage,
+}: {
+  initial: EditionState
+  title: string
+  isOwner: boolean
+  stylePreset: string
+  presets: { value: string; label: string }[]
+  generationEndpoint: string
+  unavailableMessage?: string
+}) {
+  const { t } = useI18n()
+  const [state, setState] = useState(initial)
+  const [preset, setPreset] = useState(stylePreset)
+  const [requesting, setRequesting] = useState(false)
+  const [problem, setProblem] = useState<string | null>(null)
+  const [unavailable, setUnavailable] = useState(false)
+  const [displayedUrl, setDisplayedUrl] = useState(initial.imageUrl)
+  const trace = useRef<InteractionTrace | null>(null)
+  const displayed = useRef(initial.imageUrl)
+  const mutation = useRef(false)
+  const pollRevision = useRef(0)
+  const mounted = useRef(true)
+  const endpoint = generationEndpoint
+
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+      trace.current?.mark('cancelled')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (state.status !== 'pending') return
+    const controller = new AbortController()
+    const generationId = state.generationId
+    const revision = ++pollRevision.current
+    let timer: ReturnType<typeof setTimeout>
+    async function poll() {
+      try {
+        const response = await fetch(endpoint, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(4_000)]),
+          cache: 'no-store',
+        })
+        if (controller.signal.aborted || revision !== pollRevision.current) return
+        if (response.status === 404 || response.status === 410) {
+          setUnavailable(true)
+          setProblem(
+            response.status === 410 ? t.previews.expired.title : t.imagery.canvas.checkFailed,
+          )
+          setState((current) => ({ ...current, status: 'failed', generationId: null }))
+          trace.current?.mark('failed')
+          return
+        }
+        if (!response.ok) throw new Error(t.imagery.canvas.checkFailed)
+        const next = (await response.json()) as EditionState
+        if (controller.signal.aborted || revision !== pollRevision.current) return
+        setProblem(null)
+        setState(next)
+        if (next.generationId && next.generationId !== generationId)
+          trace.current?.mark('cancelled')
+        if (next.status === 'failed') trace.current?.mark('failed')
+        if (next.status === 'pending') timer = setTimeout(poll, 600)
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setProblem(error instanceof Error ? error.message : t.imagery.canvas.checkFailed)
+          timer = setTimeout(poll, 1_000)
+        }
+      }
+    }
+    timer = setTimeout(poll, 300)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [state.status, state.generationId, endpoint, t])
+
+  // Decode off-screen, then replace the existing visual in one paint.
+  useEffect(() => {
+    if (state.imageUrl === displayed.current) return
+    let active = true
+    const image = new Image()
+    image.src = state.imageUrl
+    void image
+      .decode()
+      .then(() => {
+        if (!active) return
+        displayed.current = state.imageUrl
+        setDisplayedUrl(state.imageUrl)
+        afterPaint(() => {
+          if (active) trace.current?.mark(state.status === 'ready' ? 'final' : 'visual')
+        })
+      })
+      .catch(() => {
+        if (active) setProblem(t.imagery.canvas.imageLoadFailed)
+      })
+    return () => {
+      active = false
+    }
+  }, [state.imageUrl, state.status, t])
+
+  async function render() {
+    if (mutation.current) return
+    mutation.current = true
+    trace.current?.mark('cancelled')
+    trace.current = startInteraction('creative', 'edition-render')
+    setRequesting(true)
+    setProblem(null)
+    afterPaint(() => {
+      trace.current?.mark('acknowledged')
+      trace.current?.mark('visual')
+      trace.current?.mark('usable')
+    })
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stylePreset: preset }),
+        signal: AbortSignal.timeout(5_000),
+      })
+      const next = (await response.json()) as EditionState & { error?: string }
+      if (!response.ok) throw new Error(next.error ?? t.imagery.canvas.renderFailed)
+      if (mounted.current) setState(next)
+    } catch (error) {
+      if (mounted.current)
+        setProblem(error instanceof Error ? error.message : t.imagery.canvas.renderFailed)
+      trace.current?.mark('failed')
+    } finally {
+      mutation.current = false
+      if (mounted.current) setRequesting(false)
+    }
+  }
+
+  async function cancel() {
+    if (mutation.current || !state.generationId) return
+    mutation.current = true
+    try {
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ generationId: state.generationId }),
+        signal: AbortSignal.timeout(5_000),
+      })
+      if (!response.ok) throw new Error(t.imagery.canvas.cancelFailed)
+      ++pollRevision.current
+      if (mounted.current) setState((await response.json()) as EditionState)
+      trace.current?.mark('cancelled')
+    } catch (error) {
+      if (mounted.current)
+        setProblem(error instanceof Error ? error.message : t.imagery.canvas.cancelFailed)
+    } finally {
+      mutation.current = false
+    }
+  }
+
+  const rendering = state.status === 'pending' || requesting
+  return (
+    <figure className="flex flex-col gap-3">
+      <div className="relative overflow-hidden rounded-md bg-mist">
+        <div className="aspect-3/4">
+          <img
+            src={displayedUrl}
+            alt={title}
+            width={600}
+            height={800}
+            className="size-full object-cover"
+          />
+        </div>
+        {rendering ? (
+          <div aria-hidden className="progress-line absolute inset-x-0 bottom-0" />
+        ) : null}
+      </div>
+      <p role="status" className="sr-only">
+        {rendering
+          ? t.imagery.canvas.renderingStatus
+          : state.status === 'ready'
+            ? t.imagery.canvas.ready
+            : ''}
+      </p>
+      {problem || state.error ? (
+        <Notice tone="warning">
+          {problem ?? unavailableMessage ?? t.imagery.canvas.imageUnavailable}
+        </Notice>
+      ) : null}
+      {isOwner ? (
+        <div className="flex items-center gap-2">
+          <Select
+            aria-label={t.imagery.canvas.imageStyle}
+            value={preset}
+            onChange={(event) => setPreset(event.target.value)}
+            options={presets}
+            size="sm"
+            className="flex-1"
+            disabled={rendering || unavailable || presets.length === 1}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void render()}
+            disabled={rendering || unavailable}
+            aria-busy={rendering}
+          >
+            {rendering
+              ? t.imagery.canvas.rendering
+              : state.status === 'failed'
+                ? t.common.retry
+                : t.imagery.canvas.render}
+          </Button>
+          {state.status === 'pending' ? (
+            <Button variant="ghost" size="sm" onClick={() => void cancel()}>
+              {t.common.cancel}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </figure>
+  )
+}

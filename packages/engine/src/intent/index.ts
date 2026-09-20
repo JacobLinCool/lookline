@@ -32,7 +32,7 @@ export interface IntentResultExt extends IntentResult {
 import { intentToVector } from './vectorize'
 
 export { parseIntentOffline, seasonOfDate } from './lexicon-parser'
-export { intentToVector, referenceLookVector, FALLBACK_AESTHETICS } from './vectorize'
+export { intentToVector, referenceCardVector, FALLBACK_AESTHETICS } from './vectorize'
 export { finalize, computeConfidence, giftCategoryPrior, SEASON_AXIS_TARGETS } from './finalize'
 export { buildClarifications, isClarificationAnswer } from './clarify'
 export { applyClarification, detectFollowUp, isFollowUp, mergeIntent } from './dialogue'

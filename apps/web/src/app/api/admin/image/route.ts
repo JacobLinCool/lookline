@@ -2,13 +2,13 @@ import { buildCompositePrompt, compositeReferenceLabels, getLlm } from '@looklin
 import type { ReferenceImage } from '@lookline/engine'
 import { z } from 'zod'
 import { getMessages } from '@/i18n/server'
-import { DEFAULT_STYLE_PRESET, resolveStylePreset } from '@/server/looks'
+import { DEFAULT_STYLE_PRESET, resolvePreviewArtPreset } from '@/server/imagery'
 
 /**
  * Engine lab image generation, in two shapes.
  *
  * `application/json` renders a prompt as typed — the curl-friendly path. `multipart/form-data`
- * renders a composite the way a Look is made: one or more `garment` images and one or more
+ * renders a composite outfit: one or more `garment` images and one or more
  * `person` images become labelled references, and the engine's own composite prompt names them.
  * Either way the composed prompt comes back with the image, because this is the lab.
  */
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         return Response.json({ error: errors.imagePrompt }, { status: 400, headers })
       aspectRatio = ratio as AspectRatio
       prompt = buildCompositePrompt({
-        preset: resolveStylePreset(String(form.get('stylePreset') ?? DEFAULT_STYLE_PRESET)),
+        preset: resolvePreviewArtPreset(String(form.get('stylePreset') ?? DEFAULT_STYLE_PRESET)),
         garmentCount: garments.length,
         personCount: people.length,
         occasion: String(form.get('occasion') ?? '') || null,

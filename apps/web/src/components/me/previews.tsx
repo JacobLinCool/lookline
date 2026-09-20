@@ -8,7 +8,7 @@ export type PreviewListItem = Pick<
   'id' | 'title' | 'imagePath' | 'imageStatus' | 'expiresAt'
 >
 
-/** Active private previews, kept visually separate from collectible Looks and owned pieces. */
+/** Active private previews, kept visually separate from collectible Cards and owned pieces. */
 export async function PreviewGrid({ items }: { items: PreviewListItem[] }) {
   const { t, locale } = await getI18n()
   if (items.length === 0)

@@ -4,13 +4,11 @@ import { Button, Container, Notice, PageHeader, Section, Tag } from '@/component
 import { Clusters } from '@/components/trends/clusters'
 import { EmergingCards } from '@/components/trends/emerging-cards'
 import { callEngine } from '@/components/trends/engine-guard'
-import { longDate, num, pct } from '@/components/trends/format'
+import { longDate, pct } from '@/components/trends/format'
 import { HeatTable } from '@/components/trends/heat-table'
 import { ManufacturingTable } from '@/components/trends/manufacturing-table'
 import { MomentumChart } from '@/components/trends/momentum-chart'
 import { MomentumTable } from '@/components/trends/momentum-table'
-import { Propagation } from '@/components/trends/propagation'
-import { Seeds } from '@/components/trends/seeds'
 import { StatGrid, StatTile } from '@/components/trends/stat-tile'
 import type { Messages } from '@/i18n/messages'
 import { getI18n } from '@/i18n/server'
@@ -30,35 +28,13 @@ function Headline({ headline, t }: { headline: TrendDashboard['headline']; t: Me
   const h = t.trends.headline
   return (
     <StatGrid>
-      <StatTile label={h.looks} value={formatCompact(headline.looks)} />
-      <StatTile label={h.remixes} value={formatCompact(headline.remixes)} />
-      <StatTile label={h.togethers} value={formatCompact(headline.togethers)} />
-      <StatTile label={h.shares} value={formatCompact(headline.shares)} />
-      <StatTile
-        label={h.purchasesFromLooks}
-        value={formatCompact(headline.purchasesFromLooks)}
-        hint={h.purchasesFromLooksHint(
-          formatCompact(headline.purchases),
-          pct(headline.purchases > 0 ? headline.purchasesFromLooks / headline.purchases : 0),
-        )}
-        accent
-      />
-      <StatTile
-        label={h.gmvFromLooks}
-        value={formatTwd(headline.gmvFromLooks)}
-        hint={h.gmvFromLooksHint}
-      />
-      <StatTile label={h.activePeople} value={formatCompact(headline.activePeople)} />
-      <StatTile
-        label={h.crossClusterRemixes}
-        value={pct(headline.crossClusterShare)}
-        hint={h.crossClusterRemixesHint}
-      />
-      <StatTile
-        label={h.lineageDepth}
-        value={num(headline.avgLineageDepth, 1)}
-        hint={h.lineageDepthHint}
-      />
+      <StatTile label={h.searches} value={formatCompact(headline.searches)} />
+      <StatTile label={h.intents} value={formatCompact(headline.intents)} />
+      <StatTile label={h.feedback} value={formatCompact(headline.feedback)} />
+      <StatTile label={h.purchases} value={formatCompact(headline.purchases)} accent />
+      <StatTile label={h.cards} value={formatCompact(headline.cards)} />
+      <StatTile label={h.gmv} value={formatTwd(headline.gmv)} />
+      <StatTile label={h.conversion} value={pct(headline.conversion)} />
     </StatGrid>
   )
 }
@@ -149,17 +125,6 @@ export default async function TrendsPage() {
 
           <Section title={t.trends.sections.heat}>
             <HeatTable rows={d.aestheticCategory} />
-          </Section>
-
-          <Section
-            title={t.trends.sections.propagation}
-            description={t.trends.sections.propagationNote}
-          >
-            <Propagation lineages={d.topLineages} />
-          </Section>
-
-          <Section title={t.trends.sections.seeds}>
-            <Seeds influencers={d.influencers} />
           </Section>
 
           <Section title={t.trends.sections.clusters}>

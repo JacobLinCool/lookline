@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import type { CardArtDirection } from '@lookline/db'
 import { Button, Notice } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { InstantForm } from '@/components/latency/instant-form'
@@ -11,10 +12,12 @@ import {
   generateCandidateAction,
   settleCardAction,
 } from '@/server/actions/studio'
+import { CardArtDirectionFields, CARD_ART_LABELS } from './art-direction-fields'
 
 export interface CandidateItem {
   id: string
   position: number
+  artDirection: CardArtDirection
 }
 
 /** One of the four places: a picture, a render on its way, or nothing yet. */
@@ -54,6 +57,12 @@ export function CandidateGrid({
   const setChosen = setPicked
   // A render on its way already holds a place, so the button goes quiet before the grid is full.
   const full = made.length + progress.pending >= max
+  const nextDirection = made.at(-1)?.artDirection ?? {
+    focus: 'auto',
+    pose: 'auto',
+    scene: 'auto',
+    note: null,
+  }
   const slots: Slot[] = Array.from({ length: max }, (_, i) =>
     made[i] ? { kind: 'made', candidate: made[i]! } : { kind: 'empty' },
   )
@@ -71,6 +80,7 @@ export function CandidateGrid({
               <button
                 type="button"
                 onClick={() => setChosen(slot.candidate.id)}
+                aria-pressed={chosen === slot.candidate.id}
                 className={cn(
                   'flex w-full flex-col gap-2 rounded-lg border-2 p-1 transition-colors',
                   chosen === slot.candidate.id
@@ -87,6 +97,13 @@ export function CandidateGrid({
                 />
                 <span className="px-1 text-left text-[12px] text-muted">
                   候選 {slot.candidate.position}
+                </span>
+                <span className="flex flex-wrap gap-1 px-1 pb-1 text-left text-[11px] text-muted">
+                  <span>{CARD_ART_LABELS.focus[slot.candidate.artDirection.focus]}</span>
+                  <span aria-hidden>·</span>
+                  <span>{CARD_ART_LABELS.pose[slot.candidate.artDirection.pose]}</span>
+                  <span aria-hidden>·</span>
+                  <span>{CARD_ART_LABELS.scene[slot.candidate.artDirection.scene]}</span>
                 </span>
               </button>
             ) : slot.kind === 'rendering' ? (
@@ -109,25 +126,34 @@ export function CandidateGrid({
           button, so its box is taller than a plain form's and centring the row lifted its
           button clear of the one beside it. Aligning the tops lines the buttons up. */}
       {!settled ? (
-        <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-col gap-3">
           <InstantForm
             action={generateCandidateAction}
             name="generate-candidate"
             confirmation="開始生成"
+            className="flex flex-col gap-3"
           >
             <input type="hidden" name="sessionId" value={sessionId} />
-            <Button type="submit" variant="secondary" icon={<RefreshCw />} disabled={full}>
-              {full
-                ? progress.pending > 0
-                  ? '生成中…'
-                  : `已滿 ${max} 張`
-                : made.length + progress.pending === 0
-                  ? '生成第一張'
-                  : '再生成一張'}
-            </Button>
+            <CardArtDirectionFields
+              key={`${nextDirection.focus}:${nextDirection.pose}:${nextDirection.scene}:${nextDirection.note ?? ''}`}
+              initial={nextDirection}
+              title="下一張怎麼拍"
+              compact
+            />
+            <div className="flex flex-wrap items-start gap-3">
+              <Button type="submit" variant="secondary" icon={<RefreshCw />} disabled={full}>
+                {full
+                  ? progress.pending > 0
+                    ? '生成中…'
+                    : `已滿 ${max} 張`
+                  : made.length + progress.pending === 0
+                    ? '生成第一張'
+                    : '再生成一張'}
+              </Button>
+            </div>
           </InstantForm>
 
-          <form action={settleCardAction}>
+          <form action={settleCardAction} className="flex flex-wrap items-start gap-3">
             <input type="hidden" name="sessionId" value={sessionId} />
             <input type="hidden" name="candidateId" value={chosen ?? ''} />
             <Button type="submit" disabled={!chosen}>
@@ -136,7 +162,7 @@ export function CandidateGrid({
           </form>
 
           {made.length === 0 && progress.pending === 0 ? (
-            <form action={abandonSessionAction} className="ml-auto">
+            <form action={abandonSessionAction}>
               <input type="hidden" name="sessionId" value={sessionId} />
               <Button type="submit" variant="link" size="sm">
                 放棄並取回額度

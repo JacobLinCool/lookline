@@ -24,7 +24,7 @@ export interface PlacedItem {
   item: RankedItem
   slotKey: string
   role: SlotRole
-  /** True for a product the caller pinned (completeTheLook). */
+  /** True for a product the caller pinned (completeOutfit). */
   pinned?: boolean
 }
 
@@ -50,7 +50,7 @@ export interface SolveOptions {
   returnK?: number
   /** Items already placed (pinned) before the search starts. */
   pinned?: PlacedItem[]
-  /** Optional bonus per item (e.g. coordinate-with a partner Look), added to the item score. */
+  /** Optional bonus per item (e.g. coordinate with a partner outfit), added to the item score. */
   itemBonus?: (item: RankedItem) => number
 }
 

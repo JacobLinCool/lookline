@@ -1,9 +1,9 @@
 import type { UiMessages } from '../en/ui'
 
 export const ui: UiMessages = {
-  siteDescription: '說出你要去哪裡，買到真實的單品，再變成朋友可以接著穿的 Look。',
+  siteDescription: '說出你要去哪裡，買到真實的單品，再製作成可以分享的 Card。',
   notFoundTitle: '這裡沒有東西',
-  notFoundDescription: '這個頁面不存在，或這個 Look 從未被分享。',
+  notFoundDescription: '這個頁面不存在，或這張 Card 已無法查看。',
   notFoundAction: '回到尋找',
   engineUnavailable: '引擎沒有回應。',
   imageOf: (name: string) => `${name}，商品圖`,
@@ -24,11 +24,6 @@ export const ui: UiMessages = {
     diversity: '多樣性',
     compatibility: '搭配性',
   } as Record<string, string>,
-  lineage: {
-    after: (handle: string) => `延伸自 @${handle}`,
-    with: (handle: string) => `與 @${handle} 一起`,
-  },
-
   instantForm: {
     syncing: (confirmation: string) => `${confirmation} · 同步中`,
     failed: '這個變更沒有儲存成功，請重試。',
@@ -48,12 +43,8 @@ export const ui: UiMessages = {
     productsUnavailable: '商品無法載入，請再試一次。',
     sentenceTooLong: '請輸入 500 字以內的句子。',
     recommendationsUnavailable: '推薦無法載入，請再試一次。',
-    invalidLookId: 'Look 編號無效。',
-    lookNotFound: '找不到這個 Look。',
-    lookOwnerOnly: '只有擁有者能產生這個 Look 的圖。',
     choosePreset: '請選擇一種風格。',
     missingGenerationId: '缺少產生編號。',
-    lookImageFailed: '圖片沒有產生成功，請再試一次。',
     voiceLanguages: '請至少選擇一種支援的語音語言。',
     voiceUnavailable: '語音暫時無法使用，可以繼續用打字的。',
     voiceConnect: '語音無法連線，可以繼續用打字的，或再試一次。',

@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
-import { MAX_PHOTO_BYTES, savePhoto, type ReferencePhoto } from '@/server/looks'
+import { MAX_PHOTO_BYTES, savePhoto, type ReferencePhoto } from '@/server/imagery'
 import { getStorage, isSafeKey } from '@/server/storage'
 
 const SUPPORTED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])

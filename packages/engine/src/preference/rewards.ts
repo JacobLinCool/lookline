@@ -4,7 +4,7 @@
 import type { FeedbackKind, PurchaseFor } from '@lookline/db'
 import type { FeedbackInput } from '../types'
 
-/** Base reward per kind. Variants (a swapped-out remix product) are below. */
+/** Base reward per canonical feedback kind. */
 export const REWARDS: Readonly<Record<FeedbackKind, number>> = {
   impression: 0,
   click: 0.1,
@@ -12,14 +12,9 @@ export const REWARDS: Readonly<Record<FeedbackKind, number>> = {
   dismiss: -0.3,
   add_to_bag: 0.6,
   purchase: 1.0,
-  remix: 0.6,
-  look_create: 0.8,
 }
 
-export const REWARD_VARIANTS = {
-  /** `remix` with `context.kept === false` (a source product swapped out by the remixer). */
-  remix_swapped: -0.15,
-} as const
+export const REWARD_VARIANTS = {} as const
 
 export type RewardTarget = 'self' | 'gift'
 
@@ -67,12 +62,6 @@ export function rewardFor(
             : 'self'
       return { reward: REWARDS.purchase, targets: purchaseTargets(forKind) }
     }
-    case 'remix': {
-      const reward = ctx['kept'] === false ? REWARD_VARIANTS.remix_swapped : REWARDS.remix
-      return { reward, targets: byFlag }
-    }
-    case 'look_create':
-      return { reward: REWARDS.look_create, targets: byFlag }
     case 'click':
     case 'save':
     case 'dismiss':

@@ -94,7 +94,7 @@ export const RAIL_ITEM_WIDTHS: Record<RailItemWidth, string> = {
 
 /**
  * A rail: a labelled row of things hanging in a line, scrolling sideways. Use for curated sets
- * (an outfit, your Looks, a friend's picks); use a grid for a catalog.
+ * (an outfit, your Cards, a friend's picks); use a grid for a catalog.
  */
 export function Rail({
   title,

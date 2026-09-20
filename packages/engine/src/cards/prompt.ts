@@ -1,13 +1,10 @@
 /**
  * `buildCardImagePrompt`: the image-model prompt for a collectible card.
  *
- * A card is a Look with a named subject, so this is deliberately the same shape as
- * `buildLookImagePrompt` — reference photos first, garments copied from their own product photos,
- * then art direction and negative guidance. The one thing it does that a Look never has to is
- * keep several subjects apart: a collection edition is one artwork with one band per persona, and
- * the whole point of #37 is that each of them wears their own clothes rather than everyone's
- * being pooled into a heap. Naming, per subject, which garment images are theirs is what carries
- * that to the model.
+ * Reference photos come first, followed by garments copied from their product photos, structured
+ * art direction and negative guidance. A collection edition keeps several subjects apart, with
+ * each person wearing only their contributed pieces. Naming which garment images belong to each
+ * subject is what carries that constraint to the model.
  *
  * Reference images are attached in the order `compositeReferenceLabels` names them: every
  * garment, in subject order, then every persona photo, in the same subject order. The caller must
@@ -18,11 +15,12 @@ import {
   compositeReferenceLabels,
   describeFillers,
   describeGarment,
-  type LookPromptInput,
-} from '../looks/prompt'
-import type { StylePreset } from '../types'
+  type PreviewPromptInput,
+} from '../imagery/preview-prompt'
+import type { CardArtDirection } from '@lookline/db'
+import { cardArtDirectionPrompt } from './art-direction'
 
-export type CardPromptArticle = LookPromptInput['articles'][number]
+export type CardPromptArticle = PreviewPromptInput['articles'][number]
 
 export interface CardPromptSubject {
   /** The persona's display name, used only to tell subjects apart in the prompt. */
@@ -41,17 +39,17 @@ export interface CardPromptSubject {
 }
 
 export interface CardPromptInput {
-  preset: StylePreset
+  artDirection: CardArtDirection
   /** One for a personal card; one per participating persona for a collection edition. */
   subjects: readonly CardPromptSubject[]
-  /** Who made the card. Named in the prompt the way a Look names its owner. */
+  /** Who made the card. */
   authorName: string
   /** The collection's title, when this artwork is an edition rather than a personal card. */
   collectionTitle?: string | null
 }
 
 /**
- * What a subject's own reference image is called. Not `Person reference`, which the Looks prompt
+ * What a subject's own reference image is called. Not `Person reference`: the subject
  * uses: a card's subject may be a toy, a pet or a drawn character, and a label claiming otherwise
  * is one more thing pushing the model to replace it with a human.
  */
@@ -140,7 +138,7 @@ function describeSubject(
 
 /** A rich, self-contained prompt for the image model (a few short paragraphs, plain text). */
 export function buildCardImagePrompt(input: CardPromptInput): string {
-  const { preset, subjects, authorName, collectionTitle } = input
+  const { artDirection, subjects, authorName, collectionTitle } = input
   const { garments, people } = assignLabels(subjects)
   const solo = subjects.length === 1
 
@@ -157,7 +155,7 @@ export function buildCardImagePrompt(input: CardPromptInput): string {
   // and a single sentence about the outfit would contradict the paragraphs above.
   const fillers = solo ? describeFillers(subjects[0]!.articles) : null
 
-  const direction = `Art direction (${preset.name}): ${preset.prompt}`
+  const direction = `Art direction: ${cardArtDirectionPrompt(artDirection, subjects.length)}`
   // "Natural skin" and "model" belong to a human subject only. Left in for a card whose subject
   // is a toy or a character, they pull the picture back towards a person — which is exactly how
   // an attached reference photo ends up looking as though it was never sent.
@@ -169,7 +167,7 @@ export function buildCardImagePrompt(input: CardPromptInput): string {
     ? `This is the artwork for "${collectionTitle}", a collectible Lookline edition made by ${authorName}: a single still image.`
     : `This is a collectible Lookline card made by ${authorName}: a single still image.`
 
-  return [scene, ...everyone, fillers, direction, framing, edition, PROMPT_NEGATIVE_GUIDANCE]
+  return [...everyone, fillers, scene, direction, framing, edition, PROMPT_NEGATIVE_GUIDANCE]
     .filter((s): s is string => Boolean(s))
     .join('\n\n')
 }

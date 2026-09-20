@@ -13,7 +13,6 @@ export const nav: NavMessages = {
 
   tagline: '梅竹黑客松 2026 × 聚陽 · 原型',
   trends: '聚陽趨勢',
-  tour: '原型導覽',
   lab: '引擎實驗室',
   engineView: '引擎檢視',
 

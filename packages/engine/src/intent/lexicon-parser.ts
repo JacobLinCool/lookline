@@ -379,14 +379,14 @@ export function parseIntentOffline(utterance: string, ctx: IntentContextExt = {}
       reason: t(locale, '有場合但沒指定品類，配整套', 'Occasion without a category → full outfit'),
       source: 'utterance',
     })
-  } else if (ref.referenceRole === 'style-source' && ref.referenceLookId) {
+  } else if (ref.referenceRole === 'style-source' && ref.referenceCardId) {
     mode = 'outfit'
     modeSource = 'reference'
     assumptions.push({
       slot: 'mode',
       value: 'outfit',
       confidence: 0.7,
-      reason: t(locale, '參考別人的 Look，配整套', 'Styled after a reference Look → full outfit'),
+      reason: t(locale, '參考別人的 Card，配整套', 'Styled after a reference Card → full outfit'),
       source: 'utterance',
     })
   }
@@ -622,7 +622,7 @@ export function parseIntentOffline(utterance: string, ctx: IntentContextExt = {}
     mustHave: [],
     mustAvoid: [],
     vibe,
-    referenceLookId: ref.referenceLookId,
+    referenceCardId: ref.referenceCardId,
     referenceHandle: ref.referenceHandle,
     referenceRole: ref.referenceRole,
     assumptions,

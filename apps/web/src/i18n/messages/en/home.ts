@@ -33,7 +33,7 @@ export const home = {
 
   rails: {
     circle: 'Your circle, then the network',
-    network: 'Looks from the network',
+    network: 'Cards from friends',
     trending: 'Trending now',
   },
 

@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f6f3" />
+    <meta
+      name="description"
+      content="LookLine：讓每一次購買，由點成線、由線成面，延伸為持續的搭配、創作與潮流傳播。"
+    />
+    <title>LookLine — 由點成線，由線成面</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23171717'/%3E%3Cpath d='M9 8v16h15' fill='none' stroke='%23f7f6f3' stroke-width='3'/%3E%3Ccircle cx='23' cy='9' r='3' fill='%23c8321e'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="deck.js" defer></script>
+  </head>
+  <body>
+    <header class="deck-header">
+      <a class="wordmark" href="#1" aria-label="LookLine，回到封面"
+        >LookLine<span class="brand-dot"></span
+      ></a>
+      <span class="event">梅竹黑客松 × 聚陽實業</span>
+      <button
+        class="icon-button"
+        id="overview-button"
+        aria-label="開啟簡報目錄"
+        title="簡報目錄（O）"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="4" y="4" width="6" height="6" />
+          <rect x="14" y="4" width="6" height="6" />
+          <rect x="4" y="14" width="6" height="6" />
+          <rect x="14" y="14" width="6" height="6" />
+        </svg>
+      </button>
+    </header>
+
+    <main class="stage" aria-label="LookLine 產品簡報">
+      <section
+        class="slide cover is-active"
+        id="slide-1"
+        aria-labelledby="title-1"
+        data-title="由點成線，由線成面"
+      >
+        <div class="cover-copy">
+          <h1 id="title-1">LookLine<span class="brand-dot"></span></h1>
+          <h2>由點成線，<br />由線成面。</h2>
+          <p class="lead">讓每一次購買，<br />延伸為持續的搭配與創作。</p>
+          <div class="cover-principle">
+            <span>購買</span><i></i><span>日常穿搭</span><i></i><span>潮流傳播</span>
+          </div>
+          <p class="team">
+            Codex &amp; Claude 的歐姆狗<br /><span>2026 梅竹黑客松 × 聚陽實業</span>
+          </p>
+        </div>
+        <figure class="cover-photo">
+          <img
+            src="assets/hero.webp"
+            alt="人物在衣櫥前使用數位服飾介面的概念情境"
+            fetchpriority="high"
+          />
+          <figcaption>產品情境示意</figcaption>
+        </figure>
+      </section>
+
+      <section
+        class="slide"
+        id="slide-2"
+        aria-labelledby="title-2"
+        data-title="購物與穿搭，各有一個目的"
+        hidden
+      >
+        <h2 id="title-2">購物與穿搭，<br />各有一個目的</h2>
+        <div class="intent-columns">
+          <article>
+            <p class="intent-label">購物時</p>
+            <blockquote>「我有黑色寬褲，<br />週末還缺一件上衣。」</blockquote>
+            <h3>幫我找到缺的那一件</h3>
+            <p>理解已有衣物、場合與預算，<br />快速縮小選擇，延續購買意圖。</p>
+          </article>
+          <article>
+            <p class="intent-label">穿搭時</p>
+            <blockquote>「這些衣服，<br />還能搭出什麼新樣子？」</blockquote>
+            <h3>讓我玩出自己的穿法</h3>
+            <p>自由組合、嘗試風格、創作作品，<br />AI 在需要時提供協助。</p>
+          </article>
+        </div>
+        <p class="closing-line">Recommend what to buy. <strong>Enable what to wear.</strong></p>
+      </section>
+
+      <section
+        class="slide loops-slide"
+        id="slide-3"
+        aria-labelledby="title-3"
+        data-title="兩個循環，一個數位衣櫥"
+        hidden
+      >
+        <h2 id="title-3">兩個循環，<br />一個數位衣櫥</h2>
+        <div class="loop-layout">
+          <div class="loop-track acquisition">
+            <h3>購物循環 <span>快、準確</span></h3>
+            <ol class="flow">
+              <li>表達需求</li>
+              <li>找到單品</li>
+              <li>實體購買</li>
+            </ol>
+            <p>衣櫥與偏好，從搜尋起就參與推薦。</p>
+          </div>
+          <div class="wardrobe-hub">
+            <span>Digital Wardrobe</span>
+            <h3>數位衣櫥</h3>
+            <p>真實持有的衣物<br />持續累積的風格</p>
+          </div>
+          <div class="loop-track creation">
+            <h3>創作循環 <span>自由、有趣</span></h3>
+            <ol class="flow">
+              <li>自由搭配</li>
+              <li>製作卡片</li>
+              <li>分享收藏</li>
+            </ol>
+            <p>分享帶來靈感，靈感再回到下一次搜尋。</p>
+          </div>
+        </div>
+        <div class="return-path"><span>購買成為創作素材</span><span>創作帶回新的需求</span></div>
+        <p class="closing-line">買完之後，服飾與平台的價值<strong>繼續發生。</strong></p>
+      </section>
+
+      <section
+        class="slide finder-slide"
+        id="slide-4"
+        aria-labelledby="title-4"
+        data-title="一句話，找到衣櫥缺的那件"
+        hidden
+      >
+        <h2 id="title-4">一句話，<br />找到衣櫥缺的那件</h2>
+        <div class="finder-layout">
+          <div class="conversation-example">
+            <p class="example-label">購物情境示例</p>
+            <blockquote>
+              「我有黑色寬褲，想找<br />週末海邊穿的上衣，<br />不要太休閒。」
+            </blockquote>
+            <div class="spoken-update">
+              <svg viewBox="0 0 32 32" aria-hidden="true">
+                <path d="M5 13v6m5-11v16m6-20v24m6-17v10m5-7v4" /></svg
+              ><span>「再加上預算一千元內。」</span>
+            </div>
+          </div>
+          <div class="intent-result">
+            <h3>對話直接更新商品條件</h3>
+            <dl class="attribute-list">
+              <div>
+                <dt>搜尋目標</dt>
+                <dd>上衣</dd>
+              </div>
+              <div>
+                <dt>搭配基礎</dt>
+                <dd>已擁有的黑色寬褲</dd>
+              </div>
+              <div>
+                <dt>情境與風格</dt>
+                <dd>海邊，保留俐落感</dd>
+              </div>
+              <div class="changed">
+                <dt>新增預算</dt>
+                <dd>NT$1,000 以內</dd>
+              </div>
+            </dl>
+            <p class="result-caption">更新符合條件的候選商品，<br />說明與既有衣物相容的原因。</p>
+          </div>
+        </div>
+        <p class="closing-line">使用者持續說，<strong>搜尋持續調整。</strong></p>
+      </section>
+
+      <section
+        class="slide architecture-slide"
+        id="slide-5"
+        aria-labelledby="title-5"
+        data-title="即時決策與影像生成分流"
+        hidden
+      >
+        <div class="architecture-heading">
+          <h2 id="title-5">即時決策與<br />影像生成分流</h2>
+          <div class="latency-target">
+            <strong>&lt; 0.5<span>s</span></strong>
+            <p>核心互動設計目標<span>可用語意片段至候選更新，尚非實測成績</span></p>
+          </div>
+        </div>
+        <div class="architecture">
+          <div class="pipeline-main">
+            <article>
+              <span class="step-label">自然互動</span>
+              <h3>Live speech</h3>
+              <p>語音／文字<br />保留對話上下文</p>
+            </article>
+            <article>
+              <span class="step-label">快速決策</span>
+              <h3>System 1 / Jev</h3>
+              <p>提取服飾屬性<br />增量更新搜尋條件</p>
+            </article>
+            <article>
+              <span class="step-label">商品檢索</span>
+              <h3>Search &amp; rank</h3>
+              <p>商品庫、衣櫥、偏好<br />篩選與排序</p>
+            </article>
+            <article class="pipeline-output">
+              <span class="step-label">即時回饋</span>
+              <h3>更新候選商品</h3>
+              <p>只改受影響的結果<br />持續對話與瀏覽</p>
+            </article>
+          </div>
+          <div class="async-lane">
+            <span class="branch-label">獨立非同步流程</span>
+            <h3>虛擬試穿 / 卡片生成</h3>
+            <p>影像完成後再呈現，搜尋與操作不中斷。</p>
+          </div>
+        </div>
+        <p class="closing-line">Fast decision first. <strong>Generative preview second.</strong></p>
+      </section>
+
+      <section
+        class="slide creation-slide"
+        id="slide-6"
+        aria-labelledby="title-6"
+        data-title="實體衣物，成為持續創作的素材"
+        hidden
+      >
+        <div class="creation-copy">
+          <h2 id="title-6">實體衣物，<br />成為持續<br />創作的素材</h2>
+          <p class="lead">購買同步進入數位衣櫥，<br />每件衣服都有下一種穿法。</p>
+          <ul class="editorial-list">
+            <li><strong>你決定怎麼搭</strong><span>自己組合，或固定單品讓 AI 補搭。</span></li>
+            <li>
+              <strong>完整搭配有商品依據</strong
+              ><span>每件單品可回溯商品庫，清楚區分已擁有與待購。</span>
+            </li>
+            <li>
+              <strong>Persona 帶入穿搭情境</strong><span>選定角色與場合，預覽後製成作品。</span>
+            </li>
+          </ul>
+        </div>
+        <figure class="studio-figure">
+          <img
+            src="assets/studio.webp"
+            alt="LookLine 製卡工作室原型，展示可選取的服飾單品與創作介面"
+          />
+          <figcaption>LookLine 製卡工作室原型</figcaption>
+        </figure>
+      </section>
+
+      <section
+        class="slide social-slide"
+        id="slide-7"
+        aria-labelledby="title-7"
+        data-title="一張穿搭卡，連起朋友與靈感"
+        hidden
+      >
+        <figure class="cards-figure">
+          <img src="assets/cards.webp" alt="五張 LookLine 穿搭卡片，呈現日常、外出與好友合照的創作概念" />
+          <figcaption>Fashion Card 視覺概念示意</figcaption>
+        </figure>
+        <div class="social-copy">
+          <h2 id="title-7">一張穿搭卡，<br />連起朋友<br />與靈感</h2>
+          <ul class="editorial-list">
+            <li>
+              <strong>Outfit Cards</strong><span>把自己的搭配與 Persona 製成可分享的作品。</span>
+            </li>
+            <li>
+              <strong>好友衣櫥與 Collection</strong
+              ><span>試搭好友開放的衣物，將多人穿搭集結成出遊記憶。</span>
+            </li>
+            <li>
+              <strong>分享到既有社群</strong
+              ><span>Instagram、TikTok 承接傳播，作品帶回新靈感。</span>
+            </li>
+          </ul>
+          <p class="ownership-note">
+            收藏設計：以自有單品比例呈現持有程度。<br />好友衣物可供試搭，並不等於自己持有。
+          </p>
+        </div>
+      </section>
+
+      <section
+        class="slide feedback-slide"
+        id="slide-8"
+        aria-labelledby="title-8"
+        data-title="每次互動，都讓下一次更貼近需求"
+        hidden
+      >
+        <h2 id="title-8">每次互動，<br />都讓下一次更貼近需求</h2>
+        <div class="feedback-columns">
+          <article>
+            <h3>對個人：記住偏好</h3>
+            <blockquote>「不要無袖，<br />我喜歡寬鬆一點。」</blockquote>
+            <div class="feedback-arrow"></div>
+            <p class="structured">避開無袖 <span>／</span> 偏好寬鬆版型</p>
+            <p>保存為可修改的結構化偏好，<br />後續搜尋與搭配持續採用。</p>
+          </article>
+          <article>
+            <h3>對產業：看見尚未滿足的需求</h3>
+            <blockquote>「想要這種風格，<br />但找不到適合的材質。」</blockquote>
+            <div class="feedback-arrow"></div>
+            <p class="structured">需求屬性 <span>／</span> 商品缺口 <span>／</span> 出現情境</p>
+            <p>彙整未滿足需求與創作、收藏訊號，<br />提供聚陽未來商品開發的參考。</p>
+          </article>
+        </div>
+        <p class="trend-line">公開趨勢啟發搭配，平台內的創作再經社群向外傳播。</p>
+        <p class="small-note">以上為回饋機制示例。產業端採彙總需求訊號，與個人偏好紀錄分開處理。</p>
+      </section>
+
+      <section
+        class="slide principles-slide"
+        id="slide-9"
+        aria-labelledby="title-9"
+        data-title="差異來自整個使用循環"
+        hidden
+      >
+        <h2 id="title-9">差異來自<br />整個使用循環</h2>
+        <div class="principle-rows">
+          <article>
+            <h3>Instant</h3>
+            <div>
+              <h4>低延遲，保留購物節奏</h4>
+              <p>對話直接控制搜尋，生成影像走獨立流程。</p>
+            </div>
+            <span>買得順</span>
+          </article>
+          <article>
+            <h3>Persistent</h3>
+            <div>
+              <h4>真實持有，延續服飾價值</h4>
+              <p>購買累積成衣櫥，衣櫥持續支援日常穿搭與創作。</p>
+            </div>
+            <span>穿得久</span>
+          </article>
+          <article>
+            <h3>Socially <br />extensible</h3>
+            <div>
+              <h4>好友協作，既有社群傳播</h4>
+              <p>由作品連起關係，讓分享帶回靈感與新需求。</p>
+            </div>
+            <span>傳得開</span>
+          </article>
+        </div>
+        <p class="closing-line">持續累積的是<strong>衣物、偏好、作品與關係。</strong></p>
+      </section>
+
+      <section
+        class="slide finale"
+        id="slide-10"
+        aria-labelledby="title-10"
+        data-title="讓 AI 串起購買、日常穿搭與潮流傳播"
+        hidden
+      >
+        <h2 id="title-10">由點成線，<br />由線成面。</h2>
+        <div
+          class="point-line-plane"
+          aria-label="點代表購買，線代表持續搭配與創作，面代表社群與潮流傳播"
+        >
+          <article>
+            <svg viewBox="0 0 250 110" aria-hidden="true">
+              <circle cx="125" cy="55" r="8" class="red-fill" />
+            </svg>
+            <h3>一次購買</h3>
+            <p>解決當下的服裝需求</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 250 110" aria-hidden="true">
+              <path d="M30 55H220" />
+              <circle cx="30" cy="55" r="6" />
+              <circle cx="125" cy="55" r="6" />
+              <circle cx="220" cy="55" r="6" class="red-fill" />
+            </svg>
+            <h3>持續搭配與創作</h3>
+            <p>數位衣櫥延續實體服飾價值</p>
+          </article>
+          <article>
+            <svg viewBox="0 0 250 110" aria-hidden="true">
+              <path
+                d="M30 20H220M30 55H220M30 90H220M30 20V90M125 20V90M220 20V90M30 20L220 90M220 20L30 90"
+              />
+              <circle cx="30" cy="20" r="5" />
+              <circle cx="125" cy="20" r="5" />
+              <circle cx="220" cy="20" r="5" />
+              <circle cx="30" cy="55" r="5" />
+              <circle cx="125" cy="55" r="7" class="red-fill" />
+              <circle cx="220" cy="55" r="5" />
+              <circle cx="30" cy="90" r="5" />
+              <circle cx="125" cy="90" r="5" />
+              <circle cx="220" cy="90" r="5" />
+            </svg>
+            <h3>社群與潮流傳播</h3>
+            <p>作品分享，讓新的靈感再發生</p>
+          </article>
+        </div>
+        <p class="final-statement">讓 AI 串起<strong>購買、日常穿搭與潮流傳播。</strong></p>
+        <div class="final-brand">LookLine<span class="brand-dot"></span></div>
+      </section>
+    </main>
+
+    <footer class="deck-controls" aria-label="簡報控制">
+      <div class="slide-meta">
+        <span id="slide-number">01</span><span class="separator">/</span><span>10</span
+        ><span id="slide-title">由點成線，由線成面</span>
+      </div>
+      <div class="progress" aria-hidden="true"><span id="progress-fill"></span></div>
+      <div class="nav-buttons">
+        <button class="icon-button" id="previous" aria-label="上一頁" title="上一頁（←）" disabled>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6" /></svg></button
+        ><button class="icon-button" id="next" aria-label="下一頁" title="下一頁（→）">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6" /></svg></button
+        ><button
+          class="icon-button fullscreen"
+          id="fullscreen"
+          aria-label="全螢幕"
+          title="全螢幕（F）"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 3H3v5m13-5h5v5M3 16v5h5m8 0h5v-5" />
+          </svg>
+        </button>
+      </div>
+    </footer>
+    <p class="sr-only" id="announcement" aria-live="polite" aria-atomic="true"></p>
+    <dialog id="overview" aria-labelledby="overview-title">
+      <div class="overview-heading">
+        <h2 id="overview-title">簡報目錄</h2>
+        <button class="icon-button" id="close-overview" aria-label="關閉目錄">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg>
+        </button>
+      </div>
+      <nav id="overview-links" aria-label="選擇投影片"></nav>
+      <p>方向鍵換頁 · F 全螢幕 · O 目錄</p>
+    </dialog>
+  </body>
+</html>

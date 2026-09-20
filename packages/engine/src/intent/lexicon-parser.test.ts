@@ -55,7 +55,7 @@ describe('§1.10 fixtures (offline parser, catalog slugs)', () => {
     expect(r.locale).toBe('en')
     expect(r.mode).toBe('outfit')
     expect(r.referenceHandle).toBe('Alice')
-    expect(r.referenceLookId).toBe('lk_alice_01')
+    expect(r.referenceCardId).toBe('lk_alice_01')
     expect(r.referenceRole).toBe('style-source')
     expect(r.recipient).toEqual({
       kind: 'other',
@@ -64,7 +64,7 @@ describe('§1.10 fixtures (offline parser, catalog slugs)', () => {
       label: 'a guy',
     })
     expect(r.department).toBe('men')
-    expect(r.assumptions.find((a) => a.slot === 'referenceLookId')?.confidence).toBe(0.9)
+    expect(r.assumptions.find((a) => a.slot === 'referenceCardId')?.confidence).toBe(0.9)
     expect(r.assumptions.find((a) => a.slot === 'recipient.kind')).toMatchObject({
       value: 'other',
       confidence: 0.8,
@@ -293,12 +293,12 @@ describe('§1.10 fixtures (offline parser, catalog slugs)', () => {
     expect(r.mode).toBe('outfit')
     expect(r.occasion).toBe('festival')
     expect(r.referenceHandle).toBe('Jacob')
-    expect(r.referenceLookId).toBe('lk_jacob_01')
+    expect(r.referenceCardId).toBe('lk_jacob_01')
     expect(r.referenceRole).toBe('coordinate-with')
     expect(r.recipient.kind).toBe('self')
     expect(r.department).toBe('women')
     expect(r.aesthetics).toEqual(['boho', 'y2k', 'streetwear', 'retro-70s'])
-    expect(r.assumptions.find((a) => a.slot === 'referenceLookId')?.confidence).toBe(0.7)
+    expect(r.assumptions.find((a) => a.slot === 'referenceCardId')?.confidence).toBe(0.7)
     expect(r.assumptions.find((a) => a.slot === 'season')?.value).toBe('autumn')
     expect(clar(r)).toEqual(['budget.max[no]'])
   })
@@ -459,20 +459,18 @@ describe('sleeves', () => {
 })
 
 describe('negation scope in Chinese', () => {
-  const parse = (q: string) => parseIntentOffline(q)
-
   it('stops at 的, because the noun after it is what is being asked for', () => {
     // `不要紅色的洋裝` is a dress, just not a red one. Negating through 的 excluded dresses
     // outright and returned the opposite of the request.
-    const red = parse('不要紅色的洋裝')
+    const red = parseIntentOffline('不要紅色的洋裝')
     expect(red.categoryGroups).toEqual(['dresses'])
     expect(red.mustAvoid).toEqual(['color:red'])
 
-    const lace = parse('不要蕾絲邊的洋裝')
+    const lace = parseIntentOffline('不要蕾絲邊的洋裝')
     expect(lace.categoryGroups).toEqual(['dresses'])
     expect(lace.mustAvoid).toEqual(['attribute:laceTrim'])
 
-    const cotton = parse('不要棉的洋裝')
+    const cotton = parseIntentOffline('不要棉的洋裝')
     expect(cotton.categoryGroups).toEqual(['dresses'])
     expect(cotton.mustAvoid).toContain('material:cotton-jersey')
   })
@@ -480,23 +478,23 @@ describe('negation scope in Chinese', () => {
   it('keeps running when 的 hands the clause to another modifier, not a noun', () => {
     // Two refusals and no head noun. Cutting at the first 的 dropped the white, which is the
     // regression the head-noun test exists to catch.
-    const both = parse('不要黑色的和白色的')
+    const both = parseIntentOffline('不要黑色的和白色的')
     expect(both.mustAvoid).toEqual(expect.arrayContaining(['color:black', 'color:white']))
-    const two = parse('不要蕾絲的、不要雪紡的洋裝')
+    const two = parseIntentOffline('不要蕾絲的、不要雪紡的洋裝')
     expect(two.categoryGroups).toEqual(['dresses'])
     expect(two.mustAvoid).toEqual(expect.arrayContaining(['material:lace', 'material:chiffon']))
   })
 
   it('still negates the category when no 的 hands the clause to a head noun', () => {
-    const bare = parse('不要洋裝')
+    const bare = parseIntentOffline('不要洋裝')
     expect(bare.categoryGroups).toEqual([])
     expect(bare.mustAvoid).toEqual(['group:dresses'])
     // A trailing modifier with nothing after it is negated as it always was.
-    expect(parse('不要紅色').mustAvoid).toEqual(['color:red'])
+    expect(parseIntentOffline('不要紅色').mustAvoid).toEqual(['color:red'])
   })
 
   it('leaves English alone, where the structure is different', () => {
-    const en = parse('no red dresses')
+    const en = parseIntentOffline('no red dresses')
     expect(en.mustAvoid).toEqual(expect.arrayContaining(['color:red', 'group:dresses']))
   })
 })

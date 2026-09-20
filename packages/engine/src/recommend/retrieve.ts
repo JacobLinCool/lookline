@@ -8,16 +8,15 @@ import type { CategoryGroup, ColorFamily } from '@lookline/catalog'
 import {
   and,
   asc,
+  activitySharing,
   brands,
+  cards,
   cosineExpr,
   desc,
   eq,
   gte,
   inArray,
-  interactions,
   jsonKeyIsTrue,
-  lookArticles,
-  looks,
   lte,
   notInArray,
   or,
@@ -73,9 +72,9 @@ export type Channel = 'vector' | 'social' | 'trend'
 export interface SocialEvidence {
   userId: string
   displayName: string
-  kind: 'look' | 'purchase' | 'save'
-  lookId?: string | null
-  /** Trust of the current user in `userId` (ENGINE_SPEC §5.1). */
+  kind: 'card' | 'purchase'
+  cardId?: string | null
+  /** Accepted friendships use a strength of one. */
   strength: number
   at: Date
 }
@@ -104,7 +103,7 @@ export interface TrustedUser {
 }
 
 export interface ChannelParams {
-  /** People whose Looks/purchases/saves feed the social channel; omitted for guests. */
+  /** Accepted friends whose public Cards or explicitly shared purchases feed this channel. */
   social?: { trusted: TrustedUser[] } | null
   /** Trending aesthetic / category keys (momentum ≥ 60) for the trend channel. */
   trend?: { aesthetics: TrendEvidence[]; categories: TrendEvidence[] } | null
@@ -226,9 +225,8 @@ export function mergeChannels(
 }
 
 export const SOCIAL_KIND_WEIGHT: Readonly<Record<SocialEvidence['kind'], number>> = {
-  look: 1,
+  card: 1,
   purchase: 0.6,
-  save: 0.3,
 }
 
 export function socialStrength(evidence: readonly SocialEvidence[]): number {
@@ -258,7 +256,7 @@ export interface MemorySocialHit {
   articleId: string
   userId: string
   kind: SocialEvidence['kind']
-  lookId?: string | null
+  cardId?: string | null
   at: Date
 }
 
@@ -291,7 +289,7 @@ export class MemoryRetriever implements Retriever {
           userId: t.userId,
           displayName: t.displayName,
           kind: hit.kind,
-          lookId: hit.lookId ?? null,
+          cardId: hit.cardId ?? null,
           strength: t.strength,
           at: hit.at,
         })
@@ -414,47 +412,41 @@ export class SqlRetriever implements Retriever {
     const ids = trusted.map((t) => t.userId)
     const byUser = new Map(trusted.map((t) => [t.userId, t]))
     const window = sqlDaysAgoMs(SOCIAL_WINDOW_DAYS)
-    const [lookRows, purchaseRows, saveRows] = await Promise.all([
+    const [cardRows, purchaseRows] = await Promise.all([
       this.db
         .select({
-          articleId: lookArticles.articleId,
-          userId: looks.ownerId,
-          lookId: looks.id,
-          at: looks.createdAt,
+          userId: cards.authorUserId,
+          cardId: cards.id,
+          snapshot: cards.articleSnapshot,
+          at: cards.issuedAt,
         })
-        .from(lookArticles)
-        .innerJoin(looks, eq(looks.id, lookArticles.lookId))
-        .where(and(inArray(looks.ownerId, ids), gte(looks.createdAt, window)))
-        .orderBy(desc(looks.createdAt))
+        .from(cards)
+        .where(
+          and(
+            inArray(cards.authorUserId, ids),
+            eq(cards.visibility, 'public'),
+            gte(cards.issuedAt, window),
+          ),
+        )
+        .orderBy(desc(cards.issuedAt))
         .limit(200),
       this.db
         .select({
           articleId: purchases.articleId,
           userId: purchases.userId,
-          lookId: purchases.sourceLookId,
+          cardId: purchases.sourceCardId,
           at: purchases.createdAt,
         })
         .from(purchases)
-        .where(and(inArray(purchases.userId, ids), gte(purchases.createdAt, window)))
-        .orderBy(desc(purchases.createdAt))
-        .limit(200),
-      this.db
-        .select({
-          articleId: interactions.articleId,
-          userId: interactions.actorUserId,
-          lookId: interactions.lookId,
-          at: interactions.createdAt,
-        })
-        .from(interactions)
+        .innerJoin(activitySharing, eq(activitySharing.userId, purchases.userId))
         .where(
           and(
-            inArray(interactions.actorUserId, ids),
-            eq(interactions.type, 'SAVE'),
-            sql`${interactions.articleId} is not null`,
-            gte(interactions.createdAt, window),
+            inArray(purchases.userId, ids),
+            eq(activitySharing.purchases, true),
+            gte(purchases.createdAt, window),
           ),
         )
-        .orderBy(desc(interactions.createdAt))
+        .orderBy(desc(purchases.createdAt))
         .limit(200),
     ])
     const byProduct = new Map<string, SocialEvidence[]>()
@@ -462,19 +454,21 @@ export class SqlRetriever implements Retriever {
       articleId: string | null,
       userId: string,
       kind: SocialEvidence['kind'],
-      lookId: string | null,
+      cardId: string | null,
       at: Date,
     ): void => {
       if (articleId === null) return
       const t = byUser.get(userId)
       if (!t) return
       const list = byProduct.get(articleId) ?? []
-      list.push({ userId, displayName: t.displayName, kind, lookId, strength: t.strength, at })
+      list.push({ userId, displayName: t.displayName, kind, cardId, strength: t.strength, at })
       byProduct.set(articleId, list)
     }
-    for (const r of lookRows) push(r.articleId, r.userId, 'look', r.lookId, r.at)
-    for (const r of purchaseRows) push(r.articleId, r.userId, 'purchase', r.lookId, r.at)
-    for (const r of saveRows) push(r.articleId, r.userId, 'save', r.lookId, r.at)
+    for (const row of cardRows) {
+      for (const article of row.snapshot ?? [])
+        push(article.articleId, row.userId, 'card', row.cardId, row.at)
+    }
+    for (const row of purchaseRows) push(row.articleId, row.userId, 'purchase', row.cardId, row.at)
     if (byProduct.size === 0) return []
     const top = [...byProduct.entries()]
       .toSorted((a, b) => socialStrength(b[1]) - socialStrength(a[1]) || a[0].localeCompare(b[0]))

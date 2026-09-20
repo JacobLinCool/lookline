@@ -5,7 +5,7 @@ export const auth: AuthMessages = {
   metaTitle: '選擇身分',
   continueAs: (name: string) => `以 ${name} 繼續`,
   guest: '以訪客身分繼續',
-  guestNote: '訪客身分會把購物袋與 Look 留在這台裝置上。',
+  guestNote: '訪客身分會把購物袋留在這台裝置上。',
   signInToContinue: '請先登入。',
   signedInAs: (name: string) => `已登入為 ${name}`,
 

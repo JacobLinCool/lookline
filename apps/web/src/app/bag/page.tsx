@@ -2,16 +2,16 @@ import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { Minus, Plus, X } from 'lucide-react'
 import { brands, eq, inArray, articles } from '@lookline/db'
-import { Flash } from '@/components/looks/flash'
-import { OrderLines, orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
+import { Flash } from '@/components/ui/flash'
+import { OrderLines, orderSubtotal, type OrderLine } from '@/components/checkout/order-lines'
 import { Button, Container, EmptyState, Notice, PageHeader, Price, Tag } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
 import { removeFromBagAction, setBagQtyAction } from '@/server/actions/bag'
 import { requireUser } from '@/server/auth'
 import { BAG_MAX_QTY, getBag } from '@/server/bag'
 import { getDb } from '@/server/db'
-import { SOURCE_LOOK_COOKIE } from '@/server/looks'
-import { previewHref } from '@/components/looks/preview-url'
+import { SOURCE_CARD_COOKIE } from '@/server/imagery'
+import { previewHref } from '@/components/previews/preview-url'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -87,7 +87,7 @@ export default async function BagPage({ searchParams }: { searchParams: SearchPa
     cookies(),
     getI18n(),
   ])
-  const sourceLookId = store.get(SOURCE_LOOK_COOKIE)?.value ?? null
+  const sourceCardId = store.get(SOURCE_CARD_COOKIE)?.value ?? null
   const count = lines.reduce((sum, l) => sum + l.qty, 0)
   const qtyLabels: QtyLabels = {
     decrease: t.bag.decreaseQty,
@@ -170,9 +170,9 @@ export default async function BagPage({ searchParams }: { searchParams: SearchPa
                 </dd>
               </div>
             </dl>
-            {sourceLookId ? (
-              <Tag href={`/looks/${sourceLookId}`} className="w-fit">
-                {t.bag.fromLook}
+            {sourceCardId ? (
+              <Tag href={`/cards/${sourceCardId}`} className="w-fit">
+                {t.bag.fromCard}
               </Tag>
             ) : null}
             <Button href="/checkout" full size="lg">

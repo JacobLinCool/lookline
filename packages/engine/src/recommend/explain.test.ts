@@ -24,7 +24,7 @@ const factors = [
   f('budget_fit', 0.1, 1, 'NT$2,180, within NT$3,000'),
   f('popularity_prior', 0.03, 0.9, 'a frequent pick lately'), // 0.027 < 0.04: never mentioned
   f('trend_momentum', 0.07, 0.3, 'no trend signal for this style yet'), // value < .5: never mentioned
-  f('social_signal', 0.1, 0.6, 'Alice wore this in a Look last week'),
+  f('social_signal', 0.1, 0.6, 'Alice shared this in a public Card last week'),
   f('diversity', 0.15, -0.3, 'similar to #2 (0.30)'),
   f('compatibility', 0, 0, 'not part of an outfit'),
 ]
@@ -82,7 +82,7 @@ describe('assertGrounded', () => {
     'matches quiet-luxury (0.82); colour black',
     'NT$2,180, within NT$3,000',
     'Wold Supply',
-    'Alice wore this in a Look',
+    'Alice shared this in a public Card',
   ]
   it('accepts grounded text and rejects foreign numbers and names', () => {
     expect(

@@ -72,7 +72,7 @@ export interface IntentRoute {
  */
 export function routeIntent(lex: IntentExt, search: SearchIntent | null): IntentRoute {
   if (!search) return { escalate: true, reason: 'decision-failed' }
-  if (lex.referenceHandle || lex.referenceLookId) return { escalate: true, reason: 'reference' }
+  if (lex.referenceHandle || lex.referenceCardId) return { escalate: true, reason: 'reference' }
   if (lex.recipient.kind === 'other') return { escalate: true, reason: 'recipient' }
   if (search.typeRelevance < MIN_TYPE_RELEVANCE) return { escalate: true, reason: 'type-unclear' }
   if (search.candidateCount === 0) return { escalate: true, reason: 'no-catalog-term' }

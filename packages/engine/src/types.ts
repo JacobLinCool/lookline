@@ -1,24 +1,19 @@
 /**
  * Public types of @lookline/engine. Cross-package contract (docs/CONTRACTS.md):
- * keep names and shapes stable; add optional fields, do not rename or remove.
+ * keep public contracts explicit and canonical.
  */
 import type {
   Department,
   EvaluationRun,
   FeedbackKind,
   IntentProvider,
-  LineageStat,
   LlmProvider,
-  Look,
   ManufacturingRecommendation,
   Article,
   Purchase,
   PurchaseFor,
-  Relationship,
-  RelationshipKind,
   TrendDimension,
   User,
-  Visibility,
 } from '@lookline/db'
 import type {
   Axis,
@@ -119,7 +114,7 @@ export interface Intent {
   mustHave: string[]
   mustAvoid: string[]
   vibe?: string
-  referenceLookId?: string
+  referenceCardId?: string
   referenceHandle?: string
   assumptions: IntentAssumption[]
   clarifications: IntentClarification[]
@@ -305,7 +300,7 @@ export interface FeedbackInput {
   userId: string
   kind: FeedbackKind
   articleId?: string | null
-  lookId?: string | null
+  cardId?: string | null
   intentSessionId?: string | null
   position?: number | null
   /** True when the action was for someone else (gift, styling a friend). */
@@ -401,54 +396,11 @@ export interface PurchaseInput extends DeterministicOptions {
   forKind?: PurchaseFor
   forUserId?: string | null
   forLabel?: string | null
-  sourceLookId?: string | null
+  sourceCardId?: string | null
   intentSessionId?: string | null
 }
 
-export interface CreateLookInput extends DeterministicOptions {
-  ownerId: string
-  articleIds: string[]
-  stylePreset: string
-  title?: string
-  prompt?: string | null
-  occasion?: string | null
-  visibility?: Visibility
-  parentLookId?: string | null
-  kind?: 'edition' | 'remix' | 'together'
-  participantIds?: string[]
-  /** Richer participant list for Together editions (fills look_participants.source_look_id). */
-  participants?: Array<{ userId: string; sourceLookId?: string | null }>
-  /** Already-generated image (relative path under DATA_DIR/looks) and status. */
-  imagePath?: string | null
-  imageStatus?: 'pending' | 'ready' | 'failed'
-  imageProvider?: LlmProvider | null
-}
-
-export interface RemixSuggestion {
-  sourceLook: Look
-  items: RankedItem[]
-  explanation: Explanation
-  keptAesthetics: string[]
-  palette: string[]
-}
-
-export interface InteractionInput extends DeterministicOptions {
-  actorUserId: string
-  type: import('@lookline/db').InteractionType
-  targetUserId?: string | null
-  lookId?: string | null
-  articleId?: string | null
-  payload?: Record<string, unknown>
-  sourceInteractionId?: string | null
-}
-
-export interface LookStyle {
-  aesthetics: string[]
-  palette: string[]
-  styleVector: number[]
-}
-
-export interface LookPosterInput {
+export interface CardPosterInput {
   title: string
   ownerName: string
   stylePreset: string
@@ -477,7 +429,7 @@ export interface LookPosterInput {
   }>
 }
 
-export interface StylePreset {
+export interface PreviewArtPreset {
   slug: string
   name: string
   labelZh: string
@@ -489,7 +441,7 @@ export interface StylePreset {
 }
 
 // ---------------------------------------------------------------------------
-// Graph, lineage, trends
+// Demand trends
 // ---------------------------------------------------------------------------
 
 export interface UserSummary {
@@ -498,23 +450,6 @@ export interface UserSummary {
   displayName: string
   avatarSeed: number
   tasteCluster: number | null
-  socialCluster: number | null
-}
-
-export interface LineageNode {
-  look: Look
-  owner: UserSummary
-  articles: Array<Article & { brandName: string }>
-  children: LineageNode[]
-  purchases: number
-  gmv: number
-  reactions: number
-}
-
-export interface LineageTree {
-  root: LineageNode
-  stats: LineageStat
-  path?: Look[]
 }
 
 export interface TrendSeries {
@@ -524,36 +459,24 @@ export interface TrendSeries {
   momentum: number
   volume: number
   velocity: number
-  crossCluster: number
+  breadth: number
   conversion: number
   gmv: number
   emerging: boolean
   series: Array<{ day: string; volume: number }>
 }
 
-export interface Influencer {
-  user: UserSummary
-  influence: number
-  remixesCaused: number
-  downstreamPurchases: number
-  downstreamGmv: number
-  clustersReached: number
-}
-
 export interface TrendDashboard {
   generatedAt: Date
   window: { from: Date; to: Date; days: number }
   headline: {
-    looks: number
-    remixes: number
-    togethers: number
-    shares: number
+    searches: number
+    intents: number
+    feedback: number
     purchases: number
-    purchasesFromLooks: number
-    gmvFromLooks: number
-    activePeople: number
-    crossClusterShare: number
-    avgLineageDepth: number
+    cards: number
+    gmv: number
+    conversion: number
   }
   aesthetics: TrendSeries[]
   categories: TrendSeries[]
@@ -561,23 +484,13 @@ export interface TrendDashboard {
   silhouettes: TrendSeries[]
   aestheticCategory: TrendSeries[]
   emerging: TrendSeries[]
-  topLineages: Array<{ stats: LineageStat; look: Look; owner: UserSummary; articles: Article[] }>
-  influencers: Influencer[]
   clusters: Array<{ id: number; size: number; topAesthetics: string[]; label: string }>
   manufacturing: ManufacturingRecommendation[]
   evaluation: EvaluationRun | null
 }
 
-export interface UserNetwork {
-  user: UserSummary
-  edges: Array<{ relationship: Relationship; other: UserSummary; direction: 'out' | 'in' }>
-  byKind: Record<RelationshipKind, number>
-}
-
 export interface AnalyticsSummary {
-  relationships: number
   clusters: number
-  lineages: number
   trendSignals: number
   manufacturing: number
   /** Closed slates replayed into `bandit_state` (§4.4). */
@@ -585,12 +498,4 @@ export interface AnalyticsSummary {
   durationMs: number
 }
 
-export type {
-  Look,
-  Purchase,
-  Article,
-  User,
-  LineageStat,
-  ManufacturingRecommendation,
-  EvaluationRun,
-}
+export type { Purchase, Article, User, ManufacturingRecommendation, EvaluationRun }

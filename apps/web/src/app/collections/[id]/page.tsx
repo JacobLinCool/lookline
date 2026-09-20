@@ -19,6 +19,7 @@ import { Avatar, Button, Card, Container, Notice, PageHeader, Tag } from '@/comp
 import { CardFace } from '@/components/cards/card-face'
 import { InviteMember, type InvitablePersona } from '@/components/cards/collection-invites'
 import { startEditionAction } from '@/server/actions/collections'
+import { CardArtDirectionFields } from '@/components/cards/art-direction-fields'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 
@@ -95,9 +96,7 @@ export default async function CollectionPage({
   let invitable: InvitablePersona[] = []
   let hasFriends = false
   if (isOwner) {
-    // The friends someone accepted, not the edges the analytics graph inferred from behaviour.
-    // `relationships` is computed, and reading it here left a real friend out of this list while
-    // it would have let a stranger carrying a `follows` edge into it.
+    // Collection invitations use only friendships both people explicitly accepted.
     const friends = (await friendList(db, user.id)).filter((f) => f.state === 'accepted')
     hasFriends = friends.length > 0
     if (hasFriends) {
@@ -181,14 +180,17 @@ export default async function CollectionPage({
       ) : null}
 
       {isParticipant ? (
-        <form action={startEditionAction} className="flex items-center gap-3">
+        <form action={startEditionAction} className="flex flex-col gap-3">
           <input type="hidden" name="collectionId" value={id} />
-          <Button type="submit" disabled={members.length < 2 || credits < 1}>
-            用 1 次額度發行
-          </Button>
-          <p className="text-[12px] text-muted">
-            只扣你 1 次額度，其他參與者不需要有額度。發行會固定目前的參與者與順序。
-          </p>
+          <CardArtDirectionFields title="先決定第一張怎麼拍" />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" disabled={members.length < 2 || credits < 1}>
+              用 1 次額度發行
+            </Button>
+            <p className="text-[12px] text-muted">
+              只扣你 1 次額度，其他參與者不需要有額度。發行會固定目前的參與者與順序。
+            </p>
+          </div>
         </form>
       ) : (
         <Notice tone="info">只有參與這個收藏的人可以發行。</Notice>

@@ -1,21 +1,12 @@
 /**
  * Rendering a card candidate with the image model.
  *
- * Until now a candidate was a vector composition drawn on demand from the session's snapshot —
- * a flat lay of shapes, never a photograph of anyone. This runs the same pipeline a Look does:
- * the garments' own product photos and the persona's reference photo go to the image model, and
- * what comes back is stored in R2 as the candidate's `image_path`.
- *
- * Two things follow from that and both matter:
- *
  * A render takes tens of seconds, so `generateCandidateAction` cannot wait for it. The attempt row
  * is written first and the render happens in `after()`; the candidate row is inserted only once
  * there is a picture, which is what keeps a failed render from occupying one of the four places.
  * `/api/studio/[id]/candidates` is what the page polls in the meantime.
  *
- * Nothing here is load-bearing for issuing a card. A session with no image model, a provider that
- * fails, an account with no reference photo — each still produces a candidate, and the routes fall
- * back to the composition poster for anything without a stored image. A card can always be issued.
+ * A failed provider call remains a failed attempt and never fabricates a candidate.
  */
 import { after } from 'next/server'
 import {
@@ -29,6 +20,7 @@ import {
   lt,
   personas as personasTable,
   type Article,
+  type CardArtDirection,
   type CardSession,
 } from '@lookline/db'
 import {
@@ -42,12 +34,7 @@ import {
   type ReferenceImage,
 } from '@lookline/engine'
 import { getDb } from './db'
-import {
-  DEFAULT_STYLE_PRESET,
-  loadStoredPhoto,
-  resolveStylePreset,
-  type ReferencePhoto,
-} from './looks'
+import { loadStoredPhoto, type ReferencePhoto } from './imagery'
 import { getStorage } from './storage'
 
 const IMAGE_EXT: Record<string, string> = {
@@ -125,6 +112,7 @@ async function subjectsOf(session: CardSession): Promise<
  */
 async function composeRequest(
   session: CardSession,
+  artDirection: CardArtDirection,
   authorName: string,
   collectionTitle: string | null,
 ): Promise<{ prompt: string; referenceImages: ReferenceImage[] }> {
@@ -163,7 +151,7 @@ async function composeRequest(
   }
 
   const prompt = buildCardImagePrompt({
-    preset: resolveStylePreset(DEFAULT_STYLE_PRESET),
+    artDirection,
     subjects: promptSubjects,
     authorName,
     collectionTitle,
@@ -194,16 +182,19 @@ async function renderCandidate(input: {
   const startedAt = Date.now()
   let key: string | null = null
   try {
-    const [session] = await db
-      .select()
+    const [row] = await db
+      .select({ session: cardSessions, artDirection: generationAttempts.artDirection })
       .from(cardSessions)
+      .innerJoin(generationAttempts, eq(generationAttempts.id, input.attemptId))
       .where(eq(cardSessions.id, input.sessionId))
       .limit(1)
+    const session = row?.session
     if (!session) throw new Error('這個製卡階段已經不存在了。')
     if (session.state !== 'open') throw new Error('這個製卡階段已經結束了。')
 
     const { prompt, referenceImages } = await composeRequest(
       session,
+      row.artDirection,
       input.authorName,
       input.collectionTitle,
     )
@@ -258,7 +249,7 @@ async function renderCandidate(input: {
   }
 }
 
-/** Whether a real render is possible at all; without it the studio falls back to the poster. */
+/** Whether the configured provider can produce a real Card candidate. */
 export function canRenderCards(): boolean {
   return Boolean(getLlm().imageModel)
 }
@@ -298,7 +289,7 @@ export async function expireStaleAttempts(sessionId: string): Promise<void> {
 }
 
 export interface StudioProgress {
-  candidates: Array<{ id: string; position: number }>
+  candidates: Array<{ id: string; position: number; artDirection: CardArtDirection }>
   /** Renders still running. The page shows one filling slot for each. */
   pending: number
   /** The most recent failure, once nothing is running to explain the empty slot. */
@@ -313,8 +304,10 @@ export async function studioProgress(sessionId: string): Promise<StudioProgress>
     candidatesOf(db, sessionId),
     db
       .select({
+        id: generationAttempts.id,
         state: generationAttempts.state,
         error: generationAttempts.error,
+        artDirection: generationAttempts.artDirection,
         createdAt: generationAttempts.createdAt,
       })
       .from(generationAttempts)
@@ -323,8 +316,13 @@ export async function studioProgress(sessionId: string): Promise<StudioProgress>
   ])
   const pending = attempts.filter((a) => a.state === 'pending').length
   const failed = attempts.find((a) => a.state === 'failed' && a.error)
+  const directionByAttempt = new Map(attempts.map((attempt) => [attempt.id, attempt.artDirection]))
   return {
-    candidates: made.map((c) => ({ id: c.id, position: c.position })),
+    candidates: made.map((candidate) => ({
+      id: candidate.id,
+      position: candidate.position,
+      artDirection: directionByAttempt.get(candidate.attemptId)!,
+    })),
     pending,
     error: pending === 0 ? (failed?.error ?? null) : null,
   }

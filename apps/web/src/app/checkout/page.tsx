@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { brands, eq, inArray, articles } from '@lookline/db'
-import { Flash } from '@/components/looks/flash'
-import { OrderLines, orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
-import { RecipientPicker } from '@/components/looks/recipient-picker'
-import { SubmitButton } from '@/components/looks/submit-button'
+import { Flash } from '@/components/ui/flash'
+import { OrderLines, orderSubtotal, type OrderLine } from '@/components/checkout/order-lines'
+import { RecipientPicker } from '@/components/checkout/recipient-picker'
+import { SubmitButton } from '@/components/ui/submit-button'
 import { Button, Container, EmptyState, PageHeader, Price, Tag } from '@/components/ui'
 import { getI18n } from '@/i18n/server'
 import { placeOrderAction } from '@/server/actions/purchase'
@@ -12,7 +12,7 @@ import { requireUser } from '@/server/auth'
 import { getBag } from '@/server/bag'
 import { getDb } from '@/server/db'
 import { formatTwd } from '@/server/format'
-import { INTENT_SESSION_COOKIE, SOURCE_LOOK_COOKIE, sanitizeId } from '@/server/looks'
+import { INTENT_SESSION_COOKIE, SOURCE_CARD_COOKIE, sanitizeId } from '@/server/imagery'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -33,9 +33,9 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
     getI18n(),
   ])
 
-  // Attribution: explicit searchParams (?look= ?from=) win over cookies set while browsing.
-  const sourceLookId =
-    sanitizeId(first(params.look)) ?? sanitizeId(store.get(SOURCE_LOOK_COOKIE)?.value)
+  // Attribution: explicit searchParams (?card= ?from=) win over cookies set while browsing.
+  const sourceCardId =
+    sanitizeId(first(params.card)) ?? sanitizeId(store.get(SOURCE_CARD_COOKIE)?.value)
   const intentSessionId =
     sanitizeId(first(params.from)) ?? sanitizeId(store.get(INTENT_SESSION_COOKIE)?.value)
 
@@ -83,7 +83,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Sea
       <OrderLines lines={orderLines} compact />
 
       <form action={placeOrderAction} className="mt-8 flex flex-col gap-8">
-        <input type="hidden" name="sourceLookId" value={sourceLookId ?? ''} />
+        <input type="hidden" name="sourceCardId" value={sourceCardId ?? ''} />
         <input type="hidden" name="intentSessionId" value={intentSessionId ?? ''} />
 
         <RecipientPicker defaultValue="self" />

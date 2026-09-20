@@ -2,16 +2,21 @@
 
 import { useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import type { CardArtDirection } from '@lookline/db'
 import { Button, Notice } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { InstantForm } from '@/components/latency/instant-form'
 import { useStudioProgress } from '@/components/cards/use-studio-progress'
 import { generateCandidateAction } from '@/server/actions/studio'
 import { settleEditionAction } from '@/server/actions/collections'
+import { CardArtDirectionFields, CARD_ART_LABELS } from './art-direction-fields'
 
 /** One of the four places: a picture, a render on its way, or nothing yet. */
 type Slot =
-  | { kind: 'made'; candidate: { id: string; position: number } }
+  | {
+      kind: 'made'
+      candidate: { id: string; position: number; artDirection: CardArtDirection }
+    }
   | { kind: 'rendering' }
   | { kind: 'empty' }
 
@@ -27,7 +32,7 @@ export function EditionCandidates({
 }: {
   collectionId: string
   sessionId: string
-  candidates: Array<{ id: string; position: number }>
+  candidates: Array<{ id: string; position: number; artDirection: CardArtDirection }>
   /** Renders already running when the page was drawn; the grid follows them from there. */
   pending: number
   /** Why the last render produced nothing, when none is running. */
@@ -46,6 +51,12 @@ export function EditionCandidates({
   const setChosen = setPicked
   // A render on its way already holds a place, so the button goes quiet before the grid is full.
   const full = made.length + progress.pending >= max
+  const nextDirection = made.at(-1)?.artDirection ?? {
+    focus: 'auto',
+    pose: 'auto',
+    scene: 'auto',
+    note: null,
+  }
   const slots: Slot[] = Array.from({ length: max }, (_, i) =>
     made[i] ? { kind: 'made', candidate: made[i]! } : { kind: 'empty' },
   )
@@ -62,6 +73,7 @@ export function EditionCandidates({
               <button
                 type="button"
                 onClick={() => setChosen(slot.candidate.id)}
+                aria-pressed={chosen === slot.candidate.id}
                 className={cn(
                   'flex w-full flex-col gap-2 rounded-lg border-2 p-1 transition-colors',
                   chosen === slot.candidate.id
@@ -78,6 +90,13 @@ export function EditionCandidates({
                 />
                 <span className="px-1 text-left text-[12px] text-muted">
                   候選 {slot.candidate.position}
+                </span>
+                <span className="flex flex-wrap gap-1 px-1 pb-1 text-left text-[11px] text-muted">
+                  <span>{CARD_ART_LABELS.focus[slot.candidate.artDirection.focus]}</span>
+                  <span aria-hidden>·</span>
+                  <span>{CARD_ART_LABELS.pose[slot.candidate.artDirection.pose]}</span>
+                  <span aria-hidden>·</span>
+                  <span>{CARD_ART_LABELS.scene[slot.candidate.artDirection.scene]}</span>
                 </span>
               </button>
             ) : slot.kind === 'rendering' ? (
@@ -100,13 +119,20 @@ export function EditionCandidates({
           button, so its box is taller than a plain form's and centring the row lifted its
           button clear of the one beside it. Aligning the tops lines the buttons up. */}
       {!settled ? (
-        <div className="flex flex-wrap items-start gap-3">
+        <div className="flex flex-col gap-3">
           <InstantForm
             action={generateCandidateAction}
             name="generate-edition"
             confirmation="開始生成"
+            className="flex flex-col gap-3"
           >
             <input type="hidden" name="sessionId" value={sessionId} />
+            <CardArtDirectionFields
+              key={`${nextDirection.focus}:${nextDirection.pose}:${nextDirection.scene}:${nextDirection.note ?? ''}`}
+              initial={nextDirection}
+              title="下一張怎麼拍"
+              compact
+            />
             <Button type="submit" variant="secondary" icon={<RefreshCw />} disabled={full}>
               {full
                 ? progress.pending > 0
@@ -117,7 +143,7 @@ export function EditionCandidates({
                   : '再生成一張'}
             </Button>
           </InstantForm>
-          <form action={settleEditionAction}>
+          <form action={settleEditionAction} className="flex flex-wrap items-start gap-3">
             <input type="hidden" name="collectionId" value={collectionId} />
             <input type="hidden" name="sessionId" value={sessionId} />
             <input type="hidden" name="candidateId" value={chosen ?? ''} />

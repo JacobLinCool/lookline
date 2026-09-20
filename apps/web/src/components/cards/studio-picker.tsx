@@ -12,6 +12,7 @@ import {
 import { Avatar, Button, ProductImage, Tag } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { startSessionAction } from '@/server/actions/studio'
+import { CardArtDirectionFields } from './art-direction-fields'
 
 export interface PickerPersona {
   id: string
@@ -157,6 +158,8 @@ export function StudioPicker({
           })}
         </ul>
       </section>
+
+      <CardArtDirectionFields title="決定第一張怎麼拍" />
 
       <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-line bg-paper/95 py-3 backdrop-blur-sm">
         <p className="text-[12px] text-muted">

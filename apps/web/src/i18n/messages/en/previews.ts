@@ -3,8 +3,9 @@ export const previews = {
   new: {
     title: 'Preview this outfit on you',
     description:
-      'See the pieces together before you buy. This private preview lasts 24 hours and does not add a Look to your wardrobe.',
+      'See the pieces together before you buy. This private preview lasts 24 hours and is not shared.',
     pieces: 'Pieces in this preview',
+    style: 'Image style',
     photo: 'Your reference photo',
     photoHint: 'Required. A new photo takes priority over your saved photo.',
     photoPreviewAlt: 'Reference photo for this preview',
@@ -21,17 +22,17 @@ export const previews = {
     emptyDescription: 'Open an outfit or add pieces to your bag, then preview them together.',
   },
   borrowed: {
-    description: (title: string) =>
-      `Try the exact pieces and image style from “${title}” on your own reference photo.`,
-    exact: 'Exact borrowed composition',
-    exactNote: 'Pieces and style stay unchanged. Make it mine is the separate remix option.',
-    defaultTitle: (title: string) => `Preview of ${title}`,
+    description: 'Try the exact pieces from this Card on your own reference photo.',
+    exact: 'Card outfit snapshot',
+    exactNote:
+      'The pieces come from the Card’s immutable snapshot. You can choose your own image style.',
+    defaultTitle: 'Card outfit preview',
   },
   detail: {
     imageUnavailable: 'The image is unavailable. Retry while this preview is available.',
     temporary: 'Private · temporary preview',
     explanation:
-      'This image is for deciding before checkout. It is not an owned Look and will not appear in your wardrobe.',
+      'This image is for deciding before checkout. It is temporary and will not appear in your Cards.',
     expires: (value: string) => `Available until ${value}`,
     pieces: 'Pieces in this preview',
     addAvailable: 'Add available pieces to bag',
@@ -46,7 +47,7 @@ export const previews = {
       'Temporary previews are removed after 24 hours. Choose the pieces again to make a new one.',
   },
   actions: {
-    previewLook: 'Preview Look',
+    previewLook: 'Preview Card outfit',
     previewBag: 'Preview bag on me',
     previewOnMe: 'Preview on me',
   },
@@ -58,7 +59,7 @@ export const previews = {
     photoRequired: 'Choose a reference photo or use your saved photo.',
     notCreated:
       'The preview could not be created. Check image rendering configuration and try again.',
-    sourceUnavailable: 'That Look is private or no longer available.',
+    sourceUnavailable: 'That Card is private or no longer available.',
     unavailable: 'This preview is no longer available.',
     noneAvailable: 'Every piece in this preview is sold out.',
     bagFull: 'Your bag has no room for these pieces. Remove a piece and retry.',

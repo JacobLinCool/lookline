@@ -1,11 +1,11 @@
 /**
  * Engine 02 — explainable recommendation (contract: `recommend`, `similarProducts`,
- * `completeTheLook`, `searchProducts`). `recommend` never writes feedback events or interactions:
+ * `completeOutfit`, `searchProducts`). `recommend` is read-only:
  * the web layer logs impressions.
  */
-import { STYLE_BLOCKS, axisIndex, toStyleVector } from '@lookline/catalog'
+import { axisIndex, toStyleVector } from '@lookline/catalog'
 import type { Axis, CategoryGroup, ColorFamily, Season } from '@lookline/catalog'
-import { brands, eq, lookArticles, looks, articles, users } from '@lookline/db'
+import { brands, cards, eq, inArray, articles, users } from '@lookline/db'
 import type { Article, Database, Department } from '@lookline/db'
 import type { FactorName, Outfit, RankedItem, RecommendRequest, RecommendResponse } from '../types'
 import { contextVector } from '../preference/bandit'
@@ -26,7 +26,7 @@ import {
 } from './intent-view'
 import type { EngineIntent } from './intent-view'
 import { buildOutfits } from './outfit'
-import type { PartnerLook } from './outfit'
+import type { PartnerOutfit } from './outfit'
 import type { PlacedItem } from './outfit/solver'
 import { occasionGarments, plansForTemplate, roleForGroup } from './outfit/templates'
 import { SqlRetriever, emptyParams, retrieveWithRelaxation } from './retrieve'
@@ -56,7 +56,7 @@ export { SLOT_TEMPLATES, SLOT_SHARE_MAX, planFor, plansForTemplate } from './out
 export { compat, colourHarmony } from './outfit/compat'
 export { solveOutfits, diversify } from './outfit/solver'
 export { buildOutfits } from './outfit'
-export type { PartnerLook } from './outfit'
+export type { PartnerOutfit } from './outfit'
 export { loadContext, emptyContext } from './context'
 export type { ContextInput } from './context'
 export { resolveAestheticTables, templateForOccasion } from './aesthetics'
@@ -76,7 +76,7 @@ export interface RecommendDeps {
   /** Override the intent vector (tests, evaluation). */
   intentVector?: number[]
   seed?: number
-  partner?: PartnerLook | null
+  partner?: PartnerOutfit | null
   /** The global bandit (§4.4). Absent → the default `balanced` blend, as before it was wired in. */
   bandit?: LinUCB | null
 }
@@ -246,22 +246,18 @@ export async function runRecommend(
   return res
 }
 
-async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLook | null> {
-  const [lookRows, productRows] = await Promise.all([
-    db
-      .select({ id: looks.id, styleVector: looks.styleVector, ownerName: users.displayName })
-      .from(looks)
-      .innerJoin(users, eq(users.id, looks.ownerId))
-      .where(eq(looks.id, lookId)),
-    db
-      .select({ product: articles })
-      .from(lookArticles)
-      .innerJoin(articles, eq(articles.id, lookArticles.articleId))
-      .where(eq(lookArticles.lookId, lookId)),
-  ])
-  const look = lookRows[0]
-  if (!look) return null
-  const items = productRows.map((r) => r.product)
+async function loadPartnerCard(db: Database, cardId: string): Promise<PartnerOutfit | null> {
+  const [card] = await db
+    .select({ snapshot: cards.articleSnapshot, ownerName: users.displayName })
+    .from(cards)
+    .innerJoin(users, eq(users.id, cards.authorUserId))
+    .where(eq(cards.id, cardId))
+    .limit(1)
+  if (!card) return null
+  const articleIds = [...new Set((card.snapshot ?? []).map((entry) => entry.articleId))]
+  const items = articleIds.length
+    ? await db.select().from(articles).where(inArray(articles.id, articleIds))
+    : []
   const counts = new Map<string, { n: number; hex: string }>()
   for (const p of items) {
     const c = counts.get(p.colorFamily) ?? { n: 0, hex: p.colorHex }
@@ -276,17 +272,14 @@ async function loadPartnerLook(db: Database, lookId: string): Promise<PartnerLoo
       dominant = { family, hex }
     }
   }
-  let styleVector = look.styleVector ?? null
-  if (!styleVector && items.length > 0) {
-    styleVector = Array.from({ length: 64 }, () => 0)
-    for (const p of items) {
-      for (let i = 0; i < STYLE_BLOCKS.groups[0]; i++)
-        styleVector[i] = (styleVector[i] ?? 0) + (p.styleVector[i] ?? 0) / items.length
-    }
+  if (items.length === 0) return null
+  const styleVector = Array.from({ length: 64 }, () => 0)
+  for (const product of items) {
+    for (let i = 0; i < styleVector.length; i++)
+      styleVector[i] = (styleVector[i] ?? 0) + (product.styleVector[i] ?? 0) / items.length
   }
-  if (!styleVector) return null
   return {
-    name: look.ownerName,
+    name: card.ownerName,
     styleVector,
     colorHex: dominant?.hex ?? '#111114',
     colorFamily: dominant?.family ?? 'black',
@@ -299,8 +292,8 @@ export async function recommend(db: Database, req: RecommendRequest): Promise<Re
   const avoid = parseTokens(intent.mustAvoid)
   const [context, partner, bandit] = await Promise.all([
     loadContext(db, { userId: req.userId ?? null, brandTokens: avoid.brands }),
-    intent.referenceRole === 'coordinate-with' && intent.referenceLookId
-      ? loadPartnerLook(db, intent.referenceLookId).catch(() => null)
+    intent.referenceRole === 'coordinate-with' && intent.referenceCardId
+      ? loadPartnerCard(db, intent.referenceCardId).catch(() => null)
       : Promise.resolve(null),
     // A failure here must not cost a recommendation: without it the blend is simply `balanced`.
     // `rebuild: false` keeps the replay off the request path: a missing row is the analytics job's
@@ -462,7 +455,7 @@ export async function similarProductsWith(
   return rank(result.candidates, ctx, { limit: opts.limit ?? 12, lambda: 0.25 })
 }
 
-export async function completeTheLook(
+export async function completeOutfit(
   db: Database,
   articleId: string,
   opts: { userId?: string; budget?: number; count?: number } = {},
@@ -470,11 +463,11 @@ export async function completeTheLook(
   const product = await loadProduct(db, articleId)
   if (!product) return []
   const context = await loadContext(db, { userId: opts.userId ?? null })
-  return completeTheLookWith(product, { retriever: new SqlRetriever(db), context }, opts)
+  return completeOutfitWith(product, { retriever: new SqlRetriever(db), context }, opts)
 }
 
-/** Core of `completeTheLook` (retriever-agnostic): plans B/A minus the product's group, product pinned. */
-export async function completeTheLookWith(
+/** Core of `completeOutfit` (retriever-agnostic): plans B/A minus the product's group, product pinned. */
+export async function completeOutfitWith(
   product: Article & { brandName: string },
   deps: RecommendDeps,
   opts: { userId?: string; budget?: number; count?: number } = {},

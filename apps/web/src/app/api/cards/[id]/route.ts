@@ -1,7 +1,7 @@
 import { and } from '@lookline/db'
 import { readableCard } from '@/server/card-visibility'
 import { cardCandidates, cards, eq, personas, users } from '@lookline/db'
-import { renderLookPosterSvg } from '@lookline/engine'
+import { renderCardPosterSvg } from '@lookline/engine'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
 import { storedImageResponse } from '@/server/storage'
@@ -48,7 +48,7 @@ export async function GET(
   if (rendered) return rendered
 
   const art = await cardArtFromSnapshot(db, card.snapshot ?? [])
-  const svg = renderLookPosterSvg({
+  const svg = renderCardPosterSvg({
     title: card.personaName,
     ownerName: card.authorName,
     stylePreset: 'studio',

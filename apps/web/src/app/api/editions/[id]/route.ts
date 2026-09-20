@@ -7,7 +7,7 @@ import {
   collections,
   eq,
 } from '@lookline/db'
-import { renderLookPosterSvg } from '@lookline/engine'
+import { renderCardPosterSvg } from '@lookline/engine'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
 import { storedImageResponse } from '@/server/storage'
@@ -70,7 +70,7 @@ export async function GET(
   if (rendered) return rendered
 
   const art = await cardArtFromSnapshot(db, edition.snapshot ?? [])
-  const svg = renderLookPosterSvg({
+  const svg = renderCardPosterSvg({
     title: edition.title,
     ownerName: copy
       ? `${copy.editionNumber}/${edition.editionSize}`

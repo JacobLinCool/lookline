@@ -1,13 +1,13 @@
 /**
  * Engine 02 smoke run against the seeded local catalog: recommend / searchProducts /
- * similarProducts / completeTheLook for 6 intents (3 中文, 3 English incl. a gift and an outfit),
+ * similarProducts / completeOutfit for 6 intents (3 中文, 3 English incl. a gift and an outfit),
  * printing timings and top results. Run: `pnpm --filter @lookline/engine exec tsx scripts/recommend-smoke.ts`.
  * When the articles table is empty it says so and exits 0.
  */
 import { sql } from '@lookline/db'
 import { createLocalDb, loadEnv } from '@lookline/db/node'
 import { parseIntentOffline } from '../src/intent'
-import { completeTheLook, recommend, searchProducts, similarProducts } from '../src/recommend'
+import { completeOutfit, recommend, searchProducts, similarProducts } from '../src/recommend'
 import type { EngineIntent } from '../src/recommend'
 import type { RecommendResponse } from '../src/types'
 
@@ -245,10 +245,10 @@ async function main(): Promise<void> {
       )
     summary.push(`similarProducts: ${ms(total)} (${sim.length} items)`)
 
-    console.log(`\n== completeTheLook(#${anchor}, budget 8000)`)
-    await completeTheLook(db, anchor, { budget: 8000, count: 2 })
+    console.log(`\n== completeOutfit(#${anchor}, budget 8000)`)
+    await completeOutfit(db, anchor, { budget: 8000, count: 2 })
     t0 = performance.now()
-    const outfits = await completeTheLook(db, anchor, { budget: 8000, count: 2, userId: persona })
+    const outfits = await completeOutfit(db, anchor, { budget: 8000, count: 2, userId: persona })
     total = performance.now() - t0
     console.log(`   ${ms(total)}`)
     for (const o of outfits) {
@@ -260,7 +260,7 @@ async function main(): Promise<void> {
           `      [${it.role}] #${it.product.id} ${it.brandName} · ${it.product.name} · NT$${it.product.price}`,
         )
     }
-    summary.push(`completeTheLook: ${ms(total)} (${outfits.length} outfits)`)
+    summary.push(`completeOutfit: ${ms(total)} (${outfits.length} outfits)`)
   }
 
   console.log('\n== timing summary')

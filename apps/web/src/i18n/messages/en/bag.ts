@@ -13,7 +13,7 @@ export const bag = {
   shipping: 'Shipping',
   shippingIncluded: 'Included',
   subtotal: 'Subtotal',
-  fromLook: 'From a Look',
+  fromCard: 'From a Card',
 
   checkout: {
     metaTitle: 'Checkout',
@@ -32,9 +32,8 @@ export const bag = {
     yoursNow: 'Yours now',
     forSomeone: (name: string) => `For ${name}`,
     forSomeoneElse: 'For someone else',
-    makeLook: 'Make it a Look',
-    makeLookNote: 'Your photo or avatar, a style, the pieces you just bought.',
-    createLook: 'Create a Look',
+    makeCardNote: 'Choose a persona, the pieces you own, and a distinct art direction.',
+    openStudio: 'Open Card studio',
     backToShop: 'Back to Shop',
     noOrder: 'No order found for this link.',
     wardrobe: 'Wardrobe',

@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
         //
         // `pnpm dev:images` (`LOOKLINE_REMOTE=r2`) takes only the bucket. The catalogue's 105k
         // photographs are far too large to hold locally, but a seeded local D1 has the people and
-        // their Looks, which production does not — and keeping D1 local means a demo cannot write
+        // their Cards, which production does not—and keeping D1 local means a demo cannot write
         // to it by accident.
         config(config) {
           const remote = process.env.LOOKLINE_REMOTE

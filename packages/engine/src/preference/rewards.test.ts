@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { REWARDS, REWARD_VARIANTS, rewardFor } from './rewards'
+import { REWARDS, rewardFor } from './rewards'
 
 describe('REWARDS', () => {
-  it('has exactly the eight contract kinds with the §4.1 values', () => {
+  it('has exactly the canonical feedback kinds', () => {
     expect(REWARDS).toEqual({
       impression: 0,
       click: 0.1,
@@ -10,8 +10,6 @@ describe('REWARDS', () => {
       dismiss: -0.3,
       add_to_bag: 0.6,
       purchase: 1,
-      remix: 0.6,
-      look_create: 0.8,
     })
   })
 
@@ -46,16 +44,5 @@ describe('REWARDS', () => {
     // without forKind the forOthers flag decides
     expect(rewardFor({ kind: 'purchase', forOthers: true }).targets[0]?.target).toBe('gift')
     expect(rewardFor({ kind: 'purchase' }).reward).toBe(1)
-  })
-
-  it('remix: kept vs swapped out; look_create is +0.80 on self', () => {
-    expect(rewardFor({ kind: 'remix', context: { kept: true } }).reward).toBe(0.6)
-    expect(rewardFor({ kind: 'remix', context: { kept: false } }).reward).toBe(
-      REWARD_VARIANTS.remix_swapped,
-    )
-    expect(rewardFor({ kind: 'look_create', context: { lookId: 'lk_1' } })).toEqual({
-      reward: 0.8,
-      targets: [{ target: 'self', scale: 1 }],
-    })
   })
 })

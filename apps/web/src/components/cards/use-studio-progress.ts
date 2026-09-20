@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import type { CardArtDirection } from '@lookline/db'
 
 export interface StudioProgress {
-  candidates: Array<{ id: string; position: number }>
+  candidates: Array<{ id: string; position: number; artDirection: CardArtDirection }>
   /** Renders still running; the grid shows one filling slot for each. */
   pending: number
   /** Why the last render produced nothing, once none is running to explain an empty slot. */

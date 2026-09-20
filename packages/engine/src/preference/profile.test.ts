@@ -57,7 +57,7 @@ function ev(
     context: {},
     createdAt,
     articleId: String(seq).padStart(10, '0'),
-    lookId: null,
+    cardId: null,
     intentSessionId: null,
     vector,
     productName: 'Trail Shell',
@@ -120,11 +120,6 @@ describe('describeEvent', () => {
     expect(describeEvent(ev('dismiss', -0.3, gorp, at(0)))).toBe(
       'dismissed Northline Trail Shell (−0.30, 1 Sep)',
     )
-    expect(
-      describeEvent(
-        ev('look_create', 0.8, gorp, at(0), { productName: null, brandName: null, lookId: 'lk_1' }),
-      ),
-    ).toBe('styled into a Look a Look (+0.80, 1 Sep)')
   })
 })
 

@@ -1,6 +1,6 @@
 /**
  * Loads the `RankContext` inputs from the database (ENGINE_SPEC §2.4 "load RankContext"): user
- * vectors and counts, trusted people (§5.1 trust composite), brand counts (90 d), the latest
+ * vectors and counts, accepted friends, brand counts (90 d), the latest
  * trend signals, `max(popularity)` (cached 10 min) and the database clock.
  */
 import {
@@ -8,18 +8,18 @@ import {
   brands,
   eq,
   feedbackEvents,
+  friendships,
   gte,
   inArray,
   or,
   articles,
-  relationships,
   sql,
   sqlDaysAgoMs,
   sqlNowMs,
   trendSignals,
   users,
 } from '@lookline/db'
-import type { Database, RelationshipKind } from '@lookline/db'
+import type { Database } from '@lookline/db'
 import type { BrandCounts, RankUser, TrendStat } from './factors'
 import type { ChannelParams, TrendEvidence, TrustedUser } from './retrieve'
 
@@ -44,33 +44,7 @@ export function emptyContext(now: Date): ContextInput {
   }
 }
 
-const TRUST_WEIGHTS: Readonly<Partial<Record<RelationshipKind, number>>> = {
-  inspired_by: 0.7,
-  styles: 0.6,
-  shops_with: 0.5,
-  buys_for: 0.3,
-}
-
-/**
- * Trust floor for the social channel. Calibrated against the seeded graph: at 0.3 only 36 % of
- * users had any trusted person at all (mean 1.2, max 3), while `TRUSTED_MAX`, the 50-row social
- * channel cap and the bandit's `trustedCount / 10` context dimension all assume 10–20 of them.
- * At 0.1 the coverage is 76 % (mean 1.9, max 8) — still far inside every cap downstream.
- *
- * The floor is not a quality filter: `social_signal` weights each piece of evidence by `strength`
- * (§2.3), so a weak edge already contributes proportionally little without being cut off here.
- */
-export const TRUST_MIN = 0.1
 export const TRUSTED_MAX = 20
-
-/** §5.1 `trust(A, B)` from the relationship rows A → B. */
-export function trustFromRows(
-  rows: ReadonlyArray<{ kind: RelationshipKind; weight: number }>,
-): number {
-  let t = 0
-  for (const r of rows) t += (TRUST_WEIGHTS[r.kind] ?? 0) * r.weight
-  return Math.min(1, Math.max(0, t))
-}
 
 interface PopularityCache {
   value: number
@@ -112,7 +86,7 @@ async function loadTrend(
       momentum: trendSignals.momentum,
       velocity: trendSignals.velocity,
       emerging: trendSignals.emerging,
-      crossCluster: trendSignals.crossCluster,
+      breadth: trendSignals.breadth,
     })
     .from(trendSignals)
     .where(eq(trendSignals.day, sql`(select max(${trendSignals.day}) from ${trendSignals})`))
@@ -124,7 +98,7 @@ async function loadTrend(
       momentum: r.momentum,
       velocity: r.velocity,
       emerging: r.emerging,
-      crossCluster: r.crossCluster,
+      breadth: r.breadth,
     })
     if (r.momentum < TREND_CHANNEL_MIN_MOMENTUM) continue
     const ev: TrendEvidence = {
@@ -174,15 +148,14 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
       )
       .groupBy(articles.brandId, feedbackEvents.kind),
     db
-      .select({
-        bUserId: relationships.bUserId,
-        kind: relationships.kind,
-        weight: relationships.weight,
-        displayName: users.displayName,
-      })
-      .from(relationships)
-      .innerJoin(users, eq(users.id, relationships.bUserId))
-      .where(eq(relationships.aUserId, userId)),
+      .select({ low: friendships.lowUserId, high: friendships.highUserId })
+      .from(friendships)
+      .where(
+        and(
+          eq(friendships.state, 'accepted'),
+          or(eq(friendships.lowUserId, userId), eq(friendships.highUserId, userId)),
+        ),
+      ),
   ])
   const u = userRows[0]
   if (!u) return null
@@ -195,24 +168,16 @@ async function loadUser(db: Database, userId: string): Promise<RankUser | null> 
     else if (r.kind === 'dismiss') c.dismisses += n
     brandCounts.set(r.brandId, c)
   }
-  const byPerson = new Map<
-    string,
-    { displayName: string; rows: Array<{ kind: RelationshipKind; weight: number }> }
-  >()
-  for (const r of relRows) {
-    const entry = byPerson.get(r.bUserId) ?? { displayName: r.displayName, rows: [] }
-    entry.rows.push({ kind: r.kind, weight: r.weight })
-    byPerson.set(r.bUserId, entry)
-  }
-  const trusted: TrustedUser[] = []
-  for (const [id, entry] of byPerson) {
-    const strength = trustFromRows(entry.rows)
-    if (strength >= TRUST_MIN)
-      trusted.push({ userId: id, displayName: entry.displayName, strength })
-  }
-  const ranked = trusted.toSorted(
-    (a, b) => b.strength - a.strength || a.userId.localeCompare(b.userId),
-  )
+  const friendIds = relRows.map((row) => (row.low === userId ? row.high : row.low))
+  const friendRows = friendIds.length
+    ? await db
+        .select({ id: users.id, displayName: users.displayName })
+        .from(users)
+        .where(inArray(users.id, friendIds))
+    : []
+  const ranked: TrustedUser[] = friendRows
+    .map((friend) => ({ userId: friend.id, displayName: friend.displayName, strength: 1 }))
+    .toSorted((a, b) => a.userId.localeCompare(b.userId))
   return {
     id: u.id,
     department: u.department,

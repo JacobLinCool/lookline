@@ -81,25 +81,9 @@ export const OUTFIT_ROLE_VALUES = [
 ] as const
 export const SIZE_SYSTEM_VALUES = ['alpha', 'numeric-waist', 'eu-shoe', 'one-size'] as const
 export const BRAND_TIER_VALUES = ['budget', 'mid', 'premium', 'luxury'] as const
-export const LOOK_KIND_VALUES = ['edition', 'remix', 'together'] as const
 export const IMAGE_STATUS_VALUES = ['pending', 'ready', 'failed'] as const
 export const VISIBILITY_VALUES = ['private', 'link', 'public'] as const
 export const PURCHASE_FOR_VALUES = ['self', 'other', 'undisclosed'] as const
-export const INTERACTION_TYPE_VALUES = [
-  'VIEW',
-  'SEARCH',
-  'SAVE',
-  'DISMISS',
-  'SHARE',
-  'REACT',
-  'STYLE',
-  'REMIX',
-  'TOGETHER',
-  'INSPIRE',
-  'LOOK_CREATE',
-  'PURCHASE',
-  'BUY_FOR',
-] as const
 export const FEEDBACK_KIND_VALUES = [
   'impression',
   'click',
@@ -107,15 +91,6 @@ export const FEEDBACK_KIND_VALUES = [
   'dismiss',
   'add_to_bag',
   'purchase',
-  'remix',
-  'look_create',
-] as const
-export const RELATIONSHIP_KIND_VALUES = [
-  'inspired_by',
-  'styles',
-  'buys_for',
-  'shops_with',
-  'remixed',
 ] as const
 export const TREND_DIMENSION_VALUES = [
   'aesthetic',
@@ -131,6 +106,50 @@ export const TREND_DIMENSION_VALUES = [
 export const LLM_PROVIDER_VALUES = ['gemini', 'openai', 'offline'] as const
 /** Intent sessions also record `jev`, the closed-option decision service. Plain TEXT, no CHECK. */
 export const INTENT_PROVIDER_VALUES = [...LLM_PROVIDER_VALUES, 'jev'] as const
+
+export const CARD_ART_FOCUS_VALUES = [
+  'auto',
+  'silhouette',
+  'layering',
+  'fabric-motion',
+  'pattern-detail',
+  'accessories',
+] as const
+export const CARD_ART_POSE_VALUES = [
+  'auto',
+  'standing',
+  'walking',
+  'turn',
+  'seated',
+  'dynamic',
+  'custom',
+] as const
+export const CARD_ART_SCENE_VALUES = [
+  'auto',
+  'studio',
+  'street',
+  'architecture',
+  'interior',
+  'nature',
+  'stage',
+  'custom',
+] as const
+
+export type CardArtFocus = (typeof CARD_ART_FOCUS_VALUES)[number]
+export type CardArtPose = (typeof CARD_ART_POSE_VALUES)[number]
+export type CardArtScene = (typeof CARD_ART_SCENE_VALUES)[number]
+export interface CardArtDirection {
+  focus: CardArtFocus
+  pose: CardArtPose
+  scene: CardArtScene
+  note: string | null
+}
+export const DEFAULT_CARD_ART_DIRECTION: CardArtDirection = {
+  focus: 'auto',
+  pose: 'auto',
+  scene: 'auto',
+  note: null,
+}
 
 // ---------------------------------------------------------------------------
 // Column helpers
@@ -473,7 +492,6 @@ export const users = sqliteTable(
     preferenceVector: vector('preference_vector'),
     giftPreferenceVector: vector('gift_preference_vector'),
     tasteCluster: integer('taste_cluster'),
-    socialCluster: integer('social_cluster'),
     /** R2 object key of the owner's reference photo (`photos/<userId>.<ext>`). */
     photoPath: text('photo_path'),
     createdAt: createdAt(),
@@ -482,7 +500,6 @@ export const users = sqliteTable(
   (t) => [
     uniqueIndex('users_handle_idx').on(t.handle),
     index('users_taste_cluster_idx').on(t.tasteCluster),
-    index('users_social_cluster_idx').on(t.socialCluster),
   ],
 )
 
@@ -519,8 +536,7 @@ export const purchases = sqliteTable(
     forKind: text('for_kind', { enum: PURCHASE_FOR_VALUES }).notNull().default('undisclosed'),
     forUserId: text('for_user_id').references(() => users.id),
     forLabel: text('for_label'),
-    sourceLookId: text('source_look_id'),
-    sourceInteractionId: text('source_interaction_id'),
+    sourceCardId: text('source_card_id').references(() => cards.id, { onDelete: 'set null' }),
     intentSessionId: text('intent_session_id'),
     createdAt: createdAt(),
   },
@@ -528,88 +544,8 @@ export const purchases = sqliteTable(
     index('purchases_user_idx').on(t.userId),
     index('purchases_user_time_idx').on(t.userId, t.createdAt),
     index('purchases_article_idx').on(t.articleId),
-    index('purchases_source_look_idx').on(t.sourceLookId),
+    index('purchases_source_card_idx').on(t.sourceCardId),
     index('purchases_created_idx').on(t.createdAt),
-  ],
-)
-
-// ---------------------------------------------------------------------------
-// Looks — the social object
-// ---------------------------------------------------------------------------
-
-export const looks = sqliteTable(
-  'looks',
-  {
-    id: text('id').primaryKey(),
-    ownerId: text('owner_id')
-      .notNull()
-      .references(() => users.id),
-    kind: text('kind', { enum: LOOK_KIND_VALUES }).notNull().default('edition'),
-    title: text('title').notNull(),
-    stylePreset: text('style_preset').notNull(),
-    prompt: text('prompt'),
-    /** R2 object key of the rendered image (`looks/<id>-<generation>.png`); null = poster. */
-    imagePath: text('image_path'),
-    imageStatus: text('image_status', { enum: IMAGE_STATUS_VALUES }).notNull().default('pending'),
-    imageProvider: text('image_provider', { enum: LLM_PROVIDER_VALUES }),
-    imageGenerationId: text('image_generation_id'),
-    imageStartedAt: timestamp('image_started_at'),
-    imageError: text('image_error'),
-    aesthetics: stringList('aesthetics'),
-    palette: stringList('palette'),
-    /** Derived from the Look's own pieces; all zeroes until it has any. */
-    styleVector: vector('style_vector')
-      .notNull()
-      .$defaultFn(() => Array.from({ length: STYLE_DIMENSIONS }, () => 0)),
-    occasion: text('occasion'),
-    parentLookId: text('parent_look_id'),
-    rootLookId: text('root_look_id'),
-    depth: integer('depth').notNull().default(0),
-    visibility: text('visibility', { enum: VISIBILITY_VALUES }).notNull().default('private'),
-    shareToken: text('share_token').notNull(),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    index('looks_owner_idx').on(t.ownerId),
-    index('looks_parent_idx').on(t.parentLookId),
-    index('looks_root_idx').on(t.rootLookId),
-    index('looks_created_idx').on(t.createdAt),
-    uniqueIndex('looks_share_token_idx').on(t.shareToken),
-  ],
-)
-
-export const lookArticles = sqliteTable(
-  'look_articles',
-  {
-    lookId: text('look_id')
-      .notNull()
-      .references(() => looks.id, { onDelete: 'cascade' }),
-    articleId: text('article_id')
-      .notNull()
-      .references(() => articles.id),
-    role: text('role'),
-    position: integer('position').notNull().default(0),
-  },
-  (t) => [
-    primaryKey({ columns: [t.lookId, t.articleId] }),
-    index('look_articles_article_idx').on(t.articleId),
-  ],
-)
-
-export const lookParticipants = sqliteTable(
-  'look_participants',
-  {
-    lookId: text('look_id')
-      .notNull()
-      .references(() => looks.id, { onDelete: 'cascade' }),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id),
-    sourceLookId: text('source_look_id'),
-  },
-  (t) => [
-    primaryKey({ columns: [t.lookId, t.userId] }),
-    index('look_participants_user_idx').on(t.userId),
   ],
 )
 
@@ -624,7 +560,7 @@ export const previews = sqliteTable(
     ownerId: text('owner_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    sourceLookId: text('source_look_id').references(() => looks.id, { onDelete: 'set null' }),
+    sourceCardId: text('source_card_id').references(() => cards.id, { onDelete: 'set null' }),
     title: text('title').notNull(),
     stylePreset: text('style_preset').notNull(),
     occasion: text('occasion'),
@@ -640,7 +576,7 @@ export const previews = sqliteTable(
   },
   (t) => [
     index('previews_owner_idx').on(t.ownerId),
-    index('previews_source_look_idx').on(t.sourceLookId),
+    index('previews_source_card_idx').on(t.sourceCardId),
     index('previews_expires_idx').on(t.expiresAt),
   ],
 )
@@ -659,60 +595,6 @@ export const previewArticles = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.previewId, t.articleId] }),
     index('preview_articles_article_idx').on(t.articleId),
-  ],
-)
-
-// ---------------------------------------------------------------------------
-// Social primitives
-// ---------------------------------------------------------------------------
-
-export const interactions = sqliteTable(
-  'interactions',
-  {
-    id: text('id').primaryKey(),
-    actorUserId: text('actor_user_id')
-      .notNull()
-      .references(() => users.id),
-    targetUserId: text('target_user_id').references(() => users.id),
-    lookId: text('look_id').references(() => looks.id, { onDelete: 'cascade' }),
-    articleId: text('article_id').references(() => articles.id),
-    type: text('type', { enum: INTERACTION_TYPE_VALUES }).notNull(),
-    payload: json<Record<string, unknown>>('payload')
-      .notNull()
-      .default(sql`'{}'`),
-    sourceInteractionId: text('source_interaction_id'),
-    createdAt: createdAt(),
-  },
-  (t) => [
-    index('interactions_actor_idx').on(t.actorUserId),
-    index('interactions_target_idx').on(t.targetUserId),
-    index('interactions_look_idx').on(t.lookId),
-    index('interactions_article_idx').on(t.articleId),
-    index('interactions_type_idx').on(t.type),
-    index('interactions_created_idx').on(t.createdAt),
-  ],
-)
-
-/** Derived from interactions by the graph engine. Directed: a → b. */
-export const relationships = sqliteTable(
-  'relationships',
-  {
-    aUserId: text('a_user_id')
-      .notNull()
-      .references(() => users.id),
-    bUserId: text('b_user_id')
-      .notNull()
-      .references(() => users.id),
-    kind: text('kind', { enum: RELATIONSHIP_KIND_VALUES }).notNull(),
-    weight: real('weight').notNull().default(0),
-    count: integer('count').notNull().default(0),
-    lastAt: timestamp('last_at').notNull(),
-    computedAt: createdAt('computed_at'),
-  },
-  (t) => [
-    primaryKey({ columns: [t.aUserId, t.bUserId, t.kind] }),
-    index('relationships_b_idx').on(t.bUserId),
-    index('relationships_kind_idx').on(t.kind),
   ],
 )
 
@@ -750,7 +632,7 @@ export const feedbackEvents = sqliteTable(
       .notNull()
       .references(() => users.id),
     articleId: text('article_id').references(() => articles.id),
-    lookId: text('look_id').references(() => looks.id, { onDelete: 'set null' }),
+    cardId: text('card_id').references(() => cards.id, { onDelete: 'set null' }),
     intentSessionId: text('intent_session_id'),
     kind: text('kind', { enum: FEEDBACK_KIND_VALUES }).notNull(),
     reward: real('reward').notNull().default(0),
@@ -765,6 +647,7 @@ export const feedbackEvents = sqliteTable(
     index('feedback_events_user_idx').on(t.userId),
     index('feedback_events_user_time_idx').on(t.userId, t.createdAt, t.id),
     index('feedback_events_article_idx').on(t.articleId),
+    index('feedback_events_card_idx').on(t.cardId),
     index('feedback_events_created_idx').on(t.createdAt),
     index('feedback_events_session_idx').on(t.intentSessionId),
   ],
@@ -803,30 +686,6 @@ export const banditState = sqliteTable('bandit_state', {
   updatedAt: createdAt('updated_at'),
 })
 
-// ---------------------------------------------------------------------------
-// Trend analytics
-// ---------------------------------------------------------------------------
-
-export const lineageStats = sqliteTable('lineage_stats', {
-  rootLookId: text('root_look_id')
-    .primaryKey()
-    .references(() => looks.id, { onDelete: 'cascade' }),
-  depth: integer('depth').notNull().default(0),
-  nodes: integer('nodes').notNull().default(1),
-  uniquePeople: integer('unique_people').notNull().default(1),
-  clustersReached: integer('clusters_reached').notNull().default(1),
-  shares: integer('shares').notNull().default(0),
-  remixes: integer('remixes').notNull().default(0),
-  purchases: integer('purchases').notNull().default(0),
-  gmv: integer('gmv').notNull().default(0),
-  velocity: real('velocity').notNull().default(0),
-  shareToRemixRate: real('share_to_remix_rate').notNull().default(0),
-  remixToPurchaseRate: real('remix_to_purchase_rate').notNull().default(0),
-  firstAt: timestamp('first_at').notNull(),
-  lastAt: timestamp('last_at').notNull(),
-  computedAt: createdAt('computed_at'),
-})
-
 export const trendSignals = sqliteTable(
   'trend_signals',
   {
@@ -837,7 +696,7 @@ export const trendSignals = sqliteTable(
     key: text('key').notNull(),
     volume: integer('volume').notNull().default(0),
     velocity: real('velocity').notNull().default(0),
-    crossCluster: real('cross_cluster').notNull().default(0),
+    breadth: real('breadth').notNull().default(0),
     conversion: real('conversion').notNull().default(0),
     gmv: integer('gmv').notNull().default(0),
     momentum: real('momentum').notNull().default(0),
@@ -927,7 +786,6 @@ export const simPersonas = sqliteTable('sim_personas', {
     .references(() => users.id, { onDelete: 'cascade' }),
   hiddenVector: vector('hidden_vector').notNull(),
   giftHiddenVector: vector('gift_hidden_vector'),
-  socialCluster: integer('social_cluster').notNull(),
   params: json<Record<string, unknown>>('params')
     .notNull()
     .default(sql`'{}'`),
@@ -1160,6 +1018,9 @@ export const cardSessions = sqliteTable(
     >('article_snapshot')
       .notNull()
       .default(sql`'[]'`),
+    artDirection: json<CardArtDirection>('art_direction')
+      .notNull()
+      .default(sql`'{"focus":"auto","pose":"auto","scene":"auto","note":null}'`),
     expiresAt: timestamp('expires_at').notNull(),
     settledAt: timestamp('settled_at'),
     createdAt: createdAt(),
@@ -1181,6 +1042,9 @@ export const generationAttempts = sqliteTable(
       .references(() => cardSessions.id, { onDelete: 'cascade' }),
     state: text('state', { enum: GENERATION_STATE_VALUES }).notNull().default('pending'),
     provider: text('provider'),
+    artDirection: json<CardArtDirection>('art_direction')
+      .notNull()
+      .default(sql`'{"focus":"auto","pose":"auto","scene":"auto","note":null}'`),
     error: text('error'),
     createdAt: createdAt(),
     finishedAt: timestamp('finished_at'),
@@ -1384,22 +1248,14 @@ export type NewUser = typeof users.$inferInsert
 export type Session = typeof sessions.$inferSelect
 export type Purchase = typeof purchases.$inferSelect
 export type NewPurchase = typeof purchases.$inferInsert
-export type Look = typeof looks.$inferSelect
-export type NewLook = typeof looks.$inferInsert
-export type LookArticle = typeof lookArticles.$inferSelect
-export type LookParticipant = typeof lookParticipants.$inferSelect
 export type Preview = typeof previews.$inferSelect
 export type NewPreview = typeof previews.$inferInsert
 export type PreviewArticle = typeof previewArticles.$inferSelect
-export type Interaction = typeof interactions.$inferSelect
-export type NewInteraction = typeof interactions.$inferInsert
-export type Relationship = typeof relationships.$inferSelect
 export type IntentSession = typeof intentSessions.$inferSelect
 export type NewIntentSession = typeof intentSessions.$inferInsert
 export type FeedbackEvent = typeof feedbackEvents.$inferSelect
 export type NewFeedbackEvent = typeof feedbackEvents.$inferInsert
 export type PreferenceSnapshot = typeof preferenceSnapshots.$inferSelect
-export type LineageStat = typeof lineageStats.$inferSelect
 export type TrendSignal = typeof trendSignals.$inferSelect
 export type SearchTrend = typeof searchTrends.$inferSelect
 export type HomeTrend = typeof homeTrend.$inferSelect
@@ -1450,17 +1306,14 @@ export type OutfitRole = (typeof OUTFIT_ROLE_VALUES)[number]
 export type CategoryGroup = (typeof CATEGORY_GROUP_VALUES)[number]
 export type SizeSystem = (typeof SIZE_SYSTEM_VALUES)[number]
 export type BrandTier = (typeof BRAND_TIER_VALUES)[number]
-export type LookKind = (typeof LOOK_KIND_VALUES)[number]
 export type Visibility = (typeof VISIBILITY_VALUES)[number]
 export type PurchaseFor = (typeof PURCHASE_FOR_VALUES)[number]
-export type InteractionType = (typeof INTERACTION_TYPE_VALUES)[number]
 export type FeedbackKind = (typeof FEEDBACK_KIND_VALUES)[number]
-export type RelationshipKind = (typeof RELATIONSHIP_KIND_VALUES)[number]
 export type TrendDimension = (typeof TREND_DIMENSION_VALUES)[number]
 export type LlmProvider = (typeof LLM_PROVIDER_VALUES)[number]
 export type IntentProvider = (typeof INTENT_PROVIDER_VALUES)[number]
 
-/** Explicit, mutually accepted relationships. Analytics relationships never grant access. */
+/** Explicit friendship requests; only the accepted state grants social access. */
 export const friendships = sqliteTable(
   'friendships',
   {

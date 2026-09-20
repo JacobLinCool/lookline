@@ -108,7 +108,7 @@ export const IntentSchema = z.object({
   mustHave: z.array(z.string()).max(8).default([]),
   mustAvoid: z.array(z.string()).max(8).default([]),
   vibe: z.string().optional(),
-  referenceLookId: z.string().optional(),
+  referenceCardId: z.string().optional(),
   referenceHandle: z.string().optional(),
   assumptions: z.array(AssumptionSchema),
   clarifications: z.array(ClarificationSchema),
@@ -142,8 +142,8 @@ export interface IntentContact {
   displayName: string
   handle: string
   department?: Department
-  latestLookId?: string
-  latestLookIds?: string[]
+  latestCardId?: string
+  latestCardIds?: string[]
 }
 
 export interface IntentBrand {

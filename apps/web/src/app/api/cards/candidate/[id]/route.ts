@@ -1,5 +1,5 @@
 import { cardCandidates, cardSessions, collections, eq, personas } from '@lookline/db'
-import { renderLookPosterSvg } from '@lookline/engine'
+import { renderCardPosterSvg } from '@lookline/engine'
 import { getSessionUser } from '@/server/auth'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
@@ -49,7 +49,7 @@ export async function GET(
 
   // Each candidate gets its own seed, so the four differ without any of them being a redraw of
   // another — they are alternatives, not revisions.
-  const svg = renderLookPosterSvg({
+  const svg = renderCardPosterSvg({
     // The preview is titled like the card it would become: a collection by its name, a personal
     // card by its subject.
     title: row.collectionTitle ?? row.personaName,

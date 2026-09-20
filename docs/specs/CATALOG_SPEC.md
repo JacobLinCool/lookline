@@ -1590,7 +1590,7 @@ Every pattern renders for a dark and a light base (tested); output is byte-ident
 `renderSwatchSvg(hex, secondaryHex?)` → 24×24 circle (split half/half when a secondary is given).
 `renderOutfitSvg(inputs: ProductRenderInput[])` → up to 5 products side by side, each
 `renderProductSvg` output nested as `<svg x="{k*300}" y="0" width="300" height="400" viewBox="0 0
-600 800">` inside a `1500×400` canvas (the engine's offline Look-poster fallback may reuse it).
+600 800">` inside a `1500×400` canvas (the engine's offline Card poster may reuse it).
 ---
 
 ## 10. Determinism, PRNG, seeds

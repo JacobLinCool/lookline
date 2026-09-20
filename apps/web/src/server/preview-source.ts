@@ -1,19 +1,36 @@
-import { asc, eq, lookArticles, looks, type Look } from '@lookline/db'
+import { cards, eq, personas } from '@lookline/db'
 import { getDb } from './db'
 
-export function canPreviewSourceLook(look: Pick<Look, 'ownerId' | 'visibility'>, viewerId: string) {
-  return look.ownerId === viewerId || look.visibility !== 'private'
+export function canReadPreviewSourceCard(
+  card: { visibility: 'private' | 'link' | 'public'; authorUserId: string; holderUserId: string },
+  viewerId: string,
+): boolean {
+  return (
+    card.visibility !== 'private' ||
+    card.authorUserId === viewerId ||
+    card.holderUserId === viewerId
+  )
 }
 
-/** Loads the exact source composition only when this viewer may legitimately open the Look. */
-export async function loadPreviewSourceLook(sourceLookId: string, viewerId: string) {
+/** Load a card's immutable outfit snapshot only when the viewer may read that card. */
+export async function loadPreviewSourceCard(sourceCardId: string, viewerId: string) {
   const { db } = getDb()
-  const [look] = await db.select().from(looks).where(eq(looks.id, sourceLookId)).limit(1)
-  if (!look || !canPreviewSourceLook(look, viewerId)) return null
-  const items = await db
-    .select({ articleId: lookArticles.articleId, position: lookArticles.position })
-    .from(lookArticles)
-    .where(eq(lookArticles.lookId, look.id))
-    .orderBy(asc(lookArticles.position))
-  return { look, articleIds: items.map(({ articleId }) => articleId) }
+  const [row] = await db
+    .select({
+      id: cards.id,
+      visibility: cards.visibility,
+      authorUserId: cards.authorUserId,
+      holderUserId: personas.ownerUserId,
+      snapshot: cards.articleSnapshot,
+    })
+    .from(cards)
+    .innerJoin(personas, eq(personas.id, cards.personaId))
+    .where(eq(cards.id, sourceCardId))
+    .limit(1)
+  if (!row) return null
+  if (!canReadPreviewSourceCard(row, viewerId)) return null
+  return {
+    card: row,
+    articleIds: [...new Set((row.snapshot ?? []).map((entry) => entry.articleId))],
+  }
 }

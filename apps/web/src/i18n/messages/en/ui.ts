@@ -1,9 +1,9 @@
 /** Shared UI kit and page-level states that are not owned by one surface. */
 export const ui = {
   siteDescription:
-    'Say what you are dressing for. Buy real pieces. Turn them into a Look your friends can pick up.',
+    'Say what you are dressing for. Buy real pieces. Turn them into Cards you can share.',
   notFoundTitle: 'Nothing here',
-  notFoundDescription: 'This page does not exist, or the Look was never shared.',
+  notFoundDescription: 'This page does not exist, or the Card is no longer available.',
   notFoundAction: 'Back to Find',
   engineUnavailable: 'The engine did not answer.',
   imageOf: (name: string) => `${name}, product image`,
@@ -25,13 +25,7 @@ export const ui = {
     diversity: 'Diversity',
     compatibility: 'Compatibility',
   } as Record<string, string>,
-  /** Where a Look came from, under the owner's name on a card. */
-  lineage: {
-    after: (handle: string) => `Inspired by @${handle}`,
-    with: (handle: string) => `With @${handle}`,
-  },
-
-  /** `InstantForm`, the optimistic mutation shared by shop, looks and bag. */
+  /** `InstantForm`, the optimistic mutation shared by shop, Cards and bag. */
   instantForm: {
     syncing: (confirmation: string) => `${confirmation} · syncing`,
     failed: 'This change could not be saved. Please retry.',
@@ -56,12 +50,8 @@ export const ui = {
     productsUnavailable: 'Products could not be loaded. Please try again.',
     sentenceTooLong: 'Enter a sentence of up to 500 characters.',
     recommendationsUnavailable: 'Recommendations could not be loaded. Please try again.',
-    invalidLookId: 'Invalid Look id.',
-    lookNotFound: 'Look not found.',
-    lookOwnerOnly: 'Only the owner can render this Look.',
     choosePreset: 'Choose a style preset.',
     missingGenerationId: 'Missing generation id.',
-    lookImageFailed: 'Could not create the image. Please try again.',
     voiceLanguages: 'Select at least one supported voice language.',
     voiceUnavailable: 'Voice is temporarily unavailable. You can keep typing.',
     voiceConnect: 'Voice could not connect. You can keep typing or try again.',

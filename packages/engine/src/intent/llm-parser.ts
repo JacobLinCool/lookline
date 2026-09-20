@@ -156,14 +156,14 @@ const FEW_SHOT_CTX: IntentContextExt = {
       displayName: 'Alice',
       handle: 'alice',
       department: 'women',
-      latestLookId: 'lk_alice_01',
+      latestCardId: 'lk_alice_01',
     },
     {
       userId: 'u_000003',
       displayName: 'Jacob',
       handle: 'jacob',
       department: 'men',
-      latestLookId: 'lk_jacob_01',
+      latestCardId: 'lk_jacob_01',
     },
   ],
 }
@@ -481,7 +481,7 @@ export function mergeLlm(
         c.displayName.toLowerCase() === llm.referenceHandle!.toLowerCase() ||
         c.handle.toLowerCase() === llm.referenceHandle!.toLowerCase(),
     )
-    if (contact?.latestLookId) merged.referenceLookId = contact.latestLookId
+    if (contact?.latestCardId) merged.referenceCardId = contact.latestCardId
   }
 
   // assumptions: union by slot keeping the higher confidence

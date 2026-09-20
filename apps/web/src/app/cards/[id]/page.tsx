@@ -17,6 +17,7 @@ import { tierForRatio } from '@lookline/engine'
 import { Avatar, Button, Card, Container, Price, ProductImage, Tag } from '@/components/ui'
 import { CardFace } from '@/components/cards/card-face'
 import { ShareCard } from '@/components/cards/share-card'
+import { previewHref } from '@/components/previews/preview-url'
 import { displayName } from '@/lib/product-name'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
@@ -203,6 +204,9 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
 
           <div className="flex gap-2">
             <Button href="/me">回到我的收藏</Button>
+            <Button href={previewHref({ sourceCardId: card.id })} variant="secondary">
+              用這套預覽
+            </Button>
             {viewer?.id === card.holderId ? (
               <Button href="/studio" variant="secondary">
                 再做一張

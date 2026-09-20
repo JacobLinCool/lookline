@@ -5,7 +5,7 @@ Two levels of access. Start at level 1 — most work never needs level 2.
 ## 1. Local only (no Cloudflare credentials)
 
 `vinext dev` starts workerd with a _local_ D1 (`apps/web/.wrangler/state`) and a local R2
-simulation, so the whole app — Look image storage included — runs from a clean clone:
+simulation, so the whole app—Card and Preview image storage included—runs from a clean clone:
 
 The catalogue is the Kaggle [H&M Personalized Fashion
 Recommendations](https://www.kaggle.com/competitions/h-and-m-personalized-fashion-recommendations/data)
@@ -25,10 +25,10 @@ pnpm d1:migrate:local && pnpm d1:local             # copy that into the dev D1
 pnpm dev
 ```
 
-`pnpm seed` is three steps: `seed:catalog` imports the H&M articles, `seed:social` simulates 1,200
-people — including the ten named demo personas `/login` offers — over 60 days of Looks, remixes and
-purchases, and `analytics` derives the relationship graph and trends from what they did. The second
-step is what puts anyone in the database, so a failure in the first leaves you with no users at all.
+`pnpm seed` imports the H&M articles, simulates people—including the named demo personas `/login`
+offers—with accepted friendships, sharing choices, purchases, Cards, Collections, intents and
+feedback, then materializes demand trends. A catalog failure leaves later seed steps with no usable
+articles.
 
 LLM keys are optional: without them every engine falls back to deterministic offline logic and the
 app stays usable end to end. `pnpm check` (format, lint, typecheck, test, build) needs nothing else.
@@ -98,7 +98,7 @@ resource bindings move.
 
 ### Images only
 
-For someone who just reads or writes Look images, skip the account token: R2 → **Manage R2 API
+For someone who just reads or writes Card images, skip the account token: R2 → **Manage R2 API
 Tokens** issues one scoped to a single bucket (`lookline-media`, Object Read & Write) with S3
 credentials. It cannot reach D1, the Worker, or any other bucket.
 

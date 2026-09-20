@@ -180,7 +180,7 @@ export function compat(a: Article, b: Article, intentSeason?: Season | null): Co
   return { score, colour, aesthetic, formality, season, skipped: isUnscoredPair(a, b) }
 }
 
-/** Compat of an item with an external reference (e.g. a partner Look): vector + colour only. */
+/** Compatibility with an external outfit reference: vector + colour only. */
 export function referenceCompat(
   item: Article,
   ref: { styleVector: readonly number[]; colorHex: string; colorFamily: string },

@@ -212,13 +212,13 @@ describe('social_signal', () => {
     c.socialEvidence.push({
       userId: 'u_2',
       displayName: 'Alice',
-      kind: 'look',
+      kind: 'card',
       strength: 0.8,
       at: new Date(ctx.now.getTime() - 3 * 86_400_000),
     })
     const r = socialSignal(c, ctx)
     expect(r.value).toBeCloseTo(1 - Math.exp(-0.8), 9)
-    expect(r.evidence).toBe('Alice wore this in a Look this week')
+    expect(r.evidence).toBe('Alice shared this in a public Card this week')
     const guest = socialSignal(candidate(hoodie), makeRankContext(makeIntent()))
     expect(guest.applicable).toBe(false)
   })
@@ -229,11 +229,11 @@ describe('trend_momentum', () => {
     const empty = trendMomentum(candidate(hoodie), makeRankContext(makeIntent()))
     expect(empty.applicable).toBe(false)
     const trend = new Map([
-      ['aesthetic:hoodie', { momentum: 72, velocity: 1, emerging: true, crossCluster: 0.4 }],
+      ['aesthetic:hoodie', { momentum: 72, velocity: 1, emerging: true, breadth: 4 }],
     ])
     const hit = trendMomentum(candidate(hoodie), makeRankContext(makeIntent(), { trend }))
     expect(hit.value).toBeCloseTo(0.72, 9)
-    expect(hit.evidence).toContain('spreading across taste circles')
+    expect(hit.evidence).toContain('reaching more people')
     const miss = trendMomentum(candidate(tee), makeRankContext(makeIntent(), { trend }))
     expect(miss.value).toBe(0.3)
     expect(miss.applicable).toBe(true)

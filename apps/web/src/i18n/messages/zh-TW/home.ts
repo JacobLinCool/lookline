@@ -25,7 +25,7 @@ export const home: HomeMessages = {
 
   rails: {
     circle: '你的圈子，接著是社群',
-    network: '社群的 Look',
+    network: '朋友的 Cards',
     trending: '正在流行',
   },
 

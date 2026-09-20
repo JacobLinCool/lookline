@@ -1,11 +1,11 @@
 /*
- * THESIS: The Look is the interface. Every page opens on a garment or a Look; text is a tag, never
+ * THESIS: The image is the interface. Every page opens on a garment or a Card; text is a tag, never
  *   a paragraph. Refused: the eyebrow / serif title / grey description scaffold and the exposure of
  *   engine internals on consumer pages.
  * OWN-WORLD: The Rack — white wall (#f7f6f3), one 1px steel rail, white paper tags, ink controls,
  *   tag red (#c8321e) as the single alert colour. Bricolage Grotesque signage, Inter operation.
- * STORY: Say it → real pieces → own it → a Look → friends pick it up → buy again.
- * FIRST VIEWPORT: one oversized input over a rail of real Looks; on every other page the largest
+ * STORY: Say it → real pieces → own it → a Card → friends discover it → buy again.
+ * FIRST VIEWPORT: one oversized input over a rail of real Cards; on every other page the largest
  *   element is an image and the one ink button is the next step in the chain.
  * FORM: candidate 4 of the grounded list (the clothing rack), seed key f928b4d9.
  * FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the

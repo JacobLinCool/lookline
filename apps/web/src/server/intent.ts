@@ -263,8 +263,8 @@ export function clarificationPhrase(answer: ClarificationAnswer, locale: UserLoc
       )
     case 'season':
       return zh ? `${value}穿` : `for ${value.replace(/-/g, ' ')}`
-    case 'referenceLookId':
-      return zh ? `我指的是 Look ${value}` : `I mean Look ${value}`
+    case 'referenceCardId':
+      return zh ? `我指的是 Card ${value}` : `I mean Card ${value}`
     case 'mode':
       if (lower === 'outfit') return zh ? '幫我配整套' : 'the whole outfit'
       if (lower === 'single') return zh ? '只要單品' : 'just one piece'

@@ -22,6 +22,7 @@ import {
   insertAll,
   sql,
   type CardCandidate,
+  type CardArtDirection,
   type Database,
   type EntitlementSource,
 } from '@lookline/db'
@@ -43,6 +44,7 @@ export interface OpenSessionInput {
   /** The credit this session holds, by the key that reserved it. */
   reserveOperationKey: string
   articles: readonly ArticleRef[]
+  artDirection: CardArtDirection
   expiresAt: Date
 }
 
@@ -60,6 +62,7 @@ export async function openSession(db: Database, input: OpenSessionInput): Promis
       source: a.source,
       ...(a.personaId ? { personaId: a.personaId } : {}),
     })),
+    artDirection: input.artDirection,
     expiresAt: input.expiresAt,
     state: 'open',
   })
@@ -67,12 +70,18 @@ export async function openSession(db: Database, input: OpenSessionInput): Promis
 
 export async function startAttempt(
   db: Database,
-  input: { id: string; sessionId: string; provider?: string | null },
+  input: {
+    id: string
+    sessionId: string
+    artDirection: CardArtDirection
+    provider?: string | null
+  },
 ): Promise<void> {
   await db.insert(generationAttempts).values({
     id: input.id,
     sessionId: input.sessionId,
     provider: input.provider ?? null,
+    artDirection: input.artDirection,
     state: 'pending',
   })
 }

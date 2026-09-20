@@ -13,7 +13,7 @@
  */
 import { eq, personas } from '@lookline/db'
 import { getDb } from './db'
-import { MAX_PHOTO_BYTES, photoExtension, type ReferencePhoto } from './looks'
+import { MAX_PHOTO_BYTES, photoExtension, type ReferencePhoto } from './imagery'
 import { getStorage, isSafeKey } from './storage'
 
 export const PERSONA_PHOTO_PREFIX = 'persona-references'

@@ -24,7 +24,7 @@ export interface VectorizeOptions {
   trendingAesthetics?: readonly string[]
   /** Feedback-event count of the user: β = min(0.4, 0.10 + 0.02·eventCount); 0.25 when unknown. */
   eventCount?: number
-  /** Style vector of the referenced Look (`referenceLookVector`). */
+  /** Style vector of the referenced Card (`referenceCardVector`). */
   referenceVector?: readonly number[] | null
 }
 
@@ -34,14 +34,14 @@ export const FALLBACK_AESTHETICS: ReadonlyArray<readonly [string, number]> = [
   ['normcore', 0.4],
 ]
 
-/** `look.styleVector` when present, else the mean of its articles' vectors with G zeroed. */
-export function referenceLookVector(look: {
+/** A Card snapshot's stored style vector, or the mean of its articles with G zeroed. */
+export function referenceCardVector(card: {
   styleVector?: readonly number[] | null
   articles?: ReadonlyArray<{ styleVector: readonly number[] }>
 }): number[] | null {
-  if (look.styleVector && look.styleVector.length === STYLE_DIMENSIONS)
-    return look.styleVector.slice()
-  const articles = look.articles ?? []
+  if (card.styleVector && card.styleVector.length === STYLE_DIMENSIONS)
+    return card.styleVector.slice()
+  const articles = card.articles ?? []
   if (articles.length === 0) return null
   const out = zeroVector()
   for (const p of articles)

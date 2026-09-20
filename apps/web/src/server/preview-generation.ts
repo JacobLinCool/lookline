@@ -15,9 +15,9 @@ import {
   users,
   type Preview,
 } from '@lookline/db'
-import { buildLookImagePrompt, getLlm } from '@lookline/engine'
+import { buildPreviewImagePrompt, getLlm } from '@lookline/engine'
 import { getDb } from './db'
-import { loadLookReferences, resolveStylePreset, type ReferencePhoto } from './looks'
+import { loadPreviewReferences, resolvePreviewArtPreset, type ReferencePhoto } from './imagery'
 import { getStorage, isSafeKey } from './storage'
 
 const IMAGE_EXT: Record<string, string> = {
@@ -162,9 +162,9 @@ async function finishPreview(preview: Preview) {
       loadComposition(preview),
       loadReference(preview),
     ])
-    const refs = await loadLookReferences(scene.articles, referencePhoto)
-    const prompt = buildLookImagePrompt({
-      preset: resolveStylePreset(preview.stylePreset),
+    const refs = await loadPreviewReferences(scene.articles, referencePhoto)
+    const prompt = buildPreviewImagePrompt({
+      preset: resolvePreviewArtPreset(preview.stylePreset),
       articles: refs.articles,
       ownerName: scene.ownerName,
       occasion: preview.occasion,
@@ -176,7 +176,7 @@ async function finishPreview(preview: Preview) {
       prompt,
       referenceImages: refs.referenceImages,
       aspectRatio: '3:4',
-      purpose: 'look',
+      purpose: 'preview',
       timeoutMs: remaining,
     })
     if (!result?.data.length) throw new Error('Rendering did not finish. Retry this preview.')
@@ -229,9 +229,7 @@ export async function queuePreviewImage(
   if (!preview) throw new Error('Preview not found.')
   if (preview.imageStatus === 'pending') return preview
   if (!getLlm().imageModel) throw new Error('Image rendering is unavailable.')
-  const preset = resolveStylePreset(
-    preview.sourceLookId ? preview.stylePreset : (stylePreset ?? preview.stylePreset),
-  )
+  const preset = resolvePreviewArtPreset(stylePreset ?? preview.stylePreset)
   const [claimed] = await getDb()
     .db.update(previews)
     .set({
@@ -284,7 +282,7 @@ export async function cancelPreviewImage(
 export async function createPreviewDraft(input: {
   ownerId: string
   articleIds: readonly string[]
-  sourceLookId?: string | null
+  sourceCardId?: string | null
   stylePreset: string
   title: string
   occasion?: string | null
@@ -298,7 +296,7 @@ export async function createPreviewDraft(input: {
     .from(articles)
     .where(inArray(articles.id, articleIds))
   if (found.length !== articleIds.length) throw new Error('One or more articles are unavailable.')
-  const preset = resolveStylePreset(input.stylePreset)
+  const preset = resolvePreviewArtPreset(input.stylePreset)
   const id = `pv_${nanoid()}`
   const generationId = nanoid()
   const ext = IMAGE_EXT[input.referencePhoto.mimeType]
@@ -311,7 +309,7 @@ export async function createPreviewDraft(input: {
       .values({
         id,
         ownerId: input.ownerId,
-        sourceLookId: input.sourceLookId ?? null,
+        sourceCardId: input.sourceCardId ?? null,
         title: input.title.trim().slice(0, 120) || 'Outfit preview',
         stylePreset: preset.slug,
         occasion: input.occasion?.trim().slice(0, 80) || null,

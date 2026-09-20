@@ -116,8 +116,8 @@ components:
 Lookline is a well-lit store. A white wall holds the work, one steel rail runs across it, and every
 garment hangs with a paper tag. The garment is the only colour on the page; the interface is the
 rail and the tags. Nothing explains itself: the largest element on every screen is a piece of
-clothing or a Look, the one ink button is the next step in the chain (say it → real pieces → own
-it → a Look → friends pick it up → buy again), and text is a caption, never a paragraph.
+clothing or a Card, the one ink button is the next step in the chain (say it → real pieces → own
+it → a Card → friends discover it → buy again), and text is a caption, never a paragraph.
 
 **Key characteristics:**
 
@@ -141,7 +141,7 @@ spacing, never from extra hues.
 ### Accent
 
 - **Tag red** (`#c8321e`): scarce. A friend's pick, an over-budget total, a recording dot, an
-  error, the edition number on a Look poster. Never a primary button, never decoration.
+  error, the edition number on a Card poster. Never a primary button, never decoration.
 - **Tag red soft** (`#f8e3de`): the ground for warning and error notices.
 
 ### Neutral
@@ -155,7 +155,7 @@ spacing, never from extra hues.
 
 ### Named rules
 
-**The One Colour Rule.** Product artwork and Look images supply the page's colour; the interface
+**The One Colour Rule.** Product artwork and Card images supply the page's colour; the interface
 stays neutral so they can.
 
 **The Tag Red Rule.** Red marks a single consequential thing per screen. If two things are red,
@@ -172,7 +172,7 @@ Engine lab).
 
 ### Hierarchy
 
-- **Display** (600, 2rem–2.5rem, 1.02): page titles, Look titles, prices at the hero size.
+- **Display** (600, 2rem–2.5rem, 1.02): page titles, Card titles, prices at the hero size.
 - **Section title** (600, 1.25rem): the title on a rail line above a group; on rails 1.06–1.19rem.
 - **Body** (400, 0.9375rem, 1.5): descriptions, at most one line under a title.
 - **Control** (500, 0.875rem): buttons, field labels (0.8125rem), navigation.
@@ -183,7 +183,7 @@ Engine lab).
 **The Caption Rule.** Text under an image is a caption: name, price, one reason. Sentence case,
 no tracked uppercase, no kickers above headings.
 
-**The Signage Rule.** Bricolage Grotesque names pages and Looks; Inter operates. Never the reverse.
+**The Signage Rule.** Bricolage Grotesque names pages and Cards; Inter operates. Never the reverse.
 
 ## Layout
 
@@ -191,7 +191,7 @@ Centered containers with 1.25rem gutters on phones and 2rem on desktop; content 
 (reading), 72rem (default) and 88rem (catalog). Groups are separated by a rail line and 1.75–2.25rem
 of vertical space, not by cards.
 
-**Rails.** A curated set (an outfit, your Looks, friends' picks, "Wear it with") is a rail: a short
+**Rails.** A curated set (an outfit, your Cards, friends' picks, "Wear it with") is a rail: a short
 title row, then a horizontally scrolling track that bleeds to the viewport edge on phones, snaps to
 items, and hides its scrollbar. Item widths: sm 8.5/10.5rem, md 10.5/13rem, lg 14/17rem, xl 17/22rem
 (phone/desktop).
@@ -257,7 +257,7 @@ count badges only.
   One per page — the next step in the chain. Hover lightens to 85% ink.
 - **Secondary:** white card with a rail border; the border turns ink on hover.
 - **Ghost:** text only, panel tint on hover. **Link:** underlined with the rail colour.
-- Labels name the outcome: Find pieces, Add to bag, Place order, Create a Look, Make it mine,
+- Labels name the outcome: Find pieces, Add to bag, Place order, Create a Card, Next shot,
   Ask a friend, Send, Copy link.
 
 ### Tags
@@ -266,9 +266,9 @@ A paper tag: white, rail border, 3px radius, 1.5rem high, 0.75rem sentence-case 
 (card), ink (selected / the understood intent), accent (avoid, over budget, a friend's pick),
 outline (muted). At most one tag per object.
 
-### Tiles (ProductCard, LookCard)
+### Tiles (ProductCard, Card tile)
 
-Artwork at 3:4 on its own tonal ground (the product SVG's aesthetic colour; panel for Looks),
+Artwork at 3:4 on its own tonal ground (the product SVG's aesthetic colour; panel for Cards),
 8px radius, lifts on hover. Beneath: brand (meta), name (0.875rem, two lines max), price (tabular),
 optionally one reason line ("Matches the style · In budget"). Overlays sit in the artwork's corners:
 a tag top-left, save/dismiss icon buttons top-right.
@@ -302,7 +302,7 @@ Trending, preferences, recent history and friends' activity load independently; 
 preference rails share their request. Skeletons match the product geometry. A failed group
 keeps its own retry control, while signed-out and empty states use the recessed panel tone
 with a relevant action. Existing product captions and friend attribution remain outside the
-photography; Look Cards retain their own imagery and link to the card detail.
+photography; Cards retain their own imagery and link to the Card detail.
 
 ### Example sentence controls
 
@@ -316,7 +316,7 @@ An indeterminate 2px `progress-line` under an image or input while something gen
 shaped like the tiles they replace; button labels change ("Rendering…"). No spinners in content,
 no sentences narrating progress.
 
-### Look posters (offline)
+### Card posters (offline)
 
 900×1200: the preset's ground colour, a slightly darker stage rectangle, the garments laid out as a
 flat lay with ±5° tilt, the title in a bold grotesque, "by <owner>", up to three aesthetics, a thin

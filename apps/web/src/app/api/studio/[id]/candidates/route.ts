@@ -3,7 +3,7 @@ import { MAX_CANDIDATES_PER_SESSION } from '@lookline/engine'
 import { getSessionUser } from '@/server/auth'
 import { studioProgress } from '@/server/card-generation'
 import { getDb } from '@/server/db'
-import { sanitizeId } from '@/server/looks'
+import { sanitizeId } from '@/server/imagery'
 
 const headers = { 'Cache-Control': 'private, no-store' }
 

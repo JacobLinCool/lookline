@@ -5,7 +5,7 @@ import {
   queuePreviewImage,
   readPreviewGeneration,
 } from '@/server/preview-generation'
-import { sanitizeId } from '@/server/looks'
+import { sanitizeId } from '@/server/imagery'
 
 const privateHeaders = { 'Cache-Control': 'private, no-store' }
 

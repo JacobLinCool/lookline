@@ -29,9 +29,9 @@ export interface ProfileEvent {
   context: Record<string, unknown>
   createdAt: Date
   articleId: string | null
-  lookId: string | null
+  cardId: string | null
   intentSessionId: string | null
-  /** Article (or Look) style vector; `null` when the object is gone. */
+  /** Article style vector; `null` when the product is gone. */
   vector: number[] | null
   productName?: string | null
   brandName?: string | null
@@ -139,10 +139,6 @@ function verbFor(e: ProfileEvent, target: RewardTarget): string {
       return 'added to bag'
     case 'purchase':
       return 'bought'
-    case 'remix':
-      return e.context['kept'] === false ? 'swapped out' : 'kept in a remix'
-    case 'look_create':
-      return 'styled into a Look'
     case 'impression':
     default:
       return target === 'gift' ? 'browsed for someone' : 'browsed'
@@ -154,7 +150,7 @@ function itemName(e: ProfileEvent): string {
     .filter((s) => typeof s === 'string' && s.length > 0)
     .join(' ')
   if (name) return name
-  if (e.lookId) return 'a Look'
+  if (e.cardId) return 'a card'
   return 'an item'
 }
 

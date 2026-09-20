@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-20T02:47:09Z",
+  "title": "Design System: LookLine presentation",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "stage",
+        "value": "0 8px 40px #1717170b",
+        "purpose": "Separate the desktop slide canvas from presentation chrome."
+      },
+      {
+        "name": "overview",
+        "value": "0 20px 80px #0003",
+        "purpose": "Elevate the modal slide menu."
+      }
+    ],
+    "motion": [
+      {
+        "name": "progress",
+        "value": "transform 240ms ease-out",
+        "purpose": "Update the progress indicator; disabled under prefers-reduced-motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "portrait-mobile",
+        "value": "(max-width: 760px) and (orientation: portrait)"
+      }
+    ]
+  }
+}

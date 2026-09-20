@@ -1,7 +1,7 @@
 import { and, eq, personas } from '@lookline/db'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
-import { sanitizeId } from '@/server/looks'
+import { sanitizeId } from '@/server/imagery'
 import { storedImageResponse } from '@/server/storage'
 
 /**

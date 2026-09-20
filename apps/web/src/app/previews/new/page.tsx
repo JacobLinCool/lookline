@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { brands, eq, inArray, articles } from '@lookline/db'
-import { STYLE_PRESETS } from '@lookline/engine'
-import { Flash } from '@/components/looks/flash'
-import { ReferencePhotoField } from '@/components/looks/reference-photo-field'
-import { SubmitButton } from '@/components/looks/submit-button'
+import { PREVIEW_ART_PRESETS } from '@lookline/engine'
+import { Flash } from '@/components/ui/flash'
+import { ReferencePhotoField } from '@/components/previews/reference-photo-field'
+import { SubmitButton } from '@/components/ui/submit-button'
 import {
   Button,
   Container,
@@ -21,9 +21,9 @@ import { getI18n } from '@/i18n/server'
 import { createPreviewAction } from '@/server/actions/previews'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
-import { sanitizeId } from '@/server/looks'
-import { parseIdList } from '@/components/social/data'
-import { loadPreviewSourceLook } from '@/server/preview-source'
+import { sanitizeId } from '@/server/imagery'
+import { parsePreviewArticleIds } from '@/components/previews/preview-url'
+import { loadPreviewSourceCard } from '@/server/preview-source'
 
 const MAX_ARTICLES = 8
 type SearchParams = Promise<Record<string, string | string[] | undefined>>
@@ -35,15 +35,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function NewPreviewPage({ searchParams }: { searchParams: SearchParams }) {
   const [params, { t, locale }] = await Promise.all([searchParams, getI18n()])
-  const lookParam = Array.isArray(params.look) ? params.look[0] : params.look
-  const sourceLookId = sanitizeId(lookParam)
-  const requestedArticleIds = parseIdList(params.articles).slice(0, MAX_ARTICLES)
-  const requestedPath = sourceLookId
-    ? `/previews/new?look=${encodeURIComponent(sourceLookId)}`
+  const cardParam = Array.isArray(params.card) ? params.card[0] : params.card
+  const sourceCardId = sanitizeId(cardParam)
+  const requestedArticleIds = parsePreviewArticleIds(params.articles).slice(0, MAX_ARTICLES)
+  const requestedPath = sourceCardId
+    ? `/previews/new?card=${encodeURIComponent(sourceCardId)}`
     : `/previews/new?articles=${requestedArticleIds.join(',')}`
   const user = await requireUser(requestedPath)
-  const source = sourceLookId ? await loadPreviewSourceLook(sourceLookId, user.id) : null
-  if (lookParam && !source) notFound()
+  const source = sourceCardId ? await loadPreviewSourceCard(sourceCardId, user.id) : null
+  if (cardParam && !source) notFound()
   const articleIds = source?.articleIds.slice(0, MAX_ARTICLES) ?? requestedArticleIds
   const rows = articleIds.length
     ? await getDb()
@@ -57,21 +57,17 @@ export default async function NewPreviewPage({ searchParams }: { searchParams: S
     return row ? [row] : []
   })
   const returnPath = source
-    ? `/previews/new?look=${encodeURIComponent(source.look.id)}`
+    ? `/previews/new?card=${encodeURIComponent(source.card.id)}`
     : `/previews/new?articles=${articleIds.join(',')}`
-  const stylePresets = source
-    ? STYLE_PRESETS.filter(({ slug }) => slug === source.look.stylePreset)
-    : STYLE_PRESETS
-  const defaultTitle = source
-    ? t.previews.borrowed.defaultTitle(source.look.title)
-    : t.previews.new.defaultTitle
+  const stylePresets = PREVIEW_ART_PRESETS
+  const defaultTitle = source ? t.previews.borrowed.defaultTitle : t.previews.new.defaultTitle
 
   return (
     <Container className="pb-20">
       <div className="flex max-w-2xl flex-col gap-3 pt-8 md:pt-10">
         <h1 className="display text-[30px] md:text-[36px]">{t.previews.new.title}</h1>
         <p className="text-[14px] leading-relaxed text-muted">
-          {source ? t.previews.borrowed.description(source.look.title) : t.previews.new.description}
+          {source ? t.previews.borrowed.description : t.previews.new.description}
         </p>
       </div>
       <Flash error={params.error} className="mt-4" />
@@ -90,7 +86,7 @@ export default async function NewPreviewPage({ searchParams }: { searchParams: S
       ) : (
         <form action={createPreviewAction} encType="multipart/form-data">
           <input type="hidden" name="return" value={returnPath} />
-          {source ? <input type="hidden" name="sourceLookId" value={source.look.id} /> : null}
+          {source ? <input type="hidden" name="sourceCardId" value={source.card.id} /> : null}
           {ordered.map(({ product }) => (
             <input key={product.id} type="hidden" name="articleId" value={product.id} />
           ))}
@@ -110,7 +106,7 @@ export default async function NewPreviewPage({ searchParams }: { searchParams: S
             </ul>
           </Section>
 
-          <Section title={t.looks.style}>
+          <Section title={t.previews.new.style}>
             <Rail itemWidth="md">
               {stylePresets.map((preset, index) => (
                 <RailItem key={preset.slug} width="md">
@@ -151,30 +147,26 @@ export default async function NewPreviewPage({ searchParams }: { searchParams: S
                 required
                 hasSavedPhoto={Boolean(user.photoPath)}
                 labels={{
-                  field: t.looks.photoField,
+                  field: t.imagery.photoField,
                   hint: t.previews.new.photoHint,
                   previewAlt: t.previews.new.photoPreviewAlt,
                   empty: t.previews.new.noPhotoSelected,
                   selected: t.previews.new.savedPhotoSelected,
                   generated: t.previews.new.photoRequired,
-                  newPhoto: t.looks.new.newPhoto,
-                  remember: t.looks.new.rememberPhoto,
-                  useSaved: t.looks.new.useSavedPhoto,
+                  newPhoto: t.imagery.newPhoto,
+                  remember: t.imagery.rememberPhoto,
+                  useSaved: t.imagery.useSavedPhoto,
                 }}
               />
               <div className="flex flex-col gap-5">
-                {source ? (
-                  <input type="hidden" name="occasion" value={source.look.occasion ?? ''} />
-                ) : (
-                  <Field label={t.previews.new.occasion} htmlFor="occasion">
-                    <Input
-                      id="occasion"
-                      name="occasion"
-                      maxLength={80}
-                      placeholder={t.previews.new.occasionPlaceholder}
-                    />
-                  </Field>
-                )}
+                <Field label={t.previews.new.occasion} htmlFor="occasion">
+                  <Input
+                    id="occasion"
+                    name="occasion"
+                    maxLength={80}
+                    placeholder={t.previews.new.occasionPlaceholder}
+                  />
+                </Field>
                 <Field label={t.previews.new.titleField} htmlFor="title">
                   <Input id="title" name="title" maxLength={80} defaultValue={defaultTitle} />
                 </Field>

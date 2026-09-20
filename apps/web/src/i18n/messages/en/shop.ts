@@ -196,7 +196,7 @@ export const shop = {
       shares: (styles: string) => `shares ${styles} with your top aesthetics`,
       sharesNothing: 'no overlap with your top aesthetics yet',
       colourOutside: 'colour outside your usual palette',
-      trend: (score: string) => `network trend score ${score} from Looks and remixes`,
+      trend: (score: string) => `demand score ${score} from search, intent, purchases and Cards`,
       noTrend: 'no trend momentum recorded for this piece yet',
       join: (clauses: readonly string[]) => clauses.join('; '),
     },

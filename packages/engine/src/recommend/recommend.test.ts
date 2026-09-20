@@ -6,7 +6,7 @@ import type { RankUser } from './factors'
 import {
   DEFAULT_WEIGHTS,
   chooseArm,
-  completeTheLookWith,
+  completeOutfitWith,
   runRecommend,
   similarProductsWith,
 } from './index'
@@ -193,7 +193,7 @@ describe('runRecommend (MemoryRetriever)', () => {
   })
 })
 
-describe('similarProductsWith / completeTheLookWith', () => {
+describe('similarProductsWith / completeOutfitWith', () => {
   it('similar articles share the group, sit within [0.5, 2]× the price and exclude the anchor', async () => {
     const anchor = rows.find((r) => r.categoryGroup === 'tops' && r.department === 'women')!
     const items = await similarProductsWith(anchor, { retriever, context }, { limit: 6 })
@@ -211,7 +211,7 @@ describe('similarProductsWith / completeTheLookWith', () => {
     const anchor = rows.find(
       (r) => r.categoryGroup === 'tops' && r.department === 'women' && r.price < 2000,
     )!
-    const outfits = await completeTheLookWith(
+    const outfits = await completeOutfitWith(
       anchor,
       { retriever, context },
       { budget: 9000, count: 2 },

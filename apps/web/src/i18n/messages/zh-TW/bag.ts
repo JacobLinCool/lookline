@@ -13,7 +13,7 @@ export const bag: BagMessages = {
   shipping: '運費',
   shippingIncluded: '已含',
   subtotal: '小計',
-  fromLook: '來自一個 Look',
+  fromCard: '來自一張 Card',
 
   checkout: {
     metaTitle: '結帳',
@@ -32,9 +32,8 @@ export const bag: BagMessages = {
     yoursNow: '現在屬於你',
     forSomeone: (name: string) => `給 ${name}`,
     forSomeoneElse: '送給別人',
-    makeLook: '做成一個 Look',
-    makeLookNote: '你的照片或頭像、一種風格，加上剛買的單品。',
-    createLook: '做一個 Look',
+    makeCardNote: '選擇 persona、你擁有的單品，再指定有特色的藝術方向。',
+    openStudio: '開啟製卡工作室',
     backToShop: '回到選購',
     noOrder: '這個連結找不到訂單。',
     wardrobe: '衣櫥',

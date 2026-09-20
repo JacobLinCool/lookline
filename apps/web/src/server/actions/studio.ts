@@ -3,11 +3,20 @@
 import { nanoid } from 'nanoid'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { and, cardSessions, cards, collections, eq, lt, personas } from '@lookline/db'
+import {
+  and,
+  articles,
+  cardSessions,
+  cards,
+  collections,
+  eq,
+  inArray,
+  lt,
+  personas,
+} from '@lookline/db'
 import {
   MAX_CANDIDATES_PER_SESSION,
   MAX_PIECES_PER_CARD,
-  addCandidate,
   availableArticles,
   candidatesOf,
   creditBalance,
@@ -15,6 +24,8 @@ import {
   releaseCredit,
   reserveCredit,
   openSession,
+  parseCardArtDirection,
+  resolveCardArtDirection,
   settleCard,
   settleCredit,
   startAttempt,
@@ -28,6 +39,15 @@ import { getDb } from '@/server/db'
 
 /** A session is abandoned if it is not settled within the hour; its credit can then be released. */
 const SESSION_TTL_MS = 3_600_000
+
+function directionFrom(formData: FormData) {
+  return parseCardArtDirection({
+    focus: formData.get('artFocus'),
+    pose: formData.get('artPose'),
+    scene: formData.get('artScene'),
+    note: formData.get('artNote'),
+  })
+}
 
 /**
  * Close a session whose hour has run out and hand its credit back.
@@ -83,6 +103,8 @@ export async function startSessionAction(formData: FormData): Promise<void> {
   const { db } = getDb()
   const personaId = String(formData.get('personaId') ?? '')
   const picked = formData.getAll('articleId').map(String).filter(Boolean)
+  const direction = directionFrom(formData)
+  if (!direction.ok) redirect(`/studio?error=${encodeURIComponent(direction.message)}`)
 
   const [persona] = await db
     .select()
@@ -119,6 +141,7 @@ export async function startSessionAction(formData: FormData): Promise<void> {
       personaId,
       reserveOperationKey: `reserve:${sessionId}`,
       articles: chosen,
+      artDirection: direction.value,
       expiresAt: new Date(Date.now() + SESSION_TTL_MS),
     })
   } catch (error) {
@@ -175,30 +198,40 @@ export async function generateCandidateAction(formData: FormData): Promise<Actio
     return { ok: false, message: `一次最多 ${MAX_CANDIDATES_PER_SESSION} 張候選。` }
   }
 
+  if (!canRenderCards()) {
+    return { ok: false, message: '目前沒有可用的影像生成服務，尚未開始生成。' }
+  }
+
+  const requested = directionFrom(formData)
+  if (!requested.ok) return requested
+  const articleIds = [...new Set((session.articleSnapshot ?? []).map((row) => row.articleId))]
+  const rows = articleIds.length
+    ? await db
+        .select({
+          id: articles.id,
+          outfitRole: articles.outfitRole,
+          pattern: articles.pattern,
+          material: articles.material,
+        })
+        .from(articles)
+        .where(inArray(articles.id, articleIds))
+    : []
+  const subjectCount = Math.max(
+    1,
+    new Set(
+      (session.articleSnapshot ?? [])
+        .map((row) => row.personaId)
+        .filter((id): id is string => !!id),
+    ).size,
+  )
+  const artDirection = resolveCardArtDirection(requested.value, {
+    articles: rows,
+    subjectCount,
+    candidateOrdinal: progress.candidates.length + progress.pending + 1,
+  })
+
   const attemptId = `ga_${nanoid(10)}`
   const candidateId = `cc_${nanoid(12)}`
-
-  // Without an image model there is nothing to wait for: the candidate is recorded straight away
-  // and the routes draw it as the composition poster, exactly as the studio worked before.
-  if (!canRenderCards()) {
-    await startAttempt(db, { id: attemptId, sessionId, provider: 'composition' })
-    const result = await addCandidate(db, {
-      id: candidateId,
-      sessionId,
-      attemptId,
-      imagePath: '',
-      now: new Date(),
-    })
-    revalidatePath(`/studio/${sessionId}`)
-    if (result.ok) return { ok: true }
-    return {
-      ok: false,
-      message:
-        result.reason === 'full'
-          ? `一次最多 ${MAX_CANDIDATES_PER_SESSION} 張候選。`
-          : '這個階段已經結束。',
-    }
-  }
 
   const [collection] = session.collectionId
     ? await db
@@ -208,7 +241,7 @@ export async function generateCandidateAction(formData: FormData): Promise<Actio
         .limit(1)
     : []
 
-  await startAttempt(db, { id: attemptId, sessionId, provider: 'image' })
+  await startAttempt(db, { id: attemptId, sessionId, provider: 'image', artDirection })
   queueCandidateImage({
     sessionId,
     attemptId,

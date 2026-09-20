@@ -677,7 +677,7 @@ function ImageStudio({
   const { t, locale } = useI18n()
   const [prompt, setPrompt] = useState(IMAGE_EXAMPLES[0]!)
   const [aspectRatio, setAspectRatio] = useState<'3:4' | '1:1' | '4:5' | '9:16'>('3:4')
-  const [stylePreset, setStylePreset] = useState(presets[0]?.slug ?? '')
+  const [stylePreset, setPreviewArtPreset] = useState(presets[0]?.slug ?? '')
   const [garments, setGarments] = useState<Attachment[]>([])
   const [people, setPeople] = useState<Attachment[]>([])
   const [result, setResult] = useState<ImageResult | null>(null)
@@ -744,9 +744,9 @@ function ImageStudio({
     setAspectRatio(nextRatio)
   }
 
-  function updateStylePreset(next: string) {
+  function updatePreviewArtPreset(next: string) {
     cancelGeneration()
-    setStylePreset(next)
+    setPreviewArtPreset(next)
   }
 
   async function generate(event: FormEvent) {
@@ -837,7 +837,7 @@ function ImageStudio({
                 <Select
                   id="image-preset"
                   value={stylePreset}
-                  onChange={(event) => updateStylePreset(event.target.value)}
+                  onChange={(event) => updatePreviewArtPreset(event.target.value)}
                   options={presets.map((preset) => ({
                     value: preset.slug,
                     label: locale === 'zh-TW' ? preset.labelZh : preset.name,

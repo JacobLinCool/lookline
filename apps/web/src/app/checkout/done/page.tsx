@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { Sparkles } from 'lucide-react'
 import { and, brands, desc, eq, inArray, articles, purchases } from '@lookline/db'
 import { creditsForPurchaseLine } from '@lookline/engine'
-import { Flash } from '@/components/looks/flash'
-import { orderSubtotal, type OrderLine } from '@/components/looks/order-lines'
+import { Flash } from '@/components/ui/flash'
+import { orderSubtotal, type OrderLine } from '@/components/checkout/order-lines'
 import {
   Button,
   Container,
@@ -18,7 +18,7 @@ import { getI18n } from '@/i18n/server'
 import { requireUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { displayName } from '@/lib/product-name'
-import { sanitizeId } from '@/server/looks'
+import { sanitizeId } from '@/server/imagery'
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n()
@@ -65,10 +65,6 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
     (sum, { purchase }) => sum + creditsForPurchaseLine(purchase.price, purchase.quantity),
     0,
   )
-  const purchaseIds = rows.map((r) => r.purchase.id)
-  const createHref =
-    purchaseIds.length > 0 ? `/looks/new?purchases=${purchaseIds.join(',')}` : '/looks/new'
-
   return (
     <Container className="pb-24">
       <PageHeader
@@ -113,11 +109,11 @@ export default async function CheckoutDonePage({ searchParams }: { searchParams:
             </Rail>
           </div>
           <div className="flex flex-col gap-4 rounded-md bg-mist p-6 md:col-span-5">
-            <h2 className="text-[20px]">{t.bag.done.makeLook}</h2>
-            <p className="text-[13px] text-muted">{t.bag.done.makeLookNote}</p>
+            <h2 className="text-[20px]">{t.bag.done.makeCard}</h2>
+            <p className="text-[13px] text-muted">{t.bag.done.makeCardNote}</p>
             <div className="flex flex-wrap gap-2 pt-1">
-              <Button href={createHref} size="lg" icon={<Sparkles />}>
-                {t.bag.done.createLook}
+              <Button href="/studio" size="lg" icon={<Sparkles />}>
+                {t.bag.done.openStudio}
               </Button>
               <Button href="/shop" variant="ghost" size="lg">
                 {t.bag.done.backToShop}

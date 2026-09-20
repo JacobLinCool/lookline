@@ -29,7 +29,7 @@ import type { OutfitState, PlacedItem, SolverPlan, SolverSlot } from './solver'
 import { OPTIONAL_SLOT_MIN_PRICE, orderSlots, planFor, slotShareMax } from './templates'
 import type { Plan, SlotSpec } from './templates'
 
-export interface PartnerLook {
+export interface PartnerOutfit {
   name: string
   styleVector: number[]
   colorHex: string
@@ -49,7 +49,7 @@ export interface BuildOutfitsInput {
   count: number
   plans?: Plan[]
   pinned?: PlacedItem[]
-  partner?: PartnerLook | null
+  partner?: PartnerOutfit | null
   perSlotLimit?: number
 }
 
@@ -117,7 +117,7 @@ function sha1Id(ids: readonly string[]): string {
     .slice(0, 12)
 }
 
-/** Mean of the items' A/C/X blocks (clamped) with the category groups unioned (private deriveLookStyle). */
+/** Mean of the items' A/C/X blocks (clamped) with the category groups unioned. */
 export function outfitStyleVector(articles: readonly Article[]): number[] {
   const v = Array.from({ length: STYLE_DIMENSIONS }, () => 0)
   if (articles.length === 0) return v
@@ -153,7 +153,7 @@ export function outfitItem(
   others: readonly Article[],
   intent: EngineIntent,
   season: Season | null | undefined,
-  partner: PartnerLook | null | undefined,
+  partner: PartnerOutfit | null | undefined,
 ): RankedItem {
   const locale = localeOf(intent)
   const item = placed.item
@@ -186,8 +186,8 @@ export function outfitItem(
   if (partner && partnerScore !== null) {
     evidence +=
       locale === 'zh'
-        ? `；與 ${partner.name} 的 Look 協調 (${round(partnerScore)})`
-        : `; harmonises with ${partner.name}'s Look (${round(partnerScore)})`
+        ? `；與 ${partner.name} 的穿搭協調 (${round(partnerScore)})`
+        : `; harmonises with ${partner.name}'s outfit (${round(partnerScore)})`
   }
   const rescaled: DetailedFactor[] = item.explanation.factors
     .filter((f) => f.factor !== 'compatibility')
@@ -217,7 +217,7 @@ export function toOutfit(
   state: OutfitState,
   intent: EngineIntent,
   budget: ResolvedBudget,
-  partner: PartnerLook | null | undefined,
+  partner: PartnerOutfit | null | undefined,
   caveats: string[] = [],
 ): Outfit {
   const locale = localeOf(intent)
@@ -426,8 +426,8 @@ export async function buildOutfits(input: BuildOutfitsInput): Promise<BuildOutfi
       states = states.slice(0, 1)
       caveats.push(
         locale === 'zh'
-          ? `配色與 ${partner.name} 的 Look 不同`
-          : `palette differs from ${partner.name}'s Look`,
+          ? `配色與 ${partner.name} 的穿搭不同`
+          : `palette differs from ${partner.name}'s outfit`,
       )
     }
   }

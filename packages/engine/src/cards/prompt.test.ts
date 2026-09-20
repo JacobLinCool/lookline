@@ -1,19 +1,47 @@
 import { describe, expect, it } from 'vitest'
-import { fixtureLook } from '../looks/fixtures'
-import { findStylePreset } from '../looks/presets'
-import { PROMPT_NEGATIVE_GUIDANCE } from '../looks/prompt'
-import { buildCardImagePrompt } from './prompt'
+import { PROMPT_NEGATIVE_GUIDANCE } from '../imagery/preview-prompt'
+import { buildCardImagePrompt, type CardPromptArticle } from './prompt'
 
 const FORBIDDEN = [/undefined/, /\bnull\b/, /NaN/, /\[object/]
 
-const preset = findStylePreset('studio-minimal')!
+const artDirection = {
+  focus: 'layering',
+  pose: 'walking',
+  scene: 'architecture',
+  note: null,
+} as const
+
+const articles = [
+  {
+    name: 'Tailored Coat',
+    colorName: 'Black',
+    material: 'wool',
+    subcategory: 'coat',
+    pattern: 'solid',
+    outfitRole: 'outer',
+  },
+  {
+    name: 'Silk Shirt',
+    colorName: 'Ivory',
+    material: 'silk',
+    subcategory: 'shirt',
+    pattern: 'solid',
+    outfitRole: 'top',
+  },
+  {
+    name: 'Wide Trousers',
+    colorName: 'Navy',
+    material: 'cotton',
+    subcategory: 'trousers',
+    pattern: 'stripe',
+    outfitRole: 'bottom',
+  },
+] satisfies CardPromptArticle[]
 
 describe('buildCardImagePrompt', () => {
-  const articles = fixtureLook()
-
   it('names the persona photo as the subject and every garment it was handed a picture of', () => {
     const prompt = buildCardImagePrompt({
-      preset,
+      artDirection,
       authorName: 'Mia',
       subjects: [
         {
@@ -32,15 +60,24 @@ describe('buildCardImagePrompt', () => {
       expect(prompt).toContain(article.name)
     }
     expect(prompt).toContain('Keep their identity')
-    expect(prompt).toContain(preset.prompt)
+    expect(prompt).toContain('every layer clearly')
     expect(prompt).toContain('Mia')
     expect(prompt).toContain(PROMPT_NEGATIVE_GUIDANCE)
+    const identity = prompt.indexOf('Keep their identity')
+    const focus = prompt.indexOf('every layer clearly')
+    const pose = prompt.indexOf('natural walking stride')
+    const scene = prompt.indexOf('strong architectural space')
+    const safety = prompt.indexOf(PROMPT_NEGATIVE_GUIDANCE)
+    expect(identity).toBeLessThan(focus)
+    expect(focus).toBeLessThan(pose)
+    expect(pose).toBeLessThan(scene)
+    expect(scene).toBeLessThan(safety)
     for (const re of FORBIDDEN) expect(prompt).not.toMatch(re)
   })
 
   it('falls back to an invented model, and to words, when nothing is attached', () => {
     const prompt = buildCardImagePrompt({
-      preset,
+      artDirection,
       authorName: 'Mia',
       subjects: [
         {
@@ -66,7 +103,7 @@ describe('buildCardImagePrompt', () => {
       hasPhoto: true,
       articles: [{ ...articles[0]!, hasImage: true }],
     }
-    const prompt = buildCardImagePrompt({ preset, authorName: 'Mei', subjects: [subject] })
+    const prompt = buildCardImagePrompt({ artDirection, authorName: 'Mei', subjects: [subject] })
 
     // The bug this guards: a reference photo of a toy, described as a person whose "skin tone and
     // hair" must be kept, comes back as a photograph of a human being with no trace of the toy.
@@ -81,7 +118,7 @@ describe('buildCardImagePrompt', () => {
 
   it('keeps a human subject of the same card human', () => {
     const prompt = buildCardImagePrompt({
-      preset,
+      artDirection,
       authorName: 'Mei',
       subjects: [
         { name: '奶龍', kind: 'avatar', hasPhoto: true, articles: [] },
@@ -97,7 +134,7 @@ describe('buildCardImagePrompt', () => {
   it('keeps each subject of an edition with their own garments', () => {
     const [first, second, third] = articles
     const prompt = buildCardImagePrompt({
-      preset,
+      artDirection,
       authorName: 'Mia',
       collectionTitle: '一家人',
       subjects: [

@@ -22,6 +22,7 @@
     "seed:catalog": "pnpm --filter @lookline/hm seed",
     "seed:social": "pnpm --filter @lookline/sim seed",
     "analytics": "pnpm --filter @lookline/engine analytics",
+    "storage:cleanup-looks": "tsx scripts/cleanup-look-storage.ts",
     "evaluate": "pnpm --filter @lookline/sim evaluate",
     "d1:migrate:local": "pnpm --filter @lookline/web d1:migrate:local",
     "d1:migrate:remote": "pnpm --filter @lookline/web d1:migrate:remote",

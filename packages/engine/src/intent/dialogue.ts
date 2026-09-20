@@ -288,17 +288,17 @@ export function mergeIntent(prev: Intent, next: Intent, ctx: IntentContextExt = 
   signals.mustHave = Array.from(
     new Set([...(signals.mustHave ?? []), ...(n.signals?.mustHave ?? [])]),
   )
-  if (n.referenceLookId) {
-    merged.referenceLookId = n.referenceLookId
+  if (n.referenceCardId) {
+    merged.referenceCardId = n.referenceCardId
     merged.referenceHandle = n.referenceHandle
     merged.referenceRole = n.referenceRole
-    dropAssumptions('referenceLookId')
-    takeAssumptions('referenceLookId')
+    dropAssumptions('referenceCardId')
+    takeAssumptions('referenceCardId')
   }
   if (n.vibe && n.mode !== 'browse') merged.vibe = n.vibe
   merged.signals = signals
   merged.assumptions = assumptions
-  merged.clarifications = merged.clarifications.filter((c) => c.slot === 'referenceLookId')
+  merged.clarifications = merged.clarifications.filter((c) => c.slot === 'referenceCardId')
   return finalize(merged, ctx)
 }
 
@@ -373,8 +373,8 @@ export function applyClarification(
         next.assumptions = next.assumptions.filter((a) => a.slot !== 'mode')
       }
       break
-    case 'referenceLookId':
-      next.referenceLookId = value
+    case 'referenceCardId':
+      next.referenceCardId = value
       break
     default:
       break

@@ -10,7 +10,7 @@ import { GENERIC_FACTORS, reasonLine } from '@/lib/reason'
 import { addOutfitToBagAction } from '@/server/actions/bag'
 import { formatTwd } from '@/server/format'
 import { intentHref, productHref, type IntentQuery } from './urls'
-import { previewHref } from '@/components/looks/preview-url'
+import { previewHref } from '@/components/previews/preview-url'
 
 export interface OutfitRailProps {
   outfit: Outfit

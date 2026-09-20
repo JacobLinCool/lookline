@@ -21,6 +21,7 @@ import {
   issueEdition,
   membersOf,
   openSession,
+  parseCardArtDirection,
   releaseCredit,
   reserveCredit,
   settleCredit,
@@ -107,6 +108,14 @@ export async function startEditionAction(formData: FormData): Promise<void> {
   const user = await requireUser('/collections')
   const { db } = getDb()
   const collectionId = String(formData.get('collectionId') ?? '')
+  const direction = parseCardArtDirection({
+    focus: formData.get('artFocus'),
+    pose: formData.get('artPose'),
+    scene: formData.get('artScene'),
+    note: formData.get('artNote'),
+  })
+  if (!direction.ok)
+    redirect(`/collections/${collectionId}?error=${encodeURIComponent(direction.message)}`)
 
   const members = await membersOf(db, collectionId)
   if (members.length < MIN_MEMBERS) redirect(`/collections/${collectionId}?error=min`)
@@ -166,6 +175,7 @@ export async function startEditionAction(formData: FormData): Promise<void> {
       collectionId,
       reserveOperationKey: `reserve:${sessionId}`,
       articles: worn,
+      artDirection: direction.value,
       expiresAt: new Date(Date.now() + SESSION_TTL_MS),
     })
   } catch (error) {

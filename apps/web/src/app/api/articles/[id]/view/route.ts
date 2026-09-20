@@ -1,5 +1,5 @@
 import { articles, eq } from '@lookline/db'
-import { recordInteraction } from '@lookline/engine'
+import { recordFeedback } from '@lookline/engine'
 import { recordArticleView } from '@lookline/engine/discovery'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
@@ -25,11 +25,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const rawPosition = query.get('pos')
   const parsed = rawPosition === null ? null : Number(rawPosition)
   const position = parsed !== null && Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
-  await recordInteraction(db, {
-    actorUserId: user.id,
+  await recordFeedback(db, {
+    userId: user.id,
     articleId: id,
-    type: 'VIEW',
-    ...(from && from.length <= 100 ? { payload: { intentSessionId: from, position } } : {}),
+    kind: 'click',
+    intentSessionId: from && from.length <= 100 ? from : null,
+    position,
+    context: { surface: 'article' },
   })
   return new Response(null, { status: 204, headers })
 }

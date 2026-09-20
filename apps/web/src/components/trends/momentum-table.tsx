@@ -65,8 +65,8 @@ export const BODY_ROW =
 export const STICKY_COL = 'sticky left-0 z-10 bg-paper pr-3'
 
 /**
- * Momentum table for one trend dimension. Momentum is the engine's 0–100 composite (velocity,
- * cross-cluster spread, conversion, lineage reach, volume); the bar is a plain magnitude.
+ * Momentum table for one trend dimension. Momentum is the engine's 0–100 composite of velocity,
+ * audience breadth, conversion and volume; the bar is a plain magnitude.
  */
 export async function MomentumTable({
   rows,
@@ -90,7 +90,7 @@ export async function MomentumTable({
             <th className="text-right">{t.trends.metric.momentum}</th>
             {!compact ? <th className="text-right">{t.trends.metric.volume}</th> : null}
             <th className="text-right">{t.trends.metric.velocity}</th>
-            {!compact ? <th className="text-right">{t.trends.metric.crossCluster}</th> : null}
+            {!compact ? <th className="text-right">{t.trends.metric.breadth}</th> : null}
             {!compact ? <th className="text-right">{t.trends.metric.conversion}</th> : null}
             {!compact ? <th className="text-right">{t.trends.metric.gmv}</th> : null}
             <th className="text-right">{t.trends.table.status}</th>
@@ -112,7 +112,7 @@ export async function MomentumTable({
                 {row.velocity >= 0 ? '+' : '−'}
                 {pct(Math.abs(row.velocity))}
               </td>
-              {!compact ? <td className="tabular text-right">{num(row.crossCluster)}</td> : null}
+              {!compact ? <td className="tabular text-right">{num(row.breadth)}</td> : null}
               {!compact ? <td className="tabular text-right">{pct(row.conversion)}</td> : null}
               {!compact ? <td className="tabular text-right">{formatTwd(row.gmv)}</td> : null}
               <td className="text-right">

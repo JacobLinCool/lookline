@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { SubmitButton } from '@/components/looks/submit-button'
+import { SubmitButton } from '@/components/ui/submit-button'
 import { updateProfilePhotoAction } from '@/server/actions/profile'
 
 interface SavedPhotoLabels {

@@ -108,8 +108,8 @@ describe('MemoryRetriever', () => {
       {
         articleId: target.id,
         userId: 'u_2',
-        kind: 'look',
-        lookId: 'lk_1',
+        kind: 'card',
+        cardId: 'card_1',
         at: new Date(Date.UTC(2026, 8, 10)),
       },
     ])
