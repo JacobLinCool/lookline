@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, test } from 'vitest'
 import { formatRelative } from '@/server/format'
 import { DEFAULT_LOCALE, LOCALES, localeFromTag, matchLocale, type Locale } from './config'
 import { CATALOGS } from './messages'
@@ -6,6 +6,7 @@ import {
   aestheticLabel,
   categoryGroupLabel,
   colorFamilyLabel,
+  colorNameLabel,
   departmentLabel,
   facetLabel,
   occasionLabel,
@@ -114,5 +115,36 @@ describe('relative time', () => {
   })
   it('falls back to English when no language is given', () => {
     expect(formatRelative(ago(5 * 60_000), undefined, now)).toBe('5 min ago')
+  })
+})
+
+/**
+ * H&M's colour vocabulary is a modifier and a hue, which the catalogue's whole names do not cover.
+ * Half the catalogue used to print its English name into a Traditional Chinese page.
+ */
+describe('colorNameLabel', () => {
+  test.each([
+    ['Black', '黑'],
+    ['Off White', '米白'],
+    ['Dark Blue', '深藍'],
+    ['Light Pink', '淺粉'],
+    ['Greenish Khaki', '偏綠卡其'],
+    ['Yellowish Brown', '偏黃棕'],
+    ['Greyish Beige', '偏灰米色'],
+    ['Other Turquoise', '其他綠松'],
+    ['Yellow', '黃'],
+    ['Transparent', '透明'],
+    ['Bronze/Copper', '古銅'],
+  ])('reads %s in Traditional Chinese', (name, expected) => {
+    expect(colorNameLabel('zh-TW', name)).toBe(expected)
+  })
+
+  test('keeps H&M’s own name in English', () => {
+    expect(colorNameLabel('en', 'Dark Blue')).toBe('Dark Blue')
+  })
+
+  test('leaves an unrecorded colour alone rather than inventing one', () => {
+    expect(colorNameLabel('zh-TW', '')).toBe('')
+    expect(colorNameLabel('zh-TW', 'Chartreuse Mist')).toBe('Chartreuse mist')
   })
 })
