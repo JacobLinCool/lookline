@@ -3,10 +3,20 @@ import { and } from '@lookline/db'
 import { readableCard } from '@/server/card-visibility'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { articles as articlesTable, cards, eq, inArray, personas, users } from '@lookline/db'
+import Link from 'next/link'
+import {
+  articles as articlesTable,
+  brands,
+  cards,
+  eq,
+  inArray,
+  personas,
+  users,
+} from '@lookline/db'
 import { tierForRatio } from '@lookline/engine'
-import { Avatar, Button, Card, Container, Tag } from '@/components/ui'
+import { Avatar, Button, Card, Container, Price, ProductImage, Tag } from '@/components/ui'
 import { ShareCard } from '@/components/cards/share-card'
+import { displayName } from '@/lib/product-name'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
 import { siteOrigin } from '@/server/site'
@@ -80,14 +90,24 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     .where(eq(users.id, card.holderId))
     .limit(1)
 
+  // Enough to shop from, not just to read: the piece is still in the catalogue, so whoever likes
+  // it on the card can go straight to it. An article that has since left the catalogue has no row
+  // here, and its line falls back to the bare id rather than linking somewhere that 404s.
   const ids = (card.snapshot ?? []).map((s) => s.articleId)
   const worn = ids.length
     ? await db
-        .select({ id: articlesTable.id, name: articlesTable.name })
+        .select({
+          id: articlesTable.id,
+          name: articlesTable.name,
+          price: articlesTable.price,
+          imagePath: articlesTable.imagePath,
+          brandName: brands.name,
+        })
         .from(articlesTable)
+        .innerJoin(brands, eq(brands.id, articlesTable.brandId))
         .where(inArray(articlesTable.id, ids))
     : []
-  const nameById = new Map(worn.map((w) => [w.id, w.name]))
+  const byId = new Map(worn.map((w) => [w.id, w]))
   const tier = tierForRatio(card.ownedRatio)
 
   return (
@@ -131,17 +151,53 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
           ) : null}
           <Card surface="panel" padding="sm" className="flex flex-col gap-2">
             <h2 className="text-[13px] font-medium">卡片上的服飾</h2>
-            <ul className="flex flex-col gap-1">
-              {(card.snapshot ?? []).map((s) => (
-                <li key={s.articleId} className="flex items-center justify-between gap-3">
-                  <span className="truncate text-[13px]">
-                    {nameById.get(s.articleId) ?? s.articleId}
-                  </span>
+            <ul className="flex flex-col">
+              {(card.snapshot ?? []).map((s) => {
+                const article = byId.get(s.articleId)
+                const tag = (
                   <Tag tone={s.source === 'loan' ? 'accent' : undefined}>
                     {s.source === 'loan' ? '借用' : '自有'}
                   </Tag>
-                </li>
-              ))}
+                )
+                if (!article) {
+                  return (
+                    <li
+                      key={s.articleId}
+                      className="flex items-center justify-between gap-3 border-b border-line py-2 last:border-b-0"
+                    >
+                      <span className="truncate text-[13px] text-muted">{s.articleId}</span>
+                      {tag}
+                    </li>
+                  )
+                }
+                const name = displayName(article.name, article.brandName)
+                return (
+                  <li
+                    key={s.articleId}
+                    className="flex items-center gap-3 border-b border-line py-2 last:border-b-0"
+                  >
+                    <Link href={`/p/${article.id}`} className="w-10 shrink-0" aria-label={name}>
+                      <ProductImage
+                        articleId={article.id}
+                        imagePath={article.imagePath}
+                        alt=""
+                        lift
+                      />
+                    </Link>
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <Link
+                        href={`/p/${article.id}`}
+                        className="truncate text-[13px] hover:underline underline-offset-4"
+                      >
+                        {name}
+                      </Link>
+                      <span className="truncate text-[12px] text-muted">{article.brandName}</span>
+                    </div>
+                    <Price amount={article.price} size="sm" className="shrink-0" />
+                    {tag}
+                  </li>
+                )
+              })}
             </ul>
             <p className="text-[12px] text-muted">
               自有 {Math.round(card.ownedRatio * 100)}% —— 等級按件數計算，不按價格。
