@@ -284,6 +284,11 @@ export default async function MePage({
               <span className="ml-2">· {personaCount} 位 persona</span>
             </p>
             <div className="ml-auto flex gap-2">
+              {/* Where a visitor checks what they are actually showing: only the cards they set
+                  to 公開 reach it. */}
+              <Button href={`/u/${user.handle}`} size="sm" variant="secondary">
+                我的公開頁面
+              </Button>
               <Button href="/me/personas" size="sm" variant="secondary">
                 管理 persona
               </Button>

@@ -224,7 +224,12 @@ export function DiscoveryHome({ signedIn }: { signedIn: boolean }) {
                       verificationCode={item.code}
                     />
                   </Link>
-                  <p className="text-[12px] text-muted">{copy.made(item.person)}</p>
+                  <Link
+                    href={`/u/${item.personHandle}`}
+                    className="text-[12px] text-muted hover:underline underline-offset-4"
+                  >
+                    {copy.made(item.person)}
+                  </Link>
                 </article>
               )}
             </div>
