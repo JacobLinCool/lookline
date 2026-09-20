@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Avatar, EmptyState, Tag } from '@/components/ui'
+import { EmptyState } from '@/components/ui'
+import { CardFace } from '@/components/cards/card-face'
 import { cn } from '@/lib/cn'
 
 export interface LibraryCard {
@@ -137,29 +138,18 @@ export function CardLibrary({ items }: { items: LibraryCard[] }) {
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
           {shown.map((i) => (
             <li key={`${i.kind}-${i.id}`}>
-              <Link href={i.href} className="flex flex-col gap-2">
-                <img
-                  src={i.imageUrl}
-                  alt={i.personaName}
-                  width={600}
-                  height={840}
-                  className="w-full rounded-md border border-line"
+              {/* The subject, the number and the code are printed on the card now, so the tile is
+                  the card and nothing is repeated beside it. */}
+              <Link href={i.href} className="block tile-lift">
+                <CardFace
+                  imageUrl={i.imageUrl}
+                  personaName={i.personaName}
+                  verificationCode={i.verificationCode}
+                  tierLabel={i.tierLabel}
+                  editionNumber={i.editionNumber}
+                  editionSize={i.editionSize}
+                  collectionTitle={i.collectionTitle}
                 />
-                <span className="flex items-center gap-1.5">
-                  <Avatar seed={i.avatarSeed} name={i.personaName} size="xs" />
-                  <span className="truncate text-[12px]">{i.personaName}</span>
-                </span>
-                <span className="flex flex-wrap items-center gap-1">
-                  {i.editionNumber !== null ? (
-                    <Tag>
-                      {i.editionNumber}/{i.editionSize}
-                    </Tag>
-                  ) : null}
-                  {i.tierLabel ? <Tag tone="accent">{i.tierLabel}</Tag> : null}
-                </span>
-                <span className="tabular truncate px-0.5 text-[11px] text-muted">
-                  {i.verificationCode}
-                </span>
               </Link>
             </li>
           ))}

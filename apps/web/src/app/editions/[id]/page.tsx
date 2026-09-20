@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { cardCopies, collectionEditions, collections, eq, personas, users } from '@lookline/db'
 import { Avatar, Button, Card, Container, PageHeader, Tag } from '@/components/ui'
+import { CardFace } from '@/components/cards/card-face'
 import { ShareCard } from '@/components/cards/share-card'
 import { getSessionUser } from '@/server/auth'
 import { getDb } from '@/server/db'
@@ -90,15 +91,16 @@ export default async function EditionPage({ params }: { params: Promise<{ id: st
 
       <div className="grid gap-8 md:grid-cols-[minmax(0,420px)_1fr]">
         <div className="flex flex-col gap-3">
-          <div className="overflow-hidden rounded-xl border border-line bg-card p-3 shadow-[0_18px_40px_-24px_rgb(23_23_23/0.35)]">
-            <img
-              src={shownImage}
-              alt={edition.collectionTitle}
-              width={600}
-              height={840}
-              className="w-full rounded-lg"
-            />
-          </div>
+          <CardFace
+            imageUrl={shownImage}
+            personaName={shown?.personaName ?? edition.collectionTitle}
+            verificationCode={shown?.verificationCode ?? ''}
+            editionNumber={shown?.editionNumber ?? null}
+            editionSize={edition.editionSize}
+            collectionTitle={edition.collectionTitle}
+            size="lg"
+            priority
+          />
           <ShareCard
             title={edition.collectionTitle}
             imageUrl={shownImage}
