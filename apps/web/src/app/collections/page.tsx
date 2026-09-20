@@ -10,6 +10,7 @@ import {
   personas,
   users,
 } from '@lookline/db'
+import { tierForRatio } from '@lookline/engine'
 import { Button, Container, EmptyState, Notice, PageHeader } from '@/components/ui'
 import { CollectionBuilder, type BuilderCard } from '@/components/cards/collection-builder'
 import { CollectionList, type CollectionRow } from '@/components/cards/collection-list'
@@ -47,7 +48,7 @@ export default async function CollectionsPage({
       personaId: cards.personaId,
       personaName: personas.displayName,
       avatarSeed: personas.avatarSeed,
-      tier: cards.tier,
+      ownedRatio: cards.ownedRatio,
       code: cards.verificationCode,
     })
     .from(cards)
@@ -59,7 +60,8 @@ export default async function CollectionsPage({
     personaId: c.personaId,
     personaName: c.personaName,
     avatarSeed: c.avatarSeed,
-    tier: c.tier,
+    // The label, not the slug: it is printed on the card face the picker shows.
+    tier: tierForRatio(c.ownedRatio).labelZh,
     code: c.code,
   }))
 

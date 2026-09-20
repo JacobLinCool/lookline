@@ -15,6 +15,7 @@ import {
 } from '@lookline/db'
 import { tierForRatio } from '@lookline/engine'
 import { Avatar, Button, Card, Container, Price, ProductImage, Tag } from '@/components/ui'
+import { CardFace } from '@/components/cards/card-face'
 import { ShareCard } from '@/components/cards/share-card'
 import { displayName } from '@/lib/product-name'
 import { getSessionUser } from '@/server/auth'
@@ -114,20 +115,15 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
     <Container className="flex flex-col gap-6 py-8">
       <div className="grid gap-8 md:grid-cols-[minmax(0,420px)_1fr]">
         <div className="flex flex-col gap-3">
-          {/* The card face itself: the frame is part of the object, not page chrome. */}
-          <div className="overflow-hidden rounded-xl border border-line bg-card p-3 shadow-[0_18px_40px_-24px_rgb(23_23_23/0.35)]">
-            <img
-              src={`/api/cards/${card.id}`}
-              alt={`${card.personaName} 的小卡`}
-              width={600}
-              height={840}
-              className="w-full rounded-lg"
-            />
-            <div className="flex items-center justify-between px-1 pt-3">
-              <span className="tabular text-[11px] text-muted">{card.verificationCode}</span>
-              <Tag tone="accent">{tier.labelZh}</Tag>
-            </div>
-          </div>
+          {/* The card face itself: the printing is part of the object, not page chrome. */}
+          <CardFace
+            imageUrl={`/api/cards/${card.id}`}
+            personaName={card.personaName}
+            verificationCode={card.verificationCode}
+            tierLabel={tier.labelZh}
+            size="lg"
+            priority
+          />
           <ShareCard
             title={`${card.personaName} · Lookline`}
             imageUrl={`/api/cards/${card.id}`}

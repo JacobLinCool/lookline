@@ -13,9 +13,10 @@ import {
   personas,
   users,
 } from '@lookline/db'
-import { creditBalance } from '@lookline/engine'
+import { creditBalance, tierForRatio } from '@lookline/engine'
 import { friendList } from '@lookline/engine/discovery'
 import { Avatar, Button, Card, Container, Notice, PageHeader, Tag } from '@/components/ui'
+import { CardFace } from '@/components/cards/card-face'
 import { InviteMember, type InvitablePersona } from '@/components/cards/collection-invites'
 import { startEditionAction } from '@/server/actions/collections'
 import { requireUser } from '@/server/auth'
@@ -56,7 +57,8 @@ export default async function CollectionPage({
       personaName: personas.displayName,
       avatarSeed: personas.avatarSeed,
       owner: personas.ownerUserId,
-      tier: cards.tier,
+      code: cards.verificationCode,
+      ownedRatio: cards.ownedRatio,
     })
     .from(collectionMembers)
     .innerJoin(personas, eq(personas.id, collectionMembers.personaId))
@@ -136,18 +138,19 @@ export default async function CollectionPage({
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {members.map((m) => (
             <li key={m.personaId} className="flex flex-col gap-2">
-              <img
-                src={`/api/cards/${m.cardId}`}
-                alt={m.personaName}
-                width={600}
-                height={840}
-                className="w-full rounded-md border border-line"
+              <CardFace
+                imageUrl={`/api/cards/${m.cardId}`}
+                personaName={m.personaName}
+                verificationCode={m.code}
+                tierLabel={tierForRatio(m.ownedRatio).labelZh}
               />
-              <span className="flex items-center gap-1.5">
-                <Avatar seed={m.avatarSeed} name={m.personaName} size="xs" />
-                <span className="truncate text-[12px]">{m.personaName}</span>
-                {m.owner !== user.id ? <Tag>朋友</Tag> : null}
-              </span>
+              {/* Whose card it is, which the card itself does not say. */}
+              {m.owner !== user.id ? (
+                <span className="flex items-center gap-1.5">
+                  <Avatar seed={m.avatarSeed} name={m.personaName} size="xs" />
+                  <Tag>朋友</Tag>
+                </span>
+              ) : null}
             </li>
           ))}
         </ul>

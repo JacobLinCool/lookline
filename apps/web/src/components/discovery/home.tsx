@@ -8,6 +8,7 @@ import type {
   SearchingRail,
 } from '@lookline/engine/discovery'
 import { Button, ProductCard } from '@/components/ui'
+import { CardFace } from '@/components/cards/card-face'
 import { useI18n } from '@/i18n/client'
 import { aestheticLabel, colorFamilyLabel } from '@/i18n/taxonomy'
 import { DiscoveryRail } from './rail'
@@ -210,28 +211,20 @@ export function DiscoveryHome({ signedIn }: { signedIn: boolean }) {
                 <ProductCard product={item.product} reason={copy.bought(item.person)} />
               ) : (
                 <article className="flex flex-col gap-2.5">
+                  {/* The title and the code are printed on the card itself; what the rail adds
+                      is the one thing the card does not say — whose it is. */}
                   <Link
                     href={`/cards/${item.id}`}
-                    className="block aspect-[3/4] overflow-hidden rounded-md bg-mist"
+                    className="block tile-lift"
                     aria-label={item.title}
                   >
-                    <img
-                      src={`/api/cards/${item.id}`}
-                      alt={item.title}
-                      width={624}
-                      height={832}
-                      loading="lazy"
-                      className="h-full w-full object-contain"
+                    <CardFace
+                      imageUrl={`/api/cards/${item.id}`}
+                      personaName={item.title}
+                      verificationCode={item.code}
                     />
                   </Link>
-                  <Link
-                    href={`/cards/${item.id}`}
-                    className="text-[14px] font-medium hover:underline"
-                  >
-                    {item.title}
-                  </Link>
                   <p className="text-[12px] text-muted">{copy.made(item.person)}</p>
-                  <p className="text-[12px] text-muted">{item.code}</p>
                 </article>
               )}
             </div>

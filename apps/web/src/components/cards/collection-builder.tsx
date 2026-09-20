@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { Avatar, Button, Field, Input } from '@/components/ui'
+import { Button, Field, Input } from '@/components/ui'
+import { CardFace } from '@/components/cards/card-face'
 import { cn } from '@/lib/cn'
 import { createCollectionAction } from '@/server/actions/collections'
 
@@ -66,22 +67,17 @@ export function CollectionBuilder({ cards }: { cards: BuilderCard[] }) {
                   on ? 'border-ink' : 'border-transparent hover:border-line',
                 )}
               >
-                <img
-                  src={`/api/cards/${c.cardId}`}
-                  alt={c.personaName}
-                  width={600}
-                  height={840}
-                  className="w-full rounded-md"
+                <CardFace
+                  imageUrl={`/api/cards/${c.cardId}`}
+                  personaName={c.personaName}
+                  verificationCode={c.code}
+                  tierLabel={c.tier}
                 />
                 {on ? (
-                  <span className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-ink text-paper">
+                  <span className="absolute top-3 right-3 flex size-5 items-center justify-center rounded-full bg-ink text-paper">
                     <Check className="size-3" aria-hidden />
                   </span>
                 ) : null}
-                <span className="flex items-center gap-1.5 px-1">
-                  <Avatar seed={c.avatarSeed} name={c.personaName} size="xs" />
-                  <span className="truncate text-[12px]">{c.personaName}</span>
-                </span>
               </button>
             </li>
           )
