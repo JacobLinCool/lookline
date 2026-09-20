@@ -6,6 +6,7 @@ import { Button, Container, Notice, Section, SkeletonCard, Tag } from '@/compone
 import { useI18n } from '@/i18n/client'
 import { afterPaint, LATENCY, startInteraction, type InteractionTrace } from '@/lib/latency'
 import { readIntentStream } from '@/lib/intent-stream'
+import { SHOP_REQUEST_TIMEOUT_MS } from '@/lib/shop-timeouts'
 import type { Recommendation, Understanding } from '@/server/intent'
 import { IntentCard, IntentTagsRow } from './intent-card'
 import { ItemsSection } from './items-section'
@@ -62,7 +63,10 @@ export function IntentWorkspace({
         if (!usable) setLate(true)
       }, LATENCY.usable)
       // No request may leave the editor permanently busy if a transport stops producing bytes.
-      const stop = setTimeout(() => controller.abort(new Error('Timed out.')), 10_000)
+      const stop = setTimeout(
+        () => controller.abort(new Error('Timed out.')),
+        SHOP_REQUEST_TIMEOUT_MS,
+      )
       try {
         const response = await fetch('/api/intent/stream', {
           method: 'POST',
@@ -89,7 +93,7 @@ export function IntentWorkspace({
             afterPaint(() => {
               if (!controller.signal.aborted) timing.mark('progress')
             })
-          } else if (event.type === 'error') {
+          } else if (event.type === 'error' && !usable) {
             setError(t.home.status.loadFailed)
           }
         })
@@ -98,8 +102,9 @@ export function IntentWorkspace({
         })
       } catch {
         if (request.current !== controller) return
-        setError(t.home.items.failed)
-        timing.mark('failed')
+        // A failed optional refinement must not label already usable results as a failure.
+        if (!usable) setError(t.home.items.failed)
+        timing.mark(usable ? 'final' : 'failed')
       } finally {
         clearTimeout(deadline)
         clearTimeout(stop)
