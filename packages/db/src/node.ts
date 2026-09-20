@@ -3,12 +3,12 @@
  * `.env` loading and drizzle migrations for scripts and tests. Never import this from the web
  * app; it depends on Node and a native libsql binary.
  */
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createClient, type Client } from '@libsql/client'
 import { drizzle } from 'drizzle-orm/libsql'
-import { migrate } from 'drizzle-orm/libsql/migrator'
 import type { Database } from './client'
 import * as schema from './schema'
 
@@ -98,9 +98,56 @@ export function createLocalDb(target: string = localDbPath()): DbHandle {
   }
 }
 
-/** Apply every migration in `packages/db/drizzle` to a local handle. */
+/**
+ * Apply every migration in `packages/db/drizzle` to a local handle, tracked by the SQL's own
+ * hash rather than by `_journal.json`'s `when`.
+ *
+ * Drizzle's migrator reads the largest recorded `created_at` once and then runs only the entries
+ * whose `when` exceeds it. Migrations 0003-0014 were given hand-written `when` values a few days
+ * in the future, so every entry `drizzle-kit generate` has written since carries a smaller number
+ * and was skipped in silence on any database that had already run 0002 — permanently, because the
+ * recorded maximum only grows. `pnpm db:migrate` reported success over a schema with no
+ * `friendships`, and `pnpm d1:local` then failed on `no such table: seed.friendships`.
+ *
+ * A hash answers "has this SQL run here" directly: out-of-order `when` values stop mattering, and
+ * a migration whose file was rewritten after it was applied (0011 and 0012 were, when a merge
+ * renumbered what had landed first) is seen as unapplied and runs. `wrangler d1 migrations apply`
+ * keys on the file name and was never affected, which is why D1 has the tables this did not.
+ */
 export async function migrateLocal(handle: DbHandle): Promise<void> {
-  await migrate(drizzle(handle.client, { schema }), { migrationsFolder })
+  const journal = JSON.parse(
+    fs.readFileSync(path.join(migrationsFolder, 'meta/_journal.json'), 'utf8'),
+  ) as { entries: readonly { when: number; tag: string }[] }
+
+  await handle.client.execute(
+    'create table if not exists __drizzle_migrations (id integer primary key autoincrement, hash text not null, created_at numeric)',
+  )
+  const applied = new Set(
+    (await handle.client.execute('select hash from __drizzle_migrations')).rows.map((row) =>
+      String(row['hash']),
+    ),
+  )
+
+  for (const entry of journal.entries) {
+    const sql = fs.readFileSync(path.join(migrationsFolder, `${entry.tag}.sql`), 'utf8')
+    const hash = createHash('sha256').update(sql).digest('hex')
+    if (applied.has(hash)) continue
+    const statements = sql
+      .split('--> statement-breakpoint')
+      .map((statement) => statement.trim())
+      .filter((statement) => statement.length > 0)
+    // One transaction per migration, like drizzle's own: a failed statement leaves nothing behind.
+    await handle.client.batch(
+      [
+        ...statements,
+        {
+          sql: 'insert into __drizzle_migrations ("hash", "created_at") values (?, ?)',
+          args: [hash, entry.when],
+        },
+      ],
+      'write',
+    )
+  }
 }
 
 /** A migrated in-memory database for tests. */
