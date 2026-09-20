@@ -50,6 +50,26 @@ describe('scanQuery in Chinese', () => {
     expect(scanQuery('荷葉邊').residual).toBe('荷葉邊')
     expect(scanQuery('落肩').residual).toBe('落肩')
   })
+
+  it('reads the category tier, so 裙子 is skirts and 褲子 is trousers', () => {
+    // Both are listed as synonyms of the `bottoms` group as well, where a search for skirts
+    // came back trousers and one for trousers came back skirts.
+    expect(scanQuery('裙子').subcategories).toEqual(['skirts'])
+    expect(scanQuery('裙子').groups).toEqual([])
+    expect(scanQuery('燈芯絨褲子').subcategories).toEqual(['trousers'])
+    // The finer tier still wins where it has the word.
+    expect(scanQuery('短裙').subcategories).toEqual(['mini-skirt'])
+  })
+
+  it('drops the Han character a longer word left behind', () => {
+    // `白色` is read out of `米白色` and `米` is what remains; as a full-text term it asks for
+    // any caption containing 米.
+    const offWhite = scanQuery('米白色針織衫')
+    expect(offWhite.colorFamilies).toEqual(['white'])
+    expect(offWhite.residual).toBe('')
+    // One character the lexicon did not touch is a query, not debris.
+    expect(scanQuery('裙').residual).toBe('裙')
+  })
 })
 
 describe('buildSearchQuery', () => {

@@ -1,7 +1,7 @@
 /**
  * `suggestRemix` (Make It Mine): keep the source Look's aesthetics, palette and style vector;
  * retrieve, per source slot, articles that fit the remixer (department, sizes, learned
- * preference, budget) with a cosine query over `product_vectors`; rank and explain them
+ * preference, budget) with a cosine query over `article_vectors`; rank and explain them
  * (remix-rank.ts). The query mirrors ENGINE_SPEC §2.1 with the remix limits.
  */
 import {

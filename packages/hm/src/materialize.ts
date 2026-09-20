@@ -128,8 +128,11 @@ export function materializeVision(row: ImportedArticle, vision: VisionResult): M
     attributes,
     styleCaption: vision.lookEn,
     styleCaptionZh: vision.lookZh,
-    // Spaced so `unicode61` can tokenise it; the readable copy stays in `styleCaptionZh`.
-    searchZh: spaceCjk([vision.lookZh, vision.stylingZh].join(' ')),
+    // Spaced so `unicode61` can tokenise it; the readable copy stays in `styleCaptionZh`. The
+    // look only, like the English side: the styling note says what to wear a thing *with*, so
+    // indexing it made every caption reading 「可搭配牛仔褲」 a hit for 牛仔褲 — a search for jeans
+    // came back 15 t-shirts deep. `0006_caption_split.sql` split the two for this reason.
+    searchZh: spaceCjk(vision.lookZh),
     rise: vision.rise,
     shoulder: vision.shoulder,
     pocketStyle: vision.pocketStyle,

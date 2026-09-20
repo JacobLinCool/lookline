@@ -3,15 +3,10 @@
  * Look and the remixer, pick one piece per source slot under the budget, and explain each swap
  * ("why this instead"). Every item's `score` equals the sum of its factor contributions.
  */
-import {
-  aestheticIndex,
-  cosineRange,
-  findAesthetic,
-  findSubcategory,
-  type CategoryGroup,
-} from '@lookline/catalog'
+import { aestheticIndex, cosineRange, findAesthetic, type CategoryGroup } from '@lookline/catalog'
 import type { Article } from '@lookline/db'
 import type { Explanation, ExplanationFactor, FactorName, RankedItem } from '../types'
+import { garmentLabel } from '../recommend/catalogue'
 import { normalizeHex } from '../looks/color'
 
 export type RemixProduct = Article & { brandName: string }
@@ -148,8 +143,8 @@ export function scoreCandidate(
       ? `keeps the ${cand.colorFamily} of the source piece`
       : `shifts to ${cand.colorFamily}`,
     sameSub
-      ? `same ${findSubcategory(cand.subcategory)?.name.toLowerCase() ?? cand.subcategory}`
-      : `${findSubcategory(cand.subcategory)?.name.toLowerCase() ?? cand.subcategory} instead of ${findSubcategory(slot.source.subcategory)?.name.toLowerCase() ?? slot.source.subcategory}`,
+      ? `same ${garmentLabel(cand.subcategory, 'en')}`
+      : `${garmentLabel(cand.subcategory, 'en')} instead of ${garmentLabel(slot.source.subcategory, 'en')}`,
     `${ctx.department} sizing`,
   ]
   factors.push(factor('attribute_match', attr, attrBits.join('; ')))
@@ -320,8 +315,8 @@ export function remixExplanation(
     .map((it) => {
       const slot = slots.find((s) => s.role === it.role)
       if (!slot || slot.source.id === it.product.id) return null
-      const from = findSubcategory(slot.source.subcategory)?.name ?? slot.source.subcategory
-      const to = findSubcategory(it.product.subcategory)?.name ?? it.product.subcategory
+      const from = garmentLabel(slot.source.subcategory, 'en')
+      const to = garmentLabel(it.product.subcategory, 'en')
       return from === to ? `${from} (new colour/brand)` : `${from} → ${to}`
     })
     .filter((s): s is string => s !== null)

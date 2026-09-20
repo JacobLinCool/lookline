@@ -17,6 +17,7 @@ import {
   findSubcategory,
 } from '@lookline/catalog'
 import type { AestheticDef, Axis, ColorFamily } from '@lookline/catalog'
+import { garmentLabel } from './catalogue'
 
 export interface AestheticRow {
   slug: string
@@ -93,7 +94,9 @@ export function colorFamilyLabel(family: string, locale: 'zh' | 'en'): string {
 
 export function subcategoryLabel(slug: string, locale: 'zh' | 'en'): string {
   const s = findSubcategory(slug)
-  if (!s) return slug
+  // An article carries H&M's `product_type_name`, not a slug, so this misses for everything the
+  // catalogue stores and the Chinese copy read 「黑色Trousers」. `garmentLabel` names those.
+  if (!s) return garmentLabel(slug, locale)
   return locale === 'zh' ? s.labelZh : s.name.toLowerCase()
 }
 

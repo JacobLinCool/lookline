@@ -1,6 +1,6 @@
 /**
  * Retrieval (ENGINE_SPEC §2.1): SQL prefilter + cosine ranking in SQLite/D1 (`SqlRetriever`, over
- * the `product_vectors` dot-product columns), the identical brute-force `MemoryRetriever` for
+ * the `article_vectors` dot-product columns), the identical brute-force `MemoryRetriever` for
  * tests/evaluation, the relaxation ladder, and the social and trend secondary channels.
  */
 import { cosineSimilarity } from '@lookline/catalog'
@@ -28,6 +28,12 @@ import {
   sqlDaysAgoMs,
 } from '@lookline/db'
 import type { Database, Department, Article } from '@lookline/db'
+import {
+  isStocked,
+  matchesSubcategory,
+  subcategoryExcludeWhere,
+  subcategoryWhere,
+} from './catalogue'
 
 export type ProductRow = Article & { brandName: string }
 
@@ -147,15 +153,24 @@ const SLEEVE_STRICT: readonly CategoryGroup[] = ['tops', 'dresses']
 /** The SQL prefilter, evaluated in-process (used by MemoryRetriever and by the channels). */
 export function matchesParams(p: Article, params: RetrieveParams): boolean {
   if (!params.departments.includes(p.department)) return false
-  if (params.categoryGroups && !params.categoryGroups.includes(p.categoryGroup as CategoryGroup))
+  // `articles.subcategory` is H&M's product type and `params.subcategories` names taxonomy
+  // slugs, so comparing them directly rejected every article the moment an intent said what it
+  // wanted: `recommend('高領毛衣')` relaxed the filter away and answered with vest tops.
+  const sub = params.subcategories?.some(isStocked) ?? false
+  if (sub && !matchesSubcategory(p, params.subcategories!)) return false
+  // Mirrors `prefilterConditions`: a named garment supersedes the group it was filed under.
+  if (
+    !sub &&
+    params.categoryGroups &&
+    !params.categoryGroups.includes(p.categoryGroup as CategoryGroup)
+  )
     return false
   if (params.excludeGroups.includes(p.categoryGroup as CategoryGroup)) return false
-  if (params.subcategories && !params.subcategories.includes(p.subcategory)) return false
   if (params.priceMin !== null && p.price < params.priceMin) return false
   if (params.priceMax !== null && p.price > params.priceMax) return false
   if (params.excludeMaterials.includes(p.material)) return false
   if (params.excludeColorFamilies.includes(p.colorFamily as ColorFamily)) return false
-  if (params.excludeSubcategories.includes(p.subcategory)) return false
+  if (matchesSubcategory(p, params.excludeSubcategories)) return false
   if (params.excludeBrandIds.includes(p.brandId)) return false
   if (params.excludeArticleIds.includes(p.id)) return false
   const attrs = p.attributes ?? {}
@@ -329,18 +344,24 @@ type SqlChunk = ReturnType<typeof sql>
 /** WHERE conditions shared by the vector query and the channels. */
 export function prefilterConditions(p: RetrieveParams): SqlChunk[] {
   const conds: SqlChunk[] = [inArray(articles.department, p.departments)]
-  if (p.categoryGroups && p.categoryGroups.length > 0)
+  // Null when the catalogue stocks none of them: no filter, and the relaxation ladder is not
+  // asked to undo a narrowing that never had a chance.
+  const sub = p.subcategories?.length ? subcategoryWhere(p.subcategories) : null
+  if (sub) conds.push(sub)
+  // The named garment already says the group, and the two vocabularies disagree about ten of
+  // them — H&M files a sports bra under loungewear and a pencil skirt under bottoms, where the
+  // taxonomy calls them activewear and tailoring. AND-ing both returned nothing. `planSearch`
+  // drops the group for the same reason.
+  if (!sub && p.categoryGroups && p.categoryGroups.length > 0)
     conds.push(inArray(articles.categoryGroup, p.categoryGroups))
   if (p.excludeGroups.length > 0) conds.push(notInArray(articles.categoryGroup, p.excludeGroups))
-  if (p.subcategories && p.subcategories.length > 0)
-    conds.push(inArray(articles.subcategory, p.subcategories))
   if (p.priceMin !== null) conds.push(gte(articles.price, p.priceMin))
   if (p.priceMax !== null) conds.push(lte(articles.price, p.priceMax))
   if (p.excludeMaterials.length > 0) conds.push(notInArray(articles.material, p.excludeMaterials))
   if (p.excludeColorFamilies.length > 0)
     conds.push(notInArray(articles.colorFamily, p.excludeColorFamilies))
   if (p.excludeSubcategories.length > 0)
-    conds.push(notInArray(articles.subcategory, p.excludeSubcategories))
+    conds.push(subcategoryExcludeWhere(p.excludeSubcategories) ?? sql`1 = 1`)
   if (p.excludeBrandIds.length > 0) conds.push(notInArray(articles.brandId, p.excludeBrandIds))
   if (p.excludeArticleIds.length > 0) conds.push(notInArray(articles.id, p.excludeArticleIds))
   // Outside the strict groups an unlabelled garment is not a contradiction (see `sleeves`).

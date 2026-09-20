@@ -216,7 +216,9 @@ describe('SqlRetriever.buildQuery', () => {
     })
     const { sql, params: values } = pg.buildQuery(params).toSQL()
     expect(sql).toContain('"articles"."department" in (')
-    expect(sql).toContain('"articles"."category_group" in (')
+    // The named garment supersedes the group it was filed under: the two vocabularies disagree
+    // about ten of them, and AND-ing both returned nothing.
+    expect(sql).not.toContain('"articles"."category_group" in (')
     expect(sql).toContain('"articles"."product_type_name" in (')
     expect(sql).toContain('"articles"."price" <=')
     expect(sql).toContain('"articles"."colour_family" not in (')
@@ -235,6 +237,17 @@ describe('SqlRetriever.buildQuery', () => {
     expect(values).toContain(300)
     expect(values).toContain('$."hood"')
   })
+  it('keeps the group filter when no garment is named, and maps the one that is', () => {
+    const pg = new SqlRetriever(handle.db)
+    const grouped = pg.buildQuery(emptyParams(vector, { categoryGroups: ['tops'] })).toSQL()
+    expect(grouped.sql).toContain('"articles"."category_group" in (')
+    // `jeans` is a taxonomy slug the catalogue stocks as denim `Trousers`; filtering on the slug
+    // alone matched nothing and the relaxation ladder quietly dropped the garment.
+    const jeans = pg.buildQuery(emptyParams(vector, { subcategories: ['jeans'] })).toSQL()
+    expect(jeans.params).toContain('Trousers')
+    expect(jeans.params).toContain('denim')
+  })
+
   it('omits unused predicates', () => {
     const pg = new SqlRetriever(handle.db)
     const { sql } = pg.buildQuery(emptyParams(vector)).toSQL()

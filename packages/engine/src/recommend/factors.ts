@@ -23,6 +23,7 @@ import {
   seasonLabel,
   subcategoryLabel,
 } from './aesthetics'
+import { matchesSubcategory } from './catalogue'
 import {
   axisTargetsOf,
   budgetOf,
@@ -147,7 +148,9 @@ export function attributeMatch(c: Candidate, ctx: RankContext): FactorResult {
 
   if (intent.subcategories.length > 0) {
     let v = 0
-    if (intent.subcategories.includes(p.subcategory)) v = 1
+    // Taxonomy slugs against H&M's product type: the factor scored 0 for a garment the shopper
+    // had named outright, and the explanation never said which one it was.
+    if (matchesSubcategory(p, intent.subcategories)) v = 1
     else {
       const groups = new Set(intent.subcategories.map((s) => subcategoryGroup(s)).filter(Boolean))
       if (groups.has(p.categoryGroup)) v = 0.5
