@@ -43,8 +43,23 @@ export type HomeProduct = {
 }
 export type PreferenceRail = { kind: 'aesthetic' | 'color'; value: string; items: HomeProduct[] }
 export type FriendActivity =
-  | { kind: 'purchase'; id: string; at: number; person: string; product: HomeProduct }
-  | { kind: 'card'; id: string; at: number; person: string; title: string; code: string }
+  | {
+      kind: 'purchase'
+      id: string
+      at: number
+      person: string
+      personHandle: string
+      product: HomeProduct
+    }
+  | {
+      kind: 'card'
+      id: string
+      at: number
+      person: string
+      personHandle: string
+      title: string
+      code: string
+    }
 
 export async function trending(db: Database): Promise<HomeProduct[]> {
   return db
@@ -178,7 +193,13 @@ export async function friendActivity(
   now = new Date(),
 ): Promise<{ friendCount: number; items: FriendActivity[] }> {
   const friends = await db
-    .select({ id: users.id, name: users.displayName, purchases: activitySharing.purchases })
+    .select({
+      id: users.id,
+      name: users.displayName,
+      // Carried so the rail can lead to the person, not just name them.
+      handle: users.handle,
+      purchases: activitySharing.purchases,
+    })
     .from(friendships)
     .innerJoin(
       users,
@@ -235,6 +256,7 @@ export async function friendActivity(
           id: purchaseId,
           at: at.getTime(),
           person: friend.name,
+          personHandle: friend.handle,
           product,
         })),
         ...made.map(({ at, ...card }): FriendActivity => ({
@@ -242,6 +264,7 @@ export async function friendActivity(
           ...card,
           at: at.getTime(),
           person: friend.name,
+          personHandle: friend.handle,
         })),
       ]
     }),

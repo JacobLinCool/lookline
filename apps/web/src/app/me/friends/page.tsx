@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { activitySharing, eq } from '@lookline/db'
 import { friendList } from '@lookline/engine/discovery'
 import { Button, Container, Input } from '@/components/ui'
@@ -64,7 +65,11 @@ export default async function FriendsPage() {
         {friends.map((friend) => (
           <li key={friend.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
             <div>
-              <p className="font-medium">{friend.name}</p>
+              <p className="font-medium">
+                <Link href={`/u/${friend.handle}`} className="hover:underline underline-offset-4">
+                  {friend.name}
+                </Link>
+              </p>
               <p className="text-[13px] text-muted">
                 @{friend.handle}
                 {friend.state === 'pending' && friend.requestedBy === user.id

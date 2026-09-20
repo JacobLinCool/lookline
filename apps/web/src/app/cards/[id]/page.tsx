@@ -50,6 +50,17 @@ export async function generateMetadata({
   }
 }
 
+/** A name that leads to that account's public cards, or plain text when there is no account. */
+function Person({ displayName, handle }: { displayName?: string; handle?: string }) {
+  if (!displayName) return <>—</>
+  if (!handle) return <>{displayName}</>
+  return (
+    <Link href={`/u/${handle}`} className="text-ink hover:underline underline-offset-4">
+      {displayName}
+    </Link>
+  )
+}
+
 /**
  * An issued card. What it says about its own making — author, clothes, tier, number — was fixed
  * when it was issued and is not rewritten if the persona later changes hands; the holder is read
@@ -81,12 +92,12 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
   if (!card) notFound()
 
   const [author] = await db
-    .select({ displayName: users.displayName })
+    .select({ displayName: users.displayName, handle: users.handle })
     .from(users)
     .where(eq(users.id, card.authorId))
     .limit(1)
   const [holder] = await db
-    .select({ displayName: users.displayName })
+    .select({ displayName: users.displayName, handle: users.handle })
     .from(users)
     .where(eq(users.id, card.holderId))
     .limit(1)
@@ -136,8 +147,10 @@ export default async function CardPage({ params }: { params: Promise<{ id: strin
             <Avatar seed={card.personaSeed} name={card.personaName} size="sm" />
             <div className="flex flex-col">
               <h1 className="display text-[24px] leading-tight">{card.personaName}</h1>
+              {/* Both names lead to that person's shelf: this line was the only place a visitor
+                  met someone by name, and it went nowhere. */}
               <p className="text-[13px] text-muted">
-                由 {author?.displayName ?? '—'} 製作 · 目前屬於 {holder?.displayName ?? '—'}
+                由 <Person {...author} /> 製作 · 目前屬於 <Person {...holder} />
               </p>
             </div>
           </div>
