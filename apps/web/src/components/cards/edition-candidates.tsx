@@ -64,8 +64,11 @@ export function EditionCandidates({
         ))}
       </ul>
 
+      {/* `items-start`, not `items-center`: an `InstantForm` carries a status line under its
+          button, so its box is taller than a plain form's and centring the row lifted its
+          button clear of the one beside it. Aligning the tops lines the buttons up. */}
       {!settled ? (
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <InstantForm
             action={generateCandidateAction}
             name="generate-edition"
