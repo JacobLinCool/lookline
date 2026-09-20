@@ -303,7 +303,10 @@ export function parseIntentOffline(utterance: string, ctx: IntentContextExt = {}
 
   // 3. occasion, season words
   const occasionHits = by('occasion')
-  const occasion = occasionHits[0]?.value
+  // `casual-daily` is where the vague words land (週末, 平常, weekend), so 「週末去登山」 named it
+  // first and the hike lost. A specific occasion in the same sentence outranks it whatever the order.
+  const occasion =
+    occasionHits.find((h) => h.value !== 'casual-daily')?.value ?? occasionHits[0]?.value
   if (occasion) {
     explicitSlots.add('occasion')
     const second = occasionHits.find((h) => h.value !== occasion)

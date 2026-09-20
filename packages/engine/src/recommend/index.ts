@@ -28,7 +28,7 @@ import type { EngineIntent } from './intent-view'
 import { buildOutfits } from './outfit'
 import type { PartnerLook } from './outfit'
 import type { PlacedItem } from './outfit/solver'
-import { plansForTemplate, roleForGroup } from './outfit/templates'
+import { occasionGarments, plansForTemplate, roleForGroup } from './outfit/templates'
 import { SqlRetriever, emptyParams, retrieveWithRelaxation } from './retrieve'
 import type { ChannelParams, Retriever, RetrieveParams } from './retrieve'
 import { rank } from './score'
@@ -201,7 +201,12 @@ export async function runRecommend(
       ...baseParams,
       vector: blockScale(intentVector, RETRIEVAL_BLOCK_WEIGHTS),
       categoryGroups: intent.categoryGroups.length > 0 ? [...intent.categoryGroups] : null,
-      subcategories: intent.subcategories.length > 0 ? [...intent.subcategories] : null,
+      // No slot template runs here, so the occasion's own garments are the only thing standing
+      // between 「爬山要穿的褲子」 and a pair of jeans. A named garment always wins over them.
+      subcategories:
+        intent.subcategories.length > 0
+          ? [...intent.subcategories]
+          : occasionGarments(intent.occasion, intent.categoryGroups),
       limit: browse ? BROWSE_LIMIT : SINGLE_LIMIT,
     }
     const result = await retrieveWithRelaxation(deps.retriever, params, channels, {

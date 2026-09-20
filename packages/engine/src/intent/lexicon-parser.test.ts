@@ -112,6 +112,11 @@ describe('§1.10 fixtures (offline parser, catalog slugs)', () => {
     expect(clar(r)).toEqual(['categoryGroups[no]', 'budget.currency[no]'])
   })
 
+  it('a named occasion outranks the vague one that came first', () => {
+    const r = parseIntentOffline('週末去登山', FIXTURE_CTX)
+    expect(r.occasion).toBe('hiking')
+  })
+
   it('F4 幫我找一件黑色的oversize帽T，三千以內', () => {
     const r = parseIntentOffline('幫我找一件黑色的oversize帽T，三千以內', FIXTURE_CTX)
     expect(r.locale).toBe('mixed')
