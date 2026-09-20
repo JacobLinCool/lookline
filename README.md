@@ -2,22 +2,49 @@
 
 **Recommend what to buy. Enable what to wear.**
 
-LookLine turns every clothing purchase into the beginning of a creative journey. Find the piece you need, make it part of your wardrobe, create a look that feels like you, and share it with your world.
+We are proud to present **LookLine**, a complete fashion experience that connects acquisition and creation in one continuous loop. Find the piece you need, make it part of your wardrobe, create a look that feels like you, and share it with your world.
 
-Built for the **2026 Meichu Hackathon × Makalot**, LookLine brings shopping, everyday styling and fashion creation into one continuous experience. **A purchase becomes a starting point. A wardrobe gives it continuity. Shared creations give it reach.**
+Built for the **2026 Meichu Hackathon × Makalot**.
 
-The product follows two connected loops:
+## Concept: Point, Line, and Plane
 
-- **Acquisition:** express a need, find the missing item, purchase it and add it to the wardrobe.
-- **Creation:** compose with wardrobe items, explore a persona and occasion, create a Card, and share or collect the result.
+**A purchase creates a point. Continuous personal creation draws a line. Creating together expands those lines into a shared plane.**
 
-The digital wardrobe connects both loops. Shopping starts with the clothes you already own. Styling gives you the freedom to compose, experiment and make something yours. AI keeps discovery responsive and renders previews in an independent flow.
+Each level serves a distinct purpose:
 
-Three principles shape the experience:
+- **Point: make acquisition better.** Help customers find the right product through a seamless, responsive shopping conversation.
+- **Line: give customers a reason to keep coming back.** Turn their wardrobes into an ongoing experience of styling, learning and play, with something worth creating even when they have nothing to buy.
+- **Plane: enable trends to take shape and spread.** Give users the tools to create new looks together, build momentum within LookLine, and carry those trends into existing social platforms.
 
-- **Instant:** conversation directly updates shopping intent and product results.
-- **Persistent:** owned garments become lasting material for everyday styling and creation.
-- **Socially extensible:** friends, Cards and Collections connect personal style with the communities people already belong to.
+We designed LookLine at all three levels. Acquisition brings new pieces into the wardrobe. Creation gives those pieces lasting value. Sharing brings fresh inspiration back into discovery, completing the loop.
+
+### Point: acquisition
+
+Shopping begins with an idea: an occasion, a feeling, or a piece that needs something to go with it. Our acquisition experience helps people turn that idea into the right product through a natural conversation with a fashion expert.
+
+We invert the delegation pattern in which a live model hands tasks to a stronger reasoning model. In LookLine, the **live model owns the conversation**, while a separate **System 1 model, Jev, drives the visual catalog state**. The live model can focus on listening, responding and exploring the customer's preferences without making tool calls to update the catalog.
+
+Jev translates the evolving conversation into structured decisions that update filters and matching products. When matching requires concepts beyond the structured attribute space, the system selectively invokes a generative LLM for advanced matching. The initial catalog update proceeds independently of that refinement.
+
+This division of work keeps conversation and visual discovery moving together. **The customer stays in the conversation; the catalog keeps pace with their intent.**
+
+### Line: personal creation
+
+The purchase begins a lasting creative experience. Each acquired garment enters the digital wardrobe, ready to become part of the next outfit, the next occasion and the next idea.
+
+Image generation becomes the rendering engine for that experience. People combine their clothes, explore personas, experiment with styles and turn their compositions into **outfit Cards**. They can create freely, invite AI suggestions when useful, and keep refining what they make.
+
+The result is a playful, personal way to learn and enjoy fashion. Real garments become reusable creative material, and each new composition gives people another reason to return. **AI supports the craft; the customer is the creator.**
+
+### Plane: shared creation
+
+Our card-based experience gives social interaction something tangible to build on. Friends can explore shared wardrobes, exchange styling ideas, co-design outfits and bring their creations together in **Collections**. A group outing becomes a shared composition; a friend's look becomes the starting point for something new.
+
+Trends can begin inside LookLine as people create, collect and reinterpret each other's looks. Sharing carries those ideas into the social platforms people already use, including Instagram and TikTok, where they can inspire wider communities. LookLine provides the creative tools and the connection to real garments; its users give the ideas momentum and reach.
+
+Our ambition is to **make trends together with our users**. By connecting personal creativity, shared experiences and social distribution, LookLine gives people a way to shape what others discover and wear.
+
+**From a point to a line to a plane: every purchase opens a creative journey, and every shared creation opens the next one.**
 
 ## Presentation
 
