@@ -226,7 +226,9 @@ export function DiscoveryHome({ signedIn }: { signedIn: boolean }) {
           </Empty>
         )}
       </DiscoveryRail>
-      {signedIn ? (
+      {/* Only when the rail has something in it. Its empty state already offers the same link,
+          and an empty rail was showing "管理好友" twice, one above the other. */}
+      {signedIn && friends.data?.items.length ? (
         <Button href="/me/friends" variant="link" className="self-start">
           {copy.manageFriends}
         </Button>
