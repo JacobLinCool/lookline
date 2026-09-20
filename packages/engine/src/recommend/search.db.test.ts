@@ -62,6 +62,41 @@ afterAll(async () => {
 })
 
 describe('searchProducts (SQLite integration)', () => {
+  it('finds a subcategory the lexicon named, spelled the way the catalogue spells it', async () => {
+    // The lexicon answers `blazer`; the column holds H&M's `product_type_name`, which is
+    // `Blazer`. Comparing the two matched nothing — not one of the 109 slugs equals any of the
+    // 106 values — so every word the lexicon recognised returned an empty page.
+    const db = handle.db
+    const target = rows[1]!
+    const before = target.subcategory
+    await db.update(articles).set({ subcategory: 'Blazer' }).where(eq(articles.id, target.id))
+
+    const hit = await searchProducts(db, { q: 'blazer' })
+    expect(hit.total).toBe(1)
+    expect(hit.items.map((a) => a.id)).toEqual([target.id])
+
+    await db.update(articles).set({ subcategory: before }).where(eq(articles.id, target.id))
+  })
+
+  it('falls back to the words themselves when the lexicon narrows to nothing', async () => {
+    // `jeans` is a subcategory the taxonomy knows and this catalogue does not stock under that
+    // name — H&M files them as `Trousers`. The lexicon consumes the whole query, so there is no
+    // residual text to fall back on and the page came back empty. Searching the word is worse
+    // than the filter would have been and far better than nothing.
+    const db = handle.db
+    const target = rows[2]!
+    const before = target.name
+    await db.update(articles).set({ name: 'Wide leg jeans' }).where(eq(articles.id, target.id))
+    await db.run(sql.raw(FTS_REBUILD_SQL))
+
+    const hit = await searchProducts(db, { q: 'jeans' })
+    expect(hit.total).toBeGreaterThan(0)
+    expect(hit.items.map((a) => a.id)).toContain(target.id)
+
+    await db.update(articles).set({ name: before }).where(eq(articles.id, target.id))
+    await db.run(sql.raw(FTS_REBUILD_SQL))
+  })
+
   it('runs with no filter at all and still counts facets', async () => {
     const result = await searchProducts(handle.db, {})
     expect(result.total).toBe(5)
