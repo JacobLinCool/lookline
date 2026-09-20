@@ -143,7 +143,9 @@ describe('buildSearchQuery', () => {
       q: 'minimalist black hoodie',
     }).page.toSQL()
     expect(sql).toContain('json_each("articles"."aesthetics")')
-    expect(params).toEqual(expect.arrayContaining(['minimalist', 'black', 'hoodie']))
+    // `Hoodie`, not `hoodie`: the lexicon speaks slugs and the column holds H&M's own
+    // `product_type_name`, so the slug is translated before it is bound.
+    expect(params).toEqual(expect.arrayContaining(['minimalist', 'black', 'Hoodie']))
   })
 
   it('renders filters, the FTS5 text predicate, sort and pagination', () => {
@@ -174,7 +176,7 @@ describe('buildSearchQuery', () => {
     expect(sql).not.toContain('inner join "articles_fts"')
     expect(params).toContain('"nike"*')
     expect(params).toContain('men')
-    expect(params).toContain('hoodie')
+    expect(params).toContain('Hoodie')
     expect(params).toContain(24)
     expect(params[params.length - 1]).toBe(24)
     expect(total.toSQL().sql).toContain('count(*)')

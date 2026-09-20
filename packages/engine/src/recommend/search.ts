@@ -9,6 +9,7 @@ import {
   aestheticIndex,
   colorFamilyIndex,
   findColor,
+  findSubcategory,
   zeroVector,
 } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily, SearchFacetId, SearchFacetKey } from '@lookline/catalog'
@@ -225,9 +226,23 @@ export interface SearchPlan {
   pageSize: number
 }
 
-export function planSearch(query: ProductSearch, opts: { withText?: boolean } = {}): SearchPlan {
+/**
+ * The spelling the catalogue stores for a taxonomy slug. H&M's `product_type_name` is the
+ * subcategory column, and the taxonomy's own `name` is what it agrees with where the two
+ * vocabularies overlap. Where they do not — `jeans` is `Trousers` here, and H&M has no `Jeans` —
+ * the slug is returned unchanged and matches nothing, which is what the fallback is for.
+ */
+function catalogueSubcategory(slug: string): string {
+  return findSubcategory(slug)?.name ?? slug
+}
+
+export function planSearch(
+  query: ProductSearch,
+  opts: { withText?: boolean; withLexicon?: boolean } = {},
+): SearchPlan {
   const scan = scanQuery(query.q ?? '')
   const where: SqlChunk[] = []
+  const withLexicon = opts.withLexicon ?? true
   let lexiconFilters = false
   if (query.department) where.push(eq(articles.department, query.department))
   // What the lexicon read out of `q`, applied only where the explicit filter is silent.
@@ -244,7 +259,7 @@ export function planSearch(query: ProductSearch, opts: { withText?: boolean } = 
   for (const facet of SEARCH_FACETS) {
     const included = query[facet.key]
     if (included?.length) where.push(facetIncludes(facet, included))
-    else if (scanned[facet.key]?.length) {
+    else if (withLexicon && scanned[facet.key]?.length) {
       where.push(facetIncludes(facet, scanned[facet.key]!))
       lexiconFilters = true
     }
@@ -253,8 +268,13 @@ export function planSearch(query: ProductSearch, opts: { withText?: boolean } = 
   }
   if (query.category) where.push(eq(articles.category, query.category))
   if (query.subcategory) where.push(eq(articles.subcategory, query.subcategory))
-  else if (scan.subcategories.length > 0) {
-    where.push(inArray(articles.subcategory, scan.subcategories))
+  else if (withLexicon && scan.subcategories.length > 0) {
+    // The lexicon answers in taxonomy slugs (`blazer`, `tee`); the column holds H&M's own
+    // `product_type_name` (`Blazer`, `T-shirt`). Comparing the two matched nothing at all — not
+    // one of the 109 slugs equals any of the 106 values — so a word the lexicon recognised
+    // returned an empty page. The taxonomy's own name is the spelling the catalogue uses for the
+    // ones that line up; the rest are left to the free-text fallback in `searchProducts`.
+    where.push(inArray(articles.subcategory, scan.subcategories.map(catalogueSubcategory)))
     lexiconFilters = true
   }
   if (query.brandId !== undefined) where.push(eq(articles.brandId, query.brandId))
@@ -263,7 +283,8 @@ export function planSearch(query: ProductSearch, opts: { withText?: boolean } = 
   if (query.priceMax !== undefined && query.priceMax !== null)
     where.push(lte(articles.price, Math.round(query.priceMax)))
   const withText = opts.withText ?? true
-  const text = withText && scan.residual ? scan.residual : null
+  const spoken = withLexicon ? scan.residual : (query.q ?? '').trim()
+  const text = withText && spoken ? spoken : null
   // Keywords are already known to be free text: they never pass through the lexicon and the
   // no-text retry never drops them, only the residual of `q`.
   const keywords = parseKeywords(query.keywords ?? [])
@@ -332,7 +353,7 @@ export function orderFor(plan: SearchPlan): SqlChunk[] {
 export function buildSearchQuery(
   db: Database,
   query: ProductSearch,
-  opts: { withText?: boolean } = {},
+  opts: { withText?: boolean; withLexicon?: boolean } = {},
 ) {
   const plan = planSearch(query, opts)
   // `and()` of nothing is `undefined`, which drizzle's own `.where()` reads as "no filter"
@@ -447,9 +468,11 @@ async function runSearch(
   db: Database,
   query: ProductSearch,
   withText: boolean,
+  withLexicon = true,
 ): Promise<ProductSearchResult & { plan: SearchPlan }> {
   const { plan, page, total, facets, aestheticFacets } = buildSearchQuery(db, query, {
     withText,
+    withLexicon,
   })
   const [rows, totalRows, facetResult, aestheticResult] = await Promise.all([
     page,
@@ -479,6 +502,15 @@ export async function searchProducts(
   if (first.total === 0 && first.plan.text && first.plan.lexiconFilters) {
     const retry = await runSearch(db, query, false)
     const { plan: _plan, ...rest } = retry
+    if (rest.total > 0) return rest
+  }
+  // The lexicon recognised every word and then narrowed to nothing: `jeans` is a subcategory it
+  // knows and the catalogue does not stock under that name. Searching the words themselves is a
+  // worse answer than the filter would have been and a far better one than an empty page. The
+  // guard is `lexiconFilters` rather than `plan.text`, because a query the lexicon consumed
+  // whole leaves no residual text to test.
+  if (first.total === 0 && first.plan.lexiconFilters) {
+    const { plan: _plan, ...rest } = await runSearch(db, query, true, false)
     return rest
   }
   const { plan: _plan, ...rest } = first
