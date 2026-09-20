@@ -7,7 +7,7 @@ import { Button, EmptyState, Notice } from '@/components/ui'
 import { useI18n } from '@/i18n/client'
 import { liveBase } from '@/lib/live-filters'
 import { TalkConversation } from '@/lib/talk-conversation'
-import { ShopTalkLive, type TalkPhase } from '@/lib/shop-talk-live'
+import { ShopTalkLive, type TalkImage, type TalkPhase } from '@/lib/shop-talk-live'
 import { TalkSearch, talkSearchKey } from '@/lib/talk-search'
 import { ActiveFilters, DepartmentPills } from '../shop/active-filters'
 import { FilterRail } from '../shop/filter-rail'
@@ -176,7 +176,7 @@ export function ShopTalkWorkspace({
     setChatError(null)
     setError(null)
   }
-  async function send(text: string) {
+  async function send(text: string, image?: TalkImage) {
     if (
       !conversationSchema.safeParse([
         ...history.events,
@@ -189,7 +189,7 @@ export function ShopTalkWorkspace({
     setChatError(null)
     stopped.current = false
     try {
-      await connection().send(text)
+      await connection().send(text, image)
       return true
     } catch {
       setChatError(history.validate() ? copy.connectionError : copy.full)

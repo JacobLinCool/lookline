@@ -5,6 +5,7 @@ import { connectTalkSocket, type TalkSocket } from './talk-socket'
 import { liveConversationTurns, type TalkConversation } from './talk-conversation'
 
 export type TalkPhase = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'ended'
+export type TalkImage = { data: string; mimeType: string }
 type LiveCallbacks = {
   phase: (phase: TalkPhase) => void
   microphone: (enabled: boolean) => void
@@ -145,13 +146,13 @@ export class ShopTalkLive {
       /* open reports the disconnected state; the user can retry. */
     }
   }
-  async send(text: string) {
+  async send(text: string, image?: TalkImage) {
     await this.connect()
     if (!this.session || this.closed) throw new Error('Not connected')
     this.clearPlayback()
     this.history.send(text)
     this.session.sendClientContent({
-      turns: [{ role: 'user', parts: [{ text }] }],
+      turns: [{ role: 'user', parts: [...(image ? [{ inlineData: image }] : []), { text }] }],
       turnComplete: true,
     })
   }
