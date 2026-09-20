@@ -17,9 +17,11 @@ import { getDb } from '@/server/db'
  * `POST` → fetch today's list, read it as a style, publish the reading. One action, no choosing:
  * the list is evidence for an operator, not a menu.
  *
- * Unlike the other lab routes this one writes something every visitor sees, so it is the one place
- * here that asks for a secret. `ADMIN_TOKEN` unset leaves it open, which is how local development
- * and a demo machine run; set it in production and the lab sends it as `x-admin-token`.
+ * Unlike the other lab routes this one writes something every visitor sees and spends a model call
+ * doing it, so it is the one place here that asks for a secret. `ADMIN_TOKEN` must be configured
+ * for the write to work at all — an unset secret closes the route rather than opening it, because
+ * the failure of the other order is silent and public. Set it in `apps/web/.dev.vars` locally and
+ * `wrangler secret put ADMIN_TOKEN` in production; the lab sends it as `x-admin-token`.
  */
 const headers = { 'Cache-Control': 'no-store' }
 
@@ -27,9 +29,13 @@ const headers = { 'Cache-Control': 'no-store' }
 let analyst: ReturnType<typeof createLlmClient> | null = null
 const getAnalyst = () => (analyst ??= createLlmClient({ textTimeoutMs: ANALYZE_TIMEOUT_MS }))
 
-function unauthorized(request: Request): boolean {
+type Refusal = { status: 401 | 503; key: 'labToken' | 'labTokenMissing' } | null
+
+function refuse(request: Request): Refusal {
   const expected = process.env.ADMIN_TOKEN
-  return Boolean(expected) && request.headers.get('x-admin-token') !== expected
+  if (!expected) return { status: 503, key: 'labTokenMissing' }
+  if (request.headers.get('x-admin-token') !== expected) return { status: 401, key: 'labToken' }
+  return null
 }
 
 export async function GET() {
@@ -46,8 +52,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const { errors } = (await getMessages()).ui
-  if (unauthorized(request))
-    return Response.json({ error: errors.labToken }, { status: 401, headers })
+  const refusal = refuse(request)
+  if (refusal)
+    return Response.json({ error: errors[refusal.key] }, { status: refusal.status, headers })
   try {
     const { db } = getDb()
     const llm = getAnalyst()

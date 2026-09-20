@@ -65,6 +65,7 @@ export const ui: UiMessages = {
     textModelMissing: '沒有設定文字模型，在 apps/web/.dev.vars 加一把 provider key。',
     searchTrendsUnavailable: '讀不到搜尋趨勢，確認來源後再試一次。',
     searchTrendGone: '這筆趨勢已不在目前這批裡，重新抓取後再試。',
+    labTokenMissing: '沒有設定 lab token，這裡無法改動首頁。請設定 ADMIN_TOKEN。',
     labToken: '這個操作需要 lab token。',
     imageFailed: '圖片沒有產生成功，請檢查提示詞後再試一次。',
   },
