@@ -176,6 +176,9 @@ export const CATEGORIES: readonly CategoryDef[] = [
     slug: 'trousers',
     name: 'Trousers',
     labelZh: '長褲',
+    // `褲子` is listed on the bottoms group too, where it dragged skirts into a search for
+    // trousers; the longer-first scan prefers this tier for the same word.
+    synonyms: ['褲子', 'pants'],
     group: 'bottoms',
     subcategories: ['chinos', 'wide-leg-trousers', 'cargo-pants', 'leggings'],
   },

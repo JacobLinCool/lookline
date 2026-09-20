@@ -4,12 +4,12 @@
  * style vector (cosine over `article_vectors`), filters, sorts, pagination and facets.
  */
 import {
+  CATEGORIES,
   LEXICON,
   SEARCH_FACETS,
   aestheticIndex,
   colorFamilyIndex,
   findColor,
-  findSubcategory,
   zeroVector,
 } from '@lookline/catalog'
 import type { CategoryGroup, ColorFamily, SearchFacetId, SearchFacetKey } from '@lookline/catalog'
@@ -29,8 +29,6 @@ import {
   ftsQuery,
   ftsRank,
   gte,
-  inArray,
-  jsonArrayOverlaps,
   lte,
   articleVectors,
   articles,
@@ -52,6 +50,7 @@ import {
 import { parseKeywords } from '../decisions/keywords'
 import type { FacetCount, ProductSearch, ProductSearchFacets, ProductSearchResult } from '../types'
 import { AESTHETIC_TABLES } from './aesthetics'
+import { subcategoryWhere } from './catalogue'
 import { isFamily, isGroup } from './intent-view'
 import { RETRIEVAL_BLOCK_WEIGHTS, blockScale } from './vector'
 
@@ -67,6 +66,7 @@ interface Term {
   term: string
   section:
     | 'subcategories'
+    | 'categories'
     | 'categoryGroups'
     | 'colors'
     | 'colorFamilies'
@@ -91,10 +91,27 @@ function buildTermIndex(): Term[] {
     'patterns',
     'aesthetics',
     'subcategories',
+    // The taxonomy's middle tier is not in `LEXICON`, and without it 裙子 fell through to the
+    // `bottoms` group and a search for skirts came back trousers. Read straight off `CATEGORIES`
+    // rather than widening the lexicon contract, which the intent parser also reads.
+    'categories',
     'categoryGroups',
   ] as const
   for (const section of sections) {
-    for (const entry of LEXICON[section]) {
+    const rows =
+      section === 'categories'
+        ? CATEGORIES.map((c) => ({
+            value: c.slug,
+            terms: [
+              c.slug,
+              c.slug.replace(/-/g, ' '),
+              c.name.toLowerCase(),
+              c.labelZh,
+              ...(c.synonyms ?? []),
+            ],
+          }))
+        : LEXICON[section]
+    for (const entry of rows) {
       for (const term of entry.terms) {
         const cjk = CJK.test(term)
         if (!cjk && term.length < 3) continue
@@ -114,6 +131,7 @@ const push = <T>(list: T[], v: T): void => {
 
 export interface QueryScan {
   residual: string
+  /** Garment slugs: a taxonomy subcategory or, for a coarser word like 裙子, a category. */
   subcategories: string[]
   groups: CategoryGroup[]
   colorFamilies: ColorFamily[]
@@ -125,7 +143,8 @@ export interface QueryScan {
 /** Lexicon scan of a free-text query: matched taxonomy values and the unmatched residual text. */
 export function scanQuery(q: string): QueryScan {
   termIndex ??= buildTermIndex()
-  let text = ` ${q.toLowerCase().replace(/\s+/g, ' ').trim()} `
+  const input = ` ${q.toLowerCase().replace(/\s+/g, ' ').trim()} `
+  let text = input
   const scan: QueryScan = {
     residual: '',
     subcategories: [],
@@ -150,7 +169,9 @@ export function scanQuery(q: string): QueryScan {
     if (!re.test(text)) continue
     text = text.replace(re, ' ')
     switch (t.section) {
+      // Both tiers name a garment; `subcategoryWhere` reads either.
       case 'subcategories':
+      case 'categories':
         push(scan.subcategories, t.value)
         break
       case 'categoryGroups':
@@ -175,7 +196,16 @@ export function scanQuery(q: string): QueryScan {
         break
     }
   }
-  const residual = text.replace(/\s+/g, ' ').trim()
+  // A lone Han character left beside a term the lexicon did recognise is the tail of a longer
+  // word, not a word. `米白色` is off-white: the lexicon reads `白色` out of it and leaves `米`,
+  // which as a full-text term asks for any caption containing 米 and cut off-white knits from
+  // 1 088 to 323. Nothing matched means the shopper really did type one character.
+  const matched = text !== input
+  const residual = (
+    matched ? text.replace(/(?<![\p{Script=Han}])\p{Script=Han}(?![\p{Script=Han}])/gu, ' ') : text
+  )
+    .replace(/\s+/g, ' ')
+    .trim()
   // Han counts as text. The check was ASCII-only, so a Chinese query matching no lexicon term
   // left no residual and therefore no search at all — `荷葉邊` filtered on nothing and returned
   // the whole catalogue.
@@ -226,16 +256,6 @@ export interface SearchPlan {
   pageSize: number
 }
 
-/**
- * The spelling the catalogue stores for a taxonomy slug. H&M's `product_type_name` is the
- * subcategory column, and the taxonomy's own `name` is what it agrees with where the two
- * vocabularies overlap. Where they do not — `jeans` is `Trousers` here, and H&M has no `Jeans` —
- * the slug is returned unchanged and matches nothing, which is what the fallback is for.
- */
-function catalogueSubcategory(slug: string): string {
-  return findSubcategory(slug)?.name ?? slug
-}
-
 export function planSearch(
   query: ProductSearch,
   opts: { withText?: boolean; withLexicon?: boolean } = {},
@@ -269,13 +289,15 @@ export function planSearch(
   if (query.category) where.push(eq(articles.category, query.category))
   if (query.subcategory) where.push(eq(articles.subcategory, query.subcategory))
   else if (withLexicon && scan.subcategories.length > 0) {
-    // The lexicon answers in taxonomy slugs (`blazer`, `tee`); the column holds H&M's own
-    // `product_type_name` (`Blazer`, `T-shirt`). Comparing the two matched nothing at all — not
-    // one of the 109 slugs equals any of the 106 values — so a word the lexicon recognised
-    // returned an empty page. The taxonomy's own name is the spelling the catalogue uses for the
-    // ones that line up; the rest are left to the free-text fallback in `searchProducts`.
-    where.push(inArray(articles.subcategory, scan.subcategories.map(catalogueSubcategory)))
-    lexiconFilters = true
+    // The lexicon answers in taxonomy slugs (`jeans`, `turtleneck`); the column holds H&M's own
+    // coarser `product_type_name` (`Trousers`, `Sweater`). `subcategoryWhere` bridges the two,
+    // and returns null for a garment the catalogue does not stock at all — then no filter, and
+    // the free-text fallback in `searchProducts` answers instead of an empty page.
+    const sub = subcategoryWhere(scan.subcategories)
+    if (sub) {
+      where.push(sub)
+      lexiconFilters = true
+    }
   }
   if (query.brandId !== undefined) where.push(eq(articles.brandId, query.brandId))
   if (query.priceMin !== undefined && query.priceMin !== null)
@@ -310,12 +332,12 @@ export function planSearch(
   }
 }
 
-/** Whether the page query must join `product_vectors` (style cosine in the ORDER BY). */
+/** Whether the page query must join `article_vectors` (style cosine in the ORDER BY). */
 export function needsVectorJoin(plan: SearchPlan): boolean {
   return plan.sort === 'relevance' && plan.vector !== null
 }
 
-/** Whether the page query must join `products_fts` (bm25 rank in the ORDER BY). */
+/** Whether the page query must join `articles_fts` (bm25 rank in the ORDER BY). */
 export function needsFtsJoin(plan: SearchPlan): boolean {
   return plan.sort === 'relevance' && plan.ftsExpr !== null
 }

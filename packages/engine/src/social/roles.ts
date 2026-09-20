@@ -30,11 +30,14 @@ const GROUP_FALLBACK: Readonly<Record<CategoryGroup, LookRole>> = {
   tailoring: 'outer',
 }
 
+// Case-insensitive: the taxonomy spells a garment `wide-leg-trousers` and the catalogue spells
+// the same thing `Trousers`, so every hint missed on real articles and the role fell back to the
+// category group.
 const SUBCATEGORY_HINTS: ReadonlyArray<readonly [RegExp, LookRole]> = [
-  [/bottom|short|tights|jogger|sweatpant|trunks|trouser|pant|skirt/, 'bottom'],
-  [/bra|tee|top|shirt|rash-guard|pajama|hoodie/, 'top'],
-  [/one-piece|jumpsuit|dress|gown|suit|tuxedo|nightgown/, 'one-piece'],
-  [/jacket|blazer|coat|cover-up|robe|cardigan/, 'outer'],
+  [/bottom|short|tights|jogger|sweatpant|trunks|trouser|pant|skirt/i, 'bottom'],
+  [/bra|tee|top|shirt|rash-guard|pajama|hoodie/i, 'top'],
+  [/one-piece|jumpsuit|dress|gown|suit|tuxedo|nightgown/i, 'one-piece'],
+  [/jacket|blazer|coat|cover-up|robe|cardigan/i, 'outer'],
 ]
 
 export function inferRole(product: { categoryGroup: string; subcategory: string }): LookRole {

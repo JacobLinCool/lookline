@@ -170,9 +170,9 @@ async function main(): Promise<void> {
     (await db.all<{ c: number }>(sql`select count(*) as c from articles`))[0]?.c ?? 0,
   )
   const vectors = Number(
-    (await db.all<{ c: number }>(sql`select count(*) as c from product_vectors`))[0]?.c ?? 0,
+    (await db.all<{ c: number }>(sql`select count(*) as c from article_vectors`))[0]?.c ?? 0,
   )
-  console.log(`articles=${count} product_vectors=${vectors}`)
+  console.log(`articles=${count} article_vectors=${vectors}`)
   if (count === 0) {
     console.log('articles table is empty — nothing to smoke-test (run pnpm seed:catalog first)')
     return

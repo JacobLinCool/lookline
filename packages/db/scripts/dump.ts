@@ -21,7 +21,7 @@ function arg(name: string): string | undefined {
 
 const STATEMENT_BYTES = 80_000
 // D1 parses a multi-row INSERT as one expression tree and answers SQLITE_NOMEM when it gets too
-// large, which bytes alone do not predict: 80 KB of `product_vectors` (65 columns) is ~22k values
+// large, which bytes alone do not predict: 80 KB of `article_vectors` (65 columns) is ~22k values
 // against ~1.5k for a narrow table. Cap the values per statement too.
 const STATEMENT_VALUES = 5_000
 const PAGE = 2_000

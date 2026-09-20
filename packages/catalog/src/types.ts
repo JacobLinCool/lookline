@@ -123,6 +123,8 @@ export interface CategoryDef {
   labelZh: string
   group: CategoryGroup
   subcategories: readonly string[]
+  /** Extra search terms where the label alone is too narrow (`褲子` is trousers, not bottoms). */
+  synonyms?: readonly string[]
 }
 
 export interface GeneratedBrand extends Omit<NewBrand, 'createdAt' | 'id'> {
