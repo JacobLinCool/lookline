@@ -63,7 +63,7 @@ try {
     )
     console.log(`${table.padEnd(30)} ${String(result.rowsAffected).padStart(8)} rows`)
   }
-  if (existing.has('products_fts')) await client.execute(FTS_REBUILD_SQL)
+  if (existing.has('articles_fts')) await client.execute(FTS_REBUILD_SQL)
   await client.execute('analyze')
   await client.execute('pragma foreign_keys = on')
   console.log(`local D1 refreshed: ${target}`)

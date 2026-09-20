@@ -11,6 +11,8 @@
  * while they are still in the air — the animation gets cancelled a fifth of the way through.
  */
 
+import { articleImageSrc } from './article-image'
+
 const DURATION_MS = 520
 const BOUNCE_MS = 260
 /**
@@ -58,7 +60,7 @@ export function flyArticleToBag(articleId: string, delay = 0): void {
     willChange: 'transform, opacity',
   })
   const img = document.createElement('img')
-  img.src = `/api/articles/${articleId}/image`
+  img.src = articleImageSrc(articleId)
   img.alt = ''
   Object.assign(img.style, { width: '100%', height: '100%', objectFit: 'cover' })
   node.append(img)
