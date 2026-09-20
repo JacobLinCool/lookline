@@ -2,46 +2,46 @@
 name: LookLine presentation
 description: Paper, ink and tag red carry a point–line–plane product story.
 colors:
-  paper: "#f7f6f3"
-  ink: "#171717"
-  muted: "#666660"
-  line: "#d6d5cf"
-  red: "#c8321e"
-  panel: "#efeeea"
+  paper: '#f7f6f3'
+  ink: '#171717'
+  muted: '#666660'
+  line: '#d6d5cf'
+  red: '#c8321e'
+  panel: '#efeeea'
 typography:
   display:
-    fontFamily: "Geist, PingFang TC, Noto Sans TC, sans-serif"
-    fontSize: "79px"
+    fontFamily: 'Geist, PingFang TC, Noto Sans TC, sans-serif'
+    fontSize: '79px'
     fontWeight: 750
     lineHeight: 1.1
-    letterSpacing: "-0.04em"
+    letterSpacing: '-0.04em'
   headline:
-    fontFamily: "Geist, PingFang TC, Noto Sans TC, sans-serif"
-    fontSize: "58px"
+    fontFamily: 'Geist, PingFang TC, Noto Sans TC, sans-serif'
+    fontSize: '58px'
     fontWeight: 650
     lineHeight: 1.2
-    letterSpacing: "-0.025em"
+    letterSpacing: '-0.025em'
   title:
-    fontSize: "28px"
+    fontSize: '28px'
     fontWeight: 600
     lineHeight: 1.4
-    letterSpacing: "-0.015em"
+    letterSpacing: '-0.015em'
   body:
-    fontSize: "23px"
+    fontSize: '23px'
     lineHeight: 1.65
   label:
-    fontSize: "13px"
+    fontSize: '13px'
 rounded:
-  control: "5px"
+  control: '5px'
 components:
   icon-button:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    width: "40px"
-    height: "40px"
+    backgroundColor: 'transparent'
+    textColor: '{colors.ink}'
+    rounded: '{rounded.control}'
+    width: '40px'
+    height: '40px'
   icon-button-hover:
-    backgroundColor: "{colors.panel}"
+    backgroundColor: '{colors.panel}'
 ---
 
 # Design System: LookLine presentation
