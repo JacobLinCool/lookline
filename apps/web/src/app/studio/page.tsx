@@ -93,13 +93,14 @@ export default async function StudioPage({
     displayName: p.displayName,
     kind: p.kind,
     avatarSeed: p.avatarSeed,
+    hasPhoto: Boolean(p.referencePath),
   }))
 
   return (
     <Container className="flex flex-col gap-6 py-8">
       <PageHeader
         title="製卡工作室"
-        description="挑一位主角和幾件你衣櫃裡的衣服，用 1 次額度生成最多 4 張候選，選最喜歡的一張正式發行。"
+        description="挑一位主角和幾件你衣櫃裡的衣服，用 1 次額度生成最多 4 張候選，選最喜歡的一張正式發行。主角有參考照片時，生成出來的就是本人。"
         actions={
           <span className="text-[13px] text-muted">
             額度 <span className="tabular text-[15px] font-semibold text-ink">{credits}</span>

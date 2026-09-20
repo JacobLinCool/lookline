@@ -33,7 +33,8 @@ function humanize(slug: string): string {
   return slug.replace(/[-_]+/g, ' ').trim()
 }
 
-function describeGarment(p: LookPromptInput['articles'][number]): string {
+/** "\"Name\", a navy cotton t-shirt, with a striped pattern" — shared with the card prompt. */
+export function describeGarment(p: LookPromptInput['articles'][number]): string {
   const material = findMaterial(p.material)?.name ?? humanize(p.material)
   const subcategory = findSubcategory(p.subcategory)?.name ?? humanize(p.subcategory)
   const pattern =
@@ -151,7 +152,7 @@ const FILLER: Record<Slot, string> = {
  * A full-body frame shows every slot; the model fills an empty one with whatever it likes, which
  * then reads as part of the Look. Name the gaps and keep them plain. Silent when roles are unknown.
  */
-function describeFillers(articles: LookPromptInput['articles']): string | null {
+export function describeFillers(articles: LookPromptInput['articles']): string | null {
   if (articles.length === 0 || articles.some((a) => !a.outfitRole)) return null
   const covered = new Set(articles.flatMap((a) => SLOTS_BY_ROLE[a.outfitRole!] ?? []))
   const missing = (['top', 'bottom', 'shoes'] as const).filter((slot) => !covered.has(slot))

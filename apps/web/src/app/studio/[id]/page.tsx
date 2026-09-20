@@ -9,15 +9,11 @@ import {
   inArray,
   personas,
 } from '@lookline/db'
-import {
-  MAX_CANDIDATES_PER_SESSION,
-  candidatesOf,
-  ownedRatioOf,
-  tierForRatio,
-} from '@lookline/engine'
+import { MAX_CANDIDATES_PER_SESSION, ownedRatioOf, tierForRatio } from '@lookline/engine'
 import { Avatar, Container, Notice, PageHeader, Tag } from '@/components/ui'
 import { CandidateGrid, type CandidateItem } from '@/components/cards/candidate-grid'
 import { requireUser } from '@/server/auth'
+import { studioProgress } from '@/server/card-generation'
 import { getDb } from '@/server/db'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -65,17 +61,16 @@ export default async function StudioSessionPage({
     : []
   const nameById = new Map(worn.map((w) => [w.id, w.name]))
 
-  const made = await candidatesOf(db, id)
+  // Candidates that landed, and renders still running — one place each, so the grid can show a
+  // slot filling rather than nothing at all for the half-minute the image model takes.
+  const progress = await studioProgress(id)
   // A settled session has exactly one card; the page links to it instead of stopping dead.
   const [issued] = await db
     .select({ id: cards.id })
     .from(cards)
     .where(eq(cards.sessionId, id))
     .limit(1)
-  const items: CandidateItem[] = made.map((c) => ({
-    id: c.id,
-    position: c.position,
-  }))
+  const items: CandidateItem[] = progress.candidates
 
   const ratio = ownedRatioOf(snapshot)
   const tier = tierForRatio(ratio)
@@ -106,6 +101,8 @@ export default async function StudioSessionPage({
       <CandidateGrid
         sessionId={id}
         candidates={items}
+        pending={progress.pending}
+        error={progress.error}
         max={MAX_CANDIDATES_PER_SESSION}
         settled={session.state !== 'open'}
         issuedCardId={issued?.id ?? null}

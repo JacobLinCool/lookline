@@ -5,6 +5,7 @@ import { tierForRatio } from '@lookline/engine'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
 import { OG_CONTENT_TYPE, OG_SIZE, shareCardImage } from '@/server/og-card'
+import { storedDataUri } from '@/server/storage'
 
 export const size = OG_SIZE
 export const contentType = OG_CONTENT_TYPE
@@ -23,6 +24,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       authorName: users.displayName,
       candidateId: cardCandidates.id,
       candidatePosition: cardCandidates.position,
+      imagePath: cards.imagePath,
     })
     .from(cards)
     .innerJoin(personas, eq(personas.id, cards.personaId))
@@ -32,8 +34,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     .limit(1)
   if (!card) notFound()
 
-  const art = await cardArtFromSnapshot(db, card.snapshot ?? [])
+  const [art, artworkSrc] = await Promise.all([
+    cardArtFromSnapshot(db, card.snapshot ?? []),
+    storedDataUri(card.imagePath),
+  ])
   const image = await shareCardImage({
+    artworkSrc,
     title: card.personaName,
     subtitle: `by ${card.authorName}`,
     badge: tierForRatio(card.ownedRatio).labelEn,

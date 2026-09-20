@@ -4,6 +4,7 @@ import { cardCandidates, cards, eq, personas, users } from '@lookline/db'
 import { renderLookPosterSvg } from '@lookline/engine'
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
+import { storedImageResponse } from '@/server/storage'
 import { svgResponse } from '@/server/svg'
 
 /**
@@ -17,7 +18,7 @@ import { svgResponse } from '@/server/svg'
  * it, and the verification code is printed under the card anyway.
  */
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const { id } = await context.params
@@ -31,6 +32,7 @@ export async function GET(
       authorName: users.displayName,
       candidateId: cardCandidates.id,
       candidatePosition: cardCandidates.position,
+      imagePath: cards.imagePath,
     })
     .from(cards)
     .innerJoin(personas, eq(personas.id, cards.personaId))
@@ -39,6 +41,11 @@ export async function GET(
     .where(and(eq(cards.id, id), await readableCard()))
     .limit(1)
   if (!card) return new Response('Not found', { status: 404 })
+
+  // The card keeps the chosen candidate's rendered photograph. Cards issued before the studio
+  // rendered anything have no image and still draw as the composition poster.
+  const rendered = await storedImageResponse(request, card.imagePath, 'private, no-store')
+  if (rendered) return rendered
 
   const art = await cardArtFromSnapshot(db, card.snapshot ?? [])
   const svg = renderLookPosterSvg({

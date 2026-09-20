@@ -11,6 +11,7 @@ import {
 import { cardArtFromSnapshot, candidateSeed } from '@/server/card-art'
 import { getDb } from '@/server/db'
 import { OG_CONTENT_TYPE, OG_SIZE, shareCardImage } from '@/server/og-card'
+import { storedDataUri } from '@/server/storage'
 
 export const size = OG_SIZE
 export const contentType = OG_CONTENT_TYPE
@@ -27,6 +28,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
       snapshot: cardSessions.articleSnapshot,
       candidateId: cardCandidates.id,
       candidatePosition: cardCandidates.position,
+      candidateImage: cardCandidates.imagePath,
     })
     .from(collectionEditions)
     .innerJoin(collections, eq(collections.id, collectionEditions.collectionId))
@@ -45,8 +47,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
     .where(eq(cardCopies.editionId, id))
     .orderBy(cardCopies.editionNumber)
 
-  const art = await cardArtFromSnapshot(db, edition.snapshot ?? [])
+  const [art, artworkSrc] = await Promise.all([
+    cardArtFromSnapshot(db, edition.snapshot ?? []),
+    storedDataUri(edition.candidateImage),
+  ])
   return shareCardImage({
+    artworkSrc,
     title: edition.title,
     subtitle: copies.map((c) => c.personaName).join(' · ') || `限量 ${edition.editionSize} 份`,
     badge: `Edition of ${edition.editionSize}`,
