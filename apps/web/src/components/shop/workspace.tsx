@@ -1,8 +1,9 @@
 'use client'
 
+import { SHOP_REQUEST_TIMEOUT_MS } from '@/lib/shop-timeouts'
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { Languages, Mic, Square, X } from 'lucide-react'
+import { Languages, MessageCircle, Mic, Square, X } from 'lucide-react'
 import type {
   FilterDecision,
   KeywordExtraction,
@@ -150,7 +151,7 @@ export function ShopWorkspace({
     setLoading(true)
     try {
       const response = await fetch(`/api/articles/search?${searchToParams(next)}`, {
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(SHOP_REQUEST_TIMEOUT_MS)]),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(t.shop.sentence.refreshFailed)
@@ -173,7 +174,11 @@ export function ShopWorkspace({
       })
     } catch (cause) {
       if (!controller.signal.aborted && mounted.current)
-        setError(cause instanceof Error ? cause.message : t.shop.sentence.refreshFailedShort)
+        setError(
+          cause instanceof Error && cause.name === 'TimeoutError'
+            ? t.shop.sentence.timedOut
+            : t.shop.sentence.refreshFailed,
+        )
     } finally {
       if (productsRequest.current === controller && mounted.current) setLoading(false)
     }
@@ -221,7 +226,10 @@ export function ShopWorkspace({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ utterance: job.text, revision }),
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
+          signal: AbortSignal.any([
+            controller.signal,
+            AbortSignal.timeout(SHOP_REQUEST_TIMEOUT_MS),
+          ]),
         })
         const data = (await response.json()) as KeywordExtraction & {
           revision: number
@@ -266,7 +274,7 @@ export function ShopWorkspace({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ utterance: job.text, base: liveBase(job.base), revision }),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(2_000)]),
+        signal: AbortSignal.any([signal, AbortSignal.timeout(SHOP_REQUEST_TIMEOUT_MS)]),
       })
       const data = (await response.json()) as FilterDecision & { revision: number; error?: string }
       if (!queue.isCurrent(revision) || signal.aborted || !mounted.current) return
@@ -306,7 +314,13 @@ export function ShopWorkspace({
       void loadProducts(next, { job, revision, decision: data })
     } catch (cause) {
       if (queue.isCurrent(revision) && !signal.aborted && mounted.current)
-        setError(cause instanceof Error ? cause.message : t.shop.sentence.resolveFailed)
+        setError(
+          cause instanceof Error && cause.name === 'TimeoutError'
+            ? t.shop.sentence.timedOut
+            : cause instanceof Error
+              ? cause.message
+              : t.shop.sentence.resolveFailed,
+        )
     } finally {
       if (queue.isCurrent(revision) && mounted.current) setDeciding(false)
     }
@@ -463,13 +477,13 @@ export function ShopWorkspace({
     <div onClickCapture={captureLink} className="flex flex-col gap-4 pt-5 md:pt-7">
       <form
         aria-label={t.shop.sentence.label}
-        className="flex items-center gap-2"
+        className="flex flex-wrap items-center gap-2"
         onSubmit={(event) => {
           event.preventDefault()
           if (available) input(draftValue.current, true)
         }}
       >
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-0 basis-full sm:basis-0 sm:flex-1">
           {available ? (
             <Input
               id="live-filter-input"
@@ -599,6 +613,14 @@ export function ShopWorkspace({
             />
           </>
         ) : null}
+        <Button
+          href={shopHref(search, { page: 1 }, '/shop-talk')}
+          variant="secondary"
+          icon={<MessageCircle />}
+          className="shrink-0 h-11 sm:h-10"
+        >
+          {t.shop.sentence.talk}
+        </Button>
       </form>
 
       {hint ? (

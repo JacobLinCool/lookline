@@ -1,3 +1,4 @@
+import { SHOP_REQUEST_TIMEOUT_MS } from '@/lib/shop-timeouts'
 import type {
   FilterDecision,
   KeywordExtraction,
@@ -68,7 +69,7 @@ export class TalkSearch {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.body(job)),
-        signal: AbortSignal.any([job.signal, AbortSignal.timeout(4_000)]),
+        signal: AbortSignal.any([job.signal, AbortSignal.timeout(SHOP_REQUEST_TIMEOUT_MS)]),
       })
       const decision = (await response.json()) as FilterDecision & {
         revision: number
@@ -135,7 +136,7 @@ export class TalkSearch {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(this.body(job)),
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(SHOP_REQUEST_TIMEOUT_MS)]),
       })
       const data = (await response.json()) as KeywordExtraction & {
         revision: number
@@ -184,7 +185,7 @@ export class TalkSearch {
     this.begin()
     try {
       const response = await fetch(`/api/articles/search?${key}`, {
-        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
+        signal: AbortSignal.any([controller.signal, AbortSignal.timeout(SHOP_REQUEST_TIMEOUT_MS)]),
       })
       const result = (await response.json()) as ProductSearchResult
       if (controller.signal.aborted) return
