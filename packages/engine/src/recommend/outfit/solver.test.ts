@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { RankedItem } from '../../types'
 import { product } from '../testing/fixtures'
 import { diversify, solveOutfits } from './solver'
+import { coreSlots, occasionGarments } from './templates'
+import { matchesSubcategory } from '../catalogue'
 import type { SolverPlan, SolverSlot } from './solver'
 
 let nextId = 1000
@@ -171,5 +173,44 @@ describe('diversify', () => {
     const clone = { ...base, items: [...base.items] }
     const out = diversify([base, clone], 2)
     expect(out.length).toBe(1)
+  })
+})
+
+describe('outdoor core slots', () => {
+  it('leaves jeans and skirts out of a hike', () => {
+    const bottom = coreSlots('B', 'outdoor', 'women').find((s) => s.role === 'bottom')
+    const hints = bottom?.subcategories
+    expect(hints).toBeTruthy()
+    const jeans = product({
+      id: 90001,
+      categoryGroup: 'bottoms',
+      subcategory: 'Trousers',
+      material: 'denim',
+    })
+    const skirt = product({
+      id: 90002,
+      categoryGroup: 'bottoms',
+      subcategory: 'Skirt',
+      length: 'midi',
+    })
+    const cargo = product({
+      id: 90003,
+      categoryGroup: 'bottoms',
+      subcategory: 'Trousers',
+      pocketStyle: 'cargo',
+    })
+    expect(matchesSubcategory(jeans, hints!)).toBe(false)
+    expect(matchesSubcategory(skirt, hints!)).toBe(false)
+    expect(matchesSubcategory(cargo, hints!)).toBe(true)
+  })
+
+  it('narrows a single-garment hike the same way, and only where the occasion has an opinion', () => {
+    expect(occasionGarments('hiking', ['bottoms'])).toContain('cargo-pants')
+    expect(occasionGarments('hiking', ['bottoms'])).not.toContain('jeans')
+    // A bag is not an outdoor garment, so the hint is dropped rather than narrowing bags to
+    // the trousers listed beside them.
+    expect(occasionGarments('hiking', ['bottoms', 'bags'])).toBeNull()
+    expect(occasionGarments('date', ['bottoms'])).toBeNull()
+    expect(occasionGarments(undefined, ['bottoms'])).toBeNull()
   })
 })

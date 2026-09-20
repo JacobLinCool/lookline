@@ -42,6 +42,63 @@ export interface Plan {
   slots: SlotSpec[]
 }
 
+/**
+ * Garments an occasion asks for, by group — the hard half of "what do I wear to X".
+ *
+ * A cosine over the style vector cannot carry it: the aesthetic block is 32 of 64 dimensions and
+ * `style_similarity` is one factor of eight, so 「爬山」 (gorpcore .9) still answered with denim
+ * trousers, a chiffon blouse and flip-flops. This is the same instrument the `sport` and `beach`
+ * slot templates already used — a retrieval hint, not a new scoring rule — and it costs nothing:
+ * it narrows the SQL prefilter that runs anyway, and the relaxation ladder drops it when the
+ * catalogue is too thin to answer.
+ *
+ * Only the occasions whose clothes are a matter of function are listed. Everywhere else the
+ * vector is the better judge and a missing row leaves retrieval exactly as it was. A group the
+ * row says nothing about (a bag on a hike) is not narrowed either — see `occasionGarments`.
+ */
+export const OCCASION_GARMENTS: Readonly<
+  Partial<Record<TemplateKey, Readonly<Partial<Record<CategoryGroup, readonly string[]>>>>>
+> = {
+  outdoor: {
+    tops: ['performance-tee', 'tee', 'polo-shirt', 'hoodie'],
+    bottoms: ['cargo-pants', 'joggers', 'training-tights', 'running-shorts'],
+    activewear: ['performance-tee', 'training-tights', 'running-shorts', 'joggers'],
+    outerwear: ['windbreaker', 'fleece-jacket', 'puffer-jacket', 'parka'],
+    footwear: ['hiking-boot', 'combat-boot', 'sneaker', 'running-shoe'],
+  },
+  sport: {
+    tops: ['performance-tee', 'sports-bra', 'tee'],
+    bottoms: ['training-tights', 'running-shorts', 'bike-shorts', 'joggers'],
+    activewear: ['performance-tee', 'sports-bra', 'training-tights', 'running-shorts'],
+    outerwear: ['track-jacket', 'windbreaker', 'fleece-jacket'],
+    footwear: ['sneaker', 'running-shoe'],
+  },
+  beach: {
+    footwear: ['flat-sandal', 'slide'],
+  },
+}
+
+/**
+ * Retrieval hints for a request that runs no slot template (`mode: single`, `browse`): the
+ * occasion's garments for the groups asked for, or every group it names when none were.
+ * `null` — no narrowing — whenever the occasion is silent about any one of them.
+ */
+export function occasionGarments(
+  occasion: string | null | undefined,
+  groups: readonly CategoryGroup[],
+): string[] | null {
+  const row = occasion ? OCCASION_GARMENTS[templateForOccasion(occasion)] : undefined
+  if (!row) return null
+  const wanted = groups.length > 0 ? groups : (Object.keys(row) as CategoryGroup[])
+  const out: string[] = []
+  for (const g of wanted) {
+    const hints = row[g]
+    if (!hints) return null
+    for (const s of hints) if (!out.includes(s)) out.push(s)
+  }
+  return out.length > 0 ? out : null
+}
+
 export const SLOT_SHARE_MAX: Readonly<Record<CategoryGroup, number>> = {
   dresses: 0.55,
   tailoring: 0.5,
@@ -251,8 +308,14 @@ export function coreSlots(
   }
   if (template === 'outdoor') {
     return [
-      slot('top', ['tops', 'activewear'], { core: true }),
-      slot('bottom', ['bottoms', 'activewear'], { core: true }),
+      slot('top', ['tops', 'activewear'], {
+        core: true,
+        subcategories: [...OCCASION_GARMENTS.outdoor!.tops!],
+      }),
+      slot('bottom', ['bottoms', 'activewear'], {
+        core: true,
+        subcategories: [...OCCASION_GARMENTS.outdoor!.bottoms!],
+      }),
     ]
   }
   if (template === 'beach') {
