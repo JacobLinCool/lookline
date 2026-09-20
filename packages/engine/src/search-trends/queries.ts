@@ -6,7 +6,9 @@
 import { desc, eq, homeTrend, insertAll, searchTrends, type Database } from '@lookline/db'
 import type { HomeTrend, SearchTrend } from '@lookline/db'
 import { nanoid } from 'nanoid'
-import type { RawTrend, StyleDirection } from './index'
+import { searchProducts } from '../recommend/search'
+import type { LlmClient } from '../types'
+import { fetchSearchTrends, readSearchTrends, type RawTrend, type StyleDirection } from './index'
 
 export async function replaceSearchTrends(
   db: Database,
@@ -58,4 +60,33 @@ export async function currentHomeTrend(db: Database): Promise<HomeTrend | null> 
     .orderBy(desc(homeTrend.computedAt))
     .limit(1)
   return rows[0] ?? null
+}
+
+/**
+ * The whole cycle, so a cron and an operator's button cannot drift apart: fetch today's list,
+ * store it, read it as a style, and publish the first reading the catalogue can actually fill.
+ *
+ * The catalogue is the last word. A model writes a plausible phrase whether or not anything is
+ * stocked under it, nobody vets these by hand, and an unchecked reading is an empty row on the
+ * home page — so a reading with no pieces behind it is simply not published, and the rail is
+ * absent instead of blank.
+ */
+export async function refreshSearchTrends(
+  db: Database,
+  llm: LlmClient,
+  signal?: AbortSignal,
+): Promise<(StyleDirection & { matches: number }) | null> {
+  const trends = await fetchSearchTrends('TW', signal)
+  await replaceSearchTrends(db, trends)
+  const directions = await readSearchTrends(trends, { llm, signal })
+  let published: (StyleDirection & { matches: number }) | null = null
+  for (const direction of directions) {
+    const { total } = await searchProducts(db, { q: direction.styleQuery, pageSize: 1 })
+    if (total > 0) {
+      published = { ...direction, matches: total }
+      break
+    }
+  }
+  await setHomeTrend(db, published)
+  return published
 }

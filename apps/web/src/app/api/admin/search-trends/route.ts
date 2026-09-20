@@ -2,12 +2,8 @@ import {
   ANALYZE_TIMEOUT_MS,
   createLlmClient,
   currentHomeTrend,
-  fetchSearchTrends,
   listSearchTrends,
-  readSearchTrends,
-  replaceSearchTrends,
-  searchProducts,
-  setHomeTrend,
+  refreshSearchTrends,
 } from '@lookline/engine'
 import { getMessages } from '@/i18n/server'
 import { getDb } from '@/server/db'
@@ -15,7 +11,8 @@ import { getDb } from '@/server/db'
 /**
  * `GET /api/admin/search-trends` → the current batch and the reading the home page is showing.
  * `POST` → fetch today's list, read it as a style, publish the reading. One action, no choosing:
- * the list is evidence for an operator, not a menu.
+ * the list is evidence for an operator, not a menu. The cron trigger runs the same cycle, from the
+ * same function, so a scheduled reading and a hand-pressed one can never mean different things.
  *
  * Unlike the other lab routes this one writes something every visitor sees and spends a model call
  * doing it, so it is the one place here that asks for a secret. `ADMIN_TOKEN` must be configured
@@ -64,22 +61,7 @@ export async function POST(request: Request) {
     if (llm.provider === 'offline')
       return Response.json({ error: errors.textModelMissing }, { status: 503, headers })
 
-    const trends = await fetchSearchTrends('TW', request.signal)
-    await replaceSearchTrends(db, trends)
-    const directions = await readSearchTrends(trends, { llm, signal: request.signal })
-
-    // Nobody vets these by hand, so the catalogue decides: a reading is published only if it finds
-    // pieces, and the first one that does wins. A model writes a plausible phrase whether or not
-    // anything is stocked under it, and an unchecked reading is an empty row on the home page.
-    let published: ((typeof directions)[number] & { matches: number }) | null = null
-    for (const direction of directions) {
-      const { total } = await searchProducts(db, { q: direction.styleQuery, pageSize: 1 })
-      if (total > 0) {
-        published = { ...direction, matches: total }
-        break
-      }
-    }
-    await setHomeTrend(db, published)
+    await refreshSearchTrends(db, llm, request.signal)
 
     const [rows, home] = await Promise.all([listSearchTrends(db), currentHomeTrend(db)])
     return Response.json({ trends: rows, home }, { headers })

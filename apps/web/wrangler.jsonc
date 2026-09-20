@@ -2,11 +2,14 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "lookline",
   "account_id": "b1c3d1b89f9131a84a0f1f6a973232f1",
-  "main": "vinext/server/fetch-handler",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "assets": { "directory": "dist/client", "not_found_handling": "none", "binding": "ASSETS" },
   "observability": { "enabled": true },
+  // 22:00 UTC is 06:00 in Taipei: the list is a daily one, so reading it more often re-reads the
+  // same batch. See `scheduled` in src/worker.ts.
+  "triggers": { "crons": ["0 22 * * *"] },
   // Image generation runs after the response via `after()` (waitUntil) and needs CPU headroom.
   "limits": { "cpu_ms": 60000 },
   "d1_databases": [
