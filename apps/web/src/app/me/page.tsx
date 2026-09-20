@@ -274,25 +274,29 @@ export default async function MePage({
       {/* Personas and credits: the two things the card studio needs, surfaced where a visitor
           already looks for their own things. */}
       <Section title="小卡" rule={false}>
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="text-[13px] text-muted">
-            製卡額度{' '}
-            <span className="tabular text-[15px] font-semibold text-ink">{cardCredits}</span>
-            <span className="ml-2">· {personaCount} 位 persona</span>
-          </p>
-          <div className="ml-auto flex gap-2">
-            <Button href="/me/personas" size="sm" variant="secondary">
-              管理 persona
-            </Button>
-            <Button href="/collections" size="sm" variant="secondary">
-              收藏組合
-            </Button>
-            <Button href="/studio" size="sm">
-              製卡工作室
-            </Button>
+        {/* The library's own sort control is right-aligned too, so without a gap here it sat
+            flush against the bottom edge of the studio button directly above it. */}
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[13px] text-muted">
+              製卡額度{' '}
+              <span className="tabular text-[15px] font-semibold text-ink">{cardCredits}</span>
+              <span className="ml-2">· {personaCount} 位 persona</span>
+            </p>
+            <div className="ml-auto flex gap-2">
+              <Button href="/me/personas" size="sm" variant="secondary">
+                管理 persona
+              </Button>
+              <Button href="/collections" size="sm" variant="secondary">
+                收藏組合
+              </Button>
+              <Button href="/studio" size="sm">
+                製卡工作室
+              </Button>
+            </div>
           </div>
+          {library.length > 0 ? <CardLibrary items={library} /> : null}
         </div>
-        {library.length > 0 ? <CardLibrary items={library} /> : null}
       </Section>
 
       <Section title={t.me.photo.title} rule={false}>
