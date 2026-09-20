@@ -85,3 +85,6 @@ was separately captured with 24 real product cards after the height correction.
 Audio input uses mono signed 16-bit little-endian PCM at 16 kHz; output is decoded at 24 kHz. Playback keeps a 40 ms scheduling lead to absorb packet jitter, with a 4 ms onset ramp only at a fresh stream or an underrun. Muting clears both playing and scheduled sources, and capture disconnects and closes its message port. PCM encoding, decoding, scheduling and clearing have deterministic regression tests. The reported beep has not been reproduced with live hardware; these checks do not establish its exact source.
 
 Native audio does not accept an explicit language code. The constrained system prompt defaults to Taiwan Mandarin and Traditional Chinese, with English as the secondary language, independent of interface locale.
+
+Shopping requests share a 20-second browser deadline and a 15-second Jev/keyword provider deadline
+with `/shop`. The 300 ms scheduling and 500 ms keyword quiet period are unchanged.

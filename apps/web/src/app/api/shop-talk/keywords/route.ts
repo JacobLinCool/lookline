@@ -1,4 +1,5 @@
-import { getLlm } from '@lookline/engine'
+import { SHOP_MODEL_TIMEOUT_MS } from '@/lib/shop-timeouts'
+import { createLlmClient } from '@lookline/engine'
 import { extractConversationKeywords } from '@lookline/engine/conversation'
 import { getI18n } from '@/i18n/server'
 import { liveAccess } from '@/server/live-access'
@@ -11,8 +12,9 @@ export async function POST(request: Request) {
   try {
     const { base, events, revision, epoch } = await readTalkRequest(request)
     const result = await extractConversationKeywords(base, events, {
-      llm: getLlm(),
+      llm: createLlmClient({ textTimeoutMs: SHOP_MODEL_TIMEOUT_MS }),
       signal: request.signal,
+      timeoutMs: SHOP_MODEL_TIMEOUT_MS,
     })
     if (!result) throw new Error('Keyword extraction failed')
     return Response.json({ ...result, revision, epoch }, { headers: talkHeaders })

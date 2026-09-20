@@ -170,7 +170,9 @@ navigation release audio tracks, the audio graph, timers and the socket.
 
 Both endpoints require authenticated, same-origin POSTs. Prototype limits are process-local:
 300 filter requests and six voice-token requests per user per minute, with one active request per
-capability. Jev has a 1.2-second provider deadline. These limits must become shared limits before
+capability. Shopping Jev and keyword calls have a 15-second provider deadline; browser requests for
+filters, keywords, products and facet counts have a 20-second deadline. New input still supersedes older decisions; manual edits
+cancel pending work immediately. These are failure ceilings, not latency targets. These limits must become shared limits before
 multi-instance deployment. Audio and transcripts are not persisted by Lookline; provider data
 handling remains governed by the configured service account.
 
@@ -229,3 +231,6 @@ transcript, audio-to-filter and final-to-commit latency still need representativ
 including Chinese, English, interruptions and network variability. No end-to-end speed guarantee
 is established. Broader labelled evaluation should report precision/recall, abstention, correction
 accuracy, p50/p95 latency and cost before expanding this route beyond Shop.
+
+The sentence toolbar links to `/shop-talk`, carrying the currently displayed filter conditions
+and starting at page 1. The experimental label is localized; no draft sentence is put in the URL.

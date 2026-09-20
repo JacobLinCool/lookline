@@ -14,6 +14,8 @@ export const shop = {
 
   /** The sentence field above the grid, its voice controls and the question row under it. */
   sentence: {
+    talk: 'Talk to shop · Lab',
+    timedOut: 'This request took too long. Your previous results are still here; please retry.',
     label: 'Filter by sentence',
     field: 'Describe what you are looking for',
     placeholder: 'A black or navy coat, under NT$3,000, nothing red…',

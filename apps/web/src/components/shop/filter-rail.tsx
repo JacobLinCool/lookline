@@ -1,5 +1,6 @@
 'use client'
 
+import { SHOP_REQUEST_TIMEOUT_MS } from '@/lib/shop-timeouts'
 import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Check } from 'lucide-react'
@@ -136,7 +137,7 @@ function AttributeGroup({
     if (!pending) return
     const controller = new AbortController()
     fetch(`/api/articles/facets?facet=${facet.id}&${key}`, {
-      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5_000)]),
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(SHOP_REQUEST_TIMEOUT_MS)]),
     })
       .then(async (response) => {
         const data = (await response.json()) as { values?: FacetCount[] }

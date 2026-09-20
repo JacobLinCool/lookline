@@ -7,6 +7,8 @@ export const shop: ShopMessages = {
   list: (items: readonly string[]) => items.join('、'),
 
   sentence: {
+    talk: '對話選購・實驗',
+    timedOut: '這次查詢等候較久，先前的結果仍保留，請重試。',
     label: '用一句話篩選',
     field: '說出你想找的單品',
     placeholder: '黑色或海軍藍外套，三千以內，不要紅色…',

@@ -1,3 +1,4 @@
+import { SHOP_MODEL_TIMEOUT_MS } from '@/lib/shop-timeouts'
 import { ConversationLimitError, resolveConversationFilters } from '@lookline/engine/conversation'
 import { getI18n } from '@/i18n/server'
 import { liveAccess } from '@/server/live-access'
@@ -9,7 +10,10 @@ export async function POST(request: Request) {
   const { t } = await getI18n()
   try {
     const { base, events, revision, epoch } = await readTalkRequest(request)
-    const decision = await resolveConversationFilters(base, events, { signal: request.signal })
+    const decision = await resolveConversationFilters(base, events, {
+      signal: request.signal,
+      timeoutMs: SHOP_MODEL_TIMEOUT_MS,
+    })
     return Response.json({ ...decision, revision, epoch }, { headers: talkHeaders })
   } catch (error) {
     const status =

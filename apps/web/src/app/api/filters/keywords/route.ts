@@ -1,4 +1,5 @@
-import { extractSearchKeywords, getLlm } from '@lookline/engine'
+import { SHOP_MODEL_TIMEOUT_MS } from '@/lib/shop-timeouts'
+import { extractSearchKeywords, createLlmClient } from '@lookline/engine'
 import { z } from 'zod'
 import { getMessages } from '@/i18n/server'
 import { liveAccess } from '@/server/live-access'
@@ -27,8 +28,9 @@ export async function POST(request: Request) {
     if (!parsed.success)
       return Response.json({ error: errors.invalidRequest }, { status: 400, headers })
     const extraction = await extractSearchKeywords(parsed.data.utterance, {
-      llm: getLlm(),
+      llm: createLlmClient({ textTimeoutMs: SHOP_MODEL_TIMEOUT_MS }),
       signal: request.signal,
+      timeoutMs: SHOP_MODEL_TIMEOUT_MS,
     })
     if (!extraction)
       return Response.json({ error: errors.keywordsUnavailable }, { status: 503, headers })

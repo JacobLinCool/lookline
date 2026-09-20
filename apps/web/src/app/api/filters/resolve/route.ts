@@ -1,3 +1,4 @@
+import { SHOP_MODEL_TIMEOUT_MS } from '@/lib/shop-timeouts'
 import { filterStateSchema, resolveFilters } from '@lookline/engine'
 import { z } from 'zod'
 import { getMessages } from '@/i18n/server'
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
     if (!parsed.success) return Response.json({ error: errors.invalidRequest }, { status: 400 })
     const decision = await resolveFilters(parsed.data.utterance, parsed.data.base, {
       signal: request.signal,
+      timeoutMs: SHOP_MODEL_TIMEOUT_MS,
     })
     return Response.json(
       { ...decision, revision: parsed.data.revision },
