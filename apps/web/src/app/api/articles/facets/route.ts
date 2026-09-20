@@ -27,7 +27,11 @@ export async function GET(req: Request): Promise<Response> {
   const query = parseProductSearch(raw)
   try {
     const values = await countFacet(getDb().db, query, facet.id)
-    return Response.json({ facet: facet.id, values }, { headers: { 'Cache-Control': 'no-store' } })
+    // A facet's counts are the catalogue's own, not the reader's: cacheable like the search.
+    return Response.json(
+      { facet: facet.id, values },
+      { headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=300' } },
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.warn('[api/articles/facets] countFacet failed', message)
